@@ -5,5 +5,17 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // use vite-bundle-visualizer to find good candidates for manual chunks:
+          dagrejs: ["@dagrejs/dagre"],
+          "react-dom": ["react-dom"],
+          reactflow: ["reactflow"],
+        },
+      },
+    },
+  },
   plugins: [react(), TanStackRouterVite(), tsconfigPaths()],
 });
