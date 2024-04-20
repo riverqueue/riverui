@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -20,19 +21,24 @@ import (
 	"github.com/riverqueue/riverui/ui"
 )
 
+var logger *slog.Logger
+
 func main() {
 	ctx := context.Background()
 	godotenv.Load()
+	logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
+	corsOriginString := os.Getenv("CORS_ORIGINS")
+	corsOrigins := strings.Split(corsOriginString, ",")
+	dbURL := mustEnv("DATABASE_URL")
 	otelEnabled := os.Getenv("OTEL_ENABLED") == "true"
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	frontendIndex, err := fs.Sub(ui.Index, "dist")
 	if err != nil {
 		panic(err)
 	}
 
-	dbPool, err := getDBPool(ctx)
+	dbPool, err := getDBPool(ctx, dbURL)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -40,7 +46,7 @@ func main() {
 
 	corsHandler := cors.New(cors.Options{
 		AllowedMethods: []string{"GET", "HEAD", "POST", "PUT"},
-		AllowedOrigins: []string{"http://localhost:5173"},
+		AllowedOrigins: corsOrigins,
 	})
 
 	client, err := river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
@@ -83,8 +89,8 @@ func main() {
 	}
 }
 
-func getDBPool(ctx context.Context) (*pgxpool.Pool, error) {
-	poolConfig, err := pgxpool.ParseConfig("postgres://postgres:postgres@localhost:5432/riverdemo_dev")
+func getDBPool(ctx context.Context, dbURL string) (*pgxpool.Pool, error) {
+	poolConfig, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing db config: %w", err)
 	}
@@ -94,4 +100,13 @@ func getDBPool(ctx context.Context) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("error connecting to db: %w", err)
 	}
 	return dbPool, nil
+}
+
+func mustEnv(name string) string {
+	val := os.Getenv(name)
+	if val == "" {
+		logger.Error("missing required env var", slog.String("name", name))
+		os.Exit(1)
+	}
+	return val
 }
