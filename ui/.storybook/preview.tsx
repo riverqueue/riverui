@@ -1,4 +1,3 @@
-import React from "react";
 import type { Preview } from "@storybook/react";
 import { ThemeProvider } from "next-themes";
 import { ReactRenderer } from "@storybook/react";

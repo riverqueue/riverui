@@ -3,21 +3,6 @@ import type { MutationFunction, QueryFunction } from "@tanstack/react-query";
 import type { SnakeToCamelCase, StringEndingWithUnderscoreAt } from "./types";
 import { API } from "@utils/api";
 
-// Represents AttemptError as received from the API. This just like AttemptError,
-// except with keys as snake_case instead of camelCase.
-type AttemptErrorFromAPI = {
-  at: string;
-  error: string;
-  num: number;
-  trace: string;
-};
-
-export type AttemptError = {
-  [Key in keyof AttemptErrorFromAPI as SnakeToCamelCase<Key>]: Key extends `at`
-    ? Date
-    : AttemptErrorFromAPI[Key];
-};
-
 // Represents a Queue as received from the API. This just like Queue, except with
 // string dates instead of Date objects and keys as snake_case instead of
 // camelCase.
@@ -36,8 +21,6 @@ export type Queue = {
     | StringEndingWithUnderscoreAt
     | undefined
     ? Date
-    : QueueFromAPI[Key] extends AttemptErrorFromAPI[]
-    ? AttemptError[]
     : QueueFromAPI[Key];
 };
 

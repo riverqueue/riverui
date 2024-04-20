@@ -1,7 +1,7 @@
 import { Factory } from "fishery";
 import { faker } from "@faker-js/faker";
 
-import { Job } from "@services/jobs";
+import { AttemptError, Job } from "@services/jobs";
 import { JobState } from "@services/types";
 import { add, sub } from "date-fns";
 

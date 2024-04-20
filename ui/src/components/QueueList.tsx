@@ -81,7 +81,7 @@ const QueueList = ({
                 </th>
                 <th
                   scope="col"
-                  className="px-3 py-3.5 text-left text-sm font-semibold text-slate-900 dark:text-slate-100 table-cell"
+                  className="table-cell px-3 py-3.5 text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
                 >
                   Status
                 </th>
@@ -120,20 +120,20 @@ const QueueList = ({
                       </dd>
                     </dl>
                   </td>
-                  <td className="hidden px-3 py-4 text-sm text-right text-slate-500 dark:text-slate-400 md:table-cell">
+                  <td className="hidden px-3 py-4 text-right text-sm text-slate-500 dark:text-slate-400 md:table-cell">
                     <RelativeTimeFormatter
                       time={queue.createdAt}
                       addSuffix
                       includeSeconds
                     />
                   </td>
-                  <td className="hidden px-3 py-4 text-sm text-right text-slate-500 dark:text-slate-400 sm:table-cell">
+                  <td className="hidden px-3 py-4 text-right text-sm text-slate-500 dark:text-slate-400 sm:table-cell">
                     {queue.countAvailable}
                   </td>
-                  <td className="hidden px-3 py-4 text-sm text-right text-slate-500 dark:text-slate-400 sm:table-cell">
+                  <td className="hidden px-3 py-4 text-right text-sm text-slate-500 dark:text-slate-400 sm:table-cell">
                     {queue.countRunning}
                   </td>
-                  <td className="px-3 py-4 text-sm text-slate-500 dark:text-slate-400 table-cell">
+                  <td className="table-cell px-3 py-4 text-sm text-slate-500 dark:text-slate-400">
                     {queue.pausedAt ? "Paused" : "Active"}
                   </td>
                   <td className="py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">

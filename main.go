@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"net/http"
 
@@ -12,10 +13,16 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/riverui/internal/db"
+	"github.com/riverqueue/riverui/ui"
 )
 
 func main() {
 	ctx := context.Background()
+
+	frontendIndex, err := fs.Sub(ui.Index, "dist")
+	if err != nil {
+		panic(err)
+	}
 
 	dbPool, err := getDBPool(ctx)
 	if err != nil {
@@ -45,6 +52,8 @@ func main() {
 	mux.HandleFunc("PUT /api/queues/{name}/resume", handler.QueueResume)
 	mux.HandleFunc("GET /api/workflows/{id}", handler.WorkflowGet)
 	mux.HandleFunc("GET /api/states", handler.StatesAndCounts)
+	mux.HandleFunc("/api", http.NotFound)
+	mux.Handle("/", http.FileServer(http.FS(frontendIndex)))
 
 	srv := &http.Server{
 		Addr:    ":8080",
