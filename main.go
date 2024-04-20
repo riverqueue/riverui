@@ -5,10 +5,14 @@ import (
 	"fmt"
 	"io/fs"
 	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/joho/godotenv"
 	"github.com/rs/cors"
+	sloghttp "github.com/samber/slog-http"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
@@ -18,6 +22,10 @@ import (
 
 func main() {
 	ctx := context.Background()
+	godotenv.Load()
+
+	otelEnabled := os.Getenv("OTEL_ENABLED") == "true"
+	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
 	frontendIndex, err := fs.Sub(ui.Index, "dist")
 	if err != nil {
@@ -55,9 +63,16 @@ func main() {
 	mux.HandleFunc("/api", http.NotFound)
 	mux.Handle("/", http.FileServer(http.FS(frontendIndex)))
 
+	logHandler := sloghttp.Recovery(mux)
+	config := sloghttp.Config{
+		WithSpanID:  otelEnabled,
+		WithTraceID: otelEnabled,
+	}
+	wrappedHandler := sloghttp.NewWithConfig(logger, config)(corsHandler.Handler(logHandler))
+
 	srv := &http.Server{
 		Addr:    ":8080",
-		Handler: corsHandler.Handler(mux),
+		Handler: wrappedHandler,
 	}
 
 	log.Printf("starting server on %s", srv.Addr)
