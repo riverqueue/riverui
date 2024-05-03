@@ -235,21 +235,14 @@ func (a *apiHandler) QueueList(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	offsetString := req.Form.Get("offset")
-	offset, err := strconv.ParseInt(offsetString, 10, 64)
-	if err != nil {
-		http.Error(rw, fmt.Sprintf("invalid offset: %s", err), http.StatusBadRequest)
-		return
-	}
-
-	queues, err := a.client.QueueList(ctx, int(limit), int(offset))
+	result, err := a.client.QueueList(ctx, river.NewQueueListParams().First(int(limit)))
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	queueNames := make([]string, len(queues))
-	for i, queue := range queues {
+	queueNames := make([]string, len(result.Queues))
+	for i, queue := range result.Queues {
 		queueNames[i] = queue.Name
 	}
 
@@ -259,7 +252,7 @@ func (a *apiHandler) QueueList(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if err = json.NewEncoder(rw).Encode(riverQueuesToSerializableQueues(queues, countRows)); err != nil {
+	if err = json.NewEncoder(rw).Encode(riverQueuesToSerializableQueues(result.Queues, countRows)); err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
