@@ -17,7 +17,6 @@ RUN go mod download
 # Copy Go files without copying the ui dir:
 COPY *.go ./
 COPY internal/ internal/
-RUN ls -la 
 COPY ui/*.go ./ui/
 COPY --from=build-ui /app/dist ./ui/dist
 
