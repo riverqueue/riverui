@@ -4,10 +4,12 @@ go 1.22
 
 require (
 	github.com/jackc/pgx/v5 v5.5.5
-	github.com/riverqueue/river v0.3.0
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.3.0
-	github.com/riverqueue/river/rivertype v0.3.0
+	github.com/joho/godotenv v1.5.1
+	github.com/riverqueue/river v0.4.2-0.20240502213604-597f6384ac36
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.4.2-0.20240502213604-597f6384ac36
+	github.com/riverqueue/river/rivertype v0.4.2-0.20240502213604-597f6384ac36
 	github.com/rs/cors v1.10.0
+	github.com/samber/slog-http v1.0.0
 )
 
 require (
@@ -15,10 +17,8 @@ require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20231201235250-de7065d80cb9 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
-	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/lib/pq v1.10.9 // indirect
-	github.com/riverqueue/river/riverdriver v0.3.0 // indirect
-	github.com/samber/slog-http v1.0.0 // indirect
+	github.com/riverqueue/river/riverdriver v0.4.2-0.20240502213604-597f6384ac36 // indirect
 	go.opentelemetry.io/otel v1.19.0 // indirect
 	go.opentelemetry.io/otel/trace v1.19.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect

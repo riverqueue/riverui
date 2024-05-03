@@ -1,0 +1,198 @@
+name: CI
+
+env:
+  # Database to connect to that can create other databases with `CREATE DATABASE`.
+  ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432
+
+  # A suitable URL for the test database.
+  DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/riverui_dev?sslmode=disable
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  go_build_and_test:
+    name: Go build and test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version:
+          - "1.22"
+        postgres-version: [16, 15]
+      fail-fast: false
+    timeout-minutes: 5
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgres-version }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Go ${{ matrix.go-version }}
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Display Go version
+        run: go version
+
+      - name: Install dependencies
+        run: |
+          echo "::group::go get"
+          go get -t ./...
+          echo "::endgroup::"
+
+      - name: Install River CLI
+        run: go install github.com/riverqueue/river/cmd/river@latest
+
+      - name: Create test DB
+        run: createdb riverui_dev
+        env:
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGPASSWORD: postgres
+
+      - name: Migrate test DB
+        run: river migrate-up --database-url "$DATABASE_URL"
+
+      # ensure that there is a file in `ui/dist` to prevent a lint error about
+      # it during CI when there is nothing there:
+      - name: touch file in ui/dist
+        run: mkdir -p ui/dist && touch ui/dist/keepfile.txt
+
+      - name: Test
+        working-directory: .
+        run: go test  -race ./... -timeout 2m
+
+  golangci:
+    name: Go lint
+    runs-on: ubuntu-latest
+    env:
+      GOLANGCI_LINT_VERSION: v1.56
+    permissions:
+      contents: read
+      # allow read access to pull request. Use with `only-new-issues` option.
+      pull-requests: read
+
+    steps:
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "stable"
+          check-latest: true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ensure that there is a file in `ui/dist` to prevent a lint error about
+      # it during CI when there is nothing there:
+      - name: touch file in ui/dist
+        run: mkdir -p ui/dist && touch ui/dist/keepfile.txt
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          # golangci-lint needs to be run separately for every Go module, and
+          # its GitHub Action doesn't provide any way to do that. Have it fetch
+          # the golangci-lint binary, trick it into not running by sending only
+          # `--help`, then run the full set of lints below. DO NOT run separate
+          # modules as separate golangci-lint-action steps. Its post run caching
+          # can be extremely slow, and that's amplified in a very painful way if
+          # it needs to be run multiple times.
+          args: --help
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+      - name: Run lint
+        run: make lint
+
+  sqlc_generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    name: sqlc generate
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup sqlc
+        uses: sqlc-dev/setup-sqlc@v4
+        with:
+          sqlc-version: "1.25.0"
+
+      - name: Run sqlc diff
+        run: |
+          echo "Please make sure that all sqlc changes are checked in!"
+          make verify
+
+  # js_build_and_test:
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 5
+
+  #   env:
+  #     NODE_ENV: test
+
+  #   permissions:
+  #     contents: read
+
+  js_lint:
+    name: JS Lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version:
+          - "20.12.2"
+      fail-fast: false
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: ui
+
+    env:
+      NODE_ENV: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm install
+        shell: sh
+
+      - name: Cache ESLint
+        id: cache-eslint
+        uses: actions/cache@v4
+        with:
+          path: ui/.eslintcache
+          key: eslint-v1-${{ runner.os }}-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            eslint-v1-${{ runner.os }}-${{ matrix.node-version }}-
+
+      - name: Run ESLint ✨
+        run: npm run lint
+
+      - name: Run TSC 🔧
+        run: npm exec tsc
+        # Check tsc compilation even if there were linting issues:
+        if: always()
+
+      - name: Build 🏗️
+        run: npm exec vite build

@@ -3,16 +3,6 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "fmt": "eslint . --fix --report-unused-disable-directives --max-warnings 0",
-    "lint": "eslint . --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
-    "test": "vitest",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
-  },
   "dependencies": {
     "@dagrejs/dagre": "^1.0.4",
     "@headlessui/react": "^1.7.17",
@@ -66,5 +56,15 @@
     "vite": "^5.0.4",
     "vite-tsconfig-paths": "^4.2.1",
     "vitest": "^1.2.2"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "fmt": "eslint --cache --fix --report-unused-disable-directives --max-warnings 0 .",
+    "lint": "eslint --cache --report-unused-disable-directives --max-warnings 0 .",
+    "preview": "vite preview",
+    "test": "vitest",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
   }
 }
