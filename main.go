@@ -55,6 +55,9 @@ func initAndServe(ctx context.Context) int {
 		logger.ErrorContext(ctx, "error getting frontend index", slog.String("error", err.Error()))
 		return 1
 	}
+	httpFS := http.FS(frontendIndex)
+	fileServer := http.FileServer(httpFS)
+	serveIndex := serveFileContents("index.html", httpFS)
 
 	dbPool, err := getDBPool(ctx, dbURL)
 	if err != nil {
@@ -87,7 +90,7 @@ func initAndServe(ctx context.Context) int {
 	mux.HandleFunc("GET /api/workflows/{id}", handler.WorkflowGet)
 	mux.HandleFunc("GET /api/states", handler.StatesAndCounts)
 	mux.HandleFunc("/api", http.NotFound)
-	mux.Handle("/", http.FileServer(http.FS(frontendIndex)))
+	mux.Handle("/", intercept404(fileServer, serveIndex))
 
 	logHandler := sloghttp.Recovery(mux)
 	config := sloghttp.Config{
