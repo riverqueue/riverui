@@ -45,6 +45,10 @@ func initAndServe(ctx context.Context) int {
 	corsOrigins := strings.Split(corsOriginString, ",")
 	dbURL := mustEnv("DATABASE_URL")
 	otelEnabled := os.Getenv("OTEL_ENABLED") == "true"
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
 	frontendIndex, err := fs.Sub(ui.Index, "dist")
 	if err != nil {
@@ -93,7 +97,7 @@ func initAndServe(ctx context.Context) int {
 	wrappedHandler := sloghttp.NewWithConfig(logger, config)(corsHandler.Handler(logHandler))
 
 	srv := &http.Server{
-		Addr:              ":8080",
+		Addr:              ":" + port,
 		Handler:           wrappedHandler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
