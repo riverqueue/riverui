@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -21,12 +23,21 @@ import (
 	"github.com/riverqueue/riverui/ui"
 )
 
-var logger *slog.Logger
+var logger *slog.Logger //nolint:gochecknoglobals
 
 func main() {
 	ctx := context.Background()
-	godotenv.Load()
+	if err := godotenv.Load(); err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	os.Exit(initAndServe(ctx))
+}
+
+func initAndServe(ctx context.Context) int {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	corsOriginString := os.Getenv("CORS_ORIGINS")
 	corsOrigins := strings.Split(corsOriginString, ",")
@@ -35,12 +46,14 @@ func main() {
 
 	frontendIndex, err := fs.Sub(ui.Index, "dist")
 	if err != nil {
-		panic(err)
+		logger.ErrorContext(ctx, "error getting frontend index", slog.String("error", err.Error()))
+		return 1
 	}
 
 	dbPool, err := getDBPool(ctx, dbURL)
 	if err != nil {
-		log.Fatal(err)
+		logger.ErrorContext(ctx, "error connecting to db", slog.String("error", err.Error()))
+		return 1
 	}
 	defer dbPool.Close()
 
@@ -51,7 +64,8 @@ func main() {
 
 	client, err := river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
 	if err != nil {
-		log.Fatal(err)
+		logger.ErrorContext(ctx, "error creating river client", slog.String("error", err.Error()))
+		return 1
 	}
 	handler := &apiHandler{client: client, dbPool: dbPool, queries: db.New(dbPool)}
 
@@ -77,16 +91,19 @@ func main() {
 	wrappedHandler := sloghttp.NewWithConfig(logger, config)(corsHandler.Handler(logHandler))
 
 	srv := &http.Server{
-		Addr:    ":8080",
-		Handler: wrappedHandler,
+		Addr:              ":8080",
+		Handler:           wrappedHandler,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	log.Printf("starting server on %s", srv.Addr)
 
-	err = srv.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		log.Fatal(err)
+	if err = srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
+		logger.ErrorContext(ctx, "error from ListenAndServe", slog.String("error", err.Error()))
+		return 1
 	}
+
+	return 0
 }
 
 func getDBPool(ctx context.Context, dbURL string) (*pgxpool.Pool, error) {

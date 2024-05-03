@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
@@ -14,7 +16,6 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
-
 	"github.com/riverqueue/riverui/internal/db"
 )
 
@@ -49,7 +50,7 @@ func (a *apiHandler) JobCancel(rw http.ResponseWriter, req *http.Request) {
 		for _, jobID := range jobIDs {
 			job, err := a.client.JobCancelTx(ctx, tx, jobID)
 			if err != nil {
-				if err == river.ErrNotFound {
+				if errors.Is(err, river.ErrNotFound) {
 					fmt.Printf("job %d not found\n", jobID)
 				}
 				return err
@@ -63,7 +64,13 @@ func (a *apiHandler) JobCancel(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// TODO: return jobs in response, use in frontend instead of invalidating
-	rw.Write([]byte("{\"status\": \"ok\"}"))
+	writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+}
+
+func writeResponse(ctx context.Context, rw http.ResponseWriter, data []byte) {
+	if _, err := rw.Write(data); err != nil {
+		logger.ErrorContext(ctx, "error writing response", slog.String("error", err.Error()))
+	}
 }
 
 func stringIDsToInt64s(strs []string) ([]int64, error) {
@@ -71,7 +78,7 @@ func stringIDsToInt64s(strs []string) ([]int64, error) {
 	for i, str := range strs {
 		intVal, err := strconv.ParseInt(str, 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("invalid job id: %s", err)
+			return nil, fmt.Errorf("invalid job id: %w", err)
 		}
 		ints[i] = intVal
 	}
@@ -100,7 +107,7 @@ func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
 	if err := pgx.BeginFunc(ctx, a.dbPool, func(tx pgx.Tx) error {
 		for _, jobID := range jobIDs {
 			if _, err := a.client.JobRetryTx(ctx, tx, jobID); err != nil {
-				if err == river.ErrNotFound {
+				if errors.Is(err, river.ErrNotFound) {
 					fmt.Printf("job %d not found\n", jobID)
 				}
 				return err
@@ -112,7 +119,7 @@ func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	rw.Write([]byte("{\"status\": \"ok\"}"))
+	writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
 func (a *apiHandler) JobGet(rw http.ResponseWriter, req *http.Request) {
@@ -132,7 +139,7 @@ func (a *apiHandler) JobGet(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	job, err := a.client.JobGet(ctx, jobID)
-	if err == river.ErrNotFound {
+	if errors.Is(err, river.ErrNotFound) {
 		http.Error(rw, "{\"error\": {\"msg\": \"job not found\"}}", http.StatusNotFound)
 		return
 	}
@@ -164,7 +171,7 @@ func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
 		params = params.States(rivertype.JobStateRunning).OrderBy(river.JobListOrderByTime, river.SortOrderAsc)
 	case rivertype.JobStateCancelled, rivertype.JobStateCompleted, rivertype.JobStateDiscarded:
 		params = params.States(state).OrderBy(river.JobListOrderByTime, river.SortOrderDesc)
-	case rivertype.JobStateAvailable, rivertype.JobStateRetryable, rivertype.JobStateRunning, rivertype.JobStateScheduled:
+	case rivertype.JobStateAvailable, rivertype.JobStateRetryable, rivertype.JobStatePending, rivertype.JobStateRunning, rivertype.JobStateScheduled:
 		params = params.States(state)
 	default:
 		http.Error(rw, "invalid state", http.StatusBadRequest)
@@ -194,7 +201,7 @@ func (a *apiHandler) QueueGet(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	queue, err := a.client.QueueGet(ctx, name)
-	if err == river.ErrNotFound {
+	if errors.Is(err, river.ErrNotFound) {
 		http.Error(rw, "{\"error\": {\"msg\": \"queue not found\"}}", http.StatusNotFound)
 		return
 	}
@@ -269,7 +276,7 @@ func (a *apiHandler) QueuePause(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := a.client.QueuePause(ctx, queue, nil); err != nil {
-		if err == river.ErrNotFound {
+		if errors.Is(err, river.ErrNotFound) {
 			http.Error(rw, "{\"error\": {\"msg\": \"queue not found\"}}", http.StatusNotFound)
 			return
 		}
@@ -277,7 +284,7 @@ func (a *apiHandler) QueuePause(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	rw.Write([]byte("{\"status\": \"ok\"}"))
+	writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
 func (a *apiHandler) QueueResume(rw http.ResponseWriter, req *http.Request) {
@@ -291,7 +298,7 @@ func (a *apiHandler) QueueResume(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := a.client.QueueResume(ctx, queue, nil); err != nil {
-		if err == river.ErrNotFound {
+		if errors.Is(err, river.ErrNotFound) {
 			http.Error(rw, "{\"error\": {\"msg\": \"queue not found\"}}", http.StatusNotFound)
 			return
 		}
@@ -299,7 +306,7 @@ func (a *apiHandler) QueueResume(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	rw.Write([]byte("{\"status\": \"ok\"}"))
+	writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
 func (a *apiHandler) StatesAndCounts(rw http.ResponseWriter, req *http.Request) {
