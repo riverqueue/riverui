@@ -1,3 +1,4 @@
+.env
 .env.*
 ui/.env.*
 ui/dist
