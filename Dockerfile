@@ -5,7 +5,10 @@ COPY ui/package.json ui/package-lock.json ./
 RUN npm install
 ENV NODE_ENV=production
 COPY ui/ .
-RUN npm run build
+# TODO: this is a Render-specific build-time env var hack and isn't suitable for
+# a published Dockerfile:
+RUN --mount=type=secret,id=_env,dst=/app/.env \
+  npm exec vite build
 
 # Build the Go binary, including embedded UI files:
 FROM golang:1.22.2-alpine AS build-go
