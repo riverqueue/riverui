@@ -18,10 +18,20 @@ type Story = StoryObj<typeof meta>;
 
 export const LoggedIn: Story = {
   args: {
+    onLogin: () => {},
+    onLogout: () => {},
+    onCreateAccount: () => {},
     user: {
       name: 'Jane Doe',
     },
   },
 };
 
-export const LoggedOut: Story = {};
+export const LoggedOut: Story = {
+  args: {
+    onCreateAccount: () => {},
+    onLogin: () => {},
+    onLogout: () => {},
+    user: undefined,
+  },
+};
