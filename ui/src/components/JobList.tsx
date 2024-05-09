@@ -127,12 +127,24 @@ const JobListItem = ({ job }: JobListItemProps) => (
 );
 
 type JobListProps = {
+  canShowFewer: boolean;
+  canShowMore: boolean;
   loading?: boolean;
   jobs: Job[];
+  showFewer: () => void;
+  showMore: () => void;
   statesAndCounts: StatesAndCounts | undefined;
 };
 
-const JobList = ({ jobs, loading, statesAndCounts }: JobListProps) => {
+const JobList = ({
+  canShowFewer,
+  canShowMore,
+  jobs,
+  loading,
+  showFewer,
+  showMore,
+  statesAndCounts,
+}: JobListProps) => {
   return (
     <div className="h-full lg:pl-72">
       <TopNav>
@@ -170,6 +182,27 @@ const JobList = ({ jobs, loading, statesAndCounts }: JobListProps) => {
               <JobListItem key={job.id.toString()} job={job} />
             ))}
           </ul>
+          <nav
+            className="flex items-center justify-center border-t border-black/5 py-3 dark:border-white/5"
+            aria-label="Pagination"
+          >
+            <button
+              className={classNames(
+                "relative inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 ring-1 ring-inset ring-slate-300 dark:ring-slate-700 hover:bg-slate-50 hover:dark:bg-slate-800 focus-visible:outline-offset-0"
+              )}
+              disabled={!canShowFewer}
+              onClick={() => showFewer()}
+            >
+              Fewer
+            </button>
+            <button
+              className="relative ml-3 inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-offset-0 dark:text-slate-100 dark:ring-slate-700 hover:dark:bg-slate-800"
+              disabled={!canShowMore}
+              onClick={() => showMore()}
+            >
+              More
+            </button>
+          </nav>
         </div>
       )}
     </div>

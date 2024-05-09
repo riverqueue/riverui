@@ -56,8 +56,8 @@ export type Job = {
     | undefined
     ? Date
     : JobFromAPI[Key] extends AttemptErrorFromAPI[]
-    ? AttemptError[]
-    : JobFromAPI[Key];
+      ? AttemptError[]
+      : JobFromAPI[Key];
 };
 
 export type JobWithKnownMetadata = Job & {
@@ -107,6 +107,7 @@ export const cancelJobs: MutationFunction<void, CancelPayload> = async ({
 };
 
 type ListJobsFilters = {
+  limit?: number;
   state?: JobState;
 };
 
@@ -121,7 +122,10 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   signal,
 }) => {
   const [, searchParams] = queryKey;
-  const query = new URLSearchParams(searchParams);
+  const searchParamsStringValues = Object.fromEntries(
+    Object.entries(searchParams).map(([k, v]) => [k, String(v)])
+  );
+  const query = new URLSearchParams(searchParamsStringValues);
 
   return API.get<JobFromAPI[]>({ path: "/jobs", query }, { signal }).then(
     // Map from JobFromAPI to Job:
