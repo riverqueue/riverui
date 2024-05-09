@@ -163,7 +163,12 @@ func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	params := river.NewJobListParams().First(20)
+	limit, err := limitFromReq(req, 20)
+	if err != nil {
+		http.Error(rw, fmt.Sprintf("invalid limit: %s", err), http.StatusBadRequest)
+		return
+	}
+	params := river.NewJobListParams().First(limit)
 
 	state := rivertype.JobState(req.Form.Get("state"))
 	switch state {
@@ -401,6 +406,21 @@ func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func limitFromReq(req *http.Request, defaultLimit int) (int, error) {
+	limitString := req.Form.Get("limit")
+	if limitString == "" {
+		return defaultLimit, nil
+	}
+	limit, err := strconv.ParseInt(limitString, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+	if limit > 1000 {
+		return 1000, nil
+	}
+	return int(limit), nil
 }
 
 type RiverJob struct {
