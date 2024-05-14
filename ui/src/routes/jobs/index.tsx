@@ -14,6 +14,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { countsByState, countsByStateKey } from "@services/states";
 
 const minimumLimit = 20;
+const defaultLimit = 20;
 const maximumLimit = 200;
 
 const jobSearchSchema = z.object({
@@ -22,15 +23,17 @@ const jobSearchSchema = z.object({
     .int()
     .min(minimumLimit)
     .max(maximumLimit)
-    .default(minimumLimit)
-    .catch(minimumLimit)
+    .default(defaultLimit)
+    .catch(defaultLimit)
     .optional(),
   state: z.nativeEnum(JobState).catch(JobState.Running).optional(),
 });
 
 export const Route = createFileRoute("/jobs/")({
   validateSearch: jobSearchSchema,
-  loaderDeps: ({ search: { limit, state } }) => ({ limit, state }),
+  loaderDeps: ({ search: { limit, state } }) => {
+    return { limit: limit || minimumLimit, state };
+  },
   loader: async ({ context: { queryClient }, deps: { limit, state } }) => {
     // TODO: how to pass abortController.signal into ensureQueryData or queryOptions?
     // signal: abortController.signal,
@@ -45,8 +48,7 @@ export const Route = createFileRoute("/jobs/")({
 
 function JobsIndexComponent() {
   const navigate = Route.useNavigate();
-  const { limit: limitParam } = Route.useSearch();
-  const limit = limitParam || minimumLimit;
+  const { limit } = Route.useLoaderDeps();
   const refreshSettings = useRefreshSetting();
   const refetchInterval = !refreshSettings.disabled
     ? refreshSettings.intervalMs
@@ -61,9 +63,12 @@ function JobsIndexComponent() {
   const canShowMore = limit < maximumLimit;
 
   const showFewer = () => {
+    const newLimitCalculated = Math.max(limit - 20, minimumLimit);
+    const newLimit =
+      newLimitCalculated === defaultLimit ? undefined : newLimitCalculated;
     navigate({
       replace: true,
-      search: (old) => ({ ...old, limit: Math.max(limit - 20, minimumLimit) }),
+      search: (old) => ({ ...old, limit: newLimit }),
     });
   };
   const showMore = () => {

@@ -1,5 +1,7 @@
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { QueryClient } from "@tanstack/react-query";
+import { ReactElement } from "react";
+import { Providers } from "@providers";
 
 import "./global-type-overrides";
 
@@ -11,7 +13,7 @@ import { routeTree } from "./routeTree.gen";
 const queryClient = new QueryClient();
 
 // Create a new router instance
-const router = createRouter({ routeTree, context: { queryClient } });
+const router = createRouter({ context: { queryClient }, routeTree });
 
 // Register your router for maximum type safety
 declare module "@tanstack/react-router" {
@@ -19,9 +21,6 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
-
-import { ReactElement } from "react";
-import { Providers } from "@providers";
 
 export const App = (): ReactElement => {
   return (

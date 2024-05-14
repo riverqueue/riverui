@@ -37,7 +37,7 @@ const navigation = [
     icon: QueueListIcon,
     search: { state: JobState.Running },
   },
-  { name: "Queues", href: "queues", icon: InboxStackIcon },
+  { name: "Queues", href: "/queues", icon: InboxStackIcon },
   { name: "Workflows", href: "#", icon: RectangleGroupIcon },
 ];
 
