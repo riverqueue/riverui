@@ -12,6 +12,7 @@ import JobTimeline from "./JobTimeline";
 import { FormEvent } from "react";
 import { Link } from "@tanstack/react-router";
 import TopNavTitleOnly from "./TopNavTitleOnly";
+import RelativeTimeFormatter from "./RelativeTimeFormatter";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -181,7 +182,7 @@ export default function JobDetail({ cancel, job, retry }: JobDetailProps) {
                   Created
                 </dt>
                 <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
-                  {job.createdAt.toISOString()}
+                  <RelativeTimeFormatter time={job.createdAt} addSuffix />
                 </dd>
               </div>
             </dl>
