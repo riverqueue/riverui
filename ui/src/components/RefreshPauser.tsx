@@ -9,6 +9,7 @@ export function RefreshPauser(_props: React.ComponentPropsWithoutRef<"div">) {
       type="button"
       className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
       onClick={() => setDisabled(!disabled)}
+      title={disabled ? "Resume live updates" : "Pause live updates"}
     >
       <span className="sr-only">
         {disabled ? "Resume live updates" : "Pause live updates"}
