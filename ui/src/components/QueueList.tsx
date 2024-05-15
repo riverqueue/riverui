@@ -1,33 +1,8 @@
-import { useMemo } from "react";
-
-import { formatRelative } from "@utils/time";
-import { useTime } from "react-time-sync";
 import { Queue } from "@services/queues";
 import { PauseCircleIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
 import { Link } from "@tanstack/react-router";
-import TopNavTitleOnly from "./TopNavTitleOnly";
-
-type RelativeTimeFormatterProps = {
-  addSuffix?: boolean;
-  includeSeconds?: boolean;
-  humanize?: boolean;
-  time: Date;
-};
-
-const RelativeTimeFormatter = ({
-  addSuffix,
-  includeSeconds,
-  humanize = false,
-  time,
-}: RelativeTimeFormatterProps): string => {
-  const nowSec = useTime();
-  const relative = useMemo(() => {
-    const now = new Date(nowSec * 1000);
-    return formatRelative(time, { addSuffix, includeSeconds, humanize, now });
-  }, [addSuffix, includeSeconds, humanize, nowSec, time]);
-
-  return relative;
-};
+import TopNavTitleOnly from "@components/TopNavTitleOnly";
+import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 
 type QueueListProps = {
   loading: boolean;

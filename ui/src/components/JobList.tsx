@@ -1,14 +1,13 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { Link } from "@tanstack/react-router";
-import { useTime } from "react-time-sync";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 
 import { Job } from "@services/jobs";
 import { JobState } from "@services/types";
 import { classNames } from "@utils/style";
-import { formatRelative } from "@utils/time";
 import { StatesAndCounts } from "@services/states";
 import { JobFilters } from "@components/JobFilters";
+import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNav from "@components/TopNav";
 
 const states: { [key in JobState]: string } = {
@@ -25,28 +24,6 @@ const states: { [key in JobState]: string } = {
 const queueStates = {
   Active: "text-gray-400 bg-gray-400/10 ring-gray-400/20",
   Paused: "text-amber-400 bg-amber-400/10 ring-amber-400/30",
-};
-
-type RelativeTimeFormatterProps = {
-  addSuffix?: boolean;
-  includeSeconds?: boolean;
-  humanize?: boolean;
-  time: Date;
-};
-
-const RelativeTimeFormatter = ({
-  addSuffix,
-  includeSeconds,
-  humanize = false,
-  time,
-}: RelativeTimeFormatterProps): string => {
-  const nowSec = useTime();
-  const relative = useMemo(() => {
-    const now = new Date(nowSec * 1000);
-    return formatRelative(time, { addSuffix, includeSeconds, humanize, now });
-  }, [addSuffix, includeSeconds, humanize, nowSec, time]);
-
-  return relative;
 };
 
 const timestampForRelativeDisplay = (job: Job): Date => {
