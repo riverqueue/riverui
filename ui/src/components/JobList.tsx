@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { useTime } from "react-time-sync";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
@@ -126,6 +126,80 @@ const JobListItem = ({ job }: JobListItemProps) => (
   </li>
 );
 
+type EmptySetIconProps = React.ComponentProps<"svg">;
+
+const EmptySetIcon = (props: EmptySetIconProps) => (
+  <svg
+    width="200"
+    height="200"
+    viewBox="0 0 200 200"
+    xmlns="http://www.w3.org/2000/svg"
+    fill="currentColor"
+    stroke="currentColor"
+    {...props}
+  >
+    <circle cx="100" cy="100" r="60" fill="none" strokeWidth="10" />
+    <line x1="40" y1="40" x2="160" y2="160" strokeWidth="10" />
+  </svg>
+);
+
+const EmptyState = () => (
+  <div className="mt-16 text-center">
+    <EmptySetIcon className="mx-auto size-12 text-gray-400" />
+    <h3 className="mt-2 text-sm font-semibold text-gray-900">No jobs</h3>
+  </div>
+);
+
+type JobRowsProps = {
+  canShowFewer: boolean;
+  canShowMore: boolean;
+  jobs: Job[];
+  showFewer: () => void;
+  showMore: () => void;
+};
+
+const JobRows = ({
+  canShowFewer,
+  canShowMore,
+  jobs,
+  showFewer,
+  showMore,
+}: JobRowsProps) => {
+  if (jobs.length === 0) {
+    return <EmptyState />;
+  }
+  return (
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <ul role="list" className="divide-y divide-black/5 dark:divide-white/5">
+        {jobs.map((job) => (
+          <JobListItem key={job.id.toString()} job={job} />
+        ))}
+      </ul>
+      <nav
+        className="flex items-center justify-center border-t border-black/5 py-3 dark:border-white/5"
+        aria-label="Pagination"
+      >
+        <button
+          className={classNames(
+            "relative inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 ring-1 ring-inset ring-slate-300 dark:ring-slate-700 hover:bg-slate-50 hover:dark:bg-slate-800 focus-visible:outline-offset-0"
+          )}
+          disabled={!canShowFewer}
+          onClick={() => showFewer()}
+        >
+          Fewer
+        </button>
+        <button
+          className="relative ml-3 inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-offset-0 dark:text-slate-100 dark:ring-slate-700 hover:dark:bg-slate-800"
+          disabled={!canShowMore}
+          onClick={() => showMore()}
+        >
+          More
+        </button>
+      </nav>
+    </div>
+  );
+};
+
 type JobListProps = {
   canShowFewer: boolean;
   canShowMore: boolean;
@@ -136,15 +210,9 @@ type JobListProps = {
   statesAndCounts: StatesAndCounts | undefined;
 };
 
-const JobList = ({
-  canShowFewer,
-  canShowMore,
-  jobs,
-  loading,
-  showFewer,
-  showMore,
-  statesAndCounts,
-}: JobListProps) => {
+const JobList = (props: JobListProps) => {
+  const { loading, statesAndCounts } = props;
+
   return (
     <div className="h-full lg:pl-72">
       <TopNav>
@@ -170,41 +238,7 @@ const JobList = ({
         <JobFilters statesAndCounts={statesAndCounts} />
       </div>
 
-      {loading ? (
-        <div>Loading...</div>
-      ) : (
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <ul
-            role="list"
-            className="divide-y divide-black/5 dark:divide-white/5"
-          >
-            {jobs.map((job) => (
-              <JobListItem key={job.id.toString()} job={job} />
-            ))}
-          </ul>
-          <nav
-            className="flex items-center justify-center border-t border-black/5 py-3 dark:border-white/5"
-            aria-label="Pagination"
-          >
-            <button
-              className={classNames(
-                "relative inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 ring-1 ring-inset ring-slate-300 dark:ring-slate-700 hover:bg-slate-50 hover:dark:bg-slate-800 focus-visible:outline-offset-0"
-              )}
-              disabled={!canShowFewer}
-              onClick={() => showFewer()}
-            >
-              Fewer
-            </button>
-            <button
-              className="relative ml-3 inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-offset-0 dark:text-slate-100 dark:ring-slate-700 hover:dark:bg-slate-800"
-              disabled={!canShowMore}
-              onClick={() => showMore()}
-            >
-              More
-            </button>
-          </nav>
-        </div>
-      )}
+      {loading ? <div>Loading...</div> : <JobRows {...props}></JobRows>}
     </div>
   );
 };
