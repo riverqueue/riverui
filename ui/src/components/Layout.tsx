@@ -14,7 +14,12 @@
 */
 import { Fragment, PropsWithChildren } from "react";
 
-import { Dialog, Transition } from "@headlessui/react";
+import {
+  Dialog,
+  DialogPanel,
+  Transition,
+  TransitionChild,
+} from "@headlessui/react";
 import {
   Cog6ToothIcon,
   InboxStackIcon,
@@ -55,13 +60,13 @@ const Layout = ({ children }: LayoutProps) => {
         ```
       */}
       <div className="h-full">
-        <Transition.Root show={sidebarOpen} as={Fragment}>
+        <Transition show={sidebarOpen} as={Fragment}>
           <Dialog
             as="div"
             className="relative z-50 lg:hidden"
             onClose={setSidebarOpen}
           >
-            <Transition.Child
+            <TransitionChild
               as={Fragment}
               enter="transition-opacity ease-linear duration-300"
               enterFrom="opacity-0"
@@ -71,10 +76,10 @@ const Layout = ({ children }: LayoutProps) => {
               leaveTo="opacity-0"
             >
               <div className="fixed inset-0 bg-slate-100/80 dark:bg-slate-900/80" />
-            </Transition.Child>
+            </TransitionChild>
 
             <div className="fixed inset-0 flex">
-              <Transition.Child
+              <TransitionChild
                 as={Fragment}
                 enter="transition ease-in-out duration-300 transform"
                 enterFrom="-translate-x-full"
@@ -83,8 +88,8 @@ const Layout = ({ children }: LayoutProps) => {
                 leaveFrom="translate-x-0"
                 leaveTo="-translate-x-full"
               >
-                <Dialog.Panel className="relative mr-16 flex w-full max-w-xs flex-1">
-                  <Transition.Child
+                <DialogPanel className="relative mr-16 flex w-full max-w-xs flex-1">
+                  <TransitionChild
                     as={Fragment}
                     enter="ease-in-out duration-300"
                     enterFrom="opacity-0"
@@ -106,7 +111,7 @@ const Layout = ({ children }: LayoutProps) => {
                         />
                       </button>
                     </div>
-                  </Transition.Child>
+                  </TransitionChild>
 
                   <div className="flex grow flex-col bg-gray-100 ring-1 ring-slate-900/10 dark:bg-slate-800 dark:ring-white/10">
                     {/* Componentize this, I only removed the w-40 class: */}
@@ -158,11 +163,11 @@ const Layout = ({ children }: LayoutProps) => {
                     </div>
                   </div>
                   {/* <JobFilters statesAndCounts={statesAndCounts} /> */}
-                </Dialog.Panel>
-              </Transition.Child>
+                </DialogPanel>
+              </TransitionChild>
             </div>
           </Dialog>
-        </Transition.Root>
+        </Transition>
 
         {/* Static sidebar for desktop */}
         <div className="hidden overflow-x-hidden bg-slate-100 shadow shadow-slate-400 transition-all hover:w-40 dark:bg-slate-800 dark:shadow-slate-600 lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4">
