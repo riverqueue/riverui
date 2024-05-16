@@ -61,9 +61,17 @@ class JobFactory extends Factory<Job, object> {
     const scheduledAt = sub(finalizedAt, { seconds: 37 });
 
     return this.params({
-      attempt: 20,
+      attempt: 1,
       attemptedAt: sub(finalizedAt, { seconds: 10 }),
       attemptedBy: ["the-hardest-worker-1"],
+      errors: [
+        attemptErrorFactory.build({
+          at: add(finalizedAt, {
+            seconds: faker.number.float({ min: 0.01, max: 2.5 }),
+          }),
+          num: 1,
+        }),
+      ],
       createdAt,
       finalizedAt,
       scheduledAt,
