@@ -86,6 +86,7 @@ function JobsIndexComponent() {
       jobs={jobsQuery.data || []}
       showFewer={showFewer}
       showMore={showMore}
+      state={Route.useLoaderDeps().state!}
       statesAndCounts={statesQuery.data}
     />
   );
