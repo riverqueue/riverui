@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Link } from "@tanstack/react-router";
-import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
+import { MenuButton as HeadlessMenuButton } from "@headlessui/react";
 
 import { Job } from "@services/jobs";
 import { JobState } from "@services/types";
@@ -9,6 +9,12 @@ import { StatesAndCounts } from "@services/states";
 import { JobFilters } from "@components/JobFilters";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNav from "@components/TopNav";
+import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
+import { ChevronUpDownIcon } from "@heroicons/react/24/outline";
+import {
+  JobStateFilterItem,
+  jobStateFilterItems,
+} from "@utils/jobStateFilterItems";
 
 const states: { [key in JobState]: string } = {
   [JobState.Available]: "text-sky-500 bg-sky-100/10",
@@ -184,31 +190,78 @@ type JobListProps = {
   jobs: Job[];
   showFewer: () => void;
   showMore: () => void;
+  state: JobState;
   statesAndCounts: StatesAndCounts | undefined;
 };
 
 const JobList = (props: JobListProps) => {
-  const { loading, statesAndCounts } = props;
+  const { loading, state, statesAndCounts } = props;
+
+  const stateFormatted = state.charAt(0).toUpperCase() + state.slice(1);
+  const jobsInState = useMemo(() => {
+    if (!statesAndCounts) {
+      return 0;
+    }
+    return statesAndCounts[state] || 0;
+  }, [state, statesAndCounts]);
+
+  const filterItems = useMemo(
+    () => jobStateFilterItems(statesAndCounts),
+    [statesAndCounts]
+  );
 
   return (
     <div className="h-full lg:pl-72">
       <TopNav>
-        <form className="relative" action="#" method="GET">
-          <label htmlFor="search-field" className="sr-only">
-            Search
-          </label>
-          <MagnifyingGlassIcon
-            className="pointer-events-none absolute inset-y-0 left-0 h-full w-5 text-gray-400"
-            aria-hidden="true"
-          />
-          <input
-            id="search-field"
-            className="block size-full border-0 bg-transparent py-0 pl-8 pr-0 text-gray-900 placeholder:text-gray-400 focus:ring-0 dark:text-gray-100 sm:text-sm"
-            placeholder="Search..."
-            type="search"
-            name="search"
-          />
-        </form>
+        <header className="flex flex-1 items-center lg:hidden">
+          <h1 className="hidden text-base font-semibold leading-6 text-slate-900 dark:text-slate-100 lg:inline">
+            Jobs
+          </h1>
+          <Dropdown>
+            <HeadlessMenuButton
+              className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1 text-slate-700 data-[active]:border-slate-200 data-[hover]:border-slate-200 dark:text-slate-300 dark:data-[active]:border-slate-700 dark:data-[hover]:border-slate-700"
+              aria-label="Account options"
+            >
+              <span className="flex w-36 flex-1 items-center justify-between text-left">
+                <span className="block align-middle text-base font-semibold">
+                  {stateFormatted}
+                </span>
+                <span
+                  className="ml-3 block w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700"
+                  aria-hidden="true"
+                >
+                  {jobsInState.toString()}
+                </span>
+              </span>
+              <ChevronUpDownIcon className="ml-auto mr-1 size-4 shrink-0 stroke-zinc-400" />
+            </HeadlessMenuButton>
+            <DropdownMenu className="z-40 min-w-[--button-width]">
+              {filterItems.map((item: JobStateFilterItem) => (
+                <DropdownItem
+                  key={item.state}
+                  to="/jobs"
+                  className="group flex rounded-md p-2 text-sm font-semibold leading-6"
+                  activeProps={{
+                    className:
+                      "bg-gray-50 dark:bg-gray-800 text-indigo-600 dark:text-slate-100",
+                  }}
+                  inactiveProps={{
+                    className:
+                      "text-gray-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800",
+                  }}
+                  search={{ state: item.state }}
+                  params={{}}
+                >
+                  <span className="">{item.name}</span>
+                  <span className="col-span-2 ml-auto w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700">
+                    {item.count.toString()}
+                  </span>
+                </DropdownItem>
+              ))}
+            </DropdownMenu>
+          </Dropdown>
+          {/* <JobFilters statesAndCounts={statesAndCounts} /> */}
+        </header>
       </TopNav>
 
       <div className="hidden lg:fixed lg:inset-y-0 lg:left-16 lg:z-40 lg:flex lg:w-72 lg:flex-col">
