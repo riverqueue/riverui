@@ -223,7 +223,7 @@ const JobList = (props: JobListProps) => {
               aria-label="Account options"
             >
               <span className="flex w-36 flex-1 items-center justify-between text-left">
-                <span className="block align-middle text-base font-semibold">
+                <span className="text-base block align-middle font-semibold">
                   {stateFormatted}
                 </span>
                 <span
@@ -253,7 +253,7 @@ const JobList = (props: JobListProps) => {
                   params={{}}
                 >
                   <span className="">{item.name}</span>
-                  <span className="col-span-2 ml-auto w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700">
+                  <span className="col-span-4 ml-auto w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700">
                     {item.count.toString()}
                   </span>
                 </DropdownItem>
