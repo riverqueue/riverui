@@ -40,9 +40,7 @@ function QueueComponent() {
   const { name } = Route.useParams();
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
-  queryOptions.refetchInterval = !refreshSettings.disabled
-    ? refreshSettings.intervalMs
-    : 0;
+  queryOptions.refetchInterval = refreshSettings.intervalMs;
 
   const queueQuery = useQuery(queryOptions);
   const { data: queue } = queueQuery;

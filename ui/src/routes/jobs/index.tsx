@@ -50,9 +50,7 @@ function JobsIndexComponent() {
   const navigate = Route.useNavigate();
   const { limit } = Route.useLoaderDeps();
   const refreshSettings = useRefreshSetting();
-  const refetchInterval = !refreshSettings.disabled
-    ? refreshSettings.intervalMs
-    : 0;
+  const refetchInterval = refreshSettings.intervalMs;
 
   const jobsQuery = useSuspenseQuery(
     jobsQueryOptions(Route.useLoaderDeps(), { refetchInterval })

@@ -90,14 +90,14 @@ export function ThemeSelector(
           <ListboxOption
             key={theme.value}
             value={theme.value}
-            className={({ active, selected }) =>
+            className={({ focus, selected }) =>
               clsx(
                 "flex cursor-pointer select-none items-center rounded-[0.625rem] p-1",
                 {
-                  "text-brand-primary dark:text-blue-400": selected,
-                  "text-slate-900 dark:text-white": active && !selected,
-                  "text-slate-700 dark:text-slate-300": !active && !selected,
-                  "bg-slate-100 dark:bg-slate-900/40": active,
+                  "text-blue-600 dark:text-blue-400": selected,
+                  "text-slate-900 dark:text-white": focus && !selected,
+                  "text-slate-700 dark:text-slate-300": !focus && !selected,
+                  "bg-slate-100 dark:bg-slate-700": focus,
                 }
               )
             }
@@ -109,8 +109,8 @@ export function ThemeSelector(
                     className={clsx(
                       "size-4",
                       selected
-                        ? "fill-sky-400 dark:fill-sky-400"
-                        : "fill-slate-400"
+                        ? "fill-blue-600 dark:fill-blue-400"
+                        : "fill-slate-600 dark:fill-slate-400"
                     )}
                   />
                 </div>

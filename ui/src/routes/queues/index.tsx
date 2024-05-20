@@ -31,9 +31,7 @@ export const Route = createFileRoute("/queues/")({
 function QueuesIndexComponent() {
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
-  queryOptions.refetchInterval = !refreshSettings.disabled
-    ? refreshSettings.intervalMs
-    : 0;
+  queryOptions.refetchInterval = refreshSettings.intervalMs;
 
   const queryClient = useQueryClient();
 

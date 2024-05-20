@@ -39,9 +39,7 @@ function JobComponent() {
   const { jobId } = Route.useParams();
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
-  queryOptions.refetchInterval = !refreshSettings.disabled
-    ? refreshSettings.intervalMs
-    : 0;
+  queryOptions.refetchInterval = refreshSettings.intervalMs;
 
   const queryClient = useQueryClient();
   const jobQuery = useQuery(queryOptions);

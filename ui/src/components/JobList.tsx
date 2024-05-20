@@ -223,7 +223,7 @@ const JobList = (props: JobListProps) => {
               aria-label="Account options"
             >
               <span className="flex w-36 flex-1 items-center justify-between text-left">
-                <span className="text-base block align-middle font-semibold">
+                <span className="block align-middle text-base font-semibold">
                   {stateFormatted}
                 </span>
                 <span
