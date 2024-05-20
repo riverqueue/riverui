@@ -8,11 +8,29 @@ export default {
   darkMode: "class",
   theme: {
     extend: {
+      animation: {
+        "spin-slow": "spin 3s linear infinite",
+        "spin-50-50": "pausingSpin 6s infinite",
+      },
       colors: {
         "brand-primary": "rgb(37, 99, 235)",
       },
       fontFamily: {
         sans: ["Inter var", ...defaultTheme.fontFamily.sans],
+      },
+      keyframes: {
+        pausingSpin: {
+          "0%": {
+            transform: "rotate(0)",
+            animationTimingFunction: "ease-in-out",
+          },
+          "42%,50%": { transform: "rotate(180deg)" },
+          "50%": {
+            transform: "rotate(180deg)",
+            animationTimingFunction: "ease-in-out",
+          },
+          "92%,100%": { transform: "rotate(360deg)" },
+        },
       },
     },
   },

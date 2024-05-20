@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
-import { Listbox } from "@headlessui/react";
+import {
+  Label,
+  Listbox,
+  ListboxButton,
+  ListboxOption,
+  ListboxOptions,
+} from "@headlessui/react";
 import clsx from "clsx";
 
 const themes = [
@@ -61,8 +67,8 @@ export function ThemeSelector(
 
   return (
     <Listbox as="div" value={theme} onChange={setTheme} {...props}>
-      <Listbox.Label className="sr-only">Theme</Listbox.Label>
-      <Listbox.Button
+      <Label className="sr-only">Theme</Label>
+      <ListboxButton
         className="relative z-10 flex size-7 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
         aria-label="Theme"
       >
@@ -78,20 +84,20 @@ export function ThemeSelector(
             theme === "system" ? "fill-slate-400" : "fill-sky-400"
           )}
         />
-      </Listbox.Button>
-      <Listbox.Options className="absolute right-0 top-full mt-3 w-36 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md shadow-black/5 ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
+      </ListboxButton>
+      <ListboxOptions className="absolute right-0 top-full mt-3 w-36 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md shadow-black/5 ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
         {themes.map((theme) => (
-          <Listbox.Option
+          <ListboxOption
             key={theme.value}
             value={theme.value}
-            className={({ active, selected }) =>
+            className={({ focus, selected }) =>
               clsx(
                 "flex cursor-pointer select-none items-center rounded-[0.625rem] p-1",
                 {
-                  "text-brand-primary dark:text-blue-400": selected,
-                  "text-slate-900 dark:text-white": active && !selected,
-                  "text-slate-700 dark:text-slate-300": !active && !selected,
-                  "bg-slate-100 dark:bg-slate-900/40": active,
+                  "text-blue-600 dark:text-blue-400": selected,
+                  "text-slate-900 dark:text-white": focus && !selected,
+                  "text-slate-700 dark:text-slate-300": !focus && !selected,
+                  "bg-slate-100 dark:bg-slate-700": focus,
                 }
               )
             }
@@ -103,17 +109,17 @@ export function ThemeSelector(
                     className={clsx(
                       "size-4",
                       selected
-                        ? "fill-sky-400 dark:fill-sky-400"
-                        : "fill-slate-400"
+                        ? "fill-blue-600 dark:fill-blue-400"
+                        : "fill-slate-600 dark:fill-slate-400"
                     )}
                   />
                 </div>
                 <div className="ml-3">{theme.name}</div>
               </>
             )}
-          </Listbox.Option>
+          </ListboxOption>
         ))}
-      </Listbox.Options>
+      </ListboxOptions>
     </Listbox>
   );
 }

@@ -38,9 +38,7 @@ export const Route = createFileRoute("/workflows/$workflowId")({
 function WorkflowComponent() {
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
-  queryOptions.refetchInterval = !refreshSettings.disabled
-    ? refreshSettings.intervalMs
-    : 0;
+  queryOptions.refetchInterval = refreshSettings.intervalMs;
 
   const workflowQuery = useQuery(queryOptions);
 

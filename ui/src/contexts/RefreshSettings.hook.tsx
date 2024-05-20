@@ -5,9 +5,7 @@ import {
 } from "./RefreshSettings";
 
 const defaultContext: UseRefreshSettingProps = {
-  disabled: false,
   intervalMs: 2000,
-  setDisabled: () => {},
   setIntervalMs: () => {},
 };
 

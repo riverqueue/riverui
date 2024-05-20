@@ -37,7 +37,7 @@ const TopNav = ({ children }: TopNavProps) => {
               className="hidden lg:block lg:h-6 lg:w-px lg:bg-slate-200 dark:lg:bg-slate-700"
               aria-hidden="true"
             />
-            <RefreshPauser />
+            <RefreshPauser className="relative z-10" />
             <ThemeSelector className="relative z-10" />
           </div>
         </div>
