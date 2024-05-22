@@ -8,11 +8,11 @@ import { add, sub } from "date-fns";
 class AttemptErrorFactory extends Factory<AttemptError, object> {}
 
 export const attemptErrorFactory = AttemptErrorFactory.define(({ params }) => {
-  const num = params.num || 1;
+  const attempt = params.attempt || 1;
   return {
-    at: params.at || sub(new Date(), { seconds: (21 - num) * 7.3 }),
+    at: params.at || sub(new Date(), { seconds: (21 - attempt) * 7.3 }),
+    attempt,
     error: "Failed yet again with some Go message",
-    num,
     trace: "...",
   };
 });
@@ -69,7 +69,7 @@ class JobFactory extends Factory<Job, object> {
           at: add(finalizedAt, {
             seconds: faker.number.float({ min: 0.01, max: 2.5 }),
           }),
-          num: 1,
+          attempt: 1,
         }),
       ],
       createdAt,
@@ -106,20 +106,20 @@ class JobFactory extends Factory<Job, object> {
         "worker-3",
       ],
       errors: [
-        attemptErrorFactory.build({ num: 1 }),
-        attemptErrorFactory.build({ num: 2 }),
-        attemptErrorFactory.build({ num: 3 }),
-        attemptErrorFactory.build({ num: 4 }),
-        attemptErrorFactory.build({ num: 5 }),
-        attemptErrorFactory.build({ num: 6 }),
-        attemptErrorFactory.build({ num: 7 }),
-        attemptErrorFactory.build({ num: 8 }),
-        attemptErrorFactory.build({ num: 9 }),
+        attemptErrorFactory.build({ attempt: 1 }),
+        attemptErrorFactory.build({ attempt: 2 }),
+        attemptErrorFactory.build({ attempt: 3 }),
+        attemptErrorFactory.build({ attempt: 4 }),
+        attemptErrorFactory.build({ attempt: 5 }),
+        attemptErrorFactory.build({ attempt: 6 }),
+        attemptErrorFactory.build({ attempt: 7 }),
+        attemptErrorFactory.build({ attempt: 8 }),
+        attemptErrorFactory.build({ attempt: 9 }),
         attemptErrorFactory.build({
           at: add(attemptedAt, {
             seconds: faker.number.float({ min: 0.01, max: 95 }),
           }),
-          num: 10,
+          attempt: 10,
         }),
       ],
       createdAt: sub(attemptedAt, { minutes: 31, seconds: 30 }),
