@@ -11,8 +11,8 @@ import { API } from "@utils/api";
 // except with keys as snake_case instead of camelCase.
 type AttemptErrorFromAPI = {
   at: string;
+  attempt: number;
   error: string;
-  num: number;
   trace: string;
 };
 
@@ -87,9 +87,9 @@ const apiAttemptErrorsToAttemptErrors = (
   errors: AttemptErrorFromAPI[]
 ): AttemptError[] => {
   return errors.map((error) => ({
+    attempt: error.attempt,
     at: new Date(error.at),
     error: error.error,
-    num: error.num,
     trace: error.trace,
   }));
 };

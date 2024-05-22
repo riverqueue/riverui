@@ -19,6 +19,7 @@ type RefreshIntervalSetting = {
 
 const refreshIntervals: RefreshIntervalSetting[] = [
   { name: "Pause", value: 0 },
+  { name: "1s", value: 1000 },
   { name: "2s", value: 2000 },
   { name: "5s", value: 5000 },
   { name: "10s", value: 10000 },
@@ -62,10 +63,6 @@ export function RefreshPauser(
       <ListboxButton
         className="relative z-10 flex size-7 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
         aria-label="Theme"
-        // type="button"
-        // className="-m-2.5 p-2.5 text-gray-400 hover:text-gray-500"
-        // onClick={() => setDisabled(!disabled)}
-        // title={disabled ? "Resume live updates" : "Pause live updates"}
       >
         <span className="sr-only">
           {disabled ? "Resume live updates" : "Pause live updates"}
