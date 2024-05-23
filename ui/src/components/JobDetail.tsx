@@ -10,7 +10,6 @@ import { capitalize } from "@utils/string";
 import clsx from "clsx";
 import JobTimeline from "./JobTimeline";
 import { FormEvent, useMemo, useState } from "react";
-import { Link } from "@tanstack/react-router";
 import TopNavTitleOnly from "./TopNavTitleOnly";
 import RelativeTimeFormatter from "./RelativeTimeFormatter";
 import JobAttemptErrors from "./JobAttemptErrors";
@@ -118,7 +117,6 @@ export default function JobDetail({ cancel, job, retry }: JobDetailProps) {
               </h1>
               <p className="mt-2 text-base leading-6 text-slate-600 dark:text-slate-400">
                 ID: <span className="font-mono">{job.id.toString()}</span>
-                {/* {capitalize(job.state)} */}
               </p>
             </div>
             <div className="order-none flex w-full justify-around sm:block sm:w-auto sm:flex-none">
@@ -159,14 +157,8 @@ export default function JobDetail({ cancel, job, retry }: JobDetailProps) {
                 <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
                   Queue
                 </dt>
-                <dd className="mt-1 flex overflow-hidden text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
-                  <Link
-                    to="/queues/$name"
-                    className="font-mono text-sm font-semibold leading-6 text-slate-900"
-                    params={{ name: job.queue }}
-                  >
-                    {job.queue}
-                  </Link>
+                <dd className="mt-1 flex overflow-hidden font-mono text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
+                  {job.queue}
                 </dd>
               </div>
               <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">

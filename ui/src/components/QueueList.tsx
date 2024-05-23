@@ -1,6 +1,5 @@
 import { Queue } from "@services/queues";
 import { PauseCircleIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
-import { Link } from "@tanstack/react-router";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 
@@ -69,22 +68,10 @@ const QueueList = ({
               {queues.map((queue) => (
                 <tr key={queue.name}>
                   <td className="w-full max-w-0 py-4 pl-4 pr-3 text-sm font-medium text-slate-900 dark:text-slate-100 sm:w-auto sm:max-w-none sm:pl-0">
-                    <Link
-                      className="font-mono"
-                      to="/queues/$name"
-                      params={{ name: queue.name }}
-                    >
+                    <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
                       {queue.name}
-                    </Link>
+                    </span>
                     <dl className="font-normal md:hidden">
-                      <dt className="sr-only">Created</dt>
-                      <dd className="mt-1 truncate text-slate-700 dark:text-slate-300">
-                        <RelativeTimeFormatter
-                          time={queue.createdAt}
-                          addSuffix
-                          includeSeconds
-                        />
-                      </dd>
                       <dt className="sr-only sm:hidden">Available</dt>
                       <dd className="mt-1 truncate text-slate-700 dark:text-slate-300 sm:hidden">
                         {queue.countAvailable} available
@@ -92,6 +79,14 @@ const QueueList = ({
                       <dt className="sr-only sm:hidden">Running</dt>
                       <dd className="mt-1 truncate text-slate-700 dark:text-slate-300 sm:hidden">
                         {queue.countRunning} running
+                      </dd>
+                      <dt className="sr-only">Created</dt>
+                      <dd className="mt-1 truncate text-slate-700 dark:text-slate-300">
+                        <RelativeTimeFormatter
+                          time={queue.createdAt}
+                          addSuffix
+                          includeSeconds
+                        />
                       </dd>
                     </dl>
                   </td>
