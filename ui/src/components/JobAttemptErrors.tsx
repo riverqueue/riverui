@@ -15,7 +15,7 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
     : job.errors.slice(-1 * defaultErrorDisplayCount).reverse();
 
   return (
-    <div className="bg-white sm:col-span-2">
+    <div className="sm:col-span-2">
       <div className="px-4 lg:px-0">
         <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
           Errors
@@ -25,11 +25,14 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
             <>No errors</>
           ) : (
             <>
-              <ol role="list" className="divide-y divide-gray-200">
+              <ol
+                role="list"
+                className="divide-y divide-slate-300 dark:divide-slate-700"
+              >
                 {errorsToDisplay.map((error) => (
                   <li key={error.attempt} className="p-4 sm:p-6">
                     <div className="flex items-start">
-                      <p className="leading-5 text-slate-900 dark:text-slate-100">
+                      <p className="font-mono font-medium leading-5 text-slate-900 dark:text-slate-100">
                         {error.attempt.toString()}
                       </p>
                       <div className="ml-4">
