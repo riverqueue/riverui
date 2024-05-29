@@ -358,8 +358,7 @@ type StatesAndCountsResponse struct {
 }
 
 type WorkflowGetResponse struct {
-	Supervisor *RiverJob  `json:"supervisor"`
-	Tasks      []RiverJob `json:"tasks"`
+	Tasks []RiverJob `json:"tasks"`
 }
 
 func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
@@ -375,10 +374,9 @@ func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
 	const workflowSupervisorJobKind = "WorkflowSupervisor"
 
 	dbJobs, err := a.queries.JobListWorkflow(ctx, db.JobListWorkflowParams{
-		PaginationLimit:        1000,
-		PaginationOffset:       0,
-		WorkflowSupervisorKind: workflowSupervisorJobKind,
-		WorkflowID:             workflowID,
+		PaginationLimit:  1000,
+		PaginationOffset: 0,
+		WorkflowID:       workflowID,
 	})
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
@@ -393,14 +391,7 @@ func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
 	jobs := internalJobsToSerializableJobs(dbJobs)
 
 	resp := WorkflowGetResponse{}
-	if len(jobs) != 0 {
-		startIndex := 0
-		if jobs[0].Kind == workflowSupervisorJobKind {
-			resp.Supervisor = &jobs[0]
-			startIndex = 1
-		}
-		resp.Tasks = jobs[startIndex:]
-	}
+	resp.Tasks = jobs
 
 	if err = json.NewEncoder(rw).Encode(resp); err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)

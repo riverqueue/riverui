@@ -10,7 +10,6 @@ import { JobState } from "@services/types";
 import WorkflowNode, { WorkflowNodeData } from "@components/WorkflowNode";
 
 type WorkflowDetailProps = {
-  supervisor: JobWithKnownMetadata;
   tasks: JobWithKnownMetadata[];
 };
 

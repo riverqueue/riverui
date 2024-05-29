@@ -7,12 +7,10 @@ import { JobFromAPI, JobWithKnownMetadata, apiJobToJob } from "@services/jobs";
 // string dates instead of Date objects and keys as snake_case instead of
 // camelCase.
 type WorkflowFromAPI = {
-  supervisor: JobFromAPI;
   tasks: JobFromAPI[];
 };
 
 export type Workflow = {
-  supervisor: JobWithKnownMetadata;
   tasks: JobWithKnownMetadata[];
 };
 
@@ -34,6 +32,5 @@ export const getWorkflow: QueryFunction<Workflow, GetWorkflowKey> = async ({
 };
 
 const apiWorkflowToWorkflow = (job: WorkflowFromAPI): Workflow => ({
-  supervisor: apiJobToJob(job.supervisor) as JobWithKnownMetadata,
   tasks: job.tasks.map(apiJobToJob) as JobWithKnownMetadata[],
 });
