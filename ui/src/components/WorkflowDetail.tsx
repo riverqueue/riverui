@@ -32,7 +32,7 @@ export default function WorkflowDetail({ workflow }: WorkflowDetailProps) {
         </div>
       </header>
 
-      <div className="mx-auto h-[32rem] w-full px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto h-[calc(100%-9rem)] w-full">
         <WorkflowDiagram tasks={tasks} />
       </div>
     </>

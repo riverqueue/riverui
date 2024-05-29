@@ -1,4 +1,4 @@
-import ReactFlow from "reactflow";
+import ReactFlow, { MiniMap } from "reactflow";
 import type { Edge, Node, NodeTypes, Position } from "reactflow";
 import dagre from "@dagrejs/dagre";
 
@@ -20,7 +20,7 @@ type nameToJobMap = {
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-const nodeWidth = 250;
+const nodeWidth = 208;
 const nodeHeight = 180;
 
 const getLayoutedElements = (
@@ -34,7 +34,7 @@ const getLayoutedElements = (
     edgesep: 100,
     nodesep: 80,
     rankdir: direction,
-    ranksep: 80,
+    ranksep: 100,
   });
 
   nodes.forEach((node) => {
@@ -163,12 +163,15 @@ export default function WorkflowDiagram({ tasks }: WorkflowDetailProps) {
   return (
     <div className="size-full">
       <ReactFlow
+        defaultViewport={{ x: 32, y: 32, zoom: 1 }}
         edges={layoutedEdges}
         // fitView
         nodeTypes={nodeTypes}
         nodes={layoutedNodes}
         proOptions={{ hideAttribution: true }}
-      />
+      >
+        <MiniMap nodeStrokeWidth={3} pannable zoomable />
+      </ReactFlow>
     </div>
   );
 }

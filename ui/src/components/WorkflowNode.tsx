@@ -18,7 +18,7 @@ const WorkflowNode = memo(
     const { hasDownstreamDeps, hasUpstreamDeps, job } = data;
 
     return (
-      <div className="w-60 overflow-hidden rounded-xl border-2 border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
+      <div className="w-52 overflow-hidden rounded-xl border-2 border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <Handle
           type="target"
           position={Position.Left}
