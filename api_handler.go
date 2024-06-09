@@ -371,8 +371,6 @@ func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	const workflowSupervisorJobKind = "WorkflowSupervisor"
-
 	dbJobs, err := a.queries.JobListWorkflow(ctx, db.JobListWorkflowParams{
 		PaginationLimit:  1000,
 		PaginationOffset: 0,
