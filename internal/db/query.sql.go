@@ -123,26 +123,19 @@ FROM
 WHERE
   metadata @> jsonb_build_object('workflow_id', $1::text)
 ORDER BY
-  kind = $2::text DESC,
   id ASC
-LIMIT $4::integer
-OFFSET $3::bigint
+LIMIT $3::integer
+OFFSET $2::bigint
 `
 
 type JobListWorkflowParams struct {
-	WorkflowID             string
-	WorkflowSupervisorKind string
-	PaginationOffset       int64
-	PaginationLimit        int32
+	WorkflowID       string
+	PaginationOffset int64
+	PaginationLimit  int32
 }
 
 func (q *Queries) JobListWorkflow(ctx context.Context, arg JobListWorkflowParams) ([]RiverJob, error) {
-	rows, err := q.db.Query(ctx, jobListWorkflow,
-		arg.WorkflowID,
-		arg.WorkflowSupervisorKind,
-		arg.PaginationOffset,
-		arg.PaginationLimit,
-	)
+	rows, err := q.db.Query(ctx, jobListWorkflow, arg.WorkflowID, arg.PaginationOffset, arg.PaginationLimit)
 	if err != nil {
 		return nil, err
 	}

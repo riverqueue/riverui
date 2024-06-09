@@ -6,7 +6,7 @@ type WorkflowDetailProps = {
 };
 
 export default function WorkflowDetail({ workflow }: WorkflowDetailProps) {
-  const { supervisor, tasks } = workflow;
+  const { tasks } = workflow;
   return (
     <>
       <header>
@@ -25,17 +25,15 @@ export default function WorkflowDetail({ workflow }: WorkflowDetailProps) {
             </div>
             <p className="ml-7 mt-2 text-base leading-6 text-slate-600 dark:text-slate-400">
               ID:{" "}
-              <span className="font-mono">
-                {supervisor.metadata.workflow_id}
-              </span>
+              <span className="font-mono">{tasks[0].metadata.workflow_id}</span>
               {/* {capitalize(job.state)} */}
             </p>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto h-[32rem] w-full px-4 sm:px-6 lg:px-8">
-        <WorkflowDiagram supervisor={supervisor} tasks={tasks} />
+      <div className="mx-auto h-[calc(100%-9rem)] w-full">
+        <WorkflowDiagram tasks={tasks} />
       </div>
     </>
   );

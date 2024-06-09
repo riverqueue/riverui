@@ -19,7 +19,6 @@ FROM
 WHERE
   metadata @> jsonb_build_object('workflow_id', @workflow_id::text)
 ORDER BY
-  kind = @workflow_supervisor_kind::text DESC,
   id ASC
 LIMIT @pagination_limit::integer
 OFFSET @pagination_offset::bigint;
