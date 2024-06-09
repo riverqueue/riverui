@@ -12,7 +12,7 @@
   }
   ```
 */
-import { Fragment, PropsWithChildren } from "react";
+import { Fragment, PropsWithChildren, useMemo } from "react";
 
 import {
   Dialog,
@@ -32,33 +32,37 @@ import { classNames } from "@utils/style";
 import { Link } from "@tanstack/react-router";
 import { JobState } from "@services/types";
 import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
+import useFeature from "@hooks/use-feature";
 
 type LayoutProps = PropsWithChildren<object>;
-
-const navigation = [
-  {
-    name: "Jobs",
-    href: "/jobs",
-    icon: QueueListIcon,
-    search: { state: JobState.Running },
-  },
-  { name: "Queues", href: "/queues", icon: InboxStackIcon },
-  { name: "Workflows", href: "#", icon: RectangleGroupIcon },
-];
 
 const Layout = ({ children }: LayoutProps) => {
   const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebarSetting();
 
+  const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", false);
+
+  const navigation = useMemo(
+    () =>
+      [
+        {
+          name: "Jobs",
+          href: "/jobs",
+          icon: QueueListIcon,
+          search: { state: JobState.Running },
+        },
+        { name: "Queues", href: "/queues", icon: InboxStackIcon },
+        {
+          name: "Workflows",
+          href: "#",
+          icon: RectangleGroupIcon,
+          hidden: !featureEnabledWorkflows,
+        },
+      ].filter((item) => item.hidden === undefined || item.hidden === false),
+    [featureEnabledWorkflows]
+  );
+
   return (
     <>
-      {/*
-        This example requires updating your template:
-
-        ```
-        <html class="h-full bg-white">
-        <body class="h-full">
-        ```
-      */}
       <div className="h-full">
         <Transition show={sidebarOpen} as={Fragment}>
           <Dialog
@@ -162,7 +166,6 @@ const Layout = ({ children }: LayoutProps) => {
                       </nav>
                     </div>
                   </div>
-                  {/* <JobFilters statesAndCounts={statesAndCounts} /> */}
                 </DialogPanel>
               </TransitionChild>
             </div>
