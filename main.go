@@ -27,10 +27,8 @@ var logger *slog.Logger //nolint:gochecknoglobals
 
 func main() {
 	ctx := context.Background()
-	if os.Getenv("SKIP_DOTENV") != "1" {
-		if err := godotenv.Load(); err != nil {
-			log.Fatal("Error loading .env file")
-		}
+	if err := godotenv.Load(); err != nil {
+		fmt.Printf("No .env file detected, using environment variables\n")
 	}
 	logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
 
