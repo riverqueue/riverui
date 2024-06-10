@@ -15,6 +15,7 @@ import {
   JobStateFilterItem,
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
+import { Badge } from "./Badge";
 
 const states: { [key in JobState]: string } = {
   [JobState.Available]: "text-sky-500 bg-sky-100/10",
@@ -25,11 +26,6 @@ const states: { [key in JobState]: string } = {
   [JobState.Retryable]: "text-amber-500 bg-amber-100/10",
   [JobState.Running]: "text-indigo-400 bg-indigo-400/10",
   [JobState.Scheduled]: "text-rose-400 bg-rose-400/10",
-};
-
-const queueStates = {
-  Active: "text-gray-400 bg-gray-400/10 ring-gray-400/20",
-  Paused: "text-amber-400 bg-amber-400/10 ring-amber-400/30",
 };
 
 const timestampForRelativeDisplay = (job: Job): Date => {
@@ -93,17 +89,12 @@ const JobListItem = ({ job }: JobListItemProps) => (
         <svg viewBox="0 0 2 2" className="size-0.5 flex-none fill-gray-400">
           <circle cx={1} cy={1} r={1} />
         </svg>
-        <p className="grow truncate whitespace-nowrap">
+        <p className="grow truncate whitespace-nowrap font-mono">
           {JSON.stringify(job.args)}
         </p>
-        <div
-          className={classNames(
-            queueStates.Active,
-            "rounded-full flex-none py-1 px-2 text-xs font-medium ring-1 ring-inset self-end"
-          )}
-        >
+        <Badge color="zinc" className="flex-none text-xs font-mono">
           {job.queue}
-        </div>
+        </Badge>
       </div>
     </div>
   </li>

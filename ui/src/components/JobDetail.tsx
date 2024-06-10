@@ -13,6 +13,7 @@ import { FormEvent, useMemo, useState } from "react";
 import TopNavTitleOnly from "./TopNavTitleOnly";
 import RelativeTimeFormatter from "./RelativeTimeFormatter";
 import JobAttemptErrors from "./JobAttemptErrors";
+import { Badge } from "./Badge";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -169,12 +170,13 @@ export default function JobDetail({ cancel, job, retry }: JobDetailProps) {
                   {job.tags.length == 0
                     ? "–"
                     : job.tags.map((tag) => (
-                        <div
+                        <Badge
+                          color="blue"
                           key={tag}
-                          className="truncate rounded-full bg-indigo-400/10 px-2 py-1 font-mono text-xs font-medium text-indigo-400 ring-1 ring-inset ring-indigo-400/30"
+                          className="font-mono text-xs mx-1 my-1"
                         >
                           {tag}
-                        </div>
+                        </Badge>
                       ))}
                 </dd>
               </div>
