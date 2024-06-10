@@ -81,7 +81,7 @@ const JobListItem = ({ job }: JobListItemProps) => (
         </div>
       </div>
       <div className="mt-3 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
-        <div className="flex items-center gap-x-2">
+        <div className="flex items-center gap-x-2 font-semibold">
           <span>{job.attempt.toString()}</span>
           <span>/</span>
           <span>{job.maxAttempts.toString()}</span>
