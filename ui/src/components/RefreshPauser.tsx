@@ -70,10 +70,14 @@ export function RefreshPauser(
         {disabled ? (
           <PauseIcon className="size-6 text-slate-400" aria-hidden="true" />
         ) : (
-          <ArrowPathIcon
-            className="size-6 text-slate-400 motion-safe:animate-spin-50-50"
-            aria-hidden="true"
-          />
+          // It's 2024 and this kind of div-wrapping hack is still necessary to get the
+          // spinner to animate without insane CPU usage:
+          <div className="size-6 overflow-hidden will-change-transform motion-safe:animate-spin-50-50">
+            <ArrowPathIcon
+              className="size-6 text-slate-400"
+              aria-hidden="true"
+            />
+          </div>
         )}
       </ListboxButton>
       <ListboxOptions className="absolute right-0 top-full mt-3 w-32 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md shadow-black/5 ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">

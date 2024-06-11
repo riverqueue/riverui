@@ -73,38 +73,65 @@ const AboutAboutRoute = AboutAboutImport.update({
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
     "/": {
+      id: "/"
+      path: "/"
+      fullPath: "/"
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
     "/jobs": {
+      id: "/jobs"
+      path: "/jobs"
+      fullPath: "/jobs"
       preLoaderRoute: typeof JobsImport
       parentRoute: typeof rootRoute
     }
     "/queues": {
+      id: "/queues"
+      path: "/queues"
+      fullPath: "/queues"
       preLoaderRoute: typeof QueuesImport
       parentRoute: typeof rootRoute
     }
     "/about/about": {
+      id: "/about/about"
+      path: "/about/about"
+      fullPath: "/about/about"
       preLoaderRoute: typeof AboutAboutImport
       parentRoute: typeof rootRoute
     }
     "/jobs/$jobId": {
+      id: "/jobs/$jobId"
+      path: "/$jobId"
+      fullPath: "/jobs/$jobId"
       preLoaderRoute: typeof JobsJobIdImport
       parentRoute: typeof JobsImport
     }
     "/queues/$name": {
+      id: "/queues/$name"
+      path: "/$name"
+      fullPath: "/queues/$name"
       preLoaderRoute: typeof QueuesNameImport
       parentRoute: typeof QueuesImport
     }
     "/workflows/$workflowId": {
+      id: "/workflows/$workflowId"
+      path: "/workflows/$workflowId"
+      fullPath: "/workflows/$workflowId"
       preLoaderRoute: typeof WorkflowsWorkflowIdImport
       parentRoute: typeof rootRoute
     }
     "/jobs/": {
+      id: "/jobs/"
+      path: "/"
+      fullPath: "/jobs/"
       preLoaderRoute: typeof JobsIndexImport
       parentRoute: typeof JobsImport
     }
     "/queues/": {
+      id: "/queues/"
+      path: "/"
+      fullPath: "/queues/"
       preLoaderRoute: typeof QueuesIndexImport
       parentRoute: typeof QueuesImport
     }
@@ -113,12 +140,68 @@ declare module "@tanstack/react-router" {
 
 // Create and export the route tree
 
-export const routeTree = rootRoute.addChildren([
+export const routeTree = rootRoute.addChildren({
   IndexRoute,
-  JobsRoute.addChildren([JobsJobIdRoute, JobsIndexRoute]),
-  QueuesRoute.addChildren([QueuesNameRoute, QueuesIndexRoute]),
+  JobsRoute: JobsRoute.addChildren({ JobsJobIdRoute, JobsIndexRoute }),
+  QueuesRoute: QueuesRoute.addChildren({ QueuesNameRoute, QueuesIndexRoute }),
   AboutAboutRoute,
   WorkflowsWorkflowIdRoute,
-])
+})
 
 /* prettier-ignore-end */
+
+/* ROUTE_MANIFEST_START
+{
+  "routes": {
+    "__root__": {
+      "filePath": "__root.tsx",
+      "children": [
+        "/",
+        "/jobs",
+        "/queues",
+        "/about/about",
+        "/workflows/$workflowId"
+      ]
+    },
+    "/": {
+      "filePath": "index.tsx"
+    },
+    "/jobs": {
+      "filePath": "jobs.tsx",
+      "children": [
+        "/jobs/$jobId",
+        "/jobs/"
+      ]
+    },
+    "/queues": {
+      "filePath": "queues.tsx",
+      "children": [
+        "/queues/$name",
+        "/queues/"
+      ]
+    },
+    "/about/about": {
+      "filePath": "about/about.tsx"
+    },
+    "/jobs/$jobId": {
+      "filePath": "jobs/$jobId.tsx",
+      "parent": "/jobs"
+    },
+    "/queues/$name": {
+      "filePath": "queues/$name.tsx",
+      "parent": "/queues"
+    },
+    "/workflows/$workflowId": {
+      "filePath": "workflows/$workflowId.tsx"
+    },
+    "/jobs/": {
+      "filePath": "jobs/index.tsx",
+      "parent": "/jobs"
+    },
+    "/queues/": {
+      "filePath": "queues/index.tsx",
+      "parent": "/queues"
+    }
+  }
+}
+ROUTE_MANIFEST_END */
