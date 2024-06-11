@@ -179,13 +179,13 @@ const styles = {
   },
 };
 
-type ButtonProps = (
+export type ButtonProps = (
   | { color?: keyof typeof styles.colors; outline?: never; plain?: never }
   | { color?: never; outline: true; plain?: never }
   | { color?: never; outline?: never; plain: true }
-) & { children: React.ReactNode } & { className: string } & (
-    | HeadlessButtonProps
-    | React.ComponentPropsWithoutRef<typeof HeadlessLink>
+) & { className?: string; children: React.ReactNode } & (
+    | Omit<HeadlessButtonProps, "className">
+    | Omit<React.ComponentPropsWithoutRef<typeof HeadlessLink>, "className">
   );
 
 export const Button = React.forwardRef(function Button(

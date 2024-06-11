@@ -15,6 +15,8 @@ import {
   JobStateFilterItem,
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
+import { Badge } from "./Badge";
+import { Button } from "./Button";
 
 const states: { [key in JobState]: string } = {
   [JobState.Available]: "text-sky-500 bg-sky-100/10",
@@ -25,11 +27,6 @@ const states: { [key in JobState]: string } = {
   [JobState.Retryable]: "text-amber-500 bg-amber-100/10",
   [JobState.Running]: "text-indigo-400 bg-indigo-400/10",
   [JobState.Scheduled]: "text-rose-400 bg-rose-400/10",
-};
-
-const queueStates = {
-  Active: "text-gray-400 bg-gray-400/10 ring-gray-400/20",
-  Paused: "text-amber-400 bg-amber-400/10 ring-amber-400/30",
 };
 
 const timestampForRelativeDisplay = (job: Job): Date => {
@@ -85,7 +82,7 @@ const JobListItem = ({ job }: JobListItemProps) => (
         </div>
       </div>
       <div className="mt-3 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
-        <div className="flex items-center gap-x-2">
+        <div className="flex items-center gap-x-2 font-semibold">
           <span>{job.attempt.toString()}</span>
           <span>/</span>
           <span>{job.maxAttempts.toString()}</span>
@@ -93,17 +90,12 @@ const JobListItem = ({ job }: JobListItemProps) => (
         <svg viewBox="0 0 2 2" className="size-0.5 flex-none fill-gray-400">
           <circle cx={1} cy={1} r={1} />
         </svg>
-        <p className="grow truncate whitespace-nowrap">
+        <p className="grow truncate whitespace-nowrap font-mono">
           {JSON.stringify(job.args)}
         </p>
-        <div
-          className={classNames(
-            queueStates.Active,
-            "rounded-full flex-none py-1 px-2 text-xs font-medium ring-1 ring-inset self-end"
-          )}
-        >
+        <Badge color="zinc" className="flex-none font-mono text-xs">
           {job.queue}
-        </div>
+        </Badge>
       </div>
     </div>
   </li>
@@ -162,22 +154,22 @@ const JobRows = ({
         className="flex items-center justify-center border-t border-black/5 py-3 dark:border-white/5"
         aria-label="Pagination"
       >
-        <button
-          className={classNames(
-            "relative inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 ring-1 ring-inset ring-slate-300 dark:ring-slate-700 hover:bg-slate-50 hover:dark:bg-slate-800 focus-visible:outline-offset-0"
-          )}
+        <Button
+          className="mx-2"
+          color="light"
           disabled={!canShowFewer}
           onClick={() => showFewer()}
         >
           Fewer
-        </button>
-        <button
-          className="relative ml-3 inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-offset-0 dark:text-slate-100 dark:ring-slate-700 hover:dark:bg-slate-800"
+        </Button>
+        <Button
+          className="mx-2"
+          color="light"
           disabled={!canShowMore}
           onClick={() => showMore()}
         >
           More
-        </button>
+        </Button>
       </nav>
     </div>
   );

@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Logo from "@components/Logo";
 import { StatesAndCounts } from "@services/states";
 import { jobStateFilterItems } from "@utils/jobStateFilterItems";
+import { Badge } from "./Badge";
 
 type JobFiltersProps = {
   statesAndCounts?: StatesAndCounts;
@@ -48,12 +49,12 @@ export const JobFilters: (props: JobFiltersProps) => JSX.Element = ({
                     >
                       {item.name}
                       {item.count ? (
-                        <span
-                          className="ml-auto w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700"
-                          aria-hidden="true"
+                        <Badge
+                          color="light"
+                          className="ml-auto w-9 min-w-max whitespace-nowrap"
                         >
                           {item.count.toString()}
-                        </span>
+                        </Badge>
                       ) : null}
                     </Link>
                   </li>
