@@ -21,14 +21,12 @@ import {
   TransitionChild,
 } from "@headlessui/react";
 import {
-  Cog6ToothIcon,
   InboxStackIcon,
   QueueListIcon,
   RectangleGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
-import { classNames } from "@utils/style";
 import { Link } from "@tanstack/react-router";
 import { JobState } from "@services/types";
 import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
@@ -147,21 +145,6 @@ const Layout = ({ children }: LayoutProps) => {
                               </li>
                             ))}
                           </>
-                          <li className="mt-auto">
-                            <a
-                              href="#"
-                              className={classNames(
-                                "text-slate-600 dark:text-slate-400 dark:hover:text-white hover:text-slate-900 border-transparent dark:hover:bg-slate-800 hover:bg-slate-200",
-                                "group flex gap-x-5 p-5 text-sm leading-6 font-semibold border-l-4 transition-colors"
-                              )}
-                            >
-                              <Cog6ToothIcon
-                                className="size-6 shrink-0"
-                                aria-hidden="true"
-                              />
-                              Settings
-                            </a>
-                          </li>
                         </ul>
                       </nav>
                     </div>
@@ -200,21 +183,6 @@ const Layout = ({ children }: LayoutProps) => {
                     </Link>
                   </li>
                 ))}
-                <li className="mt-auto">
-                  <a
-                    href="#"
-                    className={classNames(
-                      "text-slate-600 dark:text-slate-400 dark:hover:text-white hover:text-slate-900 border-transparent dark:hover:bg-slate-800 hover:bg-slate-200",
-                      "group flex gap-x-5 p-5 text-sm leading-6 font-semibold border-l-4 transition-colors"
-                    )}
-                  >
-                    <Cog6ToothIcon
-                      className="size-6 shrink-0"
-                      aria-hidden="true"
-                    />
-                    Settings
-                  </a>
-                </li>
               </ul>
             </nav>
           </div>
