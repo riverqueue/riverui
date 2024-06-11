@@ -106,6 +106,14 @@ export const cancelJobs: MutationFunction<void, CancelPayload> = async ({
   return API.post("/jobs/cancel", JSON.stringify({ ids: ids.map(String) }));
 };
 
+type DeletePayload = JobIdsPayload;
+
+export const deleteJobs: MutationFunction<void, DeletePayload> = async ({
+  ids,
+}) => {
+  return API.post("/jobs/delete", JSON.stringify({ ids: ids.map(String) }));
+};
+
 type ListJobsFilters = {
   limit?: number;
   state?: JobState;

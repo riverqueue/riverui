@@ -3,7 +3,6 @@ import {
   createFileRoute,
   getRouteApi,
 } from "@tanstack/react-router";
-import { cancelJobs, getJob, getJobKey, retryJobs } from "@services/jobs";
 import {
   useMutation,
   useQueryClient,
@@ -14,6 +13,14 @@ import JobDetail from "@components/JobDetail";
 import { NotFoundError } from "@utils/api";
 import JobNotFound from "@components/JobNotFound";
 import { toastError, toastSuccess } from "@services/toast";
+import {
+  cancelJobs,
+  deleteJobs,
+  getJob,
+  getJobKey,
+  retryJobs,
+} from "@services/jobs";
+import { JobState } from "@services/types";
 
 const routeApi = getRouteApi("/jobs/$jobId");
 
@@ -50,6 +57,7 @@ export const Route = createFileRoute("/jobs/$jobId")({
 
 function JobComponent() {
   const { jobId } = Route.useParams();
+  const navigate = Route.useNavigate();
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
   queryOptions.refetchInterval = refreshSettings.intervalMs;
@@ -66,6 +74,21 @@ function JobComponent() {
         duration: 2000,
       });
       return queryClient.invalidateQueries({
+        queryKey: queryOptions.queryKey,
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => deleteJobs({ ids: [jobId] }),
+    throwOnError: true,
+    onSuccess: async () => {
+      toastError({
+        message: "Job deleted",
+        duration: 2000,
+      });
+      await navigate({ to: "/jobs", search: { state: JobState.Running } });
+      await queryClient.removeQueries({
         queryKey: queryOptions.queryKey,
       });
     },
@@ -95,6 +118,7 @@ function JobComponent() {
   return (
     <JobDetail
       cancel={cancelMutation.mutate}
+      deleteFn={deleteMutation.mutate}
       job={job}
       retry={retryMutation.mutate}
     />

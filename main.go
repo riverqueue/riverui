@@ -79,6 +79,7 @@ func initAndServe(ctx context.Context) int {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/jobs", handler.JobList)
 	mux.HandleFunc("POST /api/jobs/cancel", handler.JobCancel)
+	mux.HandleFunc("POST /api/jobs/delete", handler.JobDelete)
 	mux.HandleFunc("POST /api/jobs/retry", handler.JobRetry)
 	mux.HandleFunc("GET /api/jobs/{id}", handler.JobGet)
 	mux.HandleFunc("GET /api/queues", handler.QueueList)
