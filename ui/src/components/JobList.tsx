@@ -16,6 +16,7 @@ import {
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
 import { Badge } from "./Badge";
+import { Button } from "./Button";
 
 const states: { [key in JobState]: string } = {
   [JobState.Available]: "text-sky-500 bg-sky-100/10",
@@ -153,22 +154,22 @@ const JobRows = ({
         className="flex items-center justify-center border-t border-black/5 py-3 dark:border-white/5"
         aria-label="Pagination"
       >
-        <button
-          className={classNames(
-            "relative inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 dark:text-slate-100 ring-1 ring-inset ring-slate-300 dark:ring-slate-700 hover:bg-slate-50 hover:dark:bg-slate-800 focus-visible:outline-offset-0"
-          )}
+        <Button
+          className="mx-2"
+          color="light"
           disabled={!canShowFewer}
           onClick={() => showFewer()}
         >
           Fewer
-        </button>
-        <button
-          className="relative ml-3 inline-flex items-center rounded-md px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 hover:bg-slate-50 focus-visible:outline-offset-0 dark:text-slate-100 dark:ring-slate-700 hover:dark:bg-slate-800"
+        </Button>
+        <Button
+          className="mx-2"
+          color="light"
           disabled={!canShowMore}
           onClick={() => showMore()}
         >
           More
-        </button>
+        </Button>
       </nav>
     </div>
   );
