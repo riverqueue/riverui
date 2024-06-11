@@ -10,7 +10,7 @@ export default {
     extend: {
       animation: {
         "spin-slow": "spin 3s linear infinite",
-        "spin-50-50": "pausingSpin 6s infinite",
+        "spin-50-50": "pausingSpin 10s linear infinite",
       },
       colors: {
         "brand-primary": "rgb(37, 99, 235)",
@@ -24,12 +24,12 @@ export default {
             transform: "rotate(0)",
             animationTimingFunction: "ease-in-out",
           },
-          "42%,50%": { transform: "rotate(180deg)" },
+          "15%,50%": { transform: "rotate(180deg)" },
           "50%": {
             transform: "rotate(180deg)",
             animationTimingFunction: "ease-in-out",
           },
-          "92%,100%": { transform: "rotate(360deg)" },
+          "65%,100%": { transform: "rotate(360deg)" },
         },
       },
     },
