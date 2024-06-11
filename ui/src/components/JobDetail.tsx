@@ -7,13 +7,13 @@ import {
 import { Job } from "@services/jobs";
 import { Heroicon, JobState } from "@services/types";
 import { capitalize } from "@utils/string";
-import clsx from "clsx";
 import JobTimeline from "./JobTimeline";
 import { FormEvent, useMemo, useState } from "react";
 import TopNavTitleOnly from "./TopNavTitleOnly";
 import RelativeTimeFormatter from "./RelativeTimeFormatter";
 import JobAttemptErrors from "./JobAttemptErrors";
 import { Badge } from "./Badge";
+import { Button, ButtonProps } from "./Button";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -23,25 +23,22 @@ type JobDetailProps = {
 
 function ButtonForGroup({
   Icon,
-  disabled,
   text,
   ...props
 }: {
   Icon: Heroicon;
+  onClick?: (event: FormEvent) => void;
   text: string;
-} & React.ComponentPropsWithoutRef<"button">) {
+} & Omit<ButtonProps, "children" | "color" | "outline" | "plain">) {
   return (
-    <button
-      type="button"
-      className={clsx(
-        "relative inline-flex items-center px-3 py-2 text-sm font-semibold text-slate-900 ring-1 ring-inset ring-slate-300 first:rounded-l-md last:rounded-r-md enabled:cursor-pointer enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:text-slate-400 dark:text-white dark:ring-slate-700 enabled:dark:hover:bg-slate-700 disabled:dark:text-slate-500"
-      )}
-      disabled={disabled}
+    <Button
+      outline
       {...props}
+      className="rounded-none first:rounded-l-md last:rounded-r-md"
     >
       <Icon className="mr-2 size-5" aria-hidden="true" />
       {text}
-    </button>
+    </Button>
   );
 }
 
@@ -89,7 +86,7 @@ function ActionButtons({
         disabled={cancelDisabled}
         onClick={cancelJob}
       />
-      <ButtonForGroup Icon={TrashIcon} text="Delete" />
+      <ButtonForGroup Icon={TrashIcon} text="Delete" disabled />
     </span>
   );
 }
@@ -173,7 +170,7 @@ export default function JobDetail({ cancel, job, retry }: JobDetailProps) {
                         <Badge
                           color="blue"
                           key={tag}
-                          className="font-mono text-xs mx-1 my-1"
+                          className="m-1 font-mono text-xs"
                         >
                           {tag}
                         </Badge>

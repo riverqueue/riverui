@@ -93,7 +93,7 @@ const JobListItem = ({ job }: JobListItemProps) => (
         <p className="grow truncate whitespace-nowrap font-mono">
           {JSON.stringify(job.args)}
         </p>
-        <Badge color="zinc" className="flex-none text-xs font-mono">
+        <Badge color="zinc" className="flex-none font-mono text-xs">
           {job.queue}
         </Badge>
       </div>
