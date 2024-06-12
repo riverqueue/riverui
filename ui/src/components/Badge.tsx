@@ -13,7 +13,7 @@ const colors = {
   yellow:
     "bg-yellow-400/20 text-yellow-700 group-data-[hover]:bg-yellow-400/30 dark:bg-yellow-400/10 dark:text-yellow-300 dark:group-data-[hover]:bg-yellow-400/15",
   light:
-    "bg-white text-gray-600 dark:bg-gray-900 dark:text-white ring-1 ring-inset ring-gray-200 dark:ring-gray-700 group-data-[hover]:bg-gray-50 dark:group-data-[hover]:bg-gray-800 dark:group-data-[hover]:text-slate-100",
+    "bg-slate-50 text-slate-600 dark:bg-slate-900 dark:text-white ring-1 ring-inset ring-slate-200 dark:ring-slate-700 group-data-[hover]:bg-slate-50 dark:group-data-[hover]:bg-slate-800 dark:group-data-[hover]:text-slate-100",
   lime: "bg-lime-400/20 text-lime-700 group-data-[hover]:bg-lime-400/30 dark:bg-lime-400/10 dark:text-lime-300 dark:group-data-[hover]:bg-lime-400/15",
   green:
     "bg-green-500/15 text-green-700 group-data-[hover]:bg-green-500/25 dark:bg-green-500/10 dark:text-green-400 dark:group-data-[hover]:bg-green-500/20",
@@ -47,8 +47,8 @@ export function Badge({
     <span
       {...props}
       className={clsx(
-        className,
         "inline-flex items-center gap-x-1.5 rounded-md px-1.5 py-0.5 text-sm/5 font-medium sm:text-xs/5 forced-colors:outline",
+        className,
         colors[color]
       )}
     />
