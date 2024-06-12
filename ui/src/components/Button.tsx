@@ -202,7 +202,7 @@ export const Button = React.forwardRef(function Button(
         : clsx(styles.solid, styles.colors[color ?? "dark/zinc"])
   );
 
-  return "href" in props ? (
+  return "to" in props ? (
     <HeadlessLink
       {...props}
       className={classes}
