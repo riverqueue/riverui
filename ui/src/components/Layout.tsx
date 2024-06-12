@@ -31,6 +31,7 @@ import { Link } from "@tanstack/react-router";
 import { JobState } from "@services/types";
 import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
 import useFeature from "@hooks/use-feature";
+import Toast from "@components/Toast";
 
 type LayoutProps = PropsWithChildren<object>;
 
@@ -156,7 +157,7 @@ const Layout = ({ children }: LayoutProps) => {
         </Transition>
 
         {/* Static sidebar for desktop */}
-        <div className="hidden overflow-x-hidden bg-slate-100 shadow shadow-slate-400 transition-all hover:w-40 dark:bg-slate-800 dark:shadow-slate-600 lg:fixed lg:inset-y-0 lg:left-0 lg:z-50 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4">
+        <div className="hidden overflow-x-hidden bg-slate-100 shadow shadow-slate-400 transition-all hover:w-40 dark:bg-slate-800 dark:shadow-slate-600 lg:fixed lg:inset-y-0 lg:left-0 lg:z-10 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4">
           <div className="flex w-40 grow flex-col">
             <nav className="flex flex-1 flex-col">
               <ul role="list" className="flex   flex-1 flex-col">
@@ -190,6 +191,14 @@ const Layout = ({ children }: LayoutProps) => {
 
         <div className="h-full lg:pl-16">
           <main className="h-full">{children}</main>
+        </div>
+      </div>
+      <div
+        aria-live="assertive"
+        className="pointer-events-none fixed inset-0 z-50 flex items-end px-4 py-6 sm:items-start sm:p-6"
+      >
+        <div className="flex w-full flex-col items-center space-y-4 sm:items-end">
+          <Toast />
         </div>
       </div>
     </>
