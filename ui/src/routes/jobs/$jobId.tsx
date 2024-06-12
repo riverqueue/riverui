@@ -1,9 +1,20 @@
-import { ErrorComponent, createFileRoute } from "@tanstack/react-router";
+import {
+  ErrorComponent,
+  createFileRoute,
+  getRouteApi,
+} from "@tanstack/react-router";
 import { cancelJobs, getJob, getJobKey, retryJobs } from "@services/jobs";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import JobDetail from "@components/JobDetail";
 import { NotFoundError } from "@utils/api";
+import JobNotFound from "@components/JobNotFound";
+
+const routeApi = getRouteApi("/jobs/$jobId");
 
 export const Route = createFileRoute("/jobs/$jobId")({
   parseParams: ({ jobId }) => ({ jobId: BigInt(jobId) }),
@@ -25,8 +36,9 @@ export const Route = createFileRoute("/jobs/$jobId")({
   },
 
   errorComponent: ({ error }) => {
+    const { jobId } = routeApi.useParams();
     if (error instanceof NotFoundError) {
-      return <div>{error.message}</div>;
+      return <JobNotFound jobId={jobId} />;
     }
 
     return <ErrorComponent error={error} />;
@@ -42,7 +54,7 @@ function JobComponent() {
   queryOptions.refetchInterval = refreshSettings.intervalMs;
 
   const queryClient = useQueryClient();
-  const jobQuery = useQuery(queryOptions);
+  const jobQuery = useSuspenseQuery(queryOptions);
 
   const cancelMutation = useMutation({
     mutationFn: async () => cancelJobs({ ids: [jobId] }),
@@ -69,10 +81,6 @@ function JobComponent() {
   }
 
   const { data: job } = jobQuery;
-
-  if (!job) {
-    return <p>Job not found.</p>;
-  }
 
   return (
     <JobDetail
