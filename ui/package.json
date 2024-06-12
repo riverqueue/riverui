@@ -16,6 +16,7 @@
     "next-themes": "^0.3.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
     "react-time-sync": "^5.2.1",
     "reactflow": "^11.10.1",
     "zod": "^3.22.2"

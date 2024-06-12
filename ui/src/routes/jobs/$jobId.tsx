@@ -13,6 +13,7 @@ import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import JobDetail from "@components/JobDetail";
 import { NotFoundError } from "@utils/api";
 import JobNotFound from "@components/JobNotFound";
+import { toastError, toastSuccess } from "@services/toast";
 
 const routeApi = getRouteApi("/jobs/$jobId");
 
@@ -60,6 +61,10 @@ function JobComponent() {
     mutationFn: async () => cancelJobs({ ids: [jobId] }),
     throwOnError: true,
     onSuccess: () => {
+      toastError({
+        message: "Job cancelled",
+        duration: 2000,
+      });
       return queryClient.invalidateQueries({
         queryKey: queryOptions.queryKey,
       });
@@ -70,6 +75,11 @@ function JobComponent() {
     mutationFn: async () => retryJobs({ ids: [jobId] }),
     throwOnError: true,
     onSuccess: () => {
+      toastSuccess({
+        message: "Job enqueued for retry",
+        duration: 2000,
+      });
+
       return queryClient.invalidateQueries({
         queryKey: queryOptions.queryKey,
       });
