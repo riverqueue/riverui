@@ -51,7 +51,7 @@ export const JobFilters: (props: JobFiltersProps) => JSX.Element = ({
                       {item.count ? (
                         <Badge
                           color="light"
-                          className="ml-auto w-9 min-w-max whitespace-nowrap"
+                          className="ml-auto w-9 min-w-max justify-end whitespace-nowrap"
                         >
                           {item.count.toString()}
                         </Badge>
