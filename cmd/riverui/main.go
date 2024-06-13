@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
-	"io/fs"
 	"log"
 	"log/slog"
 	"net/http"
@@ -19,8 +19,7 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
-	"github.com/riverqueue/riverui/internal/db"
-	"github.com/riverqueue/riverui/ui"
+	"github.com/riverqueue/riverui"
 )
 
 var logger *slog.Logger //nolint:gochecknoglobals
@@ -39,6 +38,16 @@ func initAndServe(ctx context.Context) int {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
+	var pathPrefix string
+	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
+	flag.Parse()
+
+	if !strings.HasPrefix(pathPrefix, "/") || pathPrefix == "" {
+		logger.ErrorContext(ctx, "invalid path prefix", slog.String("prefix", pathPrefix))
+		return 1
+	}
+	pathPrefix = normalizePathPrefix(pathPrefix)
+
 	corsOriginString := os.Getenv("CORS_ORIGINS")
 	corsOrigins := strings.Split(corsOriginString, ",")
 	dbURL := mustEnv("DATABASE_URL")
@@ -47,15 +56,6 @@ func initAndServe(ctx context.Context) int {
 	if port == "" {
 		port = "8080"
 	}
-
-	frontendIndex, err := fs.Sub(ui.Index, "dist")
-	if err != nil {
-		logger.ErrorContext(ctx, "error getting frontend index", slog.String("error", err.Error()))
-		return 1
-	}
-	httpFS := http.FS(frontendIndex)
-	fileServer := http.FileServer(httpFS)
-	serveIndex := serveFileContents("index.html", httpFS)
 
 	dbPool, err := getDBPool(ctx, dbURL)
 	if err != nil {
@@ -74,24 +74,21 @@ func initAndServe(ctx context.Context) int {
 		logger.ErrorContext(ctx, "error creating river client", slog.String("error", err.Error()))
 		return 1
 	}
-	handler := &apiHandler{client: client, dbPool: dbPool, queries: db.New(dbPool)}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/jobs", handler.JobList)
-	mux.HandleFunc("POST /api/jobs/cancel", handler.JobCancel)
-	mux.HandleFunc("POST /api/jobs/delete", handler.JobDelete)
-	mux.HandleFunc("POST /api/jobs/retry", handler.JobRetry)
-	mux.HandleFunc("GET /api/jobs/{id}", handler.JobGet)
-	mux.HandleFunc("GET /api/queues", handler.QueueList)
-	mux.HandleFunc("GET /api/queues/{name}", handler.QueueGet)
-	mux.HandleFunc("PUT /api/queues/{name}/pause", handler.QueuePause)
-	mux.HandleFunc("PUT /api/queues/{name}/resume", handler.QueueResume)
-	mux.HandleFunc("GET /api/workflows/{id}", handler.WorkflowGet)
-	mux.HandleFunc("GET /api/states", handler.StatesAndCounts)
-	mux.HandleFunc("/api", http.NotFound)
-	mux.Handle("/", intercept404(fileServer, serveIndex))
+	handlerOpts := &riverui.HandlerOpts{
+		Client: client,
+		DBPool: dbPool,
+		Logger: logger,
+		Prefix: pathPrefix,
+	}
 
-	logHandler := sloghttp.Recovery(mux)
+	handler, err := riverui.NewHandler(handlerOpts)
+	if err != nil {
+		logger.ErrorContext(ctx, "error creating handler", slog.String("error", err.Error()))
+		return 1
+	}
+
+	logHandler := sloghttp.Recovery(handler)
 	config := sloghttp.Config{
 		WithSpanID:  otelEnabled,
 		WithTraceID: otelEnabled,
@@ -134,4 +131,15 @@ func mustEnv(name string) string {
 		os.Exit(1)
 	}
 	return val
+}
+
+func normalizePathPrefix(prefix string) string {
+	if prefix == "" {
+		return "/"
+	}
+	prefix = strings.TrimSuffix(prefix, "/")
+	if !strings.HasPrefix(prefix, "/") {
+		return "/" + prefix
+	}
+	return prefix
 }

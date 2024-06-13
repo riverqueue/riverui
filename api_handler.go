@@ -1,4 +1,4 @@
-package main
+package riverui
 
 import (
 	"context"
@@ -26,6 +26,7 @@ type jobCancelRequest struct {
 type apiHandler struct {
 	client  *river.Client[pgx.Tx]
 	dbPool  *pgxpool.Pool
+	logger  *slog.Logger
 	queries *db.Queries
 }
 
@@ -64,12 +65,12 @@ func (a *apiHandler) JobCancel(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// TODO: return jobs in response, use in frontend instead of invalidating
-	writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
-func writeResponse(ctx context.Context, rw http.ResponseWriter, data []byte) {
+func (a *apiHandler) writeResponse(ctx context.Context, rw http.ResponseWriter, data []byte) {
 	if _, err := rw.Write(data); err != nil {
-		logger.ErrorContext(ctx, "error writing response", slog.String("error", err.Error()))
+		a.logger.ErrorContext(ctx, "error writing response", slog.String("error", err.Error()))
 	}
 }
 
@@ -125,7 +126,7 @@ func (a *apiHandler) JobDelete(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	writeResponse(ctx, rw, []byte("{\"status\": \"ok\", \"num_deleted\": "+strconv.Itoa(numDeleted)+"}"))
+	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\", \"num_deleted\": "+strconv.Itoa(numDeleted)+"}"))
 }
 
 type jobRetryRequest struct {
@@ -162,7 +163,7 @@ func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
 func (a *apiHandler) JobGet(rw http.ResponseWriter, req *http.Request) {
@@ -332,7 +333,7 @@ func (a *apiHandler) QueuePause(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
 func (a *apiHandler) QueueResume(rw http.ResponseWriter, req *http.Request) {
@@ -354,7 +355,7 @@ func (a *apiHandler) QueueResume(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
 func (a *apiHandler) StatesAndCounts(rw http.ResponseWriter, req *http.Request) {
