@@ -17,6 +17,7 @@ import { Button, ButtonProps } from "./Button";
 
 type JobDetailProps = {
   cancel: () => void;
+  deleteFn: () => void;
   job: Job;
   retry: () => void;
 };
@@ -44,20 +45,21 @@ function ButtonForGroup({
 
 function ActionButtons({
   cancel,
+  deleteFn,
   job,
   retry,
 }: {
   cancel: () => void;
+  deleteFn: () => void;
   job: Job;
   retry: () => void;
 }) {
-  // Enable immediate retry if the job is not running or pending:
-  const retryDisabled = [JobState.Running, JobState.Pending].includes(
-    job.state
-  );
-  const retryJob = (event: FormEvent) => {
+  // Can only delete jobs that aren't running:
+  const deleteDisabled = job.state === JobState.Running;
+
+  const deleteJob = (event: FormEvent) => {
     event.preventDefault();
-    retry();
+    deleteFn();
   };
 
   // Can only cancel jobs that aren't already finalized (completed, discarded, cancelled):
@@ -70,6 +72,15 @@ function ActionButtons({
   const cancelJob = (event: FormEvent) => {
     event.preventDefault();
     cancel();
+  };
+
+  // Enable immediate retry if the job is not running or pending:
+  const retryDisabled = [JobState.Running, JobState.Pending].includes(
+    job.state
+  );
+  const retryJob = (event: FormEvent) => {
+    event.preventDefault();
+    retry();
   };
 
   return (
@@ -86,12 +97,22 @@ function ActionButtons({
         disabled={cancelDisabled}
         onClick={cancelJob}
       />
-      <ButtonForGroup Icon={TrashIcon} text="Delete" disabled />
+      <ButtonForGroup
+        Icon={TrashIcon}
+        text="Delete"
+        disabled={deleteDisabled}
+        onClick={deleteJob}
+      />
     </span>
   );
 }
 
-export default function JobDetail({ cancel, job, retry }: JobDetailProps) {
+export default function JobDetail({
+  cancel,
+  deleteFn,
+  job,
+  retry,
+}: JobDetailProps) {
   const [showAllAttempts, setShowAllAttempts] = useState(false);
   const attemptsToDisplay = useMemo(() => {
     if (showAllAttempts) {
@@ -118,7 +139,12 @@ export default function JobDetail({ cancel, job, retry }: JobDetailProps) {
               </p>
             </div>
             <div className="order-none flex w-full justify-around sm:block sm:w-auto sm:flex-none">
-              <ActionButtons cancel={cancel} job={job} retry={retry} />
+              <ActionButtons
+                cancel={cancel}
+                deleteFn={deleteFn}
+                job={job}
+                retry={retry}
+              />
             </div>
           </div>
         </header>

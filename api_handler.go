@@ -85,6 +85,49 @@ func stringIDsToInt64s(strs []string) ([]int64, error) {
 	return ints, nil
 }
 
+type jobDeleteRequest struct {
+	JobIDStrings []string `json:"ids"`
+}
+
+func (a *apiHandler) JobDelete(rw http.ResponseWriter, req *http.Request) {
+	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
+	defer cancel()
+
+	var payload jobDeleteRequest
+	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
+	if err != nil {
+		http.Error(rw, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	numDeleted := 0
+	if err := pgx.BeginFunc(ctx, a.dbPool, func(tx pgx.Tx) error {
+		for _, jobID := range jobIDs {
+			_, err := a.client.JobDeleteTx(ctx, tx, jobID)
+			if err != nil {
+				if errors.Is(rivertype.ErrJobRunning, err) {
+					fmt.Printf("job %d is running\n", jobID)
+				}
+				if errors.Is(err, river.ErrNotFound) {
+					fmt.Printf("job %d not found\n", jobID)
+				}
+				return err
+			}
+			numDeleted++
+		}
+		return nil
+	}); err != nil {
+		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	writeResponse(ctx, rw, []byte("{\"status\": \"ok\", \"num_deleted\": "+strconv.Itoa(numDeleted)+"}"))
+}
+
 type jobRetryRequest struct {
 	JobIDStrings []string `json:"ids"`
 }
