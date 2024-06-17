@@ -13,7 +13,11 @@ import { routeTree } from "./routeTree.gen";
 const queryClient = new QueryClient();
 
 // Create a new router instance
-const router = createRouter({ context: { queryClient }, routeTree });
+const router = createRouter({
+  basepath: import.meta.env.BASE_URL,
+  context: { queryClient },
+  routeTree,
+});
 
 // Register your router for maximum type safety
 declare module "@tanstack/react-router" {
