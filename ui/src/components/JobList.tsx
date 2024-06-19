@@ -57,7 +57,7 @@ type JobListItemProps = {
 };
 
 const JobListItem = ({ job }: JobListItemProps) => (
-  <li className="relative flex items-center space-x-4 py-3">
+  <li className="relative flex items-center space-x-4 py-1.5">
     <div className="min-w-0 flex-auto">
       <div className="flex items-center gap-x-3">
         <div
@@ -68,7 +68,7 @@ const JobListItem = ({ job }: JobListItemProps) => (
         >
           <div className="size-2 rounded-full bg-current" />
         </div>
-        <h2 className="min-w-0 grow text-sm font-medium leading-6">
+        <h2 className="min-w-0 grow text-sm font-medium leading-5">
           <Link
             to="/jobs/$jobId"
             params={{ jobId: job.id }}
@@ -77,11 +77,11 @@ const JobListItem = ({ job }: JobListItemProps) => (
             <span className="truncate">{job.kind}</span>
           </Link>
         </h2>
-        <div className="text-right text-sm leading-6 text-slate-700 dark:text-slate-100">
+        <div className="text-right text-sm leading-5 text-slate-700 dark:text-slate-100">
           <JobTimeDisplay job={job} />
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
+      <div className="mt-1.5 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
         <div className="flex items-center gap-x-2 font-semibold">
           <span>{job.attempt.toString()}</span>
           <span>/</span>
