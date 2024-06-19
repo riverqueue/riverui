@@ -28,10 +28,10 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { Link } from "@tanstack/react-router";
-import { JobState } from "@services/types";
 import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
 import useFeature from "@hooks/use-feature";
 import Toast from "@components/Toast";
+import { JobState } from "@services/types";
 
 type LayoutProps = PropsWithChildren<object>;
 

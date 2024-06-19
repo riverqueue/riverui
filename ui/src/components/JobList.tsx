@@ -144,10 +144,10 @@ const JobRows = ({
     return <EmptyState />;
   }
   return (
-    <div className="flex min-h-dvh flex-col px-4 sm:px-6 lg:px-8">
+    <div className="flex min-h-dvh flex-col">
       <ul
         role="list"
-        className="grow divide-y divide-black/5 dark:divide-white/5"
+        className="grow divide-y divide-black/5 px-4 dark:divide-white/5 sm:px-6 lg:px-8"
       >
         {jobs.map((job) => (
           <JobListItem key={job.id.toString()} job={job} />

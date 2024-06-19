@@ -27,6 +27,22 @@ const jobSearchSchema = z.object({
 
 export const Route = createFileRoute("/jobs/")({
   validateSearch: jobSearchSchema,
+  beforeLoad: async ({ context, navigate, search }) => {
+    console.log("beforeLoad", search);
+    if (!search.state) {
+      // navigate is deprecated, but the alternative of `throw redirect` suffers
+      // from this issue:
+      //
+      // https://github.com/TanStack/router/issues/1751
+      navigate({
+        replace: true,
+        search: {
+          state: JobState.Running,
+        },
+      });
+    }
+    return context;
+  },
   loaderDeps: ({ search: { limit, state } }) => {
     return { limit: limit || minimumLimit, state };
   },
