@@ -2,14 +2,49 @@
 
 River UI consists of two apps: a Go backend API, and a TypeScript UI frontend.
 
-## Local Development
+## Local development
 
-From the root directory, run `go build` to build the `riverui` executable. You'll need to copy the `.env.example` to `.env` and customize as needed to configure it.
+### Migrate database
 
 ```sh
-go build && ./riverui
+cp .env.sample .env
 ```
 
-By default it runs on port 8080, though this can be customized via the `PORT` env.
+```sh
+$ createdb river-development
+$ go install github.com/riverqueue/river/cmd/river
+$ river migrate-up --database-url postgres://localhost/river-development
+```
 
-If the JS frontend has been built for distribution (within the `ui/dist` dir), it will be served by the Go executable. Otherwise, you can run the JS frontend separately via `npm run dev` in the `ui` directory. By default the UI runs on port 5173 at `http://localhost:5173/` and connects to the API at port 8080, though this can also be customized in the UI's `.env` file.
+### Go API
+
+```sh
+go build ./cmd/riverui && ./riverui
+```
+
+By default it starts at http://localhost:8080.
+
+The API will need a build TypeScript UI in `ui/dist`, or you'll have to serve it separately (see below).
+
+### TypeScript UI
+
+The UI lives in the `ui/` subdirectory. Go to it and install dependencies:
+
+```sh
+$ cd ui
+$ npm install
+```
+
+Run the development server:
+
+```sh
+$ npm run dev
+```
+
+By default it starts at http://localhost:5173 and tries to reach the API on 8080.
+
+Alternatively, build the TypeScript API to `ui/dist`, which will be included in the Go API's bundle during compilation, if it's present:
+
+```sh
+$ npm run build
+```
