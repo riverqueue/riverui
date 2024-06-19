@@ -62,8 +62,6 @@ linters-settings:
 
   revive:
     rules:
-      - name: unused-parameter
-        disabled: true
 
   tagliatelle:
     case:
