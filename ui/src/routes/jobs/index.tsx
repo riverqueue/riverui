@@ -28,7 +28,6 @@ const jobSearchSchema = z.object({
 export const Route = createFileRoute("/jobs/")({
   validateSearch: jobSearchSchema,
   beforeLoad: async ({ context, navigate, search }) => {
-    console.log("beforeLoad", search);
     if (!search.state) {
       // navigate is deprecated, but the alternative of `throw redirect` suffers
       // from this issue:
