@@ -57,7 +57,7 @@ type JobListItemProps = {
 };
 
 const JobListItem = ({ job }: JobListItemProps) => (
-  <li className="relative flex items-center space-x-4 py-3">
+  <li className="relative flex items-center space-x-4 py-1.5">
     <div className="min-w-0 flex-auto">
       <div className="flex items-center gap-x-3">
         <div
@@ -68,7 +68,7 @@ const JobListItem = ({ job }: JobListItemProps) => (
         >
           <div className="size-2 rounded-full bg-current" />
         </div>
-        <h2 className="min-w-0 grow text-sm font-medium leading-6">
+        <h2 className="min-w-0 grow text-sm font-medium leading-5">
           <Link
             to="/jobs/$jobId"
             params={{ jobId: job.id }}
@@ -77,11 +77,11 @@ const JobListItem = ({ job }: JobListItemProps) => (
             <span className="truncate">{job.kind}</span>
           </Link>
         </h2>
-        <div className="text-right text-sm leading-6 text-slate-700 dark:text-slate-100">
+        <div className="text-right text-sm leading-5 text-slate-700 dark:text-slate-100">
           <JobTimeDisplay job={job} />
         </div>
       </div>
-      <div className="mt-3 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
+      <div className="mt-1.5 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
         <div className="flex items-center gap-x-2 font-semibold">
           <span>{job.attempt.toString()}</span>
           <span>/</span>
@@ -206,7 +206,7 @@ const JobList = (props: JobListProps) => {
   );
 
   return (
-    <div className="lg:pl-72">
+    <div className="lg:pl-56">
       <TopNav>
         <header className="flex flex-1 items-center lg:hidden">
           <h1 className="hidden text-base font-semibold leading-6 text-slate-900 dark:text-slate-100 lg:inline">
@@ -259,7 +259,7 @@ const JobList = (props: JobListProps) => {
         </header>
       </TopNav>
 
-      <div className="hidden lg:fixed lg:inset-y-0 lg:left-16 lg:flex lg:w-72 lg:flex-col">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-16 lg:flex lg:w-56 lg:flex-col">
         <JobFilters statesAndCounts={statesAndCounts} />
       </div>
 

@@ -31,35 +31,35 @@ const QueueList = ({
               <tr>
                 <th
                   scope="col"
-                  className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 dark:text-slate-100 sm:pl-0"
+                  className="py-2.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 dark:text-slate-100 sm:pl-0"
                 >
                   Name
                 </th>
                 <th
                   scope="col"
-                  className="hidden px-3 py-3.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 md:table-cell"
+                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 md:table-cell"
                 >
                   Created
                 </th>
                 <th
                   scope="col"
-                  className="hidden px-3 py-3.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:table-cell"
+                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:table-cell"
                 >
                   Available
                 </th>
                 <th
                   scope="col"
-                  className="hidden px-3 py-3.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:table-cell"
+                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:table-cell"
                 >
                   Running
                 </th>
                 <th
                   scope="col"
-                  className="table-cell px-3 py-3.5 text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
+                  className="table-cell px-3 py-2.5 text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
                 >
                   Status
                 </th>
-                <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-0">
+                <th scope="col" className="relative py-2.5 pl-3 pr-4 sm:pr-0">
                   <span className="sr-only">Controls</span>
                 </th>
               </tr>
@@ -67,21 +67,21 @@ const QueueList = ({
             <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900">
               {queues.map((queue) => (
                 <tr key={queue.name}>
-                  <td className="w-full max-w-0 py-4 pl-4 pr-3 text-sm font-medium text-slate-900 dark:text-slate-100 sm:w-auto sm:max-w-none sm:pl-0">
-                    <span className="font-mono font-semibold text-slate-700 dark:text-slate-300">
+                  <td className="w-full max-w-0 py-2 pl-4 pr-3 text-sm font-medium text-slate-700 dark:text-slate-300 sm:w-auto sm:max-w-none sm:pl-0">
+                    <span className="font-mono font-semibold dark:text-slate-100">
                       {queue.name}
                     </span>
                     <dl className="font-normal md:hidden">
                       <dt className="sr-only sm:hidden">Available</dt>
-                      <dd className="mt-1 truncate text-slate-700 dark:text-slate-300 sm:hidden">
+                      <dd className="mt-1 truncate sm:hidden">
                         {queue.countAvailable} available
                       </dd>
                       <dt className="sr-only sm:hidden">Running</dt>
-                      <dd className="mt-1 truncate text-slate-700 dark:text-slate-300 sm:hidden">
+                      <dd className="mt-1 truncate sm:hidden">
                         {queue.countRunning} running
                       </dd>
                       <dt className="sr-only">Created</dt>
-                      <dd className="mt-1 truncate text-slate-700 dark:text-slate-300">
+                      <dd className="mt-1 truncate">
                         <RelativeTimeFormatter
                           time={queue.createdAt}
                           addSuffix
@@ -90,23 +90,23 @@ const QueueList = ({
                       </dd>
                     </dl>
                   </td>
-                  <td className="hidden px-3 py-4 text-right text-sm text-slate-500 dark:text-slate-400 md:table-cell">
+                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 md:table-cell">
                     <RelativeTimeFormatter
                       time={queue.createdAt}
                       addSuffix
                       includeSeconds
                     />
                   </td>
-                  <td className="hidden px-3 py-4 text-right text-sm text-slate-500 dark:text-slate-400 sm:table-cell">
+                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 sm:table-cell">
                     {queue.countAvailable}
                   </td>
-                  <td className="hidden px-3 py-4 text-right text-sm text-slate-500 dark:text-slate-400 sm:table-cell">
+                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 sm:table-cell">
                     {queue.countRunning}
                   </td>
-                  <td className="table-cell px-3 py-4 text-sm text-slate-500 dark:text-slate-400">
+                  <td className="table-cell px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
                     {queue.pausedAt ? "Paused" : "Active"}
                   </td>
-                  <td className="py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                  <td className="py-2 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
                     <button
                       className="rounded-md bg-white px-2 py-1 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-slate-700 dark:hover:bg-white/20"
                       onClick={
