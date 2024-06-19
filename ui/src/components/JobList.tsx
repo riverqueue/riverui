@@ -144,14 +144,17 @@ const JobRows = ({
     return <EmptyState />;
   }
   return (
-    <div className="mx-auto px-4 sm:px-6 lg:px-8">
-      <ul role="list" className="divide-y divide-black/5 dark:divide-white/5">
+    <div className="px-4 sm:px-6 lg:px-8 min-h-dvh flex flex-col">
+      <ul
+        role="list"
+        className="divide-y divide-black/5 dark:divide-white/5 flex-grow"
+      >
         {jobs.map((job) => (
           <JobListItem key={job.id.toString()} job={job} />
         ))}
       </ul>
       <nav
-        className="flex items-center justify-center border-t border-black/5 py-3 dark:border-white/5"
+        className="flex items-center justify-center border-t border-black/5 py-3 dark:border-white/5 sticky bottom-0 left-0 right-0 bg-white dark:bg-slate-900"
         aria-label="Pagination"
       >
         <Button
@@ -203,7 +206,7 @@ const JobList = (props: JobListProps) => {
   );
 
   return (
-    <div className="h-full lg:pl-72">
+    <div className="lg:pl-72">
       <TopNav>
         <header className="flex flex-1 items-center lg:hidden">
           <h1 className="hidden text-base font-semibold leading-6 text-slate-900 dark:text-slate-100 lg:inline">
@@ -214,7 +217,7 @@ const JobList = (props: JobListProps) => {
               className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1 text-slate-700 data-[active]:border-slate-200 data-[hover]:border-slate-200 dark:text-slate-300 dark:data-[active]:border-slate-700 dark:data-[hover]:border-slate-700"
               aria-label="Account options"
             >
-              <span className="flex w-36 flex-1 items-center justify-between text-left">
+              <span className="flex min-w-36 flex-1 items-center justify-between text-left">
                 <span className="block align-middle text-base font-semibold">
                   {stateFormatted}
                 </span>

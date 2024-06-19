@@ -1,17 +1,17 @@
-import { PropsWithChildren } from "react";
+import { HTMLAttributes, PropsWithChildren } from "react";
 
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import { RefreshPauser } from "@components/RefreshPauser";
 import { ThemeSelector } from "@components/ThemeSelector";
 import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
 
-type TopNavProps = PropsWithChildren<object>;
+type TopNavProps = PropsWithChildren<HTMLAttributes<HTMLElement>>;
 
 const TopNav = ({ children }: TopNavProps) => {
   const { setOpen: setSidebarOpen } = useSidebarSetting();
 
   return (
-    <div className="sticky top-0 z-40 bg-white dark:border-slate-700 dark:bg-slate-900 lg:mx-auto">
+    <div className="sticky top-0 z-40 bg-white dark:border-slate-700 dark:bg-slate-900 lg:w-100">
       <div className="flex h-16 items-center gap-x-4 border-b  px-4 shadow-sm dark:border-slate-800 sm:gap-x-6 sm:px-6 lg:px-8 lg:shadow-none">
         <button
           type="button"
