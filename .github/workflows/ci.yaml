@@ -1,9 +1,6 @@
 name: CI
 
 env:
-  # Database to connect to that can create other databases with `CREATE DATABASE`.
-  ADMIN_DATABASE_URL: postgres://postgres:postgres@localhost:5432
-
   # A suitable URL for the test database.
   DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/riverui_dev?sslmode=disable
 
@@ -11,6 +8,8 @@ on:
   push:
     branches:
       - master
+    tags:
+      - "v*"
   pull_request:
 
 jobs:
@@ -19,8 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version:
-          - "1.22"
         postgres-version: [16, 15]
       fail-fast: false
     timeout-minutes: 5
@@ -39,12 +36,14 @@ jobs:
           - 5432:5432
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup Go ${{ matrix.go-version }}
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go-version }}
+          check-latest: true
+          go-version-file: "./go.mod"
 
       - name: Display Go version
         run: go version
@@ -88,13 +87,13 @@ jobs:
       pull-requests: read
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - uses: actions/setup-go@v5
         with:
-          go-version: "stable"
           check-latest: true
-
-      - name: Checkout
-        uses: actions/checkout@v4
+          go-version-file: "./go.mod"
 
       # ensure that there is a file in `ui/dist` to prevent a lint error about
       # it during CI when there is nothing there:
@@ -196,3 +195,70 @@ jobs:
 
       - name: Build 🏗️
         run: npm exec vite build
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          check-latest: true
+          go-version-file: "go.mod"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+          node-version: current
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: ui
+
+      - name: Build UI bundle
+        run: npm run build
+        working-directory: ui
+
+      - name: Build Go darwin / amd64
+        run: |
+          GOOS=darwin GOARCH=amd64 BINARY_NAME=riverui_${GOOS}_${GOARCH}
+          go build -o ./build/${BINARY_NAME} ./cmd/riverui
+          gzip ./build/${BINARY_NAME}
+
+      - name: Build Go darwin / arm64
+        run: |
+          GOOS=darwin GOARCH=arm64 BINARY_NAME=riverui_${GOOS}_${GOARCH}
+          go build -o ./build/${BINARY_NAME} ./cmd/riverui
+          gzip ./build/${BINARY_NAME}
+
+      - name: Build Go linux / amd64
+        run: |
+          GOOS=linux GOARCH=amd64 BINARY_NAME=riverui_${GOOS}_${GOARCH}
+          go build -o ./build/${BINARY_NAME} ./cmd/riverui
+          gzip ./build/${BINARY_NAME}
+
+      - name: Build Go linux / arm64
+        run: |
+          GOOS=linux GOARCH=arm64 BINARY_NAME=riverui_${GOOS}_${GOARCH}
+          go build -o ./build/${BINARY_NAME} ./cmd/riverui
+          gzip ./build/${BINARY_NAME}
+
+      - name: List binaries
+        run: ls ./build
+
+      - name: Cut release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ./build/riverui_darwin_amd64.gz
+            ./build/riverui_darwin_arm64.gz
+            ./build/riverui_linux_amd64.gz
+            ./build/riverui_linux_arm64.gz
