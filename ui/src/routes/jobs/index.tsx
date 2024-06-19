@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  queryOptions,
-  useQuery,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { JobState } from "@services/types";
 import JobList from "@components/JobList";
@@ -52,7 +48,7 @@ function JobsIndexComponent() {
   const refreshSettings = useRefreshSetting();
   const refetchInterval = refreshSettings.intervalMs;
 
-  const jobsQuery = useSuspenseQuery(
+  const jobsQuery = useQuery(
     jobsQueryOptions(Route.useLoaderDeps(), { refetchInterval })
   );
   const statesQuery = useQuery(statesQueryOptions({ refetchInterval }));

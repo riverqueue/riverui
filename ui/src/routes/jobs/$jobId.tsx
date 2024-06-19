@@ -3,11 +3,7 @@ import {
   createFileRoute,
   getRouteApi,
 } from "@tanstack/react-router";
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import JobDetail from "@components/JobDetail";
 import { NotFoundError } from "@utils/api";
@@ -63,7 +59,7 @@ function JobComponent() {
   queryOptions.refetchInterval = refreshSettings.intervalMs;
 
   const queryClient = useQueryClient();
-  const jobQuery = useSuspenseQuery(queryOptions);
+  const jobQuery = useQuery(queryOptions);
 
   const cancelMutation = useMutation({
     mutationFn: async () => cancelJobs({ ids: [jobId] }),
