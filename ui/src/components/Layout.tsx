@@ -136,6 +136,7 @@ const Layout = ({ children }: LayoutProps) => {
                                     className:
                                       "text-slate-600 dark:text-slate-400 dark:hover:text-white hover:text-slate-900 border-transparent dark:hover:bg-slate-800 hover:bg-slate-200",
                                   }}
+                                  onClick={() => setSidebarOpen(false)}
                                 >
                                   <item.icon
                                     className="size-6 shrink-0"
