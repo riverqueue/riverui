@@ -206,7 +206,7 @@ const JobList = (props: JobListProps) => {
   );
 
   return (
-    <div className="lg:pl-72">
+    <div className="lg:pl-56">
       <TopNav>
         <header className="flex flex-1 items-center lg:hidden">
           <h1 className="hidden text-base font-semibold leading-6 text-slate-900 dark:text-slate-100 lg:inline">
@@ -259,7 +259,7 @@ const JobList = (props: JobListProps) => {
         </header>
       </TopNav>
 
-      <div className="hidden lg:fixed lg:inset-y-0 lg:left-16 lg:flex lg:w-72 lg:flex-col">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-16 lg:flex lg:w-56 lg:flex-col">
         <JobFilters statesAndCounts={statesAndCounts} />
       </div>
 
