@@ -113,7 +113,7 @@ const statusIconClassesFor = (status: StepStatus): string => {
 };
 
 const ScheduledStep = ({ job }: { job: Job }) => {
-  if (job.state === JobState.Scheduled || job.scheduledAt > new Date()) {
+  if (job.state === JobState.Scheduled && job.scheduledAt > new Date()) {
     return (
       <StatusStep
         Icon={ClockIcon}
@@ -232,6 +232,21 @@ const RunningStep = ({ job }: { job: Job }) => {
   );
 };
 
+const RetryableStep = ({ job }: { job: Job }) => {
+  if (job.state === JobState.Retryable) {
+    return (
+      <StatusStep
+        Icon={ClockIcon}
+        name="Awaiting Retry"
+        descriptionTitle={job.scheduledAt.toUTCString()}
+        status="active"
+      >
+        Job errored, retrying <RelativeTime time={job.scheduledAt} addSuffix />
+      </StatusStep>
+    );
+  }
+};
+
 const FinalizedStep = ({ job }: { job: Job }) => {
   if (!job.finalizedAt) {
     return (
@@ -300,14 +315,7 @@ export default function JobTimeline({ job }: JobTimelineProps) {
       <ScheduledStep job={job} />
       <WaitStep job={job} />
       <RunningStep job={job} />
-      {job.state === JobState.Retryable && (
-        <StatusStep
-          Icon={ClockIcon}
-          name="Awaiting Retry"
-          description="Job errored and can be retried"
-          status="active"
-        />
-      )}
+      <RetryableStep job={job} />
       <FinalizedStep job={job} />
     </ol>
   );

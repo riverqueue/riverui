@@ -123,7 +123,7 @@ class JobFactory extends Factory<Job, object> {
         }),
       ],
       createdAt: sub(attemptedAt, { minutes: 31, seconds: 30 }),
-      scheduledAt: sub(attemptedAt, { seconds: 22.5 }),
+      scheduledAt: add(Date.now(), { minutes: 15, seconds: 22.5 }),
       state: JobState.Retryable,
     });
   }

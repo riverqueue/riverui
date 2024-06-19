@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import JobTimeline from "./JobTimeline";
 import { jobFactory } from "@test/factories/job";
+import { sub } from "date-fns";
 
 const meta: Meta<typeof JobTimeline> = {
   title: "Components/JobTimeline",
@@ -39,6 +40,14 @@ export const Completed: Story = {
 export const Retryable: Story = {
   args: {
     job: jobFactory.retryable().build(),
+  },
+};
+
+export const RetryableOverdue: Story = {
+  args: {
+    job: jobFactory
+      .retryable()
+      .build({ scheduledAt: sub(Date.now(), { minutes: 2, seconds: 30 }) }),
   },
 };
 
