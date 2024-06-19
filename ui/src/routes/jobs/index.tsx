@@ -6,7 +6,7 @@ import JobList from "@components/JobList";
 import { listJobs, listJobsKey } from "@services/jobs";
 
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { countsByState, countsByStateKey } from "@services/states";
 
 const minimumLimit = 20;
@@ -27,13 +27,9 @@ const jobSearchSchema = z.object({
 
 export const Route = createFileRoute("/jobs/")({
   validateSearch: jobSearchSchema,
-  beforeLoad: async ({ context, navigate, search }) => {
+  beforeLoad: async ({ context, search }) => {
     if (!search.state) {
-      // navigate is deprecated, but the alternative of `throw redirect` suffers
-      // from this issue:
-      //
-      // https://github.com/TanStack/router/issues/1751
-      navigate({
+      throw redirect({
         replace: true,
         search: {
           state: JobState.Running,

@@ -31,7 +31,6 @@ import { Link } from "@tanstack/react-router";
 import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
 import useFeature from "@hooks/use-feature";
 import Toast from "@components/Toast";
-import { JobState } from "@services/types";
 
 type LayoutProps = PropsWithChildren<object>;
 
@@ -47,7 +46,7 @@ const Layout = ({ children }: LayoutProps) => {
           name: "Jobs",
           href: "/jobs",
           icon: QueueListIcon,
-          search: { state: JobState.Running },
+          search: {},
         },
         { name: "Queues", href: "/queues", icon: InboxStackIcon },
         {
