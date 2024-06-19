@@ -36,15 +36,15 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
                         {error.attempt.toString()}
                       </p>
                       <div className="ml-4">
-                        <h5 className="font-mono text-sm font-medium text-slate-900 dark:text-slate-100">
+                        <h5 className="mb-4 font-mono text-sm font-medium text-slate-900 dark:text-slate-100">
                           {error.error}
                         </h5>
                         {error.trace && (
-                          <pre className="mt-1 max-h-20 overflow-scroll bg-slate-300/10 text-sm text-slate-700 dark:bg-slate-700/10 dark:text-slate-300">
+                          <pre className="max-h-20 overflow-scroll bg-slate-300/10 text-sm text-slate-700 dark:bg-slate-700/10 dark:text-slate-300">
                             {error.trace}
                           </pre>
                         )}
-                        <p className="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                        <p className="mt-4 text-sm text-slate-700 dark:text-slate-300">
                           <RelativeTimeFormatter time={error.at} addSuffix />
                         </p>
                       </div>
