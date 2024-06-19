@@ -255,7 +255,6 @@ const JobList = (props: JobListProps) => {
               ))}
             </DropdownMenu>
           </Dropdown>
-          {/* <JobFilters statesAndCounts={statesAndCounts} /> */}
         </header>
       </TopNav>
 
