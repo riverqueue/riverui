@@ -259,7 +259,7 @@ const JobList = (props: JobListProps) => {
         </header>
       </TopNav>
 
-      <div className="hidden lg:fixed lg:inset-y-0 lg:left-16 lg:z-40 lg:flex lg:w-72 lg:flex-col">
+      <div className="hidden lg:fixed lg:inset-y-0 lg:left-16 lg:flex lg:w-72 lg:flex-col">
         <JobFilters statesAndCounts={statesAndCounts} />
       </div>
 
