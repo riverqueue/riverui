@@ -144,17 +144,17 @@ const JobRows = ({
     return <EmptyState />;
   }
   return (
-    <div className="px-4 sm:px-6 lg:px-8 min-h-dvh flex flex-col">
+    <div className="flex min-h-dvh flex-col px-4 sm:px-6 lg:px-8">
       <ul
         role="list"
-        className="divide-y divide-black/5 dark:divide-white/5 flex-grow"
+        className="grow divide-y divide-black/5 dark:divide-white/5"
       >
         {jobs.map((job) => (
           <JobListItem key={job.id.toString()} job={job} />
         ))}
       </ul>
       <nav
-        className="flex items-center justify-center border-t border-black/5 py-3 dark:border-white/5 sticky bottom-0 left-0 right-0 bg-white dark:bg-slate-900"
+        className="sticky inset-x-0 bottom-0 flex items-center justify-center border-t border-black/5 bg-white py-3 dark:border-white/5 dark:bg-slate-900"
         aria-label="Pagination"
       >
         <Button
