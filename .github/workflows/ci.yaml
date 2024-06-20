@@ -228,32 +228,30 @@ jobs:
         run: npm run build
         working-directory: ui
 
+      # We use `export` below so that we can reuse the variables in the command
+      # itself (to make a filename). A subshell is used to make sure the export
+      # doesn't taint the environment (probably not necessary in GitHub Actions,
+      # but in case the command is copy/pasted to a shell where it is).
       - name: Build Go darwin / amd64
-        run: |
-          GOOS=darwin GOARCH=amd64 BINARY_NAME=riverui_${GOOS}_${GOARCH}
-          go build -o ./build/${BINARY_NAME} ./cmd/riverui
-          gzip ./build/${BINARY_NAME}
+        run: $(export GOOS=darwin GOARCH=amd64; go build -o ./build/riverui_${GOOS}_${GOARCH} ./cmd/riverui)
 
       - name: Build Go darwin / arm64
-        run: |
-          GOOS=darwin GOARCH=arm64 BINARY_NAME=riverui_${GOOS}_${GOARCH}
-          go build -o ./build/${BINARY_NAME} ./cmd/riverui
-          gzip ./build/${BINARY_NAME}
+        run: $(export GOOS=darwin GOARCH=arm64; go build -o ./build/riverui_${GOOS}_${GOARCH} ./cmd/riverui)
 
       - name: Build Go linux / amd64
-        run: |
-          GOOS=linux GOARCH=amd64 BINARY_NAME=riverui_${GOOS}_${GOARCH}
-          go build -o ./build/${BINARY_NAME} ./cmd/riverui
-          gzip ./build/${BINARY_NAME}
+        run: $(export GOOS=linux GOARCH=amd64; go build -o ./build/riverui_${GOOS}_${GOARCH} ./cmd/riverui)
 
       - name: Build Go linux / arm64
-        run: |
-          GOOS=linux GOARCH=arm64 BINARY_NAME=riverui_${GOOS}_${GOARCH}
-          go build -o ./build/${BINARY_NAME} ./cmd/riverui
-          gzip ./build/${BINARY_NAME}
+        run: $(export GOOS=linux GOARCH=arm64; go build -o ./build/riverui_${GOOS}_${GOARCH} ./cmd/riverui)
 
       - name: List binaries
-        run: ls ./build
+        run: ls -l ./build
+
+      - name: Zip binaries
+        run: gzip ./build/*
+
+      - name: List zipped binaries
+        run: ls -l ./build
 
       - name: Cut release
         uses: softprops/action-gh-release@v2
