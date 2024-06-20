@@ -36,9 +36,6 @@ COPY --from=build-ui /app/dist ./ui/dist
 RUN go build -o /bin/riverui ./cmd/riverui
 
 FROM alpine:3.19.1
-LABEL org.opencontainers.image.source=https://github.com/riverqueue/riverui
-LABEL org.opencontainers.image.description="River UI is a web-based user interface for River, a fast and reliable background job system."
-LABEL org.opencontainers.image.licenses=MPL-2.0
 
 ARG PATH_PREFIX
 ENV PATH_PREFIX=${PATH_PREFIX}
