@@ -36,12 +36,14 @@ func (a *apiHandler) JobCancel(rw http.ResponseWriter, req *http.Request) {
 
 	var payload jobCancelRequest
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -97,12 +99,14 @@ func (a *apiHandler) JobDelete(rw http.ResponseWriter, req *http.Request) {
 
 	var payload jobDeleteRequest
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -141,12 +145,14 @@ func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
 
 	var payload jobRetryRequest
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -208,7 +214,8 @@ func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	if err := req.ParseForm(); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -290,7 +297,8 @@ func (a *apiHandler) QueueList(rw http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	if err := req.ParseForm(); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
