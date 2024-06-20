@@ -139,6 +139,12 @@ const ScheduledStep = ({ job }: { job: Job }) => {
 };
 
 const WaitStep = ({ job }: { job: Job }) => {
+  const nowSec = useTime();
+  const scheduledAtInFuture = useMemo(
+    () => job.scheduledAt >= new Date(nowSec * 1000),
+    [job.scheduledAt, nowSec]
+  );
+
   if (job.state === JobState.Scheduled && !job.attemptedAt) {
     return (
       <StatusStep
@@ -147,6 +153,19 @@ const WaitStep = ({ job }: { job: Job }) => {
         description="—"
         status="pending"
       />
+    );
+  }
+
+  if (job.state === JobState.Retryable && scheduledAtInFuture) {
+    return (
+      <StatusStep
+        Icon={QueueListIcon}
+        name="Wait"
+        status="complete"
+        descriptionTitle={job.scheduledAt.toUTCString()}
+      >
+        –
+      </StatusStep>
     );
   }
 
