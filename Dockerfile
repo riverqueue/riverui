@@ -27,7 +27,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy Go files without copying the ui dir:
-COPY *.go internal README.md LICENSE ./
+COPY *.go internal docs/README.md LICENSE ./
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY ui/*.go ./ui/
