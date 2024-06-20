@@ -1,8 +1,6 @@
-# River UI
+# River UI development
 
 River UI consists of two apps: a Go backend API, and a TypeScript UI frontend.
-
-## Local development
 
 ### Migrate database
 
