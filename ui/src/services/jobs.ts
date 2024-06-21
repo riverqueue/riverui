@@ -115,23 +115,23 @@ export const deleteJobs: MutationFunction<void, DeletePayload> = async ({
 };
 
 type ListJobsFilters = {
-  limit?: number;
-  state?: JobState;
+  limit: number;
+  state: JobState;
 };
 
-type ListJobsKey = ["listJobs", ListJobsFilters];
+export type ListJobsKey = ["listJobs", JobState, number];
 
 export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
-  return ["listJobs", args];
+  return ["listJobs", args.state, args.limit];
 };
 
 export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   queryKey,
   signal,
 }) => {
-  const [, searchParams] = queryKey;
+  const [, state, limit] = queryKey;
   const searchParamsStringValues = Object.fromEntries(
-    Object.entries(searchParams).map(([k, v]) => [k, String(v)])
+    Object.entries({ state, limit }).map(([k, v]) => [k, String(v)])
   );
   const query = new URLSearchParams(searchParamsStringValues);
 
