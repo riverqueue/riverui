@@ -1,9 +1,13 @@
 import { z } from "zod";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import {
+  PlaceholderDataFunction,
+  queryOptions,
+  useQuery,
+} from "@tanstack/react-query";
 
 import { JobState } from "@services/types";
 import JobList from "@components/JobList";
-import { listJobs, listJobsKey } from "@services/jobs";
+import { Job, ListJobsKey, listJobs, listJobsKey } from "@services/jobs";
 
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { createFileRoute, redirect } from "@tanstack/react-router";
@@ -22,7 +26,7 @@ const jobSearchSchema = z.object({
     .default(defaultLimit)
     .catch(defaultLimit)
     .optional(),
-  state: z.nativeEnum(JobState).catch(JobState.Running).optional(),
+  state: z.nativeEnum(JobState).catch(JobState.Running),
 });
 
 export const Route = createFileRoute("/jobs/")({
@@ -102,16 +106,29 @@ const jobsQueryOptions = (
     limit,
     state,
   }: {
-    limit?: number;
-    state?: JobState;
+    limit: number;
+    state: JobState;
   },
   opts?: { refetchInterval: number }
-) =>
-  queryOptions({
+) => {
+  const keepPreviousDataUnlessStateChanged: PlaceholderDataFunction<
+    Job[],
+    Error,
+    Job[],
+    ListJobsKey
+  > = (previousData, previousQuery) => {
+    if (!previousQuery) return undefined;
+    const [, previousState] = previousQuery.queryKey;
+    if (previousState !== state) return undefined;
+    return previousData;
+  };
+  return queryOptions({
     queryKey: listJobsKey({ limit, state }),
     queryFn: listJobs,
+    placeholderData: keepPreviousDataUnlessStateChanged,
     refetchInterval: opts?.refetchInterval,
   });
+};
 
 const statesQueryOptions = (opts?: { refetchInterval: number }) =>
   queryOptions({
