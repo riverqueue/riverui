@@ -27,6 +27,7 @@ $ RIVER_ARCH=arm64 # either 'amd64' or 'arm64'
 $ RIVER_OS=darwin  # either 'darwin' or 'linux'
 $ curl -L https://github.com/riverqueue/riverui/releases/latest/download/riverui_${RIVER_OS}_${RIVER_ARCH}.gz | gzip -d > riverui
 $ chmod +x riverui
+$ export DATABASE_URL=...
 $ ./riverui
 ```
 
@@ -36,7 +37,7 @@ River UI ships [container images](https://github.com/riverqueue/riverui/pkgs/con
 
 ```sh
 $ docker pull ghcr.io/riverqueue/riverui:latest
-$ docker run ghcr.io/riverqueue/riverui:latest
+$ docker run ghcr.io/riverqueue/riverui:latest --env DATABASE_URL
 ```
 
 ## Development
