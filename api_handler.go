@@ -36,12 +36,14 @@ func (a *apiHandler) JobCancel(rw http.ResponseWriter, req *http.Request) {
 
 	var payload jobCancelRequest
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -60,7 +62,8 @@ func (a *apiHandler) JobCancel(rw http.ResponseWriter, req *http.Request) {
 		}
 		return nil
 	}); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error cancelling jobs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -96,12 +99,14 @@ func (a *apiHandler) JobDelete(rw http.ResponseWriter, req *http.Request) {
 
 	var payload jobDeleteRequest
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -122,7 +127,8 @@ func (a *apiHandler) JobDelete(rw http.ResponseWriter, req *http.Request) {
 		}
 		return nil
 	}); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error deleting jobs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -139,12 +145,14 @@ func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
 
 	var payload jobRetryRequest
 	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -159,7 +167,8 @@ func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
 		}
 		return nil
 	}); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error retrying jobs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -188,12 +197,14 @@ func (a *apiHandler) JobGet(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error getting job", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	if err := json.NewEncoder(rw).Encode(riverJobToSerializableJob(*job)); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error encoding job", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }
@@ -203,7 +214,8 @@ func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	if err := req.ParseForm(); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -229,12 +241,14 @@ func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
 
 	result, err := a.client.JobList(ctx, params)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error listing jobs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	if err = json.NewEncoder(rw).Encode(riverJobsToSerializableJobs(result)); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error encoding jobs", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }
@@ -255,13 +269,15 @@ func (a *apiHandler) QueueGet(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error getting queue", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	countRows, err := a.queries.JobCountByQueueAndState(ctx, []string{name})
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error getting queue job counts", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 	var count db.JobCountByQueueAndStateRow
@@ -270,7 +286,8 @@ func (a *apiHandler) QueueGet(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := json.NewEncoder(rw).Encode(riverQueueToSerializableQueue(*queue, count.AvailableJobsCount, count.RunningJobsCount)); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error encoding queues", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }
@@ -280,7 +297,8 @@ func (a *apiHandler) QueueList(rw http.ResponseWriter, req *http.Request) {
 	defer cancel()
 
 	if err := req.ParseForm(); err != nil {
-		http.Error(rw, err.Error(), http.StatusBadRequest)
+		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 		return
 	}
 
@@ -293,7 +311,8 @@ func (a *apiHandler) QueueList(rw http.ResponseWriter, req *http.Request) {
 
 	result, err := a.client.QueueList(ctx, river.NewQueueListParams().First(int(limit)))
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error listing queues", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -304,12 +323,14 @@ func (a *apiHandler) QueueList(rw http.ResponseWriter, req *http.Request) {
 
 	countRows, err := a.queries.JobCountByQueueAndState(ctx, queueNames)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error getting queue counts", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	if err = json.NewEncoder(rw).Encode(riverQueuesToSerializableQueues(result.Queues, countRows)); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error encoding queues", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }
@@ -329,7 +350,8 @@ func (a *apiHandler) QueuePause(rw http.ResponseWriter, req *http.Request) {
 			http.Error(rw, "{\"error\": {\"msg\": \"queue not found\"}}", http.StatusNotFound)
 			return
 		}
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error pausing queue", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -351,7 +373,8 @@ func (a *apiHandler) QueueResume(rw http.ResponseWriter, req *http.Request) {
 			http.Error(rw, "{\"error\": {\"msg\": \"queue not found\"}}", http.StatusNotFound)
 			return
 		}
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error resuming queue", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -364,7 +387,8 @@ func (a *apiHandler) StatesAndCounts(rw http.ResponseWriter, req *http.Request) 
 
 	countsAndStates, err := a.queries.JobCountByState(ctx)
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error getting job counts", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -385,7 +409,8 @@ func (a *apiHandler) StatesAndCounts(rw http.ResponseWriter, req *http.Request) 
 	}
 
 	if err = json.NewEncoder(rw).Encode(resp); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error encoding job counts", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }
@@ -421,7 +446,8 @@ func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
 		WorkflowID:       workflowID,
 	})
 	if err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error getting workflow", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
@@ -436,7 +462,8 @@ func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
 	resp.Tasks = jobs
 
 	if err = json.NewEncoder(rw).Encode(resp); err != nil {
-		http.Error(rw, err.Error(), http.StatusInternalServerError)
+		a.logger.ErrorContext(ctx, "error encoding workflow", slog.String("error", err.Error()))
+		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 }
