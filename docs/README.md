@@ -13,7 +13,14 @@ $ river migrate-up --database-url "$DATABASE_URL"
 
 ### From binary
 
-River UI [releases](https://github.com/riverqueue/riverui/releases) include a set of static binaries for a variety of architectures and operating systems. Fetch and run one with:
+River UI [releases](https://github.com/riverqueue/riverui/releases) include a set of static binaries for a variety of architectures and operating systems. Use one of these links:
+
+* [Linux AMD64](https://github.com/riverqueue/riverui/releases/latest/download/riverui_linux_amd64.gz)
+* [Linux ARM64](https://github.com/riverqueue/riverui/releases/latest/download/riverui_linux_arm64.gz)
+* [macOS AMD64](https://github.com/riverqueue/riverui/releases/latest/download/riverui_darwin_amd64.gz)
+* [macOS ARM64](https://github.com/riverqueue/riverui/releases/latest/download/riverui_darwin_arm64.gz)
+
+Or fetch a binary with cURL:
 
 ```sh
 $ RIVER_ARCH=arm64 # either 'amd64' or 'arm64'
