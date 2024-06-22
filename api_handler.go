@@ -12,63 +12,78 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
+	"github.com/riverqueue/riverui/internal/apiendpoint"
+	"github.com/riverqueue/riverui/internal/apierror"
 	"github.com/riverqueue/riverui/internal/db"
+	"github.com/riverqueue/riverui/internal/util/dbutil"
 )
 
-type jobCancelRequest struct {
-	JobIDStrings []string `json:"ids"`
-}
-
-type apiHandler struct {
+// A bundle of common utilities needed for many API endpoints.
+type apiBundle struct {
 	client  *river.Client[pgx.Tx]
-	dbPool  *pgxpool.Pool
+	dbPool  DBTXWithBegin
 	logger  *slog.Logger
 	queries *db.Queries
 }
 
-func (a *apiHandler) JobCancel(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
+// SetBundle sets all values to the same as the given bundle.
+func (a *apiBundle) SetBundle(bundle *apiBundle) {
+	*a = *bundle
+}
 
-	var payload jobCancelRequest
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
+// withSetBundle is an interface that's automatically implemented by types that
+// embed apiBundle. It lets places like tests generically set bundle values on
+// any general endpoint type.
+type withSetBundle interface {
+	// SetBundle sets all values to the same as the given bundle.
+	SetBundle(bundle *apiBundle)
+}
+
+type jobCancelEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, jobCancelResponse]
+}
+
+func (*jobCancelEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "POST /api/jobs/cancel",
+		StatusCode: http.StatusOK,
 	}
-	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
+}
 
-	updatedJobs := make(map[int64]*rivertype.JobRow)
+type jobCancelRequest struct {
+	JobIDs []int64String `json:"ids"`
+}
 
-	if err := pgx.BeginFunc(ctx, a.dbPool, func(tx pgx.Tx) error {
-		for _, jobID := range jobIDs {
+type jobCancelResponse struct {
+	Status string `json:"status"`
+}
+
+func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) (*jobCancelResponse, error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*jobCancelResponse, error) {
+		updatedJobs := make(map[int64]*rivertype.JobRow)
+		for _, jobID := range req.JobIDs {
+			jobID := int64(jobID)
 			job, err := a.client.JobCancelTx(ctx, tx, jobID)
 			if err != nil {
 				if errors.Is(err, river.ErrNotFound) {
-					fmt.Printf("job %d not found\n", jobID)
+					return nil, apierror.NewNotFoundJob(jobID)
 				}
-				return err
+				return nil, fmt.Errorf("error canceling jobs: %w", err)
 			}
 			updatedJobs[jobID] = job
 		}
-		return nil
-	}); err != nil {
-		a.logger.ErrorContext(ctx, "error cancelling jobs", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
 
-	// TODO: return jobs in response, use in frontend instead of invalidating
-	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+		// TODO: return jobs in response, use in frontend instead of invalidating
+		return &jobCancelResponse{Status: "ok"}, nil
+	})
+}
+
+type apiHandler struct {
+	apiBundle
 }
 
 func (a *apiHandler) writeResponse(ctx context.Context, rw http.ResponseWriter, data []byte) {
@@ -175,38 +190,45 @@ func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
 	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
-func (a *apiHandler) JobGet(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
+type jobGetEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobGetRequest, RiverJob]
+}
 
-	idString := req.PathValue("id")
-	if idString == "" {
-		http.Error(rw, "missing job id", http.StatusBadRequest)
-		return
+func (*jobGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/jobs/{job_id}",
+		StatusCode: http.StatusOK,
 	}
+}
+
+type jobGetRequest struct {
+	JobID int64 `json:"-"` // from ExtractRaw
+}
+
+func (req *jobGetRequest) ExtractRaw(r *http.Request) error {
+	idString := r.PathValue("job_id")
 
 	jobID, err := strconv.ParseInt(idString, 10, 64)
 	if err != nil {
-		http.Error(rw, fmt.Sprintf("invalid job id: %s", err), http.StatusBadRequest)
-		return
+		return apierror.NewBadRequest("Couldn't convert job ID to int64: %s.", err)
 	}
+	req.JobID = jobID
 
-	job, err := a.client.JobGet(ctx, jobID)
-	if errors.Is(err, river.ErrNotFound) {
-		http.Error(rw, "{\"error\": {\"msg\": \"job not found\"}}", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error getting job", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+	return nil
+}
 
-	if err := json.NewEncoder(rw).Encode(riverJobToSerializableJob(*job)); err != nil {
-		a.logger.ErrorContext(ctx, "error encoding job", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*RiverJob, error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverJob, error) {
+		job, err := a.client.JobGetTx(ctx, tx, req.JobID)
+		if err != nil {
+			if errors.Is(err, river.ErrNotFound) {
+				return nil, apierror.NewNotFoundJob(req.JobID)
+			}
+			return nil, fmt.Errorf("error getting job: %w", err)
+		}
+		return riverJobToSerializableJob(job), nil
+	})
 }
 
 func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
@@ -544,7 +566,7 @@ func internalJobsToSerializableJobs(internal []db.RiverJob) []RiverJob {
 	return jobs
 }
 
-func riverJobToSerializableJob(riverJob rivertype.JobRow) RiverJob {
+func riverJobToSerializableJob(riverJob *rivertype.JobRow) *RiverJob {
 	attemptedBy := riverJob.AttemptedBy
 	if attemptedBy == nil {
 		attemptedBy = []string{}
@@ -554,7 +576,7 @@ func riverJobToSerializableJob(riverJob rivertype.JobRow) RiverJob {
 		errs = []rivertype.AttemptError{}
 	}
 
-	return RiverJob{
+	return &RiverJob{
 		ID:          riverJob.ID,
 		Args:        riverJob.EncodedArgs,
 		Attempt:     riverJob.Attempt,
@@ -574,10 +596,10 @@ func riverJobToSerializableJob(riverJob rivertype.JobRow) RiverJob {
 	}
 }
 
-func riverJobsToSerializableJobs(result *river.JobListResult) []RiverJob {
-	jobs := make([]RiverJob, len(result.Jobs))
+func riverJobsToSerializableJobs(result *river.JobListResult) []*RiverJob {
+	jobs := make([]*RiverJob, len(result.Jobs))
 	for i, internalJob := range result.Jobs {
-		jobs[i] = riverJobToSerializableJob(*internalJob)
+		jobs[i] = riverJobToSerializableJob(internalJob)
 	}
 	return jobs
 }
