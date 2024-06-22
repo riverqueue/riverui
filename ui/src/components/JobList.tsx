@@ -1,6 +1,12 @@
-import React, { useMemo } from "react";
+import React, { FormEvent, useCallback, useEffect, useMemo } from "react";
 import { Link } from "@tanstack/react-router";
 import { MenuButton as HeadlessMenuButton } from "@headlessui/react";
+import {
+  ArrowUturnLeftIcon,
+  ChevronUpDownIcon,
+  TrashIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline";
 
 import { Job } from "@services/jobs";
 import { JobState } from "@services/types";
@@ -10,13 +16,17 @@ import { JobFilters } from "@components/JobFilters";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNav from "@components/TopNav";
 import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
-import { ChevronUpDownIcon } from "@heroicons/react/24/outline";
 import {
   JobStateFilterItem,
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
-import { Badge } from "./Badge";
-import { Button } from "./Button";
+import { Badge } from "@components/Badge";
+import { Button } from "@components/Button";
+import { useSelected } from "@hooks/use-selected";
+import { useShiftSelected } from "@hooks/use-shift-selected";
+import { CustomCheckbox } from "./CustomCheckbox";
+import ButtonForGroup from "./ButtonForGroup";
+import { ExclamationTriangleIcon } from "@heroicons/react/20/solid";
 
 const states: { [key in JobState]: string } = {
   [JobState.Available]: "text-sky-500 bg-sky-100/10",
@@ -53,12 +63,25 @@ const JobTimeDisplay = ({ job }: { job: Job }): JSX.Element => {
 };
 
 type JobListItemProps = {
+  checked: boolean;
   job: Job;
+  onChangeSelect: (
+    checked: boolean,
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => void;
 };
 
-const JobListItem = ({ job }: JobListItemProps) => (
-  <li className="relative flex items-center space-x-4 py-1.5">
-    <div className="min-w-0 flex-auto">
+const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
+  <li className="relative flex items-stretch space-x-4 py-1.5">
+    <div className="flex items-center">
+      <CustomCheckbox
+        aria-label={`Select job ${job.id.toString()}`}
+        checked={checked}
+        name={`select_job_${job.id.toString()}`}
+        onChange={onChangeSelect}
+      />
+    </div>
+    <div className="flex-auto">
       <div className="flex items-center gap-x-3">
         <div
           className={classNames(
@@ -125,32 +148,183 @@ const EmptyState = () => (
   </div>
 );
 
+function JobListActionButtons({
+  cancel,
+  className,
+  deleteFn,
+  jobIDs,
+  retry,
+  state,
+}: {
+  cancel: (jobIDs: bigint[]) => void;
+  className?: string;
+  deleteFn: (jobIDs: bigint[]) => void;
+  jobIDs: bigint[];
+  retry: (jobIDs: bigint[]) => void;
+  state: JobState;
+}) {
+  // Can only delete jobs that aren't running:
+  const deleteDisabled = state === JobState.Running;
+
+  const deleteJob = (event: FormEvent) => {
+    event.preventDefault();
+    deleteFn(jobIDs);
+  };
+
+  // Can only cancel jobs that aren't already finalized (completed, discarded, cancelled):
+  const cancelDisabled = [
+    JobState.Cancelled,
+    JobState.Completed,
+    JobState.Discarded,
+  ].includes(state);
+
+  const cancelJob = (event: FormEvent) => {
+    event.preventDefault();
+    cancel(jobIDs);
+  };
+
+  // Enable immediate retry if the job is not running or pending:
+  const retryDisabled = [JobState.Running, JobState.Pending].includes(state);
+  const retryJob = (event: FormEvent) => {
+    event.preventDefault();
+    retry(jobIDs);
+  };
+
+  return (
+    <span
+      className={classNames(
+        "inline-flex rounded-md shadow-sm mr-6",
+        className || ""
+      )}
+    >
+      <ButtonForGroup
+        Icon={ArrowUturnLeftIcon}
+        text="Retry"
+        disabled={retryDisabled}
+        onClick={retryJob}
+      />
+      <ButtonForGroup
+        Icon={XCircleIcon}
+        text="Cancel"
+        disabled={cancelDisabled}
+        onClick={cancelJob}
+      />
+      <ButtonForGroup
+        Icon={TrashIcon}
+        text="Delete"
+        disabled={deleteDisabled}
+        onClick={deleteJob}
+      />
+    </span>
+  );
+}
+
 type JobRowsProps = {
   canShowFewer: boolean;
   canShowMore: boolean;
+  cancelJobs: (jobIDs: bigint[]) => void;
+  deleteJobs: (jobIDs: bigint[]) => void;
   jobs: Job[];
+  retryJobs: (jobIDs: bigint[]) => void;
+  setJobRefetchesPaused: (value: boolean) => void;
   showFewer: () => void;
   showMore: () => void;
+  state: JobState;
 };
 
 const JobRows = ({
   canShowFewer,
   canShowMore,
+  cancelJobs,
+  deleteJobs,
   jobs,
+  retryJobs,
+  setJobRefetchesPaused,
   showFewer,
   showMore,
+  state,
 }: JobRowsProps) => {
+  const {
+    selected: selectedJobs,
+    selectedSet,
+    change: changeSelectedJobs,
+    clear: clearSelectedJobs,
+    add: addSelectedJob,
+    remove: removeSelectedJob,
+  } = useSelected([] as Array<bigint>);
+  const jobIDs = useMemo(() => jobs.map((j) => j.id), [jobs]);
+  const onChange = useShiftSelected(jobIDs, changeSelectedJobs);
+
+  useEffect(() => {
+    setJobRefetchesPaused(selectedJobs.length > 0);
+  }, [selectedJobs, setJobRefetchesPaused]);
+
+  useEffect(() => {
+    // Reset selection when jobs list changes
+    clearSelectedJobs();
+  }, [jobs, clearSelectedJobs]);
+
+  const handleSelectAll = useCallback(
+    (checked: boolean, _event: React.ChangeEvent<HTMLInputElement>) => {
+      if (checked) {
+        addSelectedJob(jobIDs);
+      } else {
+        removeSelectedJob(jobIDs);
+      }
+    },
+    [jobIDs, addSelectedJob, removeSelectedJob]
+  );
+
+  const isIndeterminate =
+    selectedJobs.length > 0 && selectedJobs.length < jobs.length;
+
   if (jobs.length === 0) {
     return <EmptyState />;
   }
   return (
     <div className="flex min-h-dvh flex-col">
+      <div className="px-4 sm:px-6 lg:px-8">
+        <div className="flex min-h-12 items-center space-x-4 border-b border-slate-300 py-2 dark:border-slate-700 sm:justify-between">
+          <CustomCheckbox
+            aria-label={"Select all jobs"}
+            className="grow-0"
+            name={"select_all_jobs"}
+            checked={selectedJobs.length > 0}
+            indeterminate={isIndeterminate}
+            onChange={handleSelectAll}
+          />
+          <JobListActionButtons
+            cancel={cancelJobs}
+            className={classNames(selectedJobs.length === 0 ? "invisible" : "")}
+            deleteFn={deleteJobs}
+            jobIDs={selectedJobs}
+            retry={retryJobs}
+            state={state}
+          />
+          {selectedJobs.length > 0 && (
+            <>
+              <div className="hidden grow text-sm text-slate-600 dark:text-slate-400 sm:block">
+                {selectedJobs.length.toString()} selected
+              </div>
+              <Badge color="amber" className="hidden sm:flex">
+                <ExclamationTriangleIcon className="size-4" />
+                Updates paused
+              </Badge>
+            </>
+          )}
+        </div>
+      </div>
       <ul
         role="list"
-        className="grow divide-y divide-black/5 px-4 dark:divide-white/5 sm:px-6 lg:px-8"
+        className="grow divide-y divide-slate-200 px-4 dark:divide-slate-800 sm:px-6 lg:px-8"
       >
         {jobs.map((job) => (
-          <JobListItem key={job.id.toString()} job={job} />
+          <JobListItem
+            key={job.id.toString()}
+            job={job}
+            checked={selectedSet.has(job.id)}
+            onChangeSelect={(_checked, event) => onChange(event, job.id)}
+          />
         ))}
       </ul>
       <nav
@@ -181,13 +355,13 @@ const JobRows = ({
 type JobListProps = {
   canShowFewer: boolean;
   canShowMore: boolean;
-  loading?: boolean;
   jobs: Job[];
+  loading?: boolean;
   showFewer: () => void;
   showMore: () => void;
   state: JobState;
   statesAndCounts: StatesAndCounts | undefined;
-};
+} & JobRowsProps;
 
 const JobList = (props: JobListProps) => {
   const { loading, state, statesAndCounts } = props;

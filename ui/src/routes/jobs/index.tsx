@@ -2,16 +2,28 @@ import { z } from "zod";
 import {
   PlaceholderDataFunction,
   queryOptions,
+  useMutation,
   useQuery,
+  useQueryClient,
 } from "@tanstack/react-query";
 
 import { JobState } from "@services/types";
 import JobList from "@components/JobList";
-import { Job, ListJobsKey, listJobs, listJobsKey } from "@services/jobs";
+import {
+  Job,
+  ListJobsKey,
+  cancelJobs,
+  deleteJobs,
+  listJobs,
+  listJobsKey,
+  retryJobs,
+} from "@services/jobs";
 
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { countsByState, countsByStateKey } from "@services/states";
+import { useState } from "react";
+import { toastError, toastSuccess } from "@services/toast";
 
 const minimumLimit = 20;
 const defaultLimit = 20;
@@ -59,12 +71,14 @@ export const Route = createFileRoute("/jobs/")({
 
 function JobsIndexComponent() {
   const navigate = Route.useNavigate();
-  const { limit } = Route.useLoaderDeps();
+  const { limit, state } = Route.useLoaderDeps();
   const refreshSettings = useRefreshSetting();
   const refetchInterval = refreshSettings.intervalMs;
+  const [pauseRefetches, setJobRefetchesPaused] = useState(false);
+  const queryClient = useQueryClient();
 
   const jobsQuery = useQuery(
-    jobsQueryOptions(Route.useLoaderDeps(), { refetchInterval })
+    jobsQueryOptions(Route.useLoaderDeps(), { pauseRefetches, refetchInterval })
   );
   const statesQuery = useQuery(statesQueryOptions({ refetchInterval }));
 
@@ -87,15 +101,64 @@ function JobsIndexComponent() {
     });
   };
 
+  const cancelMutation = useMutation({
+    mutationFn: async (jobIDs: bigint[]) => cancelJobs({ ids: jobIDs }),
+    throwOnError: true,
+    onSuccess: () => {
+      toastError({
+        message: "Jobs cancelled",
+        duration: 2000,
+      });
+      queryClient.invalidateQueries({
+        queryKey: listJobsKey({ limit, state }),
+      });
+      queryClient.invalidateQueries({ queryKey: countsByStateKey() });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (jobIDs: bigint[]) => deleteJobs({ ids: jobIDs }),
+    throwOnError: true,
+    onSuccess: async () => {
+      toastError({
+        message: "Jobs deleted",
+        duration: 2000,
+      });
+      await queryClient.removeQueries({
+        queryKey: listJobsKey({ limit, state }),
+      });
+      queryClient.invalidateQueries({ queryKey: countsByStateKey() });
+    },
+  });
+
+  const retryMutation = useMutation({
+    mutationFn: async (jobIDs: bigint[]) => retryJobs({ ids: jobIDs }),
+    throwOnError: true,
+    onSuccess: () => {
+      toastSuccess({
+        message: "Jobs enqueued for retry",
+        duration: 2000,
+      });
+      queryClient.invalidateQueries({
+        queryKey: listJobsKey({ limit, state }),
+      });
+      queryClient.invalidateQueries({ queryKey: countsByStateKey() });
+    },
+  });
+
   return (
     <JobList
       canShowFewer={canShowFewer}
       canShowMore={canShowMore}
-      loading={jobsQuery.isLoading}
+      cancelJobs={cancelMutation.mutate}
+      deleteJobs={deleteMutation.mutate}
       jobs={jobsQuery.data || []}
+      loading={jobsQuery.isLoading}
+      retryJobs={retryMutation.mutate}
+      setJobRefetchesPaused={setJobRefetchesPaused}
       showFewer={showFewer}
       showMore={showMore}
-      state={Route.useLoaderDeps().state!}
+      state={state}
       statesAndCounts={statesQuery.data}
     />
   );
@@ -109,7 +172,7 @@ const jobsQueryOptions = (
     limit: number;
     state: JobState;
   },
-  opts?: { refetchInterval: number }
+  opts?: { pauseRefetches: boolean; refetchInterval: number }
 ) => {
   const keepPreviousDataUnlessStateChanged: PlaceholderDataFunction<
     Job[],
@@ -126,7 +189,7 @@ const jobsQueryOptions = (
     queryKey: listJobsKey({ limit, state }),
     queryFn: listJobs,
     placeholderData: keepPreviousDataUnlessStateChanged,
-    refetchInterval: opts?.refetchInterval,
+    refetchInterval: !opts?.pauseRefetches && opts?.refetchInterval,
   });
 };
 
