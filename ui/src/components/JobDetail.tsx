@@ -5,7 +5,7 @@ import {
 } from "@heroicons/react/24/outline";
 
 import { Job } from "@services/jobs";
-import { Heroicon, JobState } from "@services/types";
+import { JobState } from "@services/types";
 import { capitalize } from "@utils/string";
 import JobTimeline from "./JobTimeline";
 import { FormEvent, useMemo, useState } from "react";
@@ -13,7 +13,7 @@ import TopNavTitleOnly from "./TopNavTitleOnly";
 import RelativeTimeFormatter from "./RelativeTimeFormatter";
 import JobAttemptErrors from "./JobAttemptErrors";
 import { Badge } from "./Badge";
-import { Button, ButtonProps } from "./Button";
+import ButtonForGroup from "./ButtonForGroup";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -21,27 +21,6 @@ type JobDetailProps = {
   job: Job;
   retry: () => void;
 };
-
-function ButtonForGroup({
-  Icon,
-  text,
-  ...props
-}: {
-  Icon: Heroicon;
-  onClick?: (event: FormEvent) => void;
-  text: string;
-} & Omit<ButtonProps, "children" | "color" | "outline" | "plain">) {
-  return (
-    <Button
-      outline
-      {...props}
-      className="rounded-none first:rounded-l-md last:rounded-r-md"
-    >
-      <Icon className="mr-2 size-5" aria-hidden="true" />
-      {text}
-    </Button>
-  );
-}
 
 function ActionButtons({
   cancel,
