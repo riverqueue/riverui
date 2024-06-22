@@ -81,7 +81,7 @@ const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
         onChange={onChangeSelect}
       />
     </div>
-    <div className="flex-auto">
+    <div className="min-w-0 flex-auto">
       <div className="flex items-center gap-x-3">
         <div
           className={classNames(
@@ -100,7 +100,7 @@ const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
             <span className="truncate">{job.kind}</span>
           </Link>
         </h2>
-        <div className="text-right text-sm leading-5 text-slate-700 dark:text-slate-100">
+        <div className="text-nowrap text-right text-sm leading-5 text-slate-700 dark:text-slate-100">
           <JobTimeDisplay job={job} />
         </div>
       </div>
