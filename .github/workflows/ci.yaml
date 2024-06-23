@@ -218,14 +218,18 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: ui/package-lock.json
-          node-version: current
+          node-version: "20.12.2"
 
       - name: Install dependencies
         run: npm install
+        shell: sh
         working-directory: ui
 
       - name: Build UI bundle
-        run: npm run build
+        env:
+          NODE_ENV: production
+          VITE_RIVER_API_BASE_URL: /api
+        run: npm exec vite build
         working-directory: ui
 
       # We use `export` below so that we can reuse the variables in the command
