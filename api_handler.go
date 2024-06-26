@@ -275,6 +275,10 @@ func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (a *apiHandler) Healthcheck(rw http.ResponseWriter, req *http.Request) {
+	a.writeResponse(req.Context(), rw, []byte("{\"status\": \"ok\"}"))
+}
+
 func (a *apiHandler) QueueGet(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
 	defer cancel()

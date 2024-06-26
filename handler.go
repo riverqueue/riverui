@@ -100,6 +100,7 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	mux.HandleFunc("GET /api/workflows/{id}", handler.WorkflowGet)
 	mux.HandleFunc("GET /api/states", handler.StatesAndCounts)
 	mux.HandleFunc("/api", http.NotFound)
+	mux.HandleFunc("GET /healthcheck", handler.Healthcheck)
 	mux.Handle("/", intercept404(fileServer, serveIndex))
 
 	if prefix != "/" {
