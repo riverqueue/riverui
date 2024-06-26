@@ -30,6 +30,10 @@ type apiHandler struct {
 	queries *db.Queries
 }
 
+func (a *apiHandler) Healthcheck(rw http.ResponseWriter, req *http.Request) {
+	a.writeResponse(req.Context(), rw, []byte("{\"status\": \"ok\"}"))
+}
+
 func (a *apiHandler) JobCancel(rw http.ResponseWriter, req *http.Request) {
 	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
 	defer cancel()
