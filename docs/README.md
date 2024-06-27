@@ -39,7 +39,7 @@ River UI ships [container images](https://github.com/riverqueue/riverui/pkgs/con
 
 ```sh
 $ docker pull ghcr.io/riverqueue/riverui:latest
-$ docker run ghcr.io/riverqueue/riverui:latest --env DATABASE_URL
+$ docker run --env DATABASE_URL ghcr.io/riverqueue/riverui:latest
 ```
 
 ## Development
