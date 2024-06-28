@@ -56,19 +56,19 @@ type JobCountByQueueAndStateRow struct {
 	RunningJobsCount   int64
 }
 
-func (q *Queries) JobCountByQueueAndState(ctx context.Context, queueNames []string) ([]JobCountByQueueAndStateRow, error) {
-	rows, err := q.db.Query(ctx, jobCountByQueueAndState, queueNames)
+func (q *Queries) JobCountByQueueAndState(ctx context.Context, db DBTX, queueNames []string) ([]*JobCountByQueueAndStateRow, error) {
+	rows, err := db.Query(ctx, jobCountByQueueAndState, queueNames)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []JobCountByQueueAndStateRow
+	var items []*JobCountByQueueAndStateRow
 	for rows.Next() {
 		var i JobCountByQueueAndStateRow
 		if err := rows.Scan(&i.Queue, &i.AvailableJobsCount, &i.RunningJobsCount); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -95,19 +95,19 @@ type JobCountByStateRow struct {
 	Count int64
 }
 
-func (q *Queries) JobCountByState(ctx context.Context) ([]JobCountByStateRow, error) {
-	rows, err := q.db.Query(ctx, jobCountByState)
+func (q *Queries) JobCountByState(ctx context.Context, db DBTX) ([]*JobCountByStateRow, error) {
+	rows, err := db.Query(ctx, jobCountByState)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []JobCountByStateRow
+	var items []*JobCountByStateRow
 	for rows.Next() {
 		var i JobCountByStateRow
 		if err := rows.Scan(&i.State, &i.Count); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -134,13 +134,13 @@ type JobListWorkflowParams struct {
 	PaginationLimit  int32
 }
 
-func (q *Queries) JobListWorkflow(ctx context.Context, arg JobListWorkflowParams) ([]RiverJob, error) {
-	rows, err := q.db.Query(ctx, jobListWorkflow, arg.WorkflowID, arg.PaginationOffset, arg.PaginationLimit)
+func (q *Queries) JobListWorkflow(ctx context.Context, db DBTX, arg *JobListWorkflowParams) ([]*RiverJob, error) {
+	rows, err := db.Query(ctx, jobListWorkflow, arg.WorkflowID, arg.PaginationOffset, arg.PaginationLimit)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []RiverJob
+	var items []*RiverJob
 	for rows.Next() {
 		var i RiverJob
 		if err := rows.Scan(
@@ -163,7 +163,7 @@ func (q *Queries) JobListWorkflow(ctx context.Context, arg JobListWorkflowParams
 		); err != nil {
 			return nil, err
 		}
-		items = append(items, i)
+		items = append(items, &i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

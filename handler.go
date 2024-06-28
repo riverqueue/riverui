@@ -78,10 +78,9 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	serveIndex := serveFileContents("index.html", httpFS)
 
 	apiBundle := apiBundle{
-		client:  opts.Client,
-		dbPool:  opts.DBPool,
-		logger:  opts.Logger,
-		queries: db.New(opts.DBPool),
+		client: opts.Client,
+		dbPool: opts.DBPool,
+		logger: opts.Logger,
 	}
 
 	handler := &apiHandler{apiBundle: apiBundle}
