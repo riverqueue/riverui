@@ -121,7 +121,7 @@ func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) 
 				if errors.Is(err, river.ErrNotFound) {
 					return nil, apierror.NewNotFoundJob(jobID)
 				}
-				return nil, fmt.Errorf("error canceling jobs: %w", err)
+				return nil, err
 			}
 			updatedJobs[jobID] = job
 		}

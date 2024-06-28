@@ -5,11 +5,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 
 	"github.com/riverqueue/riverui/internal/apierror"
@@ -97,6 +100,18 @@ func TestMountAndServe(t *testing.T) {
 		mux.ServeHTTP(bundle.recorder, req)
 
 		requireStatusAndJSONResponse(t, http.StatusBadRequest, &apierror.APIError{Message: "Missing message value."}, bundle.recorder)
+	})
+
+	t.Run("InterpretedPostgresError", func(t *testing.T) {
+		t.Parallel()
+
+		mux, bundle := setup(t)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/post-endpoint",
+			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{MakePostgresError: true})))
+		mux.ServeHTTP(bundle.recorder, req)
+
+		requireStatusAndJSONResponse(t, http.StatusBadRequest, &apierror.APIError{Message: "Insufficient database privilege to perform this operation."}, bundle.recorder)
 	})
 
 	t.Run("Timeout", func(t *testing.T) {
@@ -219,6 +234,7 @@ func (*postEndpoint) Meta() *EndpointMeta {
 
 type postRequest struct {
 	MakeInternalError bool   `json:"make_internal_error"`
+	MakePostgresError bool   `json:"make_postgres_error"`
 	Message           string `json:"message"`
 }
 
@@ -229,6 +245,11 @@ type postResponse struct {
 func (a *postEndpoint) Execute(_ context.Context, req *postRequest) (*postResponse, error) {
 	if req.MakeInternalError {
 		return nil, errors.New("an internal error occurred")
+	}
+
+	if req.MakePostgresError {
+		// Wrap the error to make it more realistic.
+		return nil, fmt.Errorf("error runnning Postgres query: %w", &pgconn.PgError{Code: pgerrcode.InsufficientPrivilege})
 	}
 
 	if req.Message == "" {
