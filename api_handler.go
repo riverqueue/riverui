@@ -41,9 +41,63 @@ type withSetBundle interface {
 	SetBundle(bundle *apiBundle)
 }
 
+type statusResponse struct {
+	Status string `json:"status"`
+}
+
+var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
+
+type healthCheckGetEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[healthCheckGetRequest, statusResponse]
+}
+
+func (*healthCheckGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/health-checks/{name}",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type healthCheckName string
+
+const (
+	healthCheckNameComplete healthCheckName = "complete"
+	healthCheckNameMinimal  healthCheckName = "minimal"
+)
+
+type healthCheckGetRequest struct {
+	Name healthCheckName `json:"-"` // from ExtractRaw
+}
+
+func (req *healthCheckGetRequest) ExtractRaw(r *http.Request) error {
+	req.Name = healthCheckName(r.PathValue("name"))
+	return nil
+}
+
+func (a *healthCheckGetEndpoint) Execute(ctx context.Context, req *healthCheckGetRequest) (*statusResponse, error) {
+	switch req.Name {
+	case healthCheckNameComplete:
+		if _, err := a.dbPool.Exec(ctx, "SELECT 1"); err != nil {
+			return nil, apierror.WithInternalError(
+				apierror.NewServiceUnavailable("Unable to query database. Check logs for details."),
+				err,
+			)
+		}
+
+	case healthCheckNameMinimal:
+		// fall through to OK status response below
+
+	default:
+		return nil, apierror.NewNotFound("Health check %q not found. Use either `complete` or `minimal`.", req.Name)
+	}
+
+	return statusResponseOK, nil
+}
+
 type jobCancelEndpoint struct {
 	apiBundle
-	apiendpoint.Endpoint[jobCancelRequest, jobCancelResponse]
+	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
 func (*jobCancelEndpoint) Meta() *apiendpoint.EndpointMeta {
@@ -57,12 +111,8 @@ type jobCancelRequest struct {
 	JobIDs []int64String `json:"ids"`
 }
 
-type jobCancelResponse struct {
-	Status string `json:"status"`
-}
-
-func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) (*jobCancelResponse, error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*jobCancelResponse, error) {
+func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		updatedJobs := make(map[int64]*rivertype.JobRow)
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
@@ -77,7 +127,7 @@ func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) 
 		}
 
 		// TODO: return jobs in response, use in frontend instead of invalidating
-		return &jobCancelResponse{Status: "ok"}, nil
+		return statusResponseOK, nil
 	})
 }
 

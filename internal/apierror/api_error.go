@@ -16,6 +16,11 @@ import (
 //
 // APIErrorInterface should be used with errors.As instead of this struct.
 type APIError struct {
+	// InternalError is an additional error that might be associated with the
+	// API error. It's not returned in the API error response, but is logged in
+	// API endpoint execution to provide extra information for operators.
+	InternalError error `json:"-"`
+
 	// Message is a descriptive, human-friendly message indicating what went
 	// wrong. Try to make error messages as actionable as possible to help the
 	// caller easily fix what went wrong.
@@ -26,7 +31,9 @@ type APIError struct {
 	StatusCode int `json:"-"`
 }
 
-func (e *APIError) Error() string { return e.Message }
+func (e *APIError) Error() string                      { return e.Message }
+func (e *APIError) GetInternalError() error            { return e.InternalError }
+func (e *APIError) SetInternalError(internalErr error) { e.InternalError = internalErr }
 
 // Write writes the API error to an HTTP response, writing to the given logger
 // in case of a problem.
@@ -48,7 +55,16 @@ func (e *APIError) Write(ctx context.Context, logger *slog.Logger, w http.Respon
 // won't be usable as an errors.As target.
 type Interface interface {
 	Error() string
+	GetInternalError() error
+	SetInternalError(internalErr error)
 	Write(ctx context.Context, logger *slog.Logger, w http.ResponseWriter)
+}
+
+// WithInternalError is a convenience function for assigning an internal error
+// to the given API error and returning it.
+func WithInternalError[TAPIError Interface](apiErr TAPIError, internalErr error) TAPIError {
+	apiErr.SetInternalError(internalErr)
+	return apiErr
 }
 
 //

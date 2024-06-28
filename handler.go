@@ -87,6 +87,7 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	prefix := opts.Prefix
 
 	mux := http.NewServeMux()
+	apiendpoint.Mount(mux, opts.Logger, &healthCheckGetEndpoint{apiBundle: apiBundle})
 	mux.HandleFunc("GET /api/jobs", handler.JobList)
 	apiendpoint.Mount(mux, opts.Logger, &jobCancelEndpoint{apiBundle: apiBundle})
 	mux.HandleFunc("POST /api/jobs/delete", handler.JobDelete)

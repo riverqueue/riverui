@@ -3,6 +3,7 @@ package apierror
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http/httptest"
 	"testing"
 
@@ -10,6 +11,18 @@ import (
 
 	"github.com/riverqueue/riverui/internal/riverinternaltest"
 )
+
+func TestAPIError(t *testing.T) {
+	t.Parallel()
+
+	var (
+		anErr  = errors.New("an error")
+		apiErr = NewBadRequest("Bad request.")
+	)
+
+	apiErr.SetInternalError(anErr)
+	require.Equal(t, anErr, apiErr.GetInternalError())
+}
 
 func TestAPIErrorJSON(t *testing.T) {
 	t.Parallel()
@@ -38,6 +51,18 @@ func TestAPIErrorWrite(t *testing.T) {
 		`{"message":"Bad request. Try sending JSON next time."}`,
 		recorder.Body.String(),
 	)
+}
+
+func TestWithInternalError(t *testing.T) {
+	t.Parallel()
+
+	var (
+		anErr  = errors.New("an error")
+		apiErr = NewBadRequest("Bad request.")
+	)
+
+	apiErr = WithInternalError(apiErr, anErr)
+	require.Equal(t, anErr, apiErr.InternalError)
 }
 
 func mustMarshalJSON(t *testing.T, v any) []byte {
