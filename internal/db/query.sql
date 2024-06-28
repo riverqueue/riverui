@@ -54,8 +54,8 @@ available_job_counts AS (
 
 SELECT
     all_queues.queue,
-    COALESCE(available_job_counts.count, 0) AS available_jobs_count,
-    COALESCE(running_job_counts.count, 0) AS running_jobs_count
+    COALESCE(available_job_counts.count, 0) AS count_available,
+    COALESCE(running_job_counts.count, 0) AS count_running
 FROM
     all_queues
 LEFT JOIN

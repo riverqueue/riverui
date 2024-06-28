@@ -40,8 +40,8 @@ available_job_counts AS (
 
 SELECT
     all_queues.queue,
-    COALESCE(available_job_counts.count, 0) AS available_jobs_count,
-    COALESCE(running_job_counts.count, 0) AS running_jobs_count
+    COALESCE(available_job_counts.count, 0) AS count_available,
+    COALESCE(running_job_counts.count, 0) AS count_running
 FROM
     all_queues
 LEFT JOIN
@@ -51,9 +51,9 @@ LEFT JOIN
 `
 
 type JobCountByQueueAndStateRow struct {
-	Queue              string
-	AvailableJobsCount int64
-	RunningJobsCount   int64
+	Queue          string
+	CountAvailable int64
+	CountRunning   int64
 }
 
 func (q *Queries) JobCountByQueueAndState(ctx context.Context, db DBTX, queueNames []string) ([]*JobCountByQueueAndStateRow, error) {
@@ -65,7 +65,7 @@ func (q *Queries) JobCountByQueueAndState(ctx context.Context, db DBTX, queueNam
 	var items []*JobCountByQueueAndStateRow
 	for rows.Next() {
 		var i JobCountByQueueAndStateRow
-		if err := rows.Scan(&i.Queue, &i.AvailableJobsCount, &i.RunningJobsCount); err != nil {
+		if err := rows.Scan(&i.Queue, &i.CountAvailable, &i.CountRunning); err != nil {
 			return nil, err
 		}
 		items = append(items, &i)
