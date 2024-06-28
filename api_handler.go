@@ -23,10 +23,9 @@ import (
 
 // A bundle of common utilities needed for many API endpoints.
 type apiBundle struct {
-	client  *river.Client[pgx.Tx]
-	dbPool  DBTXWithBegin
-	logger  *slog.Logger
-	queries *db.Queries
+	client *river.Client[pgx.Tx]
+	dbPool DBTXWithBegin
+	logger *slog.Logger
 }
 
 // SetBundle sets all values to the same as the given bundle.
@@ -296,13 +295,13 @@ func (a *apiHandler) QueueGet(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	countRows, err := a.queries.JobCountByQueueAndState(ctx, []string{name})
+	countRows, err := db.New().JobCountByQueueAndState(ctx, a.dbPool, []string{name})
 	if err != nil {
 		a.logger.ErrorContext(ctx, "error getting queue job counts", slog.String("error", err.Error()))
 		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
-	var count db.JobCountByQueueAndStateRow
+	var count *db.JobCountByQueueAndStateRow
 	if len(countRows) > 0 {
 		count = countRows[0]
 	}
@@ -343,7 +342,7 @@ func (a *apiHandler) QueueList(rw http.ResponseWriter, req *http.Request) {
 		queueNames[i] = queue.Name
 	}
 
-	countRows, err := a.queries.JobCountByQueueAndState(ctx, queueNames)
+	countRows, err := db.New().JobCountByQueueAndState(ctx, a.dbPool, queueNames)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "error getting queue counts", slog.String("error", err.Error()))
 		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -407,7 +406,7 @@ func (a *apiHandler) StatesAndCounts(rw http.ResponseWriter, req *http.Request) 
 	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
 	defer cancel()
 
-	countsAndStates, err := a.queries.JobCountByState(ctx)
+	countsAndStates, err := db.New().JobCountByState(ctx, a.dbPool)
 	if err != nil {
 		a.logger.ErrorContext(ctx, "error getting job counts", slog.String("error", err.Error()))
 		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
@@ -449,7 +448,7 @@ type StatesAndCountsResponse struct {
 }
 
 type WorkflowGetResponse struct {
-	Tasks []RiverJob `json:"tasks"`
+	Tasks []*RiverJob `json:"tasks"`
 }
 
 func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
@@ -462,7 +461,7 @@ func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	dbJobs, err := a.queries.JobListWorkflow(ctx, db.JobListWorkflowParams{
+	dbJobs, err := db.New().JobListWorkflow(ctx, a.dbPool, &db.JobListWorkflowParams{
 		PaginationLimit:  1000,
 		PaginationOffset: 0,
 		WorkflowID:       workflowID,
@@ -524,7 +523,7 @@ type RiverJob struct {
 	Tags        []string                 `json:"tags"`
 }
 
-func internalJobToSerializableJob(internal db.RiverJob) RiverJob {
+func internalJobToSerializableJob(internal *db.RiverJob) *RiverJob {
 	errs := make([]rivertype.AttemptError, len(internal.Errors))
 	for i, attemptErr := range internal.Errors {
 		if err := json.Unmarshal(attemptErr, &errs[i]); err != nil {
@@ -538,7 +537,7 @@ func internalJobToSerializableJob(internal db.RiverJob) RiverJob {
 		attemptedBy = []string{}
 	}
 
-	return RiverJob{
+	return &RiverJob{
 		ID:          internal.ID,
 		Args:        internal.Args,
 		Attempt:     int(internal.Attempt),
@@ -558,8 +557,8 @@ func internalJobToSerializableJob(internal db.RiverJob) RiverJob {
 	}
 }
 
-func internalJobsToSerializableJobs(internal []db.RiverJob) []RiverJob {
-	jobs := make([]RiverJob, len(internal))
+func internalJobsToSerializableJobs(internal []*db.RiverJob) []*RiverJob {
+	jobs := make([]*RiverJob, len(internal))
 	for i, internalJob := range internal {
 		jobs[i] = internalJobToSerializableJob(internalJob)
 	}
@@ -626,8 +625,8 @@ func riverQueueToSerializableQueue(internal rivertype.Queue, available, running 
 	}
 }
 
-func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []db.JobCountByQueueAndStateRow) []RiverQueue {
-	countsMap := make(map[string]db.JobCountByQueueAndStateRow)
+func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*db.JobCountByQueueAndStateRow) []RiverQueue {
+	countsMap := make(map[string]*db.JobCountByQueueAndStateRow)
 	for _, count := range counts {
 		countsMap[count.Queue] = count
 	}

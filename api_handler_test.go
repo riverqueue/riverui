@@ -10,7 +10,6 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivertype"
 	"github.com/riverqueue/riverui/internal/apierror"
-	"github.com/riverqueue/riverui/internal/db"
 	"github.com/riverqueue/riverui/internal/riverinternaltest"
 )
 
@@ -31,10 +30,9 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T) (*TEndpoint
 
 	if withSetBundle, ok := any(&endpoint).(withSetBundle); ok {
 		withSetBundle.SetBundle(&apiBundle{
-			client:  client,
-			dbPool:  tx,
-			logger:  logger,
-			queries: db.New(tx),
+			client: client,
+			dbPool: tx,
+			logger: logger,
 		})
 	}
 
