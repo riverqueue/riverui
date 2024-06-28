@@ -2,7 +2,7 @@
 
 River UI consists of two apps: a Go backend API, and a TypeScript UI frontend.
 
-### Migrate database
+## Migrate database
 
 ```sh
 cp .env.sample .env
@@ -14,7 +14,7 @@ $ go install github.com/riverqueue/river/cmd/river
 $ river migrate-up --database-url postgres://localhost/river-development
 ```
 
-### Go API
+## Go API
 
 ```sh
 go build ./cmd/riverui && ./riverui
@@ -24,7 +24,22 @@ By default it starts at http://localhost:8080.
 
 The API will need a build TypeScript UI in `ui/dist`, or you'll have to serve it separately (see below).
 
-### TypeScript UI
+## Run tests
+
+Raise test database:
+
+```sh
+$ createdb river-test
+$ river migrate-up --database-url postgres://localhost/river-test
+```
+
+Run tests:
+
+```sh
+$ go test ./...
+```
+
+## TypeScript UI
 
 The UI lives in the `ui/` subdirectory. Go to it and install dependencies:
 

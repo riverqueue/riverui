@@ -82,9 +82,11 @@ linters-settings:
       - id
       - j
       - mu
+      - r # common for http.Request
       - rw # common for http.ResponseWriter
       - sb # common convention for string builder
       - t
       - tt # common convention for table tests
       - tx
+      - w # common for http.ResponseWriter
       - wg

@@ -1,6 +1,7 @@
 package riverui
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -10,19 +11,24 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/riverui/internal/apiendpoint"
 	"github.com/riverqueue/riverui/internal/db"
 	"github.com/riverqueue/riverui/ui"
 )
+
+type DBTXWithBegin interface {
+	Begin(ctx context.Context) (pgx.Tx, error)
+	db.DBTX
+}
 
 // HandlerOpts are the options for creating a new Handler.
 type HandlerOpts struct {
 	// Client is the River client to use for API requests.
 	Client *river.Client[pgx.Tx]
 	// DBPool is the database connection pool to use for API requests.
-	DBPool *pgxpool.Pool
+	DBPool DBTXWithBegin
 	// Logger is the logger to use logging errors within the handler.
 	Logger *slog.Logger
 	// Prefix is the path prefix to use for the API and UI HTTP requests.
@@ -71,20 +77,22 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	fileServer := http.FileServer(httpFS)
 	serveIndex := serveFileContents("index.html", httpFS)
 
-	handler := &apiHandler{
+	apiBundle := apiBundle{
 		client:  opts.Client,
 		dbPool:  opts.DBPool,
 		logger:  opts.Logger,
 		queries: db.New(opts.DBPool),
 	}
+
+	handler := &apiHandler{apiBundle: apiBundle}
 	prefix := opts.Prefix
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/jobs", handler.JobList)
-	mux.HandleFunc("POST /api/jobs/cancel", handler.JobCancel)
+	apiendpoint.Mount(mux, opts.Logger, &jobCancelEndpoint{apiBundle: apiBundle})
 	mux.HandleFunc("POST /api/jobs/delete", handler.JobDelete)
 	mux.HandleFunc("POST /api/jobs/retry", handler.JobRetry)
-	mux.HandleFunc("GET /api/jobs/{id}", handler.JobGet)
+	apiendpoint.Mount(mux, opts.Logger, &jobGetEndpoint{apiBundle: apiBundle})
 	mux.HandleFunc("GET /api/queues", handler.QueueList)
 	mux.HandleFunc("GET /api/queues/{name}", handler.QueueGet)
 	mux.HandleFunc("PUT /api/queues/{name}/pause", handler.QueuePause)

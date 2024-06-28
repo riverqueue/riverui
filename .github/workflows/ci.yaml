@@ -2,7 +2,10 @@ name: CI
 
 env:
   # A suitable URL for the test database.
-  DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/riverui_dev?sslmode=disable
+  DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/river_dev?sslmode=disable
+
+  # Test database.
+  TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/river_test?sslmode=disable
 
 on:
   push:
@@ -58,14 +61,14 @@ jobs:
         run: go install github.com/riverqueue/river/cmd/river@latest
 
       - name: Create test DB
-        run: createdb riverui_dev
+        run: createdb river_test
         env:
           PGHOST: 127.0.0.1
           PGUSER: postgres
           PGPASSWORD: postgres
 
       - name: Migrate test DB
-        run: river migrate-up --database-url "$DATABASE_URL"
+        run: river migrate-up --database-url "$TEST_DATABASE_URL"
 
       # ensure that there is a file in `ui/dist` to prevent a lint error about
       # it during CI when there is nothing there:
