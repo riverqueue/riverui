@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -17,6 +18,8 @@ import (
 
 func TestMountAndServe(t *testing.T) {
 	t.Parallel()
+
+	ctx := context.Background()
 
 	type testBundle struct {
 		recorder *httptest.ResponseRecorder
@@ -94,6 +97,22 @@ func TestMountAndServe(t *testing.T) {
 		mux.ServeHTTP(bundle.recorder, req)
 
 		requireStatusAndJSONResponse(t, http.StatusBadRequest, &apierror.APIError{Message: "Missing message value."}, bundle.recorder)
+	})
+
+	t.Run("Timeout", func(t *testing.T) {
+		t.Parallel()
+
+		mux, bundle := setup(t)
+
+		ctx, cancel := context.WithDeadline(ctx, time.Now())
+		t.Cleanup(cancel)
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/api/post-endpoint",
+			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{MakeInternalError: true})))
+		require.NoError(t, err)
+		mux.ServeHTTP(bundle.recorder, req)
+
+		requireStatusAndJSONResponse(t, http.StatusInternalServerError, &apierror.APIError{Message: "Internal server error. Check logs for more information."}, bundle.recorder)
 	})
 
 	t.Run("InternalServerError", func(t *testing.T) {
