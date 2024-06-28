@@ -141,8 +141,17 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		var apiErr apierror.Interface
 		if errors.As(err, &apiErr) {
+			logAttrs := []any{
+				slog.String("error", apiErr.Error()),
+			}
+
+			if internalErr := apiErr.GetInternalError(); internalErr != nil {
+				logAttrs = append(logAttrs, slog.String("internal_error", internalErr.Error()))
+			}
+
 			// Logged at info level because API errors are normal.
-			logger.InfoContext(ctx, "API error response", slog.String("error", apiErr.Error()))
+			logger.InfoContext(ctx, "API error response", logAttrs...)
+
 			apiErr.Write(ctx, logger, w)
 			return
 		}

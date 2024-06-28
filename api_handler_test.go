@@ -44,7 +44,57 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T) (*TEndpoint
 	}
 }
 
-func TestAPIHandlerJobCancel(t *testing.T) {
+func TestHandlerHealthCheckGetEndpoint(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("CompleteSuccess", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, _ := setupEndpoint[healthCheckGetEndpoint](ctx, t)
+
+		resp, err := endpoint.Execute(ctx, &healthCheckGetRequest{Name: healthCheckNameComplete})
+		require.NoError(t, err)
+		require.Equal(t, statusResponseOK, resp)
+	})
+
+	t.Run("CompleteDatabaseError", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[healthCheckGetEndpoint](ctx, t)
+
+		// Roll back prematurely so we get a database error.
+		require.NoError(t, bundle.tx.Rollback(ctx))
+
+		_, err := endpoint.Execute(ctx, &healthCheckGetRequest{Name: healthCheckNameComplete})
+		requireAPIError(t, apierror.WithInternalError(
+			apierror.NewServiceUnavailable("Unable to query database. Check logs for details."),
+			pgx.ErrTxClosed,
+		), err)
+	})
+
+	t.Run("Minimal", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, _ := setupEndpoint[healthCheckGetEndpoint](ctx, t)
+
+		resp, err := endpoint.Execute(ctx, &healthCheckGetRequest{Name: healthCheckNameMinimal})
+		require.NoError(t, err)
+		require.Equal(t, statusResponseOK, resp)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, _ := setupEndpoint[healthCheckGetEndpoint](ctx, t)
+
+		_, err := endpoint.Execute(ctx, &healthCheckGetRequest{Name: "other"})
+		requireAPIError(t, apierror.NewNotFound("Health check %q not found. Use either `complete` or `minimal`.", "other"), err)
+	})
+}
+
+func TestJobCancelEndpoint(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -62,7 +112,7 @@ func TestAPIHandlerJobCancel(t *testing.T) {
 
 		resp, err := endpoint.Execute(ctx, &jobCancelRequest{JobIDs: []int64String{int64String(insertRes1.Job.ID), int64String(insertRes2.Job.ID)}})
 		require.NoError(t, err)
-		require.Equal(t, &jobCancelResponse{Status: "ok"}, resp)
+		require.Equal(t, statusResponseOK, resp)
 
 		updatedJob1, err := bundle.client.JobGetTx(ctx, bundle.tx, insertRes1.Job.ID)
 		require.NoError(t, err)
@@ -83,7 +133,7 @@ func TestAPIHandlerJobCancel(t *testing.T) {
 	})
 }
 
-func TestAPIHandlerJobGet(t *testing.T) {
+func TestJobGetEndpoint(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
