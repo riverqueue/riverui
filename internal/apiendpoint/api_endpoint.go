@@ -12,6 +12,9 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/riverqueue/riverui/internal/apierror"
 )
 
@@ -139,6 +142,18 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 		return nil
 	}()
 	if err != nil {
+		// Convert certain types of Postgres errors into something more
+		// user-friendly than an internal server error.
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			if pgErr.Code == pgerrcode.InsufficientPrivilege {
+				err = apierror.WithInternalError(
+					apierror.NewBadRequest("Insufficient database privilege to perform this operation."),
+					err,
+				)
+			}
+		}
+
 		var apiErr apierror.Interface
 		if errors.As(err, &apiErr) {
 			logAttrs := []any{
