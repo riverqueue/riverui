@@ -19,6 +19,8 @@ import (
 	"github.com/riverqueue/riverui/internal/apierror"
 	"github.com/riverqueue/riverui/internal/db"
 	"github.com/riverqueue/riverui/internal/util/dbutil"
+	"github.com/riverqueue/riverui/internal/util/ptrutil"
+	"github.com/riverqueue/riverui/internal/util/sliceutil"
 )
 
 // A bundle of common utilities needed for many API endpoints.
@@ -41,11 +43,23 @@ type withSetBundle interface {
 	SetBundle(bundle *apiBundle)
 }
 
+type listResponse[T any] struct {
+	Data []*T `json:"data"`
+}
+
+func listResponseFrom[T any](data []*T) *listResponse[T] {
+	return &listResponse[T]{Data: data}
+}
+
 type statusResponse struct {
 	Status string `json:"status"`
 }
 
 var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
+
+//
+// healthCheckGetEndpoint
+//
 
 type healthCheckGetEndpoint struct {
 	apiBundle
@@ -94,6 +108,10 @@ func (a *healthCheckGetEndpoint) Execute(ctx context.Context, req *healthCheckGe
 
 	return statusResponseOK, nil
 }
+
+//
+// jobCancelEndpoint
+//
 
 type jobCancelEndpoint struct {
 	apiBundle
@@ -239,6 +257,10 @@ func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
 	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
 }
 
+//
+// jobGetEndpoint
+//
+
 type jobGetEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[jobGetRequest, RiverJob]
@@ -324,132 +346,175 @@ func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (a *apiHandler) QueueGet(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
+//
+// queueGetEndpoint
+//
 
-	name := req.PathValue("name")
-	if name == "" {
-		http.Error(rw, "missing queue name", http.StatusBadRequest)
-		return
-	}
+type queueGetEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, RiverQueue]
+}
 
-	queue, err := a.client.QueueGet(ctx, name)
-	if errors.Is(err, river.ErrNotFound) {
-		http.Error(rw, "{\"error\": {\"msg\": \"queue not found\"}}", http.StatusNotFound)
-		return
-	}
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error getting queue", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	countRows, err := db.New().JobCountByQueueAndState(ctx, a.dbPool, []string{name})
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error getting queue job counts", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-	var count *db.JobCountByQueueAndStateRow
-	if len(countRows) > 0 {
-		count = countRows[0]
-	}
-
-	if err := json.NewEncoder(rw).Encode(riverQueueToSerializableQueue(*queue, count.AvailableJobsCount, count.RunningJobsCount)); err != nil {
-		a.logger.ErrorContext(ctx, "error encoding queues", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+func (*queueGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/queues/{name}",
+		StatusCode: http.StatusOK,
 	}
 }
 
-func (a *apiHandler) QueueList(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
-
-	if err := req.ParseForm(); err != nil {
-		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
-	limitString := req.Form.Get("limit")
-	limit, err := strconv.ParseInt(limitString, 10, 64)
-	if err != nil {
-		http.Error(rw, fmt.Sprintf("invalid limit: %s", err), http.StatusBadRequest)
-		return
-	}
-
-	result, err := a.client.QueueList(ctx, river.NewQueueListParams().First(int(limit)))
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error listing queues", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	queueNames := make([]string, len(result.Queues))
-	for i, queue := range result.Queues {
-		queueNames[i] = queue.Name
-	}
-
-	countRows, err := db.New().JobCountByQueueAndState(ctx, a.dbPool, queueNames)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error getting queue counts", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	if err = json.NewEncoder(rw).Encode(riverQueuesToSerializableQueues(result.Queues, countRows)); err != nil {
-		a.logger.ErrorContext(ctx, "error encoding queues", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+type queueGetRequest struct {
+	Name string `json:"-" validate:"required"` // from ExtractRaw
 }
 
-func (a *apiHandler) QueuePause(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
+func (req *queueGetRequest) ExtractRaw(r *http.Request) error {
+	req.Name = r.PathValue("name")
+	return nil
+}
 
-	queue := req.PathValue("name")
-	if queue == "" {
-		http.Error(rw, "missing queue name", http.StatusBadRequest)
-		return
-	}
-
-	if err := a.client.QueuePause(ctx, queue, nil); err != nil {
-		if errors.Is(err, river.ErrNotFound) {
-			http.Error(rw, "{\"error\": {\"msg\": \"queue not found\"}}", http.StatusNotFound)
-			return
+func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*RiverQueue, error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
+		queue, err := a.client.QueueGetTx(ctx, tx, req.Name)
+		if err != nil {
+			if errors.Is(err, river.ErrNotFound) {
+				return nil, apierror.NewNotFoundQueue(req.Name)
+			}
+			return nil, fmt.Errorf("error getting queue: %w", err)
 		}
-		a.logger.ErrorContext(ctx, "error pausing queue", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
 
-	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+		countRows, err := db.New().JobCountByQueueAndState(ctx, a.dbPool, []string{req.Name})
+		if err != nil {
+			return nil, fmt.Errorf("error getting queue counts: %w", err)
+		}
+
+		return riverQueueToSerializableQueue(*queue, countRows[0]), nil
+	})
 }
 
-func (a *apiHandler) QueueResume(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
+//
+// queueListEndpoint
+//
 
-	queue := req.PathValue("name")
-	if queue == "" {
-		http.Error(rw, "missing queue name", http.StatusBadRequest)
-		return
+type queueListEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverQueue]]
+}
+
+func (*queueListEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/queues",
+		StatusCode: http.StatusOK,
 	}
+}
 
-	if err := a.client.QueueResume(ctx, queue, nil); err != nil {
-		if errors.Is(err, river.ErrNotFound) {
-			http.Error(rw, "{\"error\": {\"msg\": \"queue not found\"}}", http.StatusNotFound)
-			return
+type queueListRequest struct {
+	Limit *int `json:"-" validate:"omitempty,min=0,max=1000"` // from ExtractRaw
+}
+
+func (req *queueListRequest) ExtractRaw(r *http.Request) error {
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return apierror.NewBadRequest("Couldn't convert `limit` to integer: %s.", err)
 		}
-		a.logger.ErrorContext(ctx, "error resuming queue", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+
+		req.Limit = &limit
 	}
 
-	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+	return nil
+}
+
+func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) (*listResponse[RiverQueue], error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverQueue], error) {
+		result, err := a.client.QueueListTx(ctx, tx, river.NewQueueListParams().First(ptrutil.ValOrDefault(req.Limit, 100)))
+		if err != nil {
+			return nil, fmt.Errorf("error listing queues: %w", err)
+		}
+
+		queueNames := sliceutil.Map(result.Queues, func(q *rivertype.Queue) string { return q.Name })
+
+		countRows, err := db.New().JobCountByQueueAndState(ctx, a.dbPool, queueNames)
+		if err != nil {
+			return nil, fmt.Errorf("error getting queue counts: %w", err)
+		}
+
+		return riverQueuesToSerializableQueues(result.Queues, countRows), nil
+	})
+}
+
+//
+// queuePauseEndpoint
+//
+
+type queuePauseEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
+}
+
+func (*queuePauseEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "PUT /api/queues/{name}/pause",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type queuePauseRequest struct {
+	Name string `json:"-" validate:"required"` // from ExtractRaw
+}
+
+func (req *queuePauseRequest) ExtractRaw(r *http.Request) error {
+	req.Name = r.PathValue("name")
+	return nil
+}
+
+func (a *queuePauseEndpoint) Execute(ctx context.Context, req *queuePauseRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+		if err := a.client.QueuePauseTx(ctx, tx, req.Name, nil); err != nil {
+			if errors.Is(err, river.ErrNotFound) {
+				return nil, apierror.NewNotFoundQueue(req.Name)
+			}
+			return nil, fmt.Errorf("error pausing queue: %w", err)
+		}
+
+		return statusResponseOK, nil
+	})
+}
+
+//
+// queueResumeEndpoint
+//
+
+type queueResumeEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
+}
+
+func (*queueResumeEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "PUT /api/queues/{name}/resume",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type queueResumeRequest struct {
+	Name string `json:"-" validate:"required"` // from ExtractRaw
+}
+
+func (req *queueResumeRequest) ExtractRaw(r *http.Request) error {
+	req.Name = r.PathValue("name")
+	return nil
+}
+
+func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+		if err := a.client.QueueResumeTx(ctx, tx, req.Name, nil); err != nil {
+			if errors.Is(err, river.ErrNotFound) {
+				return nil, apierror.NewNotFoundQueue(req.Name)
+			}
+			return nil, fmt.Errorf("error resuming queue: %w", err)
+		}
+
+		return statusResponseOK, nil
+	})
 }
 
 func (a *apiHandler) StatesAndCounts(rw http.ResponseWriter, req *http.Request) {
@@ -654,8 +719,8 @@ func riverJobsToSerializableJobs(result *river.JobListResult) []*RiverJob {
 }
 
 type RiverQueue struct {
-	CountAvailable int64           `json:"count_available"`
-	CountRunning   int64           `json:"count_running"`
+	CountAvailable int             `json:"count_available"`
+	CountRunning   int             `json:"count_running"`
 	CreatedAt      time.Time       `json:"created_at"`
 	Metadata       json.RawMessage `json:"metadata"`
 	Name           string          `json:"name"`
@@ -663,10 +728,10 @@ type RiverQueue struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
-func riverQueueToSerializableQueue(internal rivertype.Queue, available, running int64) RiverQueue {
-	return RiverQueue{
-		CountAvailable: available,
-		CountRunning:   running,
+func riverQueueToSerializableQueue(internal rivertype.Queue, count *db.JobCountByQueueAndStateRow) *RiverQueue {
+	return &RiverQueue{
+		CountAvailable: int(count.CountAvailable),
+		CountRunning:   int(count.CountRunning),
 		CreatedAt:      internal.CreatedAt,
 		Metadata:       internal.Metadata,
 		Name:           internal.Name,
@@ -675,18 +740,17 @@ func riverQueueToSerializableQueue(internal rivertype.Queue, available, running 
 	}
 }
 
-func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*db.JobCountByQueueAndStateRow) []RiverQueue {
+func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*db.JobCountByQueueAndStateRow) *listResponse[RiverQueue] {
 	countsMap := make(map[string]*db.JobCountByQueueAndStateRow)
 	for _, count := range counts {
 		countsMap[count.Queue] = count
 	}
 
-	queues := make([]RiverQueue, len(internal))
+	queues := make([]*RiverQueue, len(internal))
 	for i, internalQueue := range internal {
-		count := countsMap[internalQueue.Name]
-		queues[i] = riverQueueToSerializableQueue(*internalQueue, count.AvailableJobsCount, count.RunningJobsCount)
+		queues[i] = riverQueueToSerializableQueue(*internalQueue, countsMap[internalQueue.Name])
 	}
-	return queues
+	return listResponseFrom(queues)
 }
 
 func timePtr(t pgtype.Timestamptz) *time.Time {

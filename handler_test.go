@@ -8,20 +8,24 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
 	"github.com/riverqueue/riverui/internal/riverinternaltest"
+	"github.com/riverqueue/riverui/internal/riverinternaltest/testfactory"
+	"github.com/riverqueue/riverui/internal/util/ptrutil"
 )
 
 func TestNewHandlerIntegration(t *testing.T) {
 	t.Parallel()
 
 	var (
-		ctx    = context.Background()
-		logger = riverinternaltest.Logger(t)
-		client = insertOnlyClient(t, logger)
-		tx     = riverinternaltest.TestTx(ctx, t)
+		ctx            = context.Background()
+		logger         = riverinternaltest.Logger(t)
+		client, driver = insertOnlyClient(t, logger)
+		tx             = riverinternaltest.TestTx(ctx, t)
+		exec           = driver.UnwrapExecutor(tx)
 	)
 
 	//
@@ -84,6 +88,11 @@ func TestNewHandlerIntegration(t *testing.T) {
 	require.NoError(t, err)
 	job := insertRes.Job
 
+	queue := testfactory.Queue(ctx, t, exec, nil)
+
+	// Get rid of this once https://github.com/riverqueue/river/pull/408 is available.
+	queuePaused := testfactory.Queue(ctx, t, exec, &testfactory.QueueOpts{PausedAt: ptrutil.Ptr(time.Now())})
+
 	//
 	// API calls
 	//
@@ -92,4 +101,8 @@ func TestNewHandlerIntegration(t *testing.T) {
 	makeAPICall(t, "HealthCheckGetMinimal", http.MethodGet, makeURL("/api/health-checks/%s", healthCheckNameMinimal), nil)
 	makeAPICall(t, "JobCancel", http.MethodPost, makeURL("/api/jobs/cancel"), mustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
 	makeAPICall(t, "JobGet", http.MethodGet, makeURL("/api/jobs/%d", job.ID), nil)
+	makeAPICall(t, "QueueGet", http.MethodGet, makeURL("/api/queues/%s", queue.Name), nil)
+	makeAPICall(t, "QueueList", http.MethodGet, makeURL("/api/queues"), nil)
+	makeAPICall(t, "QueuePause", http.MethodPut, makeURL("/api/queues/%s/pause", queue.Name), nil)
+	makeAPICall(t, "QueueResume", http.MethodPut, makeURL("/api/queues/%s/resume", queuePaused.Name), nil)
 }

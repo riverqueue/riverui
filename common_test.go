@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 )
 
@@ -25,19 +26,21 @@ type noOpWorker struct {
 
 func (w *noOpWorker) Work(_ context.Context, _ *river.Job[noOpArgs]) error { return nil }
 
-func insertOnlyClient(t *testing.T, logger *slog.Logger) *river.Client[pgx.Tx] {
+func insertOnlyClient(t *testing.T, logger *slog.Logger) (*river.Client[pgx.Tx], riverdriver.Driver[pgx.Tx]) {
 	t.Helper()
 
 	workers := river.NewWorkers()
 	river.AddWorker(workers, &noOpWorker{})
 
-	client, err := river.NewClient(riverpgxv5.New(nil), &river.Config{
+	driver := riverpgxv5.New(nil)
+
+	client, err := river.NewClient(driver, &river.Config{
 		Logger:  logger,
 		Workers: workers,
 	})
 	require.NoError(t, err)
 
-	return client
+	return client, driver
 }
 
 func mustMarshalJSON(t *testing.T, v any) []byte {
