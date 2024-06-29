@@ -83,22 +83,21 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 		logger: opts.Logger,
 	}
 
-	handler := &apiHandler{apiBundle: apiBundle}
 	prefix := opts.Prefix
 
 	mux := http.NewServeMux()
 	apiendpoint.Mount(mux, opts.Logger, &healthCheckGetEndpoint{apiBundle: apiBundle})
-	mux.HandleFunc("GET /api/jobs", handler.JobList)
 	apiendpoint.Mount(mux, opts.Logger, &jobCancelEndpoint{apiBundle: apiBundle})
-	mux.HandleFunc("POST /api/jobs/delete", handler.JobDelete)
-	mux.HandleFunc("POST /api/jobs/retry", handler.JobRetry)
+	apiendpoint.Mount(mux, opts.Logger, &jobDeleteEndpoint{apiBundle: apiBundle})
+	apiendpoint.Mount(mux, opts.Logger, &jobListEndpoint{apiBundle: apiBundle})
+	apiendpoint.Mount(mux, opts.Logger, &jobRetryEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &jobGetEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &queueGetEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &queueListEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &queuePauseEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &queueResumeEndpoint{apiBundle: apiBundle})
-	mux.HandleFunc("GET /api/workflows/{id}", handler.WorkflowGet)
-	mux.HandleFunc("GET /api/states", handler.StatesAndCounts)
+	apiendpoint.Mount(mux, opts.Logger, &stateAndCountGetEndpoint{apiBundle: apiBundle})
+	apiendpoint.Mount(mux, opts.Logger, &workflowGetEndpoint{apiBundle: apiBundle})
 	mux.HandleFunc("/api", http.NotFound)
 	mux.Handle("/", intercept404(fileServer, serveIndex))
 

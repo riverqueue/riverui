@@ -149,112 +149,44 @@ func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) 
 	})
 }
 
-type apiHandler struct {
+//
+// jobDeleteEndpoint
+//
+
+type jobDeleteEndpoint struct {
 	apiBundle
+	apiendpoint.Endpoint[jobDeleteRequest, statusResponse]
 }
 
-func (a *apiHandler) writeResponse(ctx context.Context, rw http.ResponseWriter, data []byte) {
-	if _, err := rw.Write(data); err != nil {
-		a.logger.ErrorContext(ctx, "error writing response", slog.String("error", err.Error()))
+func (*jobDeleteEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "POST /api/jobs/delete",
+		StatusCode: http.StatusOK,
 	}
-}
-
-func stringIDsToInt64s(strs []string) ([]int64, error) {
-	ints := make([]int64, len(strs))
-	for i, str := range strs {
-		intVal, err := strconv.ParseInt(str, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("invalid job id: %w", err)
-		}
-		ints[i] = intVal
-	}
-	return ints, nil
 }
 
 type jobDeleteRequest struct {
-	JobIDStrings []string `json:"ids"`
+	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
 }
 
-func (a *apiHandler) JobDelete(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
-
-	var payload jobDeleteRequest
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
-	numDeleted := 0
-	if err := pgx.BeginFunc(ctx, a.dbPool, func(tx pgx.Tx) error {
-		for _, jobID := range jobIDs {
+func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+		for _, jobID := range req.JobIDs {
+			jobID := int64(jobID)
 			_, err := a.client.JobDeleteTx(ctx, tx, jobID)
 			if err != nil {
 				if errors.Is(rivertype.ErrJobRunning, err) {
-					fmt.Printf("job %d is running\n", jobID)
+					return nil, apierror.NewBadRequest("Job %d is running and can't be deleted until it finishes.", jobID)
 				}
 				if errors.Is(err, river.ErrNotFound) {
-					fmt.Printf("job %d not found\n", jobID)
+					return nil, apierror.NewNotFoundJob(jobID)
 				}
-				return err
-			}
-			numDeleted++
-		}
-		return nil
-	}); err != nil {
-		a.logger.ErrorContext(ctx, "error deleting jobs", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-
-	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\", \"num_deleted\": "+strconv.Itoa(numDeleted)+"}"))
-}
-
-type jobRetryRequest struct {
-	JobIDStrings []string `json:"ids"`
-}
-
-func (a *apiHandler) JobRetry(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
-
-	var payload jobRetryRequest
-	if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
-		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-	jobIDs, err := stringIDsToInt64s(payload.JobIDStrings)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error decoding job IDs", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
-	}
-
-	if err := pgx.BeginFunc(ctx, a.dbPool, func(tx pgx.Tx) error {
-		for _, jobID := range jobIDs {
-			if _, err := a.client.JobRetryTx(ctx, tx, jobID); err != nil {
-				if errors.Is(err, river.ErrNotFound) {
-					fmt.Printf("job %d not found\n", jobID)
-				}
-				return err
+				return nil, err
 			}
 		}
-		return nil
-	}); err != nil {
-		a.logger.ErrorContext(ctx, "error retrying jobs", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
 
-	a.writeResponse(ctx, rw, []byte("{\"status\": \"ok\"}"))
+		return statusResponseOK, nil
+	})
 }
 
 //
@@ -302,48 +234,103 @@ func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*Rive
 	})
 }
 
-func (a *apiHandler) JobList(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
+//
+// jobListEndpoint
+//
 
-	if err := req.ParseForm(); err != nil {
-		a.logger.ErrorContext(ctx, "error decoding request", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
-		return
+type jobListEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverJob]]
+}
+
+func (*jobListEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/jobs",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type jobListRequest struct {
+	Limit *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
+	State *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
+}
+
+func (req *jobListRequest) ExtractRaw(r *http.Request) error {
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return apierror.NewBadRequest("Couldn't convert `limit` to integer: %s.", err)
+		}
+
+		req.Limit = &limit
 	}
 
-	limit, err := limitFromReq(req, 20)
-	if err != nil {
-		http.Error(rw, fmt.Sprintf("invalid limit: %s", err), http.StatusBadRequest)
-		return
-	}
-	params := river.NewJobListParams().First(limit)
-
-	state := rivertype.JobState(req.Form.Get("state"))
-	switch state {
-	case "":
-		params = params.States(rivertype.JobStateRunning).OrderBy(river.JobListOrderByTime, river.SortOrderAsc)
-	case rivertype.JobStateCancelled, rivertype.JobStateCompleted, rivertype.JobStateDiscarded:
-		params = params.States(state).OrderBy(river.JobListOrderByTime, river.SortOrderDesc)
-	case rivertype.JobStateAvailable, rivertype.JobStateRetryable, rivertype.JobStatePending, rivertype.JobStateRunning, rivertype.JobStateScheduled:
-		params = params.States(state)
-	default:
-		http.Error(rw, "invalid state", http.StatusBadRequest)
-		return
+	if state := r.URL.Query().Get("state"); state != "" {
+		req.State = (*rivertype.JobState)(&state)
 	}
 
-	result, err := a.client.JobList(ctx, params)
-	if err != nil {
-		a.logger.ErrorContext(ctx, "error listing jobs", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
+	return nil
+}
 
-	if err = json.NewEncoder(rw).Encode(riverJobsToSerializableJobs(result)); err != nil {
-		a.logger.ErrorContext(ctx, "error encoding jobs", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJob], error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJob], error) {
+		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
+
+		if req.State == nil {
+			params = params.States(rivertype.JobStateRunning).OrderBy(river.JobListOrderByTime, river.SortOrderAsc)
+		} else {
+			switch *req.State {
+			case rivertype.JobStateCancelled, rivertype.JobStateCompleted, rivertype.JobStateDiscarded:
+				params = params.States(*req.State).OrderBy(river.JobListOrderByTime, river.SortOrderDesc)
+			case rivertype.JobStateAvailable, rivertype.JobStateRetryable, rivertype.JobStatePending, rivertype.JobStateRunning, rivertype.JobStateScheduled:
+				params = params.States(*req.State)
+			}
+		}
+
+		result, err := a.client.JobListTx(ctx, tx, params)
+		if err != nil {
+			return nil, fmt.Errorf("error listing queues: %w", err)
+		}
+
+		return listResponseFrom(sliceutil.Map(result.Jobs, riverJobToSerializableJob)), nil
+	})
+}
+
+//
+// jobRetryEndpoint
+//
+
+type jobRetryEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobRetryRequest, statusResponse]
+}
+
+func (*jobRetryEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "POST /api/jobs/retry",
+		StatusCode: http.StatusOK,
 	}
+}
+
+type jobRetryRequest struct {
+	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
+}
+
+func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+		for _, jobID := range req.JobIDs {
+			jobID := int64(jobID)
+			_, err := a.client.JobRetryTx(ctx, tx, jobID)
+			if err != nil {
+				if errors.Is(err, river.ErrNotFound) {
+					return nil, apierror.NewNotFoundJob(jobID)
+				}
+				return nil, err
+			}
+		}
+
+		return statusResponseOK, nil
+	})
 }
 
 //
@@ -517,106 +504,103 @@ func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeReque
 	})
 }
 
-func (a *apiHandler) StatesAndCounts(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
+//
+// stateAndCountGetEndpoint
+//
 
-	countsAndStates, err := db.New().JobCountByState(ctx, a.dbPool)
+type stateAndCountGetEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, stateAndCountGetResponse]
+}
+
+func (*stateAndCountGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/states",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type stateAndCountGetRequest struct{}
+
+type stateAndCountGetResponse struct {
+	Available int `json:"available"`
+	Cancelled int `json:"cancelled"`
+	Completed int `json:"completed"`
+	Discarded int `json:"discarded"`
+	Pending   int `json:"pending"`
+	Retryable int `json:"retryable"`
+	Running   int `json:"running"`
+	Scheduled int `json:"scheduled"`
+}
+
+func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
+	stateAndCount, err := db.New().JobCountByState(ctx, a.dbPool)
 	if err != nil {
-		a.logger.ErrorContext(ctx, "error getting job counts", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("error getting states and counts: %w", err)
 	}
 
-	statesAndCountsMap := make(map[db.RiverJobState]int64)
-	for _, countAndState := range countsAndStates {
-		statesAndCountsMap[countAndState.State] = countAndState.Count
-	}
+	stateAndCountMap := sliceutil.KeyBy(stateAndCount, func(r *db.JobCountByStateRow) (rivertype.JobState, int) {
+		return rivertype.JobState(r.State), int(r.Count)
+	})
 
-	resp := StatesAndCountsResponse{
-		Available: statesAndCountsMap[db.RiverJobStateAvailable],
-		Cancelled: statesAndCountsMap[db.RiverJobStateCancelled],
-		Completed: statesAndCountsMap[db.RiverJobStateCompleted],
-		Discarded: statesAndCountsMap[db.RiverJobStateDiscarded],
-		Pending:   statesAndCountsMap[db.RiverJobStatePending],
-		Retryable: statesAndCountsMap[db.RiverJobStateRetryable],
-		Running:   statesAndCountsMap[db.RiverJobStateRunning],
-		Scheduled: statesAndCountsMap[db.RiverJobStateScheduled],
-	}
+	return &stateAndCountGetResponse{
+		Available: stateAndCountMap[rivertype.JobStateAvailable],
+		Cancelled: stateAndCountMap[rivertype.JobStateCancelled],
+		Completed: stateAndCountMap[rivertype.JobStateCompleted],
+		Discarded: stateAndCountMap[rivertype.JobStateDiscarded],
+		Pending:   stateAndCountMap[rivertype.JobStatePending],
+		Retryable: stateAndCountMap[rivertype.JobStateRetryable],
+		Running:   stateAndCountMap[rivertype.JobStateRunning],
+		Scheduled: stateAndCountMap[rivertype.JobStateScheduled],
+	}, nil
+}
 
-	if err = json.NewEncoder(rw).Encode(resp); err != nil {
-		a.logger.ErrorContext(ctx, "error encoding job counts", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+//
+// workflowGetEndpoint
+//
+
+type workflowGetEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, workflowGetResponse]
+}
+
+func (*workflowGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/workflows/{id}",
+		StatusCode: http.StatusOK,
 	}
 }
 
-type StatesAndCountsResponse struct {
-	Available int64 `json:"available"`
-	Cancelled int64 `json:"cancelled"`
-	Completed int64 `json:"completed"`
-	Discarded int64 `json:"discarded"`
-	Pending   int64 `json:"pending"`
-	Retryable int64 `json:"retryable"`
-	Running   int64 `json:"running"`
-	Scheduled int64 `json:"scheduled"`
+type workflowGetRequest struct {
+	ID string `json:"-" validate:"required"` // from ExtractRaw
 }
 
-type WorkflowGetResponse struct {
+func (req *workflowGetRequest) ExtractRaw(r *http.Request) error {
+	req.ID = r.PathValue("id")
+	return nil
+}
+
+type workflowGetResponse struct {
 	Tasks []*RiverJob `json:"tasks"`
 }
 
-func (a *apiHandler) WorkflowGet(rw http.ResponseWriter, req *http.Request) {
-	ctx, cancel := context.WithTimeout(req.Context(), 5*time.Second)
-	defer cancel()
-
-	workflowID := req.PathValue("id")
-	if workflowID == "" {
-		http.Error(rw, "missing workflow id", http.StatusBadRequest)
-		return
-	}
-
-	dbJobs, err := db.New().JobListWorkflow(ctx, a.dbPool, &db.JobListWorkflowParams{
+func (a *workflowGetEndpoint) Execute(ctx context.Context, req *workflowGetRequest) (*workflowGetResponse, error) {
+	jobs, err := db.New().JobListWorkflow(ctx, a.dbPool, &db.JobListWorkflowParams{
 		PaginationLimit:  1000,
 		PaginationOffset: 0,
-		WorkflowID:       workflowID,
+		WorkflowID:       req.ID,
 	})
 	if err != nil {
-		a.logger.ErrorContext(ctx, "error getting workflow", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
+		return nil, fmt.Errorf("error getting workflow jobs: %w", err)
 	}
 
-	if len(dbJobs) == 0 {
-		http.Error(rw, "{\"error\": {\"msg\": \"workflow not found\"}}", http.StatusNotFound)
-		return
+	if len(jobs) < 1 {
+		return nil, apierror.NewNotFoundWorkflow(req.ID)
 	}
 
-	jobs := internalJobsToSerializableJobs(dbJobs)
-
-	resp := WorkflowGetResponse{}
-	resp.Tasks = jobs
-
-	if err = json.NewEncoder(rw).Encode(resp); err != nil {
-		a.logger.ErrorContext(ctx, "error encoding workflow", slog.String("error", err.Error()))
-		http.Error(rw, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
-		return
-	}
-}
-
-func limitFromReq(req *http.Request, defaultLimit int) (int, error) {
-	limitString := req.Form.Get("limit")
-	if limitString == "" {
-		return defaultLimit, nil
-	}
-	limit, err := strconv.ParseInt(limitString, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	if limit > 1000 {
-		return 1000, nil
-	}
-	return int(limit), nil
+	return &workflowGetResponse{
+		Tasks: sliceutil.Map(jobs, internalJobToSerializableJob),
+	}, nil
 }
 
 type RiverJob struct {
@@ -672,14 +656,6 @@ func internalJobToSerializableJob(internal *db.RiverJob) *RiverJob {
 	}
 }
 
-func internalJobsToSerializableJobs(internal []*db.RiverJob) []*RiverJob {
-	jobs := make([]*RiverJob, len(internal))
-	for i, internalJob := range internal {
-		jobs[i] = internalJobToSerializableJob(internalJob)
-	}
-	return jobs
-}
-
 func riverJobToSerializableJob(riverJob *rivertype.JobRow) *RiverJob {
 	attemptedBy := riverJob.AttemptedBy
 	if attemptedBy == nil {
@@ -708,14 +684,6 @@ func riverJobToSerializableJob(riverJob *rivertype.JobRow) *RiverJob {
 		ScheduledAt: riverJob.ScheduledAt.UTC(),
 		Tags:        riverJob.Tags,
 	}
-}
-
-func riverJobsToSerializableJobs(result *river.JobListResult) []*RiverJob {
-	jobs := make([]*RiverJob, len(result.Jobs))
-	for i, internalJob := range result.Jobs {
-		jobs[i] = riverJobToSerializableJob(internalJob)
-	}
-	return jobs
 }
 
 type RiverQueue struct {

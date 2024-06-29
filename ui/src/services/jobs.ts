@@ -6,6 +6,7 @@ import type {
   StringEndingWithUnderscoreAt,
 } from "./types";
 import { API } from "@utils/api";
+import { ListResponse } from "./listResponse";
 
 // Represents AttemptError as received from the API. This just like AttemptError,
 // except with keys as snake_case instead of camelCase.
@@ -135,10 +136,10 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   );
   const query = new URLSearchParams(searchParamsStringValues);
 
-  return API.get<JobFromAPI[]>({ path: "/jobs", query }, { signal }).then(
+  return API.get<ListResponse<JobFromAPI>>({ path: "/jobs", query }, { signal }).then(
     // Map from JobFromAPI to Job:
     // TODO: there must be a cleaner way to do this given the type definitions?
-    (response) => response.map(apiJobToJob)
+    (response) => response.data.map(apiJobToJob)
   );
 };
 
