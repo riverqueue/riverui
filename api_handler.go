@@ -108,7 +108,7 @@ func (*jobCancelEndpoint) Meta() *apiendpoint.EndpointMeta {
 }
 
 type jobCancelRequest struct {
-	JobIDs []int64String `json:"ids"`
+	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
 }
 
 func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
@@ -252,7 +252,7 @@ func (*jobGetEndpoint) Meta() *apiendpoint.EndpointMeta {
 }
 
 type jobGetRequest struct {
-	JobID int64 `json:"-"` // from ExtractRaw
+	JobID int64 `json:"-" validate:"required"` // from ExtractRaw
 }
 
 func (req *jobGetRequest) ExtractRaw(r *http.Request) error {

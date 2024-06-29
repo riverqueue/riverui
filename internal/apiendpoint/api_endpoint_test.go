@@ -91,7 +91,7 @@ func TestMountAndServe(t *testing.T) {
 		requireStatusAndJSONResponse(t, http.StatusCreated, &postResponse{Message: "Hello."}, bundle.recorder)
 	})
 
-	t.Run("APIError", func(t *testing.T) {
+	t.Run("ValidationError", func(t *testing.T) {
 		t.Parallel()
 
 		mux, bundle := setup(t)
@@ -99,7 +99,19 @@ func TestMountAndServe(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/post-endpoint", nil)
 		mux.ServeHTTP(bundle.recorder, req)
 
-		requireStatusAndJSONResponse(t, http.StatusBadRequest, &apierror.APIError{Message: "Missing message value."}, bundle.recorder)
+		requireStatusAndJSONResponse(t, http.StatusBadRequest, &apierror.APIError{Message: "Field `message` is required."}, bundle.recorder)
+	})
+
+	t.Run("APIError", func(t *testing.T) {
+		t.Parallel()
+
+		mux, bundle := setup(t)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/post-endpoint",
+			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{MakeAPIError: true, Message: "Hello."})))
+		mux.ServeHTTP(bundle.recorder, req)
+
+		requireStatusAndJSONResponse(t, http.StatusBadRequest, &apierror.APIError{Message: "Bad request."}, bundle.recorder)
 	})
 
 	t.Run("InterpretedPostgresError", func(t *testing.T) {
@@ -108,7 +120,7 @@ func TestMountAndServe(t *testing.T) {
 		mux, bundle := setup(t)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/post-endpoint",
-			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{MakePostgresError: true})))
+			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{MakePostgresError: true, Message: "Hello."})))
 		mux.ServeHTTP(bundle.recorder, req)
 
 		requireStatusAndJSONResponse(t, http.StatusBadRequest, &apierror.APIError{Message: "Insufficient database privilege to perform this operation."}, bundle.recorder)
@@ -123,11 +135,11 @@ func TestMountAndServe(t *testing.T) {
 		t.Cleanup(cancel)
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, "/api/post-endpoint",
-			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{MakeInternalError: true})))
+			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{Message: "Hello."})))
 		require.NoError(t, err)
 		mux.ServeHTTP(bundle.recorder, req)
 
-		requireStatusAndJSONResponse(t, http.StatusInternalServerError, &apierror.APIError{Message: "Internal server error. Check logs for more information."}, bundle.recorder)
+		requireStatusAndJSONResponse(t, http.StatusServiceUnavailable, &apierror.APIError{Message: "Request timed out. Retrying the request might work."}, bundle.recorder)
 	})
 
 	t.Run("InternalServerError", func(t *testing.T) {
@@ -136,7 +148,7 @@ func TestMountAndServe(t *testing.T) {
 		mux, bundle := setup(t)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/post-endpoint",
-			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{MakeInternalError: true})))
+			bytes.NewBuffer(mustMarshalJSON(t, &postRequest{MakeInternalError: true, Message: "Hello."})))
 		mux.ServeHTTP(bundle.recorder, req)
 
 		requireStatusAndJSONResponse(t, http.StatusInternalServerError, &apierror.APIError{Message: "Internal server error. Check logs for more information."}, bundle.recorder)
@@ -195,8 +207,8 @@ func (*getEndpoint) Meta() *EndpointMeta {
 }
 
 type getRequest struct {
-	IgnoredJSONMessage string `json:"ignored_json"`
-	Message            string `json:"-"`
+	IgnoredJSONMessage string `json:"ignored_json" validate:"-"`
+	Message            string `json:"-"            validate:"required"`
 }
 
 func (req *getRequest) ExtractRaw(r *http.Request) error {
@@ -205,7 +217,7 @@ func (req *getRequest) ExtractRaw(r *http.Request) error {
 }
 
 type getResponse struct {
-	Message string `json:"message"`
+	Message string `json:"message" validate:"required"`
 }
 
 func (a *getEndpoint) Execute(_ context.Context, req *getRequest) (*getResponse, error) {
@@ -233,16 +245,25 @@ func (*postEndpoint) Meta() *EndpointMeta {
 }
 
 type postRequest struct {
-	MakeInternalError bool   `json:"make_internal_error"`
-	MakePostgresError bool   `json:"make_postgres_error"`
-	Message           string `json:"message"`
+	MakeAPIError      bool   `json:"make_api_error"      validate:"-"`
+	MakeInternalError bool   `json:"make_internal_error" validate:"-"`
+	MakePostgresError bool   `json:"make_postgres_error" validate:"-"`
+	Message           string `json:"message"             validate:"required"`
 }
 
 type postResponse struct {
 	Message string `json:"message"`
 }
 
-func (a *postEndpoint) Execute(_ context.Context, req *postRequest) (*postResponse, error) {
+func (a *postEndpoint) Execute(ctx context.Context, req *postRequest) (*postResponse, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+
+	if req.MakeAPIError {
+		return nil, apierror.NewBadRequest("Bad request.")
+	}
+
 	if req.MakeInternalError {
 		return nil, errors.New("an internal error occurred")
 	}
@@ -250,10 +271,6 @@ func (a *postEndpoint) Execute(_ context.Context, req *postRequest) (*postRespon
 	if req.MakePostgresError {
 		// Wrap the error to make it more realistic.
 		return nil, fmt.Errorf("error runnning Postgres query: %w", &pgconn.PgError{Code: pgerrcode.InsufficientPrivilege})
-	}
-
-	if req.Message == "" {
-		return nil, apierror.NewBadRequest("Missing message value.")
 	}
 
 	return &postResponse{Message: req.Message}, nil

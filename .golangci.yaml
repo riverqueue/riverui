@@ -40,6 +40,9 @@ linters-settings:
           - desc: "Use `github.com/google/uuid` package for UUIDs instead."
             pkg: "github.com/xtgo/uuid"
 
+  exhaustive:
+    default-signifies-exhaustive: true
+
   forbidigo:
     forbid:
       - msg: "Use `require` variants instead."

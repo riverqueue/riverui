@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/riverqueue/riverui/internal/apierror"
+	"github.com/riverqueue/riverui/internal/validate"
 )
 
 // Endpoint is a struct that should be embedded on an API endpoint, and which
@@ -121,6 +122,10 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 			if err := rawExtractor.ExtractRaw(r); err != nil {
 				return err
 			}
+		}
+
+		if err := validate.StructCtx(ctx, &req); err != nil {
+			return apierror.NewBadRequest(validate.PublicFacingMessage(err))
 		}
 
 		resp, err := execute(ctx, &req)
