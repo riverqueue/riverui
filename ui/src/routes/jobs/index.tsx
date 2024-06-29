@@ -57,7 +57,13 @@ export const Route = createFileRoute("/jobs/")({
   loaderDeps: ({ search: { limit, state } }) => {
     return { limit: limit || minimumLimit, state };
   },
-  loader: async ({ context: { queryClient }, deps: { limit, state } }) => {
+  loader: async ({ context, deps: { limit, state } }) => {
+    if (!context) {
+      // workaround for this issue:
+      // https://github.com/TanStack/router/issues/1751
+      return;
+    }
+    const { queryClient } = context;
     // TODO: how to pass abortController.signal into ensureQueryData or queryOptions?
     // signal: abortController.signal,
     await Promise.all([
