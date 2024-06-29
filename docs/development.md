@@ -5,7 +5,7 @@ River UI consists of two apps: a Go backend API, and a TypeScript UI frontend.
 ## Migrate database
 
 ```sh
-cp .env.sample .env
+cp .env.example .env
 ```
 
 ```sh
@@ -41,10 +41,11 @@ $ go test ./...
 
 ## TypeScript UI
 
-The UI lives in the `ui/` subdirectory. Go to it and install dependencies:
+The UI lives in the `ui/` subdirectory. Go to it, copy an `.env` file, and install dependencies:
 
 ```sh
 $ cd ui
+$ cp .env.sample .env
 $ npm install
 ```
 
