@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
@@ -108,21 +109,18 @@ func TestJobCancelEndpoint(t *testing.T) {
 
 		endpoint, bundle := setupEndpoint[jobCancelEndpoint](ctx, t)
 
-		insertRes1, err := bundle.client.InsertTx(ctx, bundle.tx, &noOpArgs{}, nil)
-		require.NoError(t, err)
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
 
-		insertRes2, err := bundle.client.InsertTx(ctx, bundle.tx, &noOpArgs{}, nil)
-		require.NoError(t, err)
-
-		resp, err := endpoint.Execute(ctx, &jobCancelRequest{JobIDs: []int64String{int64String(insertRes1.Job.ID), int64String(insertRes2.Job.ID)}})
+		resp, err := endpoint.Execute(ctx, &jobCancelRequest{JobIDs: []int64String{int64String(job1.ID), int64String(job2.ID)}})
 		require.NoError(t, err)
 		require.Equal(t, statusResponseOK, resp)
 
-		updatedJob1, err := bundle.client.JobGetTx(ctx, bundle.tx, insertRes1.Job.ID)
+		updatedJob1, err := bundle.client.JobGetTx(ctx, bundle.tx, job1.ID)
 		require.NoError(t, err)
 		require.Equal(t, rivertype.JobStateCancelled, updatedJob1.State)
 
-		updatedJob2, err := bundle.client.JobGetTx(ctx, bundle.tx, insertRes2.Job.ID)
+		updatedJob2, err := bundle.client.JobGetTx(ctx, bundle.tx, job2.ID)
 		require.NoError(t, err)
 		require.Equal(t, rivertype.JobStateCancelled, updatedJob2.State)
 	})
@@ -137,6 +135,40 @@ func TestJobCancelEndpoint(t *testing.T) {
 	})
 }
 
+func TestJobDeleteEndpoint(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[jobDeleteEndpoint](ctx, t)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
+
+		resp, err := endpoint.Execute(ctx, &jobDeleteRequest{JobIDs: []int64String{int64String(job1.ID), int64String(job2.ID)}})
+		require.NoError(t, err)
+		require.Equal(t, statusResponseOK, resp)
+
+		_, err = bundle.client.JobGetTx(ctx, bundle.tx, job1.ID)
+		require.ErrorIs(t, err, rivertype.ErrNotFound)
+
+		_, err = bundle.client.JobGetTx(ctx, bundle.tx, job2.ID)
+		require.ErrorIs(t, err, rivertype.ErrNotFound)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, _ := setupEndpoint[jobDeleteEndpoint](ctx, t)
+
+		_, err := endpoint.Execute(ctx, &jobDeleteRequest{JobIDs: []int64String{123}})
+		requireAPIError(t, apierror.NewNotFoundJob(123), err)
+	})
+}
+
 func TestJobGetEndpoint(t *testing.T) {
 	t.Parallel()
 
@@ -147,12 +179,11 @@ func TestJobGetEndpoint(t *testing.T) {
 
 		endpoint, bundle := setupEndpoint[jobGetEndpoint](ctx, t)
 
-		insertRes, err := bundle.client.InsertTx(ctx, bundle.tx, &noOpArgs{}, nil)
-		require.NoError(t, err)
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
 
-		resp, err := endpoint.Execute(ctx, &jobGetRequest{JobID: insertRes.Job.ID})
+		resp, err := endpoint.Execute(ctx, &jobGetRequest{JobID: job.ID})
 		require.NoError(t, err)
-		require.Equal(t, insertRes.Job.ID, resp.ID)
+		require.Equal(t, job.ID, resp.ID)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -161,6 +192,127 @@ func TestJobGetEndpoint(t *testing.T) {
 		endpoint, _ := setupEndpoint[jobGetEndpoint](ctx, t)
 
 		_, err := endpoint.Execute(ctx, &jobGetRequest{JobID: 123})
+		requireAPIError(t, apierror.NewNotFoundJob(123), err)
+	})
+}
+
+func TestAPIHandlerJobList(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[jobListEndpoint](ctx, t)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
+
+		// Defaults to filtering to running jobs; other states are excluded.
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCancelled), FinalizedAt: ptrutil.Ptr(time.Now())})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateDiscarded), FinalizedAt: ptrutil.Ptr(time.Now())})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStatePending)})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateScheduled)})
+
+		resp, err := endpoint.Execute(ctx, &jobListRequest{})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+		require.Equal(t, job2.ID, resp.Data[1].ID)
+	})
+
+	t.Run("Limit", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[jobListEndpoint](ctx, t)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
+
+		resp, err := endpoint.Execute(ctx, &jobListRequest{Limit: ptrutil.Ptr(1)})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+	})
+
+	t.Run("FiltersFinalizedStatesAndOrdersDescending", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[jobListEndpoint](ctx, t)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
+
+		// Other states excluded.
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+
+		resp, err := endpoint.Execute(ctx, &jobListRequest{State: ptrutil.Ptr(rivertype.JobStateCompleted)})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job2.ID, resp.Data[0].ID) // order inverted
+		require.Equal(t, job1.ID, resp.Data[1].ID)
+	})
+
+	t.Run("FiltersNonFinalizedStates", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[jobListEndpoint](ctx, t)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
+
+		// Other states excluded.
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateScheduled)})
+
+		resp, err := endpoint.Execute(ctx, &jobListRequest{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+		require.Equal(t, job2.ID, resp.Data[1].ID)
+	})
+}
+
+func TestJobRetryEndpoint(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[jobRetryEndpoint](ctx, t)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			FinalizedAt: ptrutil.Ptr(time.Now()),
+			State:       ptrutil.Ptr(rivertype.JobStateDiscarded),
+		})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			FinalizedAt: ptrutil.Ptr(time.Now()),
+			State:       ptrutil.Ptr(rivertype.JobStateDiscarded),
+		})
+
+		resp, err := endpoint.Execute(ctx, &jobRetryRequest{JobIDs: []int64String{int64String(job1.ID), int64String(job2.ID)}})
+		require.NoError(t, err)
+		require.Equal(t, statusResponseOK, resp)
+
+		updatedJob1, err := bundle.client.JobGetTx(ctx, bundle.tx, job1.ID)
+		require.NoError(t, err)
+		require.Equal(t, rivertype.JobStateAvailable, updatedJob1.State)
+
+		updatedJob2, err := bundle.client.JobGetTx(ctx, bundle.tx, job2.ID)
+		require.NoError(t, err)
+		require.Equal(t, rivertype.JobStateAvailable, updatedJob2.State)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, _ := setupEndpoint[jobRetryEndpoint](ctx, t)
+
+		_, err := endpoint.Execute(ctx, &jobRetryRequest{JobIDs: []int64String{123}})
 		requireAPIError(t, apierror.NewNotFoundJob(123), err)
 	})
 }
@@ -209,10 +361,8 @@ func TestAPIHandlerQueueList(t *testing.T) {
 		queue1 := testfactory.Queue(ctx, t, bundle.exec, nil)
 		queue2 := testfactory.Queue(ctx, t, bundle.exec, nil)
 
-		_, err := bundle.client.InsertTx(ctx, bundle.tx, &noOpArgs{}, &river.InsertOpts{Queue: queue1.Name})
-		require.NoError(t, err)
-		_, err = bundle.client.InsertTx(ctx, bundle.tx, &noOpArgs{}, &river.InsertOpts{Queue: queue2.Name})
-		require.NoError(t, err)
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Queue: &queue1.Name})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Queue: &queue2.Name})
 
 		resp, err := endpoint.Execute(ctx, &queueListRequest{})
 		require.NoError(t, err)
@@ -223,7 +373,7 @@ func TestAPIHandlerQueueList(t *testing.T) {
 		require.Equal(t, queue2.Name, resp.Data[1].Name)
 	})
 
-	t.Run("limit", func(t *testing.T) {
+	t.Run("Limit", func(t *testing.T) {
 		t.Parallel()
 
 		endpoint, bundle := setupEndpoint[queueListEndpoint](ctx, t)
@@ -291,5 +441,93 @@ func TestAPIHandlerQueueResume(t *testing.T) {
 
 		_, err := endpoint.Execute(ctx, &queueResumeRequest{Name: "does_not_exist"})
 		requireAPIError(t, apierror.NewNotFoundQueue("does_not_exist"), err)
+	})
+}
+
+func TestStateAndCountGetEndpoint(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[stateAndCountGetEndpoint](ctx, t)
+
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+
+		for range 2 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCancelled), FinalizedAt: ptrutil.Ptr(time.Now())})
+		}
+
+		for range 3 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
+		}
+
+		for range 4 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateDiscarded), FinalizedAt: ptrutil.Ptr(time.Now())})
+		}
+
+		for range 5 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStatePending)})
+		}
+
+		for range 6 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRetryable)})
+		}
+
+		for range 7 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
+		}
+
+		for range 8 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateScheduled)})
+		}
+
+		resp, err := endpoint.Execute(ctx, &stateAndCountGetRequest{})
+		require.NoError(t, err)
+		require.Equal(t, &stateAndCountGetResponse{
+			Available: 1,
+			Cancelled: 2,
+			Completed: 3,
+			Discarded: 4,
+			Pending:   5,
+			Retryable: 6,
+			Running:   7,
+			Scheduled: 8,
+		}, resp)
+	})
+}
+
+func TestAPIHandlerWorkflowGet(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[workflowGetEndpoint](ctx, t)
+
+		workflowID := uuid.New()
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
+
+		resp, err := endpoint.Execute(ctx, &workflowGetRequest{ID: workflowID.String()})
+		require.NoError(t, err)
+		require.Len(t, resp.Tasks, 2)
+		require.Equal(t, job1.ID, resp.Tasks[0].ID)
+		require.Equal(t, job2.ID, resp.Tasks[1].ID)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, _ := setupEndpoint[workflowGetEndpoint](ctx, t)
+
+		workflowID := uuid.New()
+
+		_, err := endpoint.Execute(ctx, &workflowGetRequest{ID: workflowID.String()})
+		requireAPIError(t, apierror.NewNotFoundWorkflow(workflowID.String()), err)
 	})
 }

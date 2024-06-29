@@ -118,8 +118,9 @@ func NewNotFound(format string, a ...any) *NotFound {
 	}
 }
 
-func NewNotFoundJob(jobID int64) *NotFound   { return NewNotFound("Job not found: %d.", jobID) }
-func NewNotFoundQueue(name string) *NotFound { return NewNotFound("Queue not found: %s.", name) }
+func NewNotFoundJob(jobID int64) *NotFound    { return NewNotFound("Job not found: %d.", jobID) }
+func NewNotFoundQueue(name string) *NotFound  { return NewNotFound("Queue not found: %s.", name) }
+func NewNotFoundWorkflow(id string) *NotFound { return NewNotFound("Workflow not found: %s.", id) }
 
 //
 // ServiceUnavailable

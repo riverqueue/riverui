@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
 	"github.com/riverqueue/riverui/internal/riverinternaltest"
@@ -84,14 +85,15 @@ func TestNewHandlerIntegration(t *testing.T) {
 	// Test data
 	//
 
-	insertRes, err := client.InsertTx(ctx, tx, &noOpArgs{}, nil)
-	require.NoError(t, err)
-	job := insertRes.Job
+	job := testfactory.Job(ctx, t, exec, &testfactory.JobOpts{})
 
 	queue := testfactory.Queue(ctx, t, exec, nil)
 
 	// Get rid of this once https://github.com/riverqueue/river/pull/408 is available.
 	queuePaused := testfactory.Queue(ctx, t, exec, &testfactory.QueueOpts{PausedAt: ptrutil.Ptr(time.Now())})
+
+	workflowID := uuid.New()
+	_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
 
 	//
 	// API calls
@@ -100,9 +102,14 @@ func TestNewHandlerIntegration(t *testing.T) {
 	makeAPICall(t, "HealthCheckGetComplete", http.MethodGet, makeURL("/api/health-checks/%s", healthCheckNameComplete), nil)
 	makeAPICall(t, "HealthCheckGetMinimal", http.MethodGet, makeURL("/api/health-checks/%s", healthCheckNameMinimal), nil)
 	makeAPICall(t, "JobCancel", http.MethodPost, makeURL("/api/jobs/cancel"), mustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
+	makeAPICall(t, "JobDelete", http.MethodPost, makeURL("/api/jobs/delete"), mustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
 	makeAPICall(t, "JobGet", http.MethodGet, makeURL("/api/jobs/%d", job.ID), nil)
+	makeAPICall(t, "JobList", http.MethodGet, makeURL("/api/jobs"), nil)
+	makeAPICall(t, "JobRetry", http.MethodPost, makeURL("/api/jobs/retry"), mustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
 	makeAPICall(t, "QueueGet", http.MethodGet, makeURL("/api/queues/%s", queue.Name), nil)
 	makeAPICall(t, "QueueList", http.MethodGet, makeURL("/api/queues"), nil)
 	makeAPICall(t, "QueuePause", http.MethodPut, makeURL("/api/queues/%s/pause", queue.Name), nil)
 	makeAPICall(t, "QueueResume", http.MethodPut, makeURL("/api/queues/%s/resume", queuePaused.Name), nil)
+	makeAPICall(t, "StateAndCountGet", http.MethodGet, makeURL("/api/states"), nil)
+	makeAPICall(t, "WorkflowGet", http.MethodGet, makeURL("/api/workflows/%s", workflowID), nil)
 }
