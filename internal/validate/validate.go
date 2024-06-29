@@ -81,6 +81,10 @@ func PublicFacingMessage(validatorErr error) string {
 					message += fieldErr.Error()
 				}
 
+			case "oneof":
+				message += fmt.Sprintf(" Field `%s` should be one of the following values: %s.",
+					fieldErr.Field(), fieldErr.Param())
+
 			case "required":
 				message += fmt.Sprintf(" Field `%s` is required.", fieldErr.Field())
 

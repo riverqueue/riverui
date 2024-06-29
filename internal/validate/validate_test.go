@@ -19,6 +19,7 @@ func TestFromValidator(t *testing.T) {
 		MaxInt      int      `json:"max_int"     validate:"max=0"`
 		MaxSlice    []string `json:"max_slice"   validate:"max=0"`
 		MaxString   string   `json:"max_string"  validate:"max=0"`
+		OneOf       string   `json:"one_of"      validate:"oneof=blue green"`
 		Required    string   `json:"required"    validate:"required"`
 		Unsupported string   `json:"unsupported" validate:"e164"`
 	}
@@ -31,6 +32,7 @@ func TestFromValidator(t *testing.T) {
 			MaxInt:      0,
 			MaxSlice:    []string{},
 			MaxString:   "",
+			OneOf:       "blue",
 			Required:    "value",
 			Unsupported: "+1123456789",
 		}
@@ -82,6 +84,14 @@ func TestFromValidator(t *testing.T) {
 		testStruct := validTestStruct()
 		testStruct.MinString = ""
 		require.Equal(t, "Field `min_string` must be at least 1 character(s) long.", PublicFacingMessage(validate.Struct(testStruct)))
+	})
+
+	t.Run("OneOf", func(t *testing.T) {
+		t.Parallel()
+
+		testStruct := validTestStruct()
+		testStruct.OneOf = "red"
+		require.Equal(t, "Field `one_of` should be one of the following values: blue green.", PublicFacingMessage(validate.Struct(testStruct)))
 	})
 
 	t.Run("Required", func(t *testing.T) {
