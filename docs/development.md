@@ -9,9 +9,9 @@ cp .env.example .env
 ```
 
 ```sh
-$ createdb river-development
+$ createdb river_dev
 $ go install github.com/riverqueue/river/cmd/river
-$ river migrate-up --database-url postgres://localhost/river-development
+$ river migrate-up --database-url postgres://localhost/river_dev
 ```
 
 ## Go API
@@ -29,8 +29,8 @@ The API will need a build TypeScript UI in `ui/dist`, or you'll have to serve it
 Raise test database:
 
 ```sh
-$ createdb river-test
-$ river migrate-up --database-url postgres://localhost/river-test
+$ createdb river_test
+$ river migrate-up --database-url postgres://localhost/river_test
 ```
 
 Run tests:
