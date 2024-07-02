@@ -531,3 +531,100 @@ func TestAPIHandlerWorkflowGet(t *testing.T) {
 		requireAPIError(t, apierror.NewNotFoundWorkflow(workflowID.String()), err)
 	})
 }
+
+func TestAPIHandlerWorkflowList(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[workflowListEndpoint](ctx, t)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Metadata: []byte(`{"workflow_id":"1", "workflow_name":"first_wf", "task":"a"}`),
+			State:    ptrutil.Ptr(rivertype.JobStatePending),
+		})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			FinalizedAt: ptrutil.Ptr(time.Now()),
+			Metadata:    []byte(`{"workflow_id":"2", "task":"b"}`),
+			State:       ptrutil.Ptr(rivertype.JobStateCompleted),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			FinalizedAt: ptrutil.Ptr(time.Now()),
+			Metadata:    []byte(`{"workflow_id":"2", "task":"c", "workflow_deps_failed_at":"2024-01-01T00:00:00Z"}`),
+			State:       ptrutil.Ptr(rivertype.JobStateCancelled),
+		})
+
+		t.Run("All", func(t *testing.T) {
+			resp, err := endpoint.Execute(ctx, &workflowListRequest{})
+			require.NoError(t, err)
+			require.Len(t, resp.Data, 2)
+			require.Equal(t, 1, resp.Data[0].CountCancelled)
+			require.Equal(t, 1, resp.Data[0].CountCompleted)
+			t.Logf("resp0: %+v", resp.Data[0])
+			require.Equal(t, 1, resp.Data[0].CountFailedDeps)
+			require.Nil(t, resp.Data[0].Name)
+
+			require.Equal(t, 0, resp.Data[1].CountAvailable)
+			require.Equal(t, 0, resp.Data[1].CountCancelled)
+			require.Equal(t, 0, resp.Data[1].CountCompleted)
+			require.Equal(t, 0, resp.Data[1].CountDiscarded)
+			require.Equal(t, 0, resp.Data[1].CountFailedDeps)
+			require.Equal(t, 1, resp.Data[1].CountPending)
+			require.Equal(t, 0, resp.Data[1].CountRetryable)
+			require.Equal(t, 0, resp.Data[1].CountRunning)
+			require.Equal(t, 0, resp.Data[1].CountScheduled)
+			require.Equal(t, "first_wf", *resp.Data[1].Name)
+		})
+
+		t.Run("Active", func(t *testing.T) {
+			resp, err := endpoint.Execute(ctx, &workflowListRequest{State: "active"})
+			require.NoError(t, err)
+			require.Len(t, resp.Data, 1)
+			require.Equal(t, 0, resp.Data[0].CountAvailable)
+			require.Equal(t, 0, resp.Data[0].CountCancelled)
+			require.Equal(t, 0, resp.Data[0].CountCompleted)
+			require.Equal(t, 0, resp.Data[0].CountDiscarded)
+			require.Equal(t, 0, resp.Data[0].CountFailedDeps)
+			require.Equal(t, 1, resp.Data[0].CountPending)
+			require.Equal(t, 0, resp.Data[0].CountRetryable)
+			require.Equal(t, 0, resp.Data[0].CountRunning)
+			require.Equal(t, 0, resp.Data[0].CountScheduled)
+			require.Equal(t, "first_wf", *resp.Data[0].Name)
+			require.Equal(t, job1.CreatedAt.UTC(), resp.Data[0].CreatedAt)
+		})
+
+		t.Run("Inactive", func(t *testing.T) {
+			resp, err := endpoint.Execute(ctx, &workflowListRequest{State: "inactive"})
+			require.NoError(t, err)
+			require.Len(t, resp.Data, 1)
+			require.Equal(t, 1, resp.Data[0].CountCompleted)
+			require.Equal(t, 1, resp.Data[0].CountFailedDeps)
+			require.Nil(t, resp.Data[0].Name)
+			require.Equal(t, job2.CreatedAt.UTC(), resp.Data[0].CreatedAt)
+		})
+	})
+
+	t.Run("Limit", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint[workflowListEndpoint](ctx, t)
+
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Metadata: []byte(`{"workflow_id":"1", "workflow_name":"first_wf", "task":"a"}`),
+			State:    ptrutil.Ptr(rivertype.JobStatePending),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Metadata:    []byte(`{"workflow_id":"2", "task":"b"}`),
+			ScheduledAt: ptrutil.Ptr(time.Now().Add(time.Hour)),
+			State:       ptrutil.Ptr(rivertype.JobStateScheduled),
+		})
+
+		resp, err := endpoint.Execute(ctx, &workflowListRequest{Limit: ptrutil.Ptr(1)})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, "2", resp.Data[0].ID) // DESC order means last one gets returned
+	})
+}

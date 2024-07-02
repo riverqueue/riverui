@@ -27,6 +27,8 @@ type KnownMetadata = {
   deps: string[];
   task: string;
   workflow_id: string;
+  workflow_name?: string;
+  workflow_staged_at: string;
 };
 
 // Represents a Job as received from the API. This just like Job, except with
@@ -61,7 +63,7 @@ export type Job = {
       : JobFromAPI[Key];
 };
 
-export type JobWithKnownMetadata = Job & {
+export type JobWithKnownMetadata = Omit<Job, "metadata"> & {
   metadata: KnownMetadata;
 };
 
@@ -73,7 +75,7 @@ export const apiJobToJob = (job: JobFromAPI): Job => ({
   createdAt: new Date(job.created_at),
   errors: apiAttemptErrorsToAttemptErrors(job.errors),
   finalizedAt: job.finalized_at ? new Date(job.finalized_at) : undefined,
-  id: job.id,
+  id: BigInt(job.id),
   kind: job.kind,
   maxAttempts: job.max_attempts,
   metadata: job.metadata,
@@ -136,7 +138,10 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   );
   const query = new URLSearchParams(searchParamsStringValues);
 
-  return API.get<ListResponse<JobFromAPI>>({ path: "/jobs", query }, { signal }).then(
+  return API.get<ListResponse<JobFromAPI>>(
+    { path: "/jobs", query },
+    { signal }
+  ).then(
     // Map from JobFromAPI to Job:
     // TODO: there must be a cleaner way to do this given the type definitions?
     (response) => response.data.map(apiJobToJob)

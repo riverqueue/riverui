@@ -1,5 +1,12 @@
 import ReactFlow, { MiniMap } from "reactflow";
-import type { Edge, Node, NodeTypes, Position } from "reactflow";
+import type {
+  Edge,
+  Node,
+  NodeChange,
+  NodeSelectionChange,
+  NodeTypes,
+  Position,
+} from "reactflow";
 import dagre from "@dagrejs/dagre";
 
 import "reactflow/dist/style.css";
@@ -8,8 +15,11 @@ import { JobWithKnownMetadata } from "@services/jobs";
 import { useTheme } from "next-themes";
 import { JobState } from "@services/types";
 import WorkflowNode, { WorkflowNodeData } from "@components/WorkflowNode";
+import { useCallback, useMemo } from "react";
 
-type WorkflowDetailProps = {
+type WorkflowDiagramProps = {
+  selectedJobId?: bigint;
+  setSelectedJobId: (id: bigint | undefined) => void;
   tasks: JobWithKnownMetadata[];
 };
 
@@ -20,19 +30,19 @@ type nameToJobMap = {
 const dagreGraph = new dagre.graphlib.Graph();
 dagreGraph.setDefaultEdgeLabel(() => ({}));
 
-const nodeWidth = 208;
-const nodeHeight = 180;
+const nodeWidth = 256;
+const nodeHeight = 44;
 
 const getLayoutedElements = (
-  nodes: Node[],
+  nodes: Node<WorkflowNodeData, NodeTypeKey>[],
   edges: Edge[],
   direction = "TB"
-): { nodes: Node[]; edges: Edge[] } => {
+): { nodes: Node<WorkflowNodeData, NodeTypeKey>[]; edges: Edge[] } => {
   const isHorizontal = direction === "LR";
   dagreGraph.setGraph({
     align: "UL",
     edgesep: 100,
-    nodesep: 80,
+    nodesep: 20,
     rankdir: direction,
     ranksep: 100,
   });
@@ -93,11 +103,18 @@ const nodeTypes: NodeTypes = {
 
 type NodeTypeKey = Extract<keyof typeof nodeTypes, string>;
 
-export default function WorkflowDiagram({ tasks }: WorkflowDetailProps) {
+export default function WorkflowDiagram({
+  selectedJobId,
+  setSelectedJobId,
+  tasks,
+}: WorkflowDiagramProps) {
   const { resolvedTheme } = useTheme();
 
   const edgeColors =
     resolvedTheme === "dark" ? edgeColorsDark : edgeColorsLight;
+
+  const minimapMaskColor =
+    resolvedTheme === "dark" ? "rgb(5, 5, 5, 0.5)" : "rgb(250, 250, 250, 0.5)";
 
   // TODO: not ideal to iterate through this list so many times. Should probably
   // do that once and save all results at the same time.
@@ -113,18 +130,22 @@ export default function WorkflowDiagram({ tasks }: WorkflowDetailProps) {
     {}
   );
 
-  const initialNodes: Node<WorkflowNodeData, NodeTypeKey>[] = tasks.map(
-    (job) => ({
-      connectable: false,
-      data: {
-        hasDownstreamDeps: tasksWithDownstreamDeps[job.metadata.task] || false,
-        hasUpstreamDeps: job.metadata.deps?.length > 0,
-        job,
-      },
-      id: job.id.toString(),
-      position: { x: 0, y: 0 },
-      type: "workflowNode",
-    })
+  const initialNodes: Node<WorkflowNodeData, NodeTypeKey>[] = useMemo(
+    () =>
+      tasks.map((job) => ({
+        connectable: false,
+        data: {
+          hasDownstreamDeps:
+            tasksWithDownstreamDeps[job.metadata.task] || false,
+          hasUpstreamDeps: job.metadata.deps?.length > 0,
+          job,
+        },
+        id: job.id.toString(),
+        position: { x: 0, y: 0 },
+        selected: selectedJobId === job.id,
+        type: "workflowNode",
+      })),
+    [tasks, selectedJobId, tasksWithDownstreamDeps]
   );
 
   const jobsByTask = tasks.reduce((acc: nameToJobMap, job) => {
@@ -134,23 +155,27 @@ export default function WorkflowDiagram({ tasks }: WorkflowDetailProps) {
 
   const initialEdges = tasks.reduce((acc: Edge[], job) => {
     const metadata = job.metadata;
-    const newEdges = (metadata.deps || []).map((depName) => {
-      const dep = jobsByTask[depName];
-      const depStatus = depStatusFromJob(dep);
-      const edgeColor = edgeColors[depStatus];
+    const newEdges = (metadata.deps || [])
+      // Filter out any deps that aren't in the list of jobs (maybe due to being
+      // deleted or cleaned already):
+      .filter((dep) => jobsByTask[dep])
+      .map((depName) => {
+        const dep = jobsByTask[depName];
+        const depStatus = depStatusFromJob(dep);
+        const edgeColor = edgeColors[depStatus];
 
-      return {
-        animated: depStatus === "blocked",
-        id: `e-${dep}-${metadata.task}`,
-        source: dep.id.toString(),
-        style: {
-          strokeWidth: 2,
-          stroke: edgeColor,
-        },
-        target: job.id.toString(),
-        type: "smoothstep",
-      };
-    });
+        return {
+          animated: depStatus === "blocked",
+          id: `e-${dep.id}-${job.id}`,
+          source: dep.id.toString(),
+          style: {
+            strokeWidth: 2,
+            stroke: edgeColor,
+          },
+          target: job.id.toString(),
+          type: "smoothstep",
+        };
+      });
     return [...acc, ...newEdges];
   }, []);
 
@@ -160,17 +185,50 @@ export default function WorkflowDiagram({ tasks }: WorkflowDetailProps) {
     "LR"
   );
 
+  const isNodeSelectionChange = (
+    change: NodeChange
+  ): change is NodeSelectionChange => {
+    return change.type === "select";
+  };
+
+  const onNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const selectionChanges = changes.filter(isNodeSelectionChange);
+      if (selectionChanges.length === 0) return;
+
+      const selectedNode = selectionChanges.find((change) => change.selected);
+
+      // If there's a new selected node, set that and we're done:
+      if (selectedNode && BigInt(selectedNode.id) !== selectedJobId) {
+        setSelectedJobId(BigInt(selectedNode.id));
+        return;
+      }
+    },
+    [selectedJobId, setSelectedJobId]
+  );
+
   return (
     <div className="size-full">
       <ReactFlow
         defaultViewport={{ x: 32, y: 32, zoom: 1 }}
         edges={layoutedEdges}
         // fitView
+        nodesFocusable={true}
         nodeTypes={nodeTypes}
         nodes={layoutedNodes}
+        onEdgesChange={(_newEdges) => {}}
+        onNodesChange={onNodesChange}
         proOptions={{ hideAttribution: true }}
       >
-        <MiniMap nodeStrokeWidth={3} pannable zoomable />
+        <MiniMap
+          className="hidden bg-slate-400 dark:bg-slate-500 md:block"
+          maskColor={minimapMaskColor}
+          // TODO: dynamic class name based on state
+          nodeClassName="fill-slate-500 dark:fill-slate-800"
+          pannable
+          style={{ height: 100, width: 150 }}
+          zoomable
+        />
       </ReactFlow>
     </div>
   );

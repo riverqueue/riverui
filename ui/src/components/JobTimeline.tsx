@@ -13,7 +13,7 @@ import { formatDistanceStrict } from "date-fns";
 
 import { Job } from "@services/jobs";
 import { Heroicon, JobState } from "@services/types";
-import { DurationCompact } from "./DurationCompact";
+import { DurationCompact } from "@components/DurationCompact";
 import { useTime } from "react-time-sync";
 import { useMemo } from "react";
 
@@ -322,7 +322,7 @@ type JobTimelineProps = {
 
 export default function JobTimeline({ job }: JobTimelineProps) {
   return (
-    <ol className="relative text-gray-500 dark:text-gray-400">
+    <ol className="relative px-2 text-gray-500 dark:text-gray-400 sm:px-0">
       <StatusStep
         Icon={CircleStackIcon}
         name="Created"

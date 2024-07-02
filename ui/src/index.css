@@ -24,6 +24,12 @@ a {
   color: theme("colors.sky.500");
   text-decoration: inherit;
 }
-a:hover {
+
+.dark a:hover {
+  color: theme("colors.sky.600");
+}
+
+a:hover,
+.dark a:hover {
   color: theme("colors.brand-primary");
 }

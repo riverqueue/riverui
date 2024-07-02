@@ -51,7 +51,7 @@ const Layout = ({ children }: LayoutProps) => {
         { name: "Queues", href: "/queues", icon: InboxStackIcon },
         {
           name: "Workflows",
-          href: "#",
+          href: "/workflows",
           icon: RectangleGroupIcon,
           hidden: !featureEnabledWorkflows,
         },

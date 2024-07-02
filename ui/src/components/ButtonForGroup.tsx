@@ -1,18 +1,25 @@
+import { type ButtonProps as HeadlessButtonProps } from "@headlessui/react";
+import { HeadlessLink } from "@components/HeadlessLink";
+
 import { Heroicon } from "@services/types";
-import { FormEvent } from "react";
-import { Button, ButtonProps } from "./Button";
+import { Button, ButtonProps } from "@components/Button";
 import { classNames } from "@utils/style";
 
 export default function ButtonForGroup({
   className,
-  Icon,
+  children,
+  Icon: Icon,
   text,
   ...props
 }: {
-  Icon: Heroicon;
-  onClick?: (event: FormEvent) => void;
-  text: string;
-} & Omit<ButtonProps, "children" | "color" | "outline" | "plain">) {
+  children?: React.ReactNode;
+  Icon?: Heroicon;
+  text?: string;
+} & Omit<ButtonProps, "children" | "color" | "outline" | "plain"> &
+  (
+    | Omit<HeadlessButtonProps, "className">
+    | Omit<React.ComponentPropsWithoutRef<typeof HeadlessLink>, "className">
+  )) {
   return (
     <Button
       outline
@@ -21,9 +28,11 @@ export default function ButtonForGroup({
         className || ""
       )}
       {...props}
+      color={undefined}
     >
-      <Icon className="mr-2 size-5" aria-hidden="true" />
-      {text}
+      {Icon && <Icon className="mr-2 size-5" aria-hidden="true" />}
+
+      {children || text}
     </Button>
   );
 }
