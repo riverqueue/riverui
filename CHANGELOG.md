@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2024-07-02
+
 ### Added
 
 - Add health check endpoints. [PR #61](https://github.com/riverqueue/riverui/pull/61).
     - `GET /api/health-checks/complete` (Returns okay if the Go process is running and the database is healthy.)
     - `GET /api/health-checks/minimal` (Returns okay as long as Go process is running.)
+- Interpret some types of Postgres errors to be user facing to produce better error messages in the UI. [PR #76](https://github.com/riverqueue/riverui/pull/76).
 
 ## [0.1.1] - 2024-06-23
 
