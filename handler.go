@@ -14,13 +14,13 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/riverui/internal/apiendpoint"
-	"github.com/riverqueue/riverui/internal/db"
+	"github.com/riverqueue/riverui/internal/dbsqlc"
 	"github.com/riverqueue/riverui/ui"
 )
 
 type DBTXWithBegin interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
-	db.DBTX
+	dbsqlc.DBTX
 }
 
 // HandlerOpts are the options for creating a new Handler.

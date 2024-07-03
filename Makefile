@@ -4,7 +4,7 @@ generate: generate/sqlc
 
 .PHONY: generate/sqlc
 generate/sqlc:
-	cd internal/db && sqlc generate
+	cd internal/dbsqlc && sqlc generate
 
 .PHONY: lint
 lint:
@@ -20,4 +20,4 @@ verify: verify/sqlc
 
 .PHONY: verify/sqlc
 verify/sqlc:
-	cd internal/db && sqlc diff
+	cd internal/dbsqlc && sqlc diff

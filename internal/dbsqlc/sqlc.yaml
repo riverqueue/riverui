@@ -5,7 +5,7 @@ sql:
     schema: "migrations"
     gen:
       go:
-        package: "db"
+        package: "dbsqlc"
         sql_package: "pgx/v5"
         out: "."
         emit_exact_table_names: true

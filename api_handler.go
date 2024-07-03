@@ -17,7 +17,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 	"github.com/riverqueue/riverui/internal/apiendpoint"
 	"github.com/riverqueue/riverui/internal/apierror"
-	"github.com/riverqueue/riverui/internal/db"
+	"github.com/riverqueue/riverui/internal/dbsqlc"
 	"github.com/riverqueue/riverui/internal/util/dbutil"
 	"github.com/riverqueue/riverui/internal/util/ptrutil"
 	"github.com/riverqueue/riverui/internal/util/sliceutil"
@@ -368,7 +368,7 @@ func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*
 			return nil, fmt.Errorf("error getting queue: %w", err)
 		}
 
-		countRows, err := db.New().JobCountByQueueAndState(ctx, a.dbPool, []string{req.Name})
+		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, []string{req.Name})
 		if err != nil {
 			return nil, fmt.Errorf("error getting queue counts: %w", err)
 		}
@@ -419,7 +419,7 @@ func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) 
 
 		queueNames := sliceutil.Map(result.Queues, func(q *rivertype.Queue) string { return q.Name })
 
-		countRows, err := db.New().JobCountByQueueAndState(ctx, a.dbPool, queueNames)
+		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, queueNames)
 		if err != nil {
 			return nil, fmt.Errorf("error getting queue counts: %w", err)
 		}
@@ -534,12 +534,12 @@ type stateAndCountGetResponse struct {
 }
 
 func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
-	stateAndCount, err := db.New().JobCountByState(ctx, a.dbPool)
+	stateAndCount, err := dbsqlc.New().JobCountByState(ctx, a.dbPool)
 	if err != nil {
 		return nil, fmt.Errorf("error getting states and counts: %w", err)
 	}
 
-	stateAndCountMap := sliceutil.KeyBy(stateAndCount, func(r *db.JobCountByStateRow) (rivertype.JobState, int) {
+	stateAndCountMap := sliceutil.KeyBy(stateAndCount, func(r *dbsqlc.JobCountByStateRow) (rivertype.JobState, int) {
 		return rivertype.JobState(r.State), int(r.Count)
 	})
 
@@ -585,7 +585,7 @@ type workflowGetResponse struct {
 }
 
 func (a *workflowGetEndpoint) Execute(ctx context.Context, req *workflowGetRequest) (*workflowGetResponse, error) {
-	jobs, err := db.New().JobListWorkflow(ctx, a.dbPool, &db.JobListWorkflowParams{
+	jobs, err := dbsqlc.New().JobListWorkflow(ctx, a.dbPool, &dbsqlc.JobListWorkflowParams{
 		PaginationLimit:  1000,
 		PaginationOffset: 0,
 		WorkflowID:       req.ID,
@@ -622,7 +622,7 @@ type RiverJob struct {
 	Tags        []string                 `json:"tags"`
 }
 
-func internalJobToSerializableJob(internal *db.RiverJob) *RiverJob {
+func internalJobToSerializableJob(internal *dbsqlc.RiverJob) *RiverJob {
 	errs := make([]rivertype.AttemptError, len(internal.Errors))
 	for i, attemptErr := range internal.Errors {
 		if err := json.Unmarshal(attemptErr, &errs[i]); err != nil {
@@ -696,7 +696,7 @@ type RiverQueue struct {
 	UpdatedAt      time.Time       `json:"updated_at"`
 }
 
-func riverQueueToSerializableQueue(internal rivertype.Queue, count *db.JobCountByQueueAndStateRow) *RiverQueue {
+func riverQueueToSerializableQueue(internal rivertype.Queue, count *dbsqlc.JobCountByQueueAndStateRow) *RiverQueue {
 	return &RiverQueue{
 		CountAvailable: int(count.CountAvailable),
 		CountRunning:   int(count.CountRunning),
@@ -708,8 +708,8 @@ func riverQueueToSerializableQueue(internal rivertype.Queue, count *db.JobCountB
 	}
 }
 
-func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*db.JobCountByQueueAndStateRow) *listResponse[RiverQueue] {
-	countsMap := make(map[string]*db.JobCountByQueueAndStateRow)
+func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*dbsqlc.JobCountByQueueAndStateRow) *listResponse[RiverQueue] {
+	countsMap := make(map[string]*dbsqlc.JobCountByQueueAndStateRow)
 	for _, count := range counts {
 		countsMap[count.Queue] = count
 	}
