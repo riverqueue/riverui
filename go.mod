@@ -12,7 +12,7 @@ require (
 	github.com/riverqueue/river/riverdriver v0.8.0
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.8.0
 	github.com/riverqueue/river/rivertype v0.8.0
-	github.com/rs/cors v1.10.0
+	github.com/rs/cors v1.11.0
 	github.com/samber/slog-http v1.0.0
 	github.com/stretchr/testify v1.9.0
 )
