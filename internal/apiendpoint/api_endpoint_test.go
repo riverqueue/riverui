@@ -181,6 +181,7 @@ func requireStatusAndJSONResponse[T any](t *testing.T, expectedStatusCode int, e
 
 	require.Equal(t, expectedStatusCode, recorder.Result().StatusCode, "Unexpected status code; response body: %s", recorder.Body.String()) //nolint:bodyclose
 	require.Equal(t, expectedResp, mustUnmarshalJSON[T](t, recorder.Body.Bytes()))
+	require.Equal(t, "application/json; charset=utf-8", recorder.Header().Get("Content-Type"))
 }
 
 // Same as the above, but for a non-JSON response.

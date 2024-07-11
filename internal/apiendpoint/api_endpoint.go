@@ -138,6 +138,7 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 			return fmt.Errorf("error marshaling response JSON: %w", err)
 		}
 
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
 		w.WriteHeader(meta.StatusCode)
 
 		if _, err := w.Write(respData); err != nil {
