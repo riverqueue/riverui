@@ -38,6 +38,7 @@ func (e *APIError) SetInternalError(internalErr error) { e.InternalError = inter
 // Write writes the API error to an HTTP response, writing to the given logger
 // in case of a problem.
 func (e *APIError) Write(ctx context.Context, logger *slog.Logger, w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(e.StatusCode)
 
 	respData, err := json.Marshal(e)
