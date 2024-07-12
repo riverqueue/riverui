@@ -114,7 +114,7 @@ func TestMountAndServe(t *testing.T) {
 		requireStatusAndJSONResponse(t, http.StatusBadRequest, &apierror.APIError{Message: "Bad request."}, bundle.recorder)
 	})
 
-	t.Run("InterpretedPostgresError", func(t *testing.T) {
+	t.Run("InterpretedError", func(t *testing.T) {
 		t.Parallel()
 
 		mux, bundle := setup(t)
@@ -152,6 +152,44 @@ func TestMountAndServe(t *testing.T) {
 		mux.ServeHTTP(bundle.recorder, req)
 
 		requireStatusAndJSONResponse(t, http.StatusInternalServerError, &apierror.APIError{Message: "Internal server error. Check logs for more information."}, bundle.recorder)
+	})
+}
+
+func TestMaybeInterpretInternalError(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("ConnectError", func(t *testing.T) {
+		t.Parallel()
+
+		_, err := pgconn.Connect(ctx, "postgres://user@127.0.0.1:37283/does_not_exist")
+
+		require.Equal(t, apierror.WithInternalError(apierror.NewBadRequest("There was a problem connecting to the configured database. Check logs for details."), err), maybeInterpretInternalError(err))
+	})
+
+	t.Run("ConnectError", func(t *testing.T) {
+		t.Parallel()
+
+		err := &pgconn.PgError{Code: pgerrcode.InsufficientPrivilege}
+
+		require.Equal(t, apierror.WithInternalError(apierror.NewBadRequest("Insufficient database privilege to perform this operation."), err), maybeInterpretInternalError(err))
+	})
+
+	t.Run("OtherPGError", func(t *testing.T) {
+		t.Parallel()
+
+		err := &pgconn.PgError{Code: pgerrcode.CardinalityViolation}
+
+		require.Equal(t, err, maybeInterpretInternalError(err))
+	})
+
+	t.Run("ConnectError", func(t *testing.T) {
+		t.Parallel()
+
+		err := errors.New("other error")
+
+		require.Equal(t, err, maybeInterpretInternalError(err))
 	})
 }
 
