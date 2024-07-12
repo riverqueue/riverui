@@ -51,6 +51,7 @@ func TestAPIErrorWrite(t *testing.T) {
 		`{"message":"Bad request. Try sending JSON next time."}`,
 		recorder.Body.String(),
 	)
+	require.Equal(t, "application/json; charset=utf-8", recorder.Header().Get("Content-Type"))
 }
 
 func TestWithInternalError(t *testing.T) {
