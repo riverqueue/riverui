@@ -150,15 +150,7 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 	if err != nil {
 		// Convert certain types of Postgres errors into something more
 		// user-friendly than an internal server error.
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) {
-			if pgErr.Code == pgerrcode.InsufficientPrivilege {
-				err = apierror.WithInternalError(
-					apierror.NewBadRequest("Insufficient database privilege to perform this operation."),
-					err,
-				)
-			}
-		}
+		err = maybeInterpretInternalError(err)
 
 		var apiErr apierror.Interface
 		if errors.As(err, &apiErr) {
@@ -195,4 +187,31 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 // allows them to extract information from a raw request, like path values.
 type RawExtractor interface {
 	ExtractRaw(r *http.Request) error
+}
+
+// Make some broad categories of internal error back into something public
+// facing because in some cases they can be a vast help for debugging.
+func maybeInterpretInternalError(err error) error {
+	var (
+		apiErr     apierror.Interface
+		connectErr *pgconn.ConnectError
+		pgErr      *pgconn.PgError
+	)
+
+	switch {
+	case errors.As(err, &connectErr):
+		apiErr = apierror.NewBadRequest("There was a problem connecting to the configured database. Check logs for details.")
+
+	case errors.As(err, &pgErr):
+		if pgErr.Code == pgerrcode.InsufficientPrivilege {
+			apiErr = apierror.NewBadRequest("Insufficient database privilege to perform this operation.")
+		} else {
+			return err
+		}
+
+	default:
+		return err
+	}
+
+	return apierror.WithInternalError(apiErr, err)
 }
