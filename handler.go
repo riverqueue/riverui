@@ -14,6 +14,7 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/riverui/internal/apiendpoint"
+	"github.com/riverqueue/riverui/internal/apimiddleware"
 	"github.com/riverqueue/riverui/internal/dbsqlc"
 	"github.com/riverqueue/riverui/ui"
 )
@@ -101,10 +102,13 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	mux.HandleFunc("/api", http.NotFound)
 	mux.Handle("/", intercept404(fileServer, serveIndex))
 
+	middlewareStack := apimiddleware.NewMiddlewareStack()
+
 	if prefix != "/" {
-		return stripPrefix(prefix, mux), nil
+		middlewareStack.Use(&stripPrefixMiddleware{prefix})
 	}
-	return mux, nil
+
+	return middlewareStack.Mount(mux), nil
 }
 
 // Go's http.StripPrefix can sometimes result in an empty path. For example,
@@ -112,16 +116,20 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 // does not get handled by the ServeMux correctly (it results in a redirect to
 // "/"). To avoid this, fork the StripPrefix implementation and ensure we never
 // return an empty path.
-func stripPrefix(prefix string, handler http.Handler) http.Handler {
-	if prefix == "" {
+type stripPrefixMiddleware struct {
+	prefix string
+}
+
+func (m *stripPrefixMiddleware) Middleware(handler http.Handler) http.Handler {
+	if m.prefix == "" {
 		return handler
 	}
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
-		path := strings.TrimPrefix(request.URL.Path, prefix)
+		path := strings.TrimPrefix(request.URL.Path, m.prefix)
 		if path == "" {
 			path = "/"
 		}
-		rawPath := strings.TrimPrefix(request.URL.RawPath, prefix)
+		rawPath := strings.TrimPrefix(request.URL.RawPath, m.prefix)
 		if rawPath == "" {
 			rawPath = "/"
 		}
@@ -132,7 +140,7 @@ func stripPrefix(prefix string, handler http.Handler) http.Handler {
 			*request2.URL = *request.URL
 			request2.URL.Path = path
 			request2.URL.RawPath = rawPath
-			redirectResponseWriter := &redirectPrefixResponseWriter{ResponseWriter: responseWriter, prefix: prefix}
+			redirectResponseWriter := &redirectPrefixResponseWriter{ResponseWriter: responseWriter, prefix: m.prefix}
 			handler.ServeHTTP(redirectResponseWriter, request2)
 		} else {
 			http.NotFound(responseWriter, request)
