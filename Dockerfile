@@ -30,6 +30,7 @@ RUN go mod download
 COPY *.go internal docs/README.md LICENSE ./
 COPY cmd/ cmd/
 COPY internal/ internal/
+COPY public/ public/
 COPY ui/*.go ./ui/
 COPY --from=build-ui /app/dist ./ui/dist
 

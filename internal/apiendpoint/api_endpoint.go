@@ -133,6 +133,10 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 			return err
 		}
 
+		if rawExtractor, ok := any(resp).(RawResponder); ok {
+			return rawExtractor.RespondRaw(w)
+		}
+
 		respData, err := json.Marshal(resp)
 		if err != nil {
 			return fmt.Errorf("error marshaling response JSON: %w", err)
@@ -187,6 +191,13 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 // allows them to extract information from a raw request, like path values.
 type RawExtractor interface {
 	ExtractRaw(r *http.Request) error
+}
+
+// RawResponder is an interface that can be implemented by response structs that
+// allow them to respond directly to a ResponseWriter instead of emitting the
+// normal JSON format.
+type RawResponder interface {
+	RespondRaw(w http.ResponseWriter) error
 }
 
 // Make some broad categories of internal error back into something public

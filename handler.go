@@ -2,6 +2,7 @@ package riverui
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -99,6 +100,11 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	apiendpoint.Mount(mux, opts.Logger, &queueResumeEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &stateAndCountGetEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &workflowGetEndpoint{apiBundle: apiBundle})
+
+	if err := mountStaticFiles(opts.Logger, mux); err != nil {
+		return nil, err
+	}
+
 	mux.HandleFunc("/api", http.NotFound)
 	mux.Handle("/", intercept404(fileServer, serveIndex))
 
@@ -109,6 +115,51 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	}
 
 	return middlewareStack.Mount(mux), nil
+}
+
+//go:embed public
+var publicFS embed.FS
+
+const publicPrefix = "public/"
+
+// Walks the embedded filesystem in publicFS and mounts each file as a route on
+// the given serve mux. Content type is determined by `http.DetectContentType`.
+func mountStaticFiles(logger *slog.Logger, mux *http.ServeMux) error {
+	return fs.WalkDir(publicFS, ".", func(path string, dirEntry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if dirEntry.IsDir() {
+			return nil
+		}
+
+		servePath := strings.TrimPrefix(path, publicPrefix)
+
+		mux.HandleFunc("GET /"+servePath, func(w http.ResponseWriter, r *http.Request) {
+			runWithError := func() error {
+				data, err := publicFS.ReadFile(path)
+				if err != nil {
+					return err
+				}
+
+				contentType := http.DetectContentType(data)
+				w.Header().Add("Content-Type", contentType)
+
+				if _, err := w.Write(data); err != nil {
+					return err
+				}
+
+				return nil
+			}
+
+			if err := runWithError(); err != nil {
+				logger.ErrorContext(r.Context(), "Error writing static file", "err", err)
+			}
+		})
+
+		return nil
+	})
 }
 
 // Go's http.StripPrefix can sometimes result in an empty path. For example,

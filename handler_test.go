@@ -112,4 +112,34 @@ func TestNewHandlerIntegration(t *testing.T) {
 	makeAPICall(t, "QueueResume", http.MethodPut, makeURL("/api/queues/%s/resume", queuePaused.Name), nil)
 	makeAPICall(t, "StateAndCountGet", http.MethodGet, makeURL("/api/states"), nil)
 	makeAPICall(t, "WorkflowGet", http.MethodGet, makeURL("/api/workflows/%s", workflowID), nil)
+
+	//
+	// Static files
+	//
+
+	makeAPICall(t, "RobotsTxt", http.MethodGet, makeURL("/robots.txt"), nil)
+}
+
+func TestMountStaticFiles(t *testing.T) {
+	t.Parallel()
+
+	var (
+		logger = riverinternaltest.Logger(t)
+		mux    = http.NewServeMux()
+	)
+
+	require.NoError(t, mountStaticFiles(logger, mux))
+
+	var (
+		recorder = httptest.NewRecorder()
+		req      = httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
+	)
+
+	mux.ServeHTTP(recorder, req)
+
+	status := recorder.Result().StatusCode //nolint:bodyclose
+	require.Equal(t, http.StatusOK, status)
+
+	require.Equal(t, "text/plain; charset=utf-8", recorder.Header().Get("Content-Type"))
+	require.Contains(t, recorder.Body.String(), "User-Agent")
 }
