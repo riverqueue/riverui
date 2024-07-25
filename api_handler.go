@@ -603,6 +603,82 @@ func (a *workflowGetEndpoint) Execute(ctx context.Context, req *workflowGetReque
 	}, nil
 }
 
+//
+// workflowListEndpoint
+//
+
+type workflowListEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, listResponse[workflowListItem]]
+}
+
+func (*workflowListEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/workflows",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type workflowListRequest struct {
+	After *string `json:"-" validate:"omitempty"`                       // from ExtractRaw
+	Limit *int    `json:"-" validate:"omitempty,min=0,max=1000"`        // from ExtractRaw
+	State string  `json:"-" validate:"omitempty,oneof=active inactive"` // from ExtractRaw
+}
+
+func (req *workflowListRequest) ExtractRaw(r *http.Request) error {
+	if after := r.URL.Query().Get("after"); after != "" {
+		req.After = (&after)
+	}
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return apierror.NewBadRequest("Couldn't convert `limit` to integer: %s.", err)
+		}
+
+		req.Limit = &limit
+	}
+
+	if state := r.URL.Query().Get("state"); state != "" {
+		req.State = (state)
+	}
+
+	return nil
+}
+
+func (a *workflowListEndpoint) Execute(ctx context.Context, req *workflowListRequest) (*listResponse[workflowListItem], error) {
+	switch req.State {
+	case "active":
+		workflows, err := dbsqlc.New().WorkflowListActive(ctx, a.dbPool, &dbsqlc.WorkflowListActiveParams{
+			After:           ptrutil.ValOrDefault(req.After, ""),
+			PaginationLimit: int32(ptrutil.ValOrDefault(req.Limit, 100)),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error listing workflows: %w", err)
+		}
+
+		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListActiveToSerializableWorkflow)), nil
+	case "inactive":
+		workflows, err := dbsqlc.New().WorkflowListInactive(ctx, a.dbPool, &dbsqlc.WorkflowListInactiveParams{
+			After:           ptrutil.ValOrDefault(req.After, ""),
+			PaginationLimit: int32(ptrutil.ValOrDefault(req.Limit, 100)),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error listing workflows: %w", err)
+		}
+		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListInactiveToSerializableWorkflow)), nil
+	default:
+		workflows, err := dbsqlc.New().WorkflowListAll(ctx, a.dbPool, &dbsqlc.WorkflowListAllParams{
+			After:           ptrutil.ValOrDefault(req.After, ""),
+			PaginationLimit: int32(ptrutil.ValOrDefault(req.Limit, 100)),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error listing workflows: %w", err)
+		}
+		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListAllToSerializableWorkflow)), nil
+	}
+}
+
 type RiverJob struct {
 	ID          int64                    `json:"id"`
 	Args        json.RawMessage          `json:"args"`
@@ -642,7 +718,7 @@ func internalJobToSerializableJob(internal *dbsqlc.RiverJob) *RiverJob {
 		Attempt:     int(internal.Attempt),
 		AttemptedAt: timePtr(internal.AttemptedAt),
 		AttemptedBy: attemptedBy,
-		CreatedAt:   internal.CreatedAt.Time,
+		CreatedAt:   internal.CreatedAt.Time.UTC(),
 		Errors:      errs,
 		FinalizedAt: timePtr(internal.FinalizedAt),
 		Kind:        internal.Kind,
@@ -719,6 +795,87 @@ func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*dbsq
 		queues[i] = riverQueueToSerializableQueue(*internalQueue, countsMap[internalQueue.Name])
 	}
 	return listResponseFrom(queues)
+}
+
+type workflowListItem struct {
+	CountAvailable  int       `json:"count_available"`
+	CountCancelled  int       `json:"count_cancelled"`
+	CountCompleted  int       `json:"count_completed"`
+	CountDiscarded  int       `json:"count_discarded"`
+	CountFailedDeps int       `json:"count_failed_deps"`
+	CountPending    int       `json:"count_pending"`
+	CountRetryable  int       `json:"count_retryable"`
+	CountRunning    int       `json:"count_running"`
+	CountScheduled  int       `json:"count_scheduled"`
+	CreatedAt       time.Time `json:"created_at"`
+	ID              string    `json:"id"`
+	Name            *string   `json:"name"`
+}
+
+func internalWorkflowListActiveToSerializableWorkflow(internal *dbsqlc.WorkflowListActiveRow) *workflowListItem {
+	var name *string
+	if internal.WorkflowName != "" {
+		name = &internal.WorkflowName
+	}
+
+	return &workflowListItem{
+		CountAvailable:  int(internal.CountAvailable),
+		CountCancelled:  int(internal.CountCancelled),
+		CountCompleted:  int(internal.CountCompleted),
+		CountDiscarded:  int(internal.CountDiscarded),
+		CountFailedDeps: int(internal.CountFailedDeps),
+		CountPending:    int(internal.CountPending),
+		CountRetryable:  int(internal.CountRetryable),
+		CountRunning:    int(internal.CountRunning),
+		CountScheduled:  int(internal.CountScheduled),
+		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
+		ID:              internal.WorkflowID,
+		Name:            name,
+	}
+}
+
+func internalWorkflowListAllToSerializableWorkflow(internal *dbsqlc.WorkflowListAllRow) *workflowListItem {
+	var name *string
+	if internal.WorkflowName != "" {
+		name = &internal.WorkflowName
+	}
+
+	return &workflowListItem{
+		CountAvailable:  int(internal.CountAvailable),
+		CountCancelled:  int(internal.CountCancelled),
+		CountCompleted:  int(internal.CountCompleted),
+		CountDiscarded:  int(internal.CountDiscarded),
+		CountFailedDeps: int(internal.CountFailedDeps),
+		CountPending:    int(internal.CountPending),
+		CountRetryable:  int(internal.CountRetryable),
+		CountRunning:    int(internal.CountRunning),
+		CountScheduled:  int(internal.CountScheduled),
+		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
+		ID:              internal.WorkflowID,
+		Name:            name,
+	}
+}
+
+func internalWorkflowListInactiveToSerializableWorkflow(internal *dbsqlc.WorkflowListInactiveRow) *workflowListItem {
+	var name *string
+	if internal.WorkflowName != "" {
+		name = &internal.WorkflowName
+	}
+
+	return &workflowListItem{
+		CountAvailable:  int(internal.CountAvailable),
+		CountCancelled:  int(internal.CountCancelled),
+		CountCompleted:  int(internal.CountCompleted),
+		CountDiscarded:  int(internal.CountDiscarded),
+		CountFailedDeps: int(internal.CountFailedDeps),
+		CountPending:    int(internal.CountPending),
+		CountRetryable:  int(internal.CountRetryable),
+		CountRunning:    int(internal.CountRunning),
+		CountScheduled:  int(internal.CountScheduled),
+		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
+		ID:              internal.WorkflowID,
+		Name:            name,
+	}
 }
 
 func timePtr(t pgtype.Timestamptz) *time.Time {

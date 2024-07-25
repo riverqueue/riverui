@@ -37,7 +37,7 @@ type LayoutProps = PropsWithChildren<object>;
 const Layout = ({ children }: LayoutProps) => {
   const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebarSetting();
 
-  const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", false);
+  const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
 
   const navigation = useMemo(
     () =>
@@ -51,7 +51,7 @@ const Layout = ({ children }: LayoutProps) => {
         { name: "Queues", href: "/queues", icon: InboxStackIcon },
         {
           name: "Workflows",
-          href: "#",
+          href: "/workflows",
           icon: RectangleGroupIcon,
           hidden: !featureEnabledWorkflows,
         },

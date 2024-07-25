@@ -42,3 +42,8 @@ export type Heroicon = React.ForwardRefExoticComponent<
     titleId?: string;
   } & React.RefAttributes<SVGSVGElement>
 >;
+
+export enum WorkflowState {
+  Active = "active",
+  Inactive = "inactive",
+}

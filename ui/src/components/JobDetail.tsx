@@ -4,16 +4,18 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 
-import { Job } from "@services/jobs";
+import { Job, JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import { capitalize } from "@utils/string";
-import JobTimeline from "./JobTimeline";
+import JobTimeline from "@components/JobTimeline";
 import { FormEvent, useMemo, useState } from "react";
-import TopNavTitleOnly from "./TopNavTitleOnly";
-import RelativeTimeFormatter from "./RelativeTimeFormatter";
-import JobAttemptErrors from "./JobAttemptErrors";
-import { Badge } from "./Badge";
-import ButtonForGroup from "./ButtonForGroup";
+import TopNavTitleOnly from "@components/TopNavTitleOnly";
+import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import JobAttemptErrors from "@components/JobAttemptErrors";
+import { Badge } from "@components/Badge";
+import ButtonForGroup from "@components/ButtonForGroup";
+import useFeature from "@hooks/use-feature";
+import { Link } from "@tanstack/react-router";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -22,17 +24,7 @@ type JobDetailProps = {
   retry: () => void;
 };
 
-function ActionButtons({
-  cancel,
-  deleteFn,
-  job,
-  retry,
-}: {
-  cancel: () => void;
-  deleteFn: () => void;
-  job: Job;
-  retry: () => void;
-}) {
+function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
   // Can only delete jobs that aren't running:
   const deleteDisabled = job.state === JobState.Running;
 
@@ -86,12 +78,17 @@ function ActionButtons({
   );
 }
 
+function isJobWithKnownMetadata(job: Job): job is JobWithKnownMetadata {
+  return (job as JobWithKnownMetadata).metadata !== undefined;
+}
+
 export default function JobDetail({
   cancel,
   deleteFn,
   job,
   retry,
 }: JobDetailProps) {
+  const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
   const [showAllAttempts, setShowAllAttempts] = useState(false);
   const attemptsToDisplay = useMemo(() => {
     if (showAllAttempts) {
@@ -99,6 +96,11 @@ export default function JobDetail({
     }
     return job.attemptedBy.slice(-5).reverse();
   }, [job.attemptedBy, showAllAttempts]);
+
+  let jobWithMetadata: JobWithKnownMetadata | undefined;
+  if (isJobWithKnownMetadata(job)) {
+    jobWithMetadata = job;
+  }
 
   return (
     <>
@@ -133,7 +135,7 @@ export default function JobDetail({
           <div className="">
             <dl className="grid grid-cols-12">
               <div className="col-span-4 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium uppercase leading-6 text-slate-900 dark:text-slate-100">
+                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
                   State
                 </dt>
                 <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
@@ -190,6 +192,27 @@ export default function JobDetail({
                   <RelativeTimeFormatter time={job.createdAt} addSuffix />
                 </dd>
               </div>
+              {featureEnabledWorkflows &&
+                jobWithMetadata &&
+                jobWithMetadata.metadata.workflow_id && (
+                  <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
+                    <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+                      Workflow
+                    </dt>
+                    <dd className="mt-1 overflow-hidden text-ellipsis font-mono text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
+                      {jobWithMetadata.metadata.workflow_id ? (
+                        <Link
+                          to={`/workflows/${jobWithMetadata.metadata.workflow_id}`}
+                          search={{ selected: job.id }}
+                        >
+                          {jobWithMetadata.metadata.workflow_id}
+                        </Link>
+                      ) : (
+                        "–"
+                      )}
+                    </dd>
+                  </div>
+                )}
             </dl>
           </div>
 
@@ -197,8 +220,8 @@ export default function JobDetail({
 
           <div className="sm:order-3 sm:col-span-2">
             <div>
-              <dl className="grid grid-cols-1 gap-x-4 sm:grid-cols-2">
-                <div className="border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:col-span-2 sm:px-0">
+              <dl className="grid-cols-1 gap-x-4 border-slate-100 dark:border-slate-800 md:grid md:grid-cols-2 md:border-t">
+                <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0 md:border-t-0">
                   <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
                     Args
                   </dt>
@@ -208,7 +231,7 @@ export default function JobDetail({
                     </pre>
                   </dd>
                 </div>
-                <div className="border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:col-span-1 sm:px-0">
+                <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
                   <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
                     Metadata
                   </dt>

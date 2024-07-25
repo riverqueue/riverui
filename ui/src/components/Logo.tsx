@@ -6,6 +6,7 @@ export default function Logo(props: React.ComponentPropsWithoutRef<"svg">) {
       height="84"
       viewBox="0 0 151 84"
       fill="none"
+      aria-label="River logo"
       xmlns="http://www.w3.org/2000/svg"
       {...props}
     >

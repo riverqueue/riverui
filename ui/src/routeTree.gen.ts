@@ -14,6 +14,7 @@ import { Route as rootRoute } from "./routes/__root"
 import { Route as QueuesImport } from "./routes/queues"
 import { Route as JobsImport } from "./routes/jobs"
 import { Route as IndexImport } from "./routes/index"
+import { Route as WorkflowsIndexImport } from "./routes/workflows/index"
 import { Route as QueuesIndexImport } from "./routes/queues/index"
 import { Route as JobsIndexImport } from "./routes/jobs/index"
 import { Route as WorkflowsWorkflowIdImport } from "./routes/workflows/$workflowId"
@@ -35,6 +36,11 @@ const JobsRoute = JobsImport.update({
 
 const IndexRoute = IndexImport.update({
   path: "/",
+  getParentRoute: () => rootRoute,
+} as any)
+
+const WorkflowsIndexRoute = WorkflowsIndexImport.update({
+  path: "/workflows/",
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -135,6 +141,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof QueuesIndexImport
       parentRoute: typeof QueuesImport
     }
+    "/workflows/": {
+      id: "/workflows/"
+      path: "/workflows"
+      fullPath: "/workflows"
+      preLoaderRoute: typeof WorkflowsIndexImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -146,6 +159,7 @@ export const routeTree = rootRoute.addChildren({
   QueuesRoute: QueuesRoute.addChildren({ QueuesNameRoute, QueuesIndexRoute }),
   AboutAboutRoute,
   WorkflowsWorkflowIdRoute,
+  WorkflowsIndexRoute,
 })
 
 /* prettier-ignore-end */
@@ -160,7 +174,8 @@ export const routeTree = rootRoute.addChildren({
         "/jobs",
         "/queues",
         "/about/about",
-        "/workflows/$workflowId"
+        "/workflows/$workflowId",
+        "/workflows/"
       ]
     },
     "/": {
@@ -201,6 +216,9 @@ export const routeTree = rootRoute.addChildren({
     "/queues/": {
       "filePath": "queues/index.tsx",
       "parent": "/queues"
+    },
+    "/workflows/": {
+      "filePath": "workflows/index.tsx"
     }
   }
 }

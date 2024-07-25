@@ -1,11 +1,21 @@
-import { ErrorComponent, createFileRoute } from "@tanstack/react-router";
+import {
+  ErrorComponent,
+  createFileRoute,
+  useNavigate,
+} from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { NotFoundError } from "@utils/api";
 import { getWorkflow, getWorkflowKey } from "@services/workflows";
 import WorkflowDetail from "@components/WorkflowDetail";
+import { z } from "zod";
+
+const workflowDetailSearchSchema = z.object({
+  selected: z.coerce.bigint().positive().optional(),
+});
 
 export const Route = createFileRoute("/workflows/$workflowId")({
+  validateSearch: workflowDetailSearchSchema,
   parseParams: ({ workflowId }) => ({ workflowId }),
   stringifyParams: ({ workflowId }) => ({ workflowId }),
 
@@ -37,6 +47,8 @@ export const Route = createFileRoute("/workflows/$workflowId")({
 
 function WorkflowComponent() {
   const { queryOptions } = Route.useRouteContext();
+  const { selected: selectedJobId } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
   const refreshSettings = useRefreshSetting();
   queryOptions.refetchInterval = refreshSettings.intervalMs;
 
@@ -47,10 +59,18 @@ function WorkflowComponent() {
   }
 
   const { data: workflow } = workflowQuery;
+  const setSelectedJobId = (jobId: bigint | undefined) => {
+    navigate({
+      replace: true,
+      search: (prev) => ({ ...prev, selected: jobId }),
+    });
+  };
 
-  if (!workflow) {
-    return <p>Workflow not found.</p>;
-  }
-
-  return <WorkflowDetail workflow={workflow} />;
+  return (
+    <WorkflowDetail
+      selectedJobId={selectedJobId}
+      setSelectedJobId={setSelectedJobId}
+      workflow={workflow}
+    />
+  );
 }

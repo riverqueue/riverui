@@ -100,6 +100,7 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	apiendpoint.Mount(mux, opts.Logger, &queueResumeEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &stateAndCountGetEndpoint{apiBundle: apiBundle})
 	apiendpoint.Mount(mux, opts.Logger, &workflowGetEndpoint{apiBundle: apiBundle})
+	apiendpoint.Mount(mux, opts.Logger, &workflowListEndpoint{apiBundle: apiBundle})
 
 	if err := mountStaticFiles(opts.Logger, mux); err != nil {
 		return nil, err

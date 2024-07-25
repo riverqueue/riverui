@@ -112,6 +112,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 	makeAPICall(t, "QueueResume", http.MethodPut, makeURL("/api/queues/%s/resume", queuePaused.Name), nil)
 	makeAPICall(t, "StateAndCountGet", http.MethodGet, makeURL("/api/states"), nil)
 	makeAPICall(t, "WorkflowGet", http.MethodGet, makeURL("/api/workflows/%s", workflowID), nil)
+	makeAPICall(t, "WorkflowList", http.MethodGet, makeURL("/api/workflows"), nil)
 
 	//
 	// Static files
