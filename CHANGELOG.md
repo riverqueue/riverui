@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2024-07-24
+
+### Added
+
+- Added support for workflows. [PR #99](https://github.com/riverqueue/riverui/pull/99).
 - The UI now serves a `/robots.txt` that instructs crawlers to not crawl any part an installation. (You should still use an authentication layer though.) [PR #97](https://github.com/riverqueue/riverui/pull/97).
 
 ## [0.2.0] - 2024-07-02
