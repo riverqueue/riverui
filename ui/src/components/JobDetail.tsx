@@ -88,7 +88,7 @@ export default function JobDetail({
   job,
   retry,
 }: JobDetailProps) {
-  const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", false);
+  const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
   const [showAllAttempts, setShowAllAttempts] = useState(false);
   const attemptsToDisplay = useMemo(() => {
     if (showAllAttempts) {
