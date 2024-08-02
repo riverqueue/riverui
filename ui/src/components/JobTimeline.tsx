@@ -11,7 +11,7 @@ import {
 import clsx from "clsx";
 import { formatDistanceStrict } from "date-fns";
 
-import { Job } from "@services/jobs";
+import { AttemptError, Job } from "@services/jobs";
 import { Heroicon, JobState } from "@services/types";
 import { DurationCompact } from "@components/DurationCompact";
 import { useTime } from "react-time-sync";
@@ -182,7 +182,12 @@ const WaitStep = ({ job }: { job: Job }) => {
 };
 
 const RunningStep = ({ job }: { job: Job }) => {
-  if (!job.attemptedAt || job.state === JobState.Available) {
+  if (
+    !job.attemptedAt ||
+    job.state === JobState.Available ||
+    job.state === JobState.Scheduled ||
+    job.state === JobState.Pending
+  ) {
     return (
       <StatusStep
         Icon={ArrowPathRoundedSquareIcon}
@@ -230,23 +235,31 @@ const RunningStep = ({ job }: { job: Job }) => {
     );
   }
 
-  const jobEndTime: Date =
-    job.finalizedAt || job.errors[job.errors.length - 1].at;
+  const lastError: AttemptError | undefined = job.errors.find(
+    (e) => e.attempt === job.attempt
+  );
+  const jobEndTime: Date | undefined = job.finalizedAt || lastError?.at;
 
-  const completed = job.state === JobState.Completed;
+  const errored =
+    job.state === JobState.Discarded || job.state === JobState.Retryable;
+
   return (
     <StatusStep
-      Icon={completed ? ArrowPathRoundedSquareIcon : ExclamationCircleIcon}
-      name={completed ? "Running" : "Errored"}
-      status={completed ? "complete" : "failed"}
+      Icon={errored ? ExclamationCircleIcon : CheckCircleIcon}
+      name={errored ? "Errored" : "Running"}
+      status={errored ? "failed" : "complete"}
       descriptionTitle={
-        completed
-          ? job.attemptedAt.toUTCString()
-          : job.errors[job.errors.length - 1].at.toUTCString()
+        errored ? lastError?.at.toUTCString() : job.attemptedAt.toUTCString()
       }
     >
-      <RelativeTime time={job.attemptedAt} addSuffix={true} /> (
-      <DurationCompact startTime={job.attemptedAt} endTime={jobEndTime} />)
+      <RelativeTime time={job.attemptedAt} addSuffix={true} />
+      {jobEndTime && (
+        <>
+          {" "}
+          (
+          <DurationCompact startTime={job.attemptedAt} endTime={jobEndTime} />)
+        </>
+      )}
     </StatusStep>
   );
 };
