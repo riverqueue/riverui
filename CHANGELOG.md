@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2024-08-02
+
 ### Fixed
 
 - Job detail: handle snoozed jobs without erroring. [PR #104](https://github.com/riverqueue/riverui/pull/104).
