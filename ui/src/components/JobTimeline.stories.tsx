@@ -13,9 +13,21 @@ export default meta;
 
 type Story = StoryObj<typeof JobTimeline>;
 
+export const Pending: Story = {
+  args: {
+    job: jobFactory.pending().build(),
+  },
+};
+
 export const Scheduled: Story = {
   args: {
     job: jobFactory.scheduled().build(),
+  },
+};
+
+export const ScheduledSnoozed: Story = {
+  args: {
+    job: jobFactory.scheduledSnoozed().build(),
   },
 };
 

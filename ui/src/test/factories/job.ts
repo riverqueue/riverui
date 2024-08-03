@@ -91,6 +91,9 @@ class JobFactory extends Factory<Job, object> {
 
   retryable() {
     const attemptedAt = faker.date.recent({ days: 0.01 });
+    const erroredAt = add(attemptedAt, {
+      seconds: faker.number.float({ min: 0.01, max: 95 }),
+    });
     return this.params({
       attempt: 9,
       attemptedAt,
@@ -116,14 +119,12 @@ class JobFactory extends Factory<Job, object> {
         attemptErrorFactory.build({ attempt: 8 }),
         attemptErrorFactory.build({ attempt: 9 }),
         attemptErrorFactory.build({
-          at: add(attemptedAt, {
-            seconds: faker.number.float({ min: 0.01, max: 95 }),
-          }),
+          at: erroredAt,
           attempt: 10,
         }),
       ],
       createdAt: sub(attemptedAt, { minutes: 31, seconds: 30 }),
-      scheduledAt: add(Date.now(), { minutes: 15, seconds: 22.5 }),
+      scheduledAt: add(erroredAt, { minutes: 15, seconds: 22.5 }),
       state: JobState.Retryable,
     });
   }
@@ -145,6 +146,22 @@ class JobFactory extends Factory<Job, object> {
     const scheduledAt = add(createdAt, { minutes: 30 });
 
     return this.params({
+      createdAt,
+      scheduledAt,
+      state: JobState.Scheduled,
+      tags: ["scheduled", "soon_in_future"],
+    });
+  }
+
+  scheduledSnoozed() {
+    const createdAt = faker.date.recent({ days: 0.001 });
+    const scheduledAt = add(createdAt, { minutes: 30 });
+
+    return this.params({
+      attemptedAt: add(createdAt, { seconds: 3 }),
+      attemptedBy: ["worker-1"],
+      attempt: 1,
+      errors: [],
       createdAt,
       scheduledAt,
       state: JobState.Scheduled,
