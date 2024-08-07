@@ -66,7 +66,7 @@ func TestTx(ctx context.Context, tb testing.TB) pgx.Tx {
 
 		testDatabaseURL := os.Getenv("TEST_DATABASE_URL")
 		if testDatabaseURL == "" {
-			testDatabaseURL = "postgres://localhost/river-test"
+			testDatabaseURL = "postgres://localhost/river_test"
 		}
 
 		var err error

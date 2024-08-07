@@ -29,15 +29,17 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		fmt.Printf("No .env file detected, using environment variables\n")
 	}
-	logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	if os.Getenv("RIVER_DEBUG") == "1" || os.Getenv("RIVER_DEBUG") == "true" {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	} else {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+	}
 
 	os.Exit(initAndServe(ctx))
 }
 
 func initAndServe(ctx context.Context) int {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
 	var pathPrefix string
 	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
 	flag.Parse()
@@ -82,13 +84,18 @@ func initAndServe(ctx context.Context) int {
 		Prefix: pathPrefix,
 	}
 
-	handler, err := riverui.NewHandler(handlerOpts)
+	server, err := riverui.NewServer(handlerOpts)
 	if err != nil {
 		logger.ErrorContext(ctx, "error creating handler", slog.String("error", err.Error()))
 		return 1
 	}
 
-	logHandler := sloghttp.Recovery(handler)
+	if err := server.Start(ctx); err != nil {
+		logger.ErrorContext(ctx, "error starting UI server", slog.String("error", err.Error()))
+		return 1
+	}
+
+	logHandler := sloghttp.Recovery(server.Handler())
 	config := sloghttp.Config{
 		WithSpanID:  otelEnabled,
 		WithTraceID: otelEnabled,

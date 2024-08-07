@@ -1,14 +1,6 @@
 -- name: JobCountByState :many
-SELECT
-  state,
-  count(*)
-FROM
-  river_job
-WHERE
-  queue IS NOT NULL AND
-  priority > 0 AND
-  scheduled_at IS NOT NULL AND
-  id IS NOT NULL
+SELECT state, count(*)
+FROM river_job
 GROUP BY state;
 
 -- name: JobListWorkflow :many

@@ -14,6 +14,9 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivershared/baseservice"
+	"github.com/riverqueue/river/rivershared/startstop"
+	"github.com/riverqueue/river/rivershared/util/randutil"
 	"github.com/riverqueue/riverui/internal/apiendpoint"
 	"github.com/riverqueue/riverui/internal/apimiddleware"
 	"github.com/riverqueue/riverui/internal/dbsqlc"
@@ -62,8 +65,14 @@ func normalizePathPrefix(prefix string) string {
 	return prefix
 }
 
-// NewHandler creates a new http.Handler that serves the River UI and API.
-func NewHandler(opts *HandlerOpts) (http.Handler, error) {
+type Server struct {
+	baseStartStop startstop.BaseStartStop
+	handler       http.Handler
+	services      []startstop.Service
+}
+
+// NewServer creates a new http.Handler that serves the River UI and API.
+func NewServer(opts *HandlerOpts) (*Server, error) {
 	if opts == nil {
 		return nil, errors.New("opts is required")
 	}
@@ -80,6 +89,12 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	serveIndex := serveFileContents("index.html", httpFS)
 
 	apiBundle := apiBundle{
+		// TODO: Switch to baseservice.NewArchetype when available.
+		archetype: &baseservice.Archetype{
+			Logger: opts.Logger,
+			Rand:   randutil.NewCryptoSeededConcurrentSafeRand(),
+			Time:   &baseservice.UnStubbableTimeGenerator{},
+		},
 		client: opts.Client,
 		dbPool: opts.DBPool,
 		logger: opts.Logger,
@@ -88,19 +103,35 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 	prefix := opts.Prefix
 
 	mux := http.NewServeMux()
-	apiendpoint.Mount(mux, opts.Logger, &healthCheckGetEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &jobCancelEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &jobDeleteEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &jobListEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &jobRetryEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &jobGetEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &queueGetEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &queueListEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &queuePauseEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &queueResumeEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &stateAndCountGetEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &workflowGetEndpoint{apiBundle: apiBundle})
-	apiendpoint.Mount(mux, opts.Logger, &workflowListEndpoint{apiBundle: apiBundle})
+
+	endpoints := []apiendpoint.EndpointInterface{
+		apiendpoint.Mount(mux, opts.Logger, newHealthCheckGetEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newJobCancelEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newJobDeleteEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newJobListEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newJobRetryEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newJobGetEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newQueueGetEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newQueueListEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newQueuePauseEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newQueueResumeEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newStateAndCountGetEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newWorkflowGetEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newWorkflowListEndpoint(apiBundle)),
+	}
+
+	var services []startstop.Service
+
+	type WithSubServices interface {
+		SubServices() []startstop.Service
+	}
+
+	// If any endpoints are start/stop services, start them up.
+	for _, endpoint := range endpoints {
+		if withSubServices, ok := endpoint.(WithSubServices); ok {
+			services = append(services, withSubServices.SubServices()...)
+		}
+	}
 
 	if err := mountStaticFiles(opts.Logger, mux); err != nil {
 		return nil, err
@@ -115,7 +146,46 @@ func NewHandler(opts *HandlerOpts) (http.Handler, error) {
 		middlewareStack.Use(&stripPrefixMiddleware{prefix})
 	}
 
-	return middlewareStack.Mount(mux), nil
+	server := &Server{
+		handler:  middlewareStack.Mount(mux),
+		services: services,
+	}
+
+	return server, nil
+}
+
+// Handler returns an http.Handler that can be mounted to serve HTTP requests.
+func (s *Server) Handler() http.Handler { return s.handler }
+
+// Start starts the server's background services. Notably, this does _not_ cause
+// the server to start listening for HTTP in any way. To do that, call Handler
+// and mount or run it using Go's built in `net/http`.
+func (s *Server) Start(ctx context.Context) error {
+	ctx, shouldStart, started, stopped := s.baseStartStop.StartInit(ctx)
+	if !shouldStart {
+		return nil
+	}
+
+	// TODO: Replace with startstop.StartAll when possible.
+	for _, service := range s.services {
+		if err := service.Start(ctx); err != nil {
+			return err
+		}
+	}
+
+	go func() {
+		// Wait for all subservices to start up before signaling our own start.
+		startstop.WaitAllStarted(s.services...)
+
+		started()
+		defer stopped() // this defer should come first so it's last out
+
+		<-ctx.Done()
+
+		startstop.StopAllParallel(s.services...)
+	}()
+
+	return nil
 }
 
 //go:embed public
