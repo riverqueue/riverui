@@ -11,8 +11,8 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
+	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivertype"
-	"github.com/riverqueue/riverui/internal/util/ptrutil"
 )
 
 type JobOpts struct {

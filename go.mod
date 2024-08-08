@@ -1,6 +1,6 @@
 module github.com/riverqueue/riverui
 
-go 1.22
+go 1.22.5
 
 require (
 	github.com/go-playground/validator/v10 v10.22.0
@@ -27,6 +27,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/riverqueue/river/rivershared v0.11.1 // indirect
 	go.opentelemetry.io/otel v1.19.0 // indirect
 	go.opentelemetry.io/otel/trace v1.19.0 // indirect
 	golang.org/x/crypto v0.22.0 // indirect

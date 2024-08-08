@@ -20,7 +20,7 @@ RUN CLEAN_PATH_PREFIX=$(echo $PATH_PREFIX | sed 's:/$::') && \
   npx vite build --base=${PATH_PREFIX}
 
 # Build the Go binary, including embedded UI files:
-FROM golang:1.22.4-alpine AS build-go
+FROM golang:1.22-alpine AS build-go
 WORKDIR /go/src/riverui
 
 COPY go.mod go.sum ./

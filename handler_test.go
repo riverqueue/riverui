@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
+	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/riverui/internal/riverinternaltest"
 	"github.com/riverqueue/riverui/internal/riverinternaltest/testfactory"
-	"github.com/riverqueue/riverui/internal/util/ptrutil"
 )
 
 func TestNewHandlerIntegration(t *testing.T) {
