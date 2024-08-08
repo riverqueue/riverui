@@ -1,4 +1,4 @@
-package dbutil
+package pgxutil
 
 import (
 	"context"

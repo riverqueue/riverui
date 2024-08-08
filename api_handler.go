@@ -14,13 +14,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivershared/util/ptrutil"
+	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
 	"github.com/riverqueue/riverui/internal/apiendpoint"
 	"github.com/riverqueue/riverui/internal/apierror"
 	"github.com/riverqueue/riverui/internal/dbsqlc"
-	"github.com/riverqueue/riverui/internal/util/dbutil"
-	"github.com/riverqueue/riverui/internal/util/ptrutil"
-	"github.com/riverqueue/riverui/internal/util/sliceutil"
+	"github.com/riverqueue/riverui/internal/util/pgxutil"
 )
 
 // A bundle of common utilities needed for many API endpoints.
@@ -130,7 +130,7 @@ type jobCancelRequest struct {
 }
 
 func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		updatedJobs := make(map[int64]*rivertype.JobRow)
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
@@ -170,7 +170,7 @@ type jobDeleteRequest struct {
 }
 
 func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
 			_, err := a.client.JobDeleteTx(ctx, tx, jobID)
@@ -222,7 +222,7 @@ func (req *jobGetRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*RiverJob, error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverJob, error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverJob, error) {
 		job, err := a.client.JobGetTx(ctx, tx, req.JobID)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -273,7 +273,7 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJob], error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJob], error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJob], error) {
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
 
 		if req.State == nil {
@@ -317,7 +317,7 @@ type jobRetryRequest struct {
 }
 
 func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
 			_, err := a.client.JobRetryTx(ctx, tx, jobID)
@@ -359,7 +359,7 @@ func (req *queueGetRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*RiverQueue, error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
 		queue, err := a.client.QueueGetTx(ctx, tx, req.Name)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -411,7 +411,7 @@ func (req *queueListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) (*listResponse[RiverQueue], error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverQueue], error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverQueue], error) {
 		result, err := a.client.QueueListTx(ctx, tx, river.NewQueueListParams().First(ptrutil.ValOrDefault(req.Limit, 100)))
 		if err != nil {
 			return nil, fmt.Errorf("error listing queues: %w", err)
@@ -454,7 +454,7 @@ func (req *queuePauseRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queuePauseEndpoint) Execute(ctx context.Context, req *queuePauseRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		if err := a.client.QueuePauseTx(ctx, tx, req.Name, nil); err != nil {
 			if errors.Is(err, river.ErrNotFound) {
 				return nil, apierror.NewNotFoundQueue(req.Name)
@@ -492,7 +492,7 @@ func (req *queueResumeRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		if err := a.client.QueueResumeTx(ctx, tx, req.Name, nil); err != nil {
 			if errors.Is(err, river.ErrNotFound) {
 				return nil, apierror.NewNotFoundQueue(req.Name)
