@@ -45,7 +45,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { tx.Rollback(ctx) })
 
-			handler, err := NewHandler(&HandlerOpts{
+			server, err := NewServer(&HandlerOpts{
 				Client: client,
 				DBPool: tx,
 				Logger: logger,
@@ -62,7 +62,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 
 			t.Logf("--> %s %s", method, path)
 
-			handler.ServeHTTP(recorder, req)
+			server.Handler().ServeHTTP(recorder, req)
 
 			status := recorder.Result().StatusCode //nolint:bodyclose
 			t.Logf("Response status: %d", status)

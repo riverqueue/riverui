@@ -14,33 +14,29 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/rivershared/baseservice"
+	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
 	"github.com/riverqueue/riverui/internal/apiendpoint"
 	"github.com/riverqueue/riverui/internal/apierror"
 	"github.com/riverqueue/riverui/internal/dbsqlc"
+	"github.com/riverqueue/riverui/internal/querycacher"
 	"github.com/riverqueue/riverui/internal/util/pgxutil"
 )
 
 // A bundle of common utilities needed for many API endpoints.
 type apiBundle struct {
-	client *river.Client[pgx.Tx]
-	dbPool DBTXWithBegin
-	logger *slog.Logger
+	archetype *baseservice.Archetype
+	client    *river.Client[pgx.Tx]
+	dbPool    DBTXWithBegin
+	logger    *slog.Logger
 }
 
 // SetBundle sets all values to the same as the given bundle.
 func (a *apiBundle) SetBundle(bundle *apiBundle) {
 	*a = *bundle
-}
-
-// withSetBundle is an interface that's automatically implemented by types that
-// embed apiBundle. It lets places like tests generically set bundle values on
-// any general endpoint type.
-type withSetBundle interface {
-	// SetBundle sets all values to the same as the given bundle.
-	SetBundle(bundle *apiBundle)
 }
 
 type listResponse[T any] struct {
@@ -64,6 +60,10 @@ var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
 type healthCheckGetEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[healthCheckGetRequest, statusResponse]
+}
+
+func newHealthCheckGetEndpoint(apiBundle apiBundle) *healthCheckGetEndpoint {
+	return &healthCheckGetEndpoint{apiBundle: apiBundle}
 }
 
 func (*healthCheckGetEndpoint) Meta() *apiendpoint.EndpointMeta {
@@ -118,6 +118,10 @@ type jobCancelEndpoint struct {
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
+func newJobCancelEndpoint(apiBundle apiBundle) *jobCancelEndpoint {
+	return &jobCancelEndpoint{apiBundle: apiBundle}
+}
+
 func (*jobCancelEndpoint) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/cancel",
@@ -158,6 +162,10 @@ type jobDeleteEndpoint struct {
 	apiendpoint.Endpoint[jobDeleteRequest, statusResponse]
 }
 
+func newJobDeleteEndpoint(apiBundle apiBundle) *jobDeleteEndpoint {
+	return &jobDeleteEndpoint{apiBundle: apiBundle}
+}
+
 func (*jobDeleteEndpoint) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/delete",
@@ -196,6 +204,10 @@ func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) 
 type jobGetEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[jobGetRequest, RiverJob]
+}
+
+func newJobGetEndpoint(apiBundle apiBundle) *jobGetEndpoint {
+	return &jobGetEndpoint{apiBundle: apiBundle}
 }
 
 func (*jobGetEndpoint) Meta() *apiendpoint.EndpointMeta {
@@ -241,6 +253,10 @@ func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*Rive
 type jobListEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverJob]]
+}
+
+func newJobListEndpoint(apiBundle apiBundle) *jobListEndpoint {
+	return &jobListEndpoint{apiBundle: apiBundle}
 }
 
 func (*jobListEndpoint) Meta() *apiendpoint.EndpointMeta {
@@ -305,6 +321,10 @@ type jobRetryEndpoint struct {
 	apiendpoint.Endpoint[jobRetryRequest, statusResponse]
 }
 
+func newJobRetryEndpoint(apiBundle apiBundle) *jobRetryEndpoint {
+	return &jobRetryEndpoint{apiBundle: apiBundle}
+}
+
 func (*jobRetryEndpoint) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/retry",
@@ -340,6 +360,10 @@ func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*
 type queueGetEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[jobCancelRequest, RiverQueue]
+}
+
+func newQueueGetEndpoint(apiBundle apiBundle) *queueGetEndpoint {
+	return &queueGetEndpoint{apiBundle: apiBundle}
 }
 
 func (*queueGetEndpoint) Meta() *apiendpoint.EndpointMeta {
@@ -384,6 +408,10 @@ func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*
 type queueListEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverQueue]]
+}
+
+func newQueueListEndpoint(apiBundle apiBundle) *queueListEndpoint {
+	return &queueListEndpoint{apiBundle: apiBundle}
 }
 
 func (*queueListEndpoint) Meta() *apiendpoint.EndpointMeta {
@@ -437,6 +465,10 @@ type queuePauseEndpoint struct {
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
+func newQueuePauseEndpoint(apiBundle apiBundle) *queuePauseEndpoint {
+	return &queuePauseEndpoint{apiBundle: apiBundle}
+}
+
 func (*queuePauseEndpoint) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "PUT /api/queues/{name}/pause",
@@ -475,6 +507,10 @@ type queueResumeEndpoint struct {
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
+func newQueueResumeEndpoint(apiBundle apiBundle) *queueResumeEndpoint {
+	return &queueResumeEndpoint{apiBundle: apiBundle}
+}
+
 func (*queueResumeEndpoint) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "PUT /api/queues/{name}/resume",
@@ -511,6 +547,17 @@ func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeReque
 type stateAndCountGetEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[jobCancelRequest, stateAndCountGetResponse]
+
+	queryCacheSkipThreshold int // constant normally, but settable for testing
+	queryCacher             *querycacher.QueryCacher[[]*dbsqlc.JobCountByStateRow]
+}
+
+func newStateAndCountGetEndpoint(apiBundle apiBundle) *stateAndCountGetEndpoint {
+	return &stateAndCountGetEndpoint{
+		apiBundle:               apiBundle,
+		queryCacheSkipThreshold: 1_000_000,
+		queryCacher:             querycacher.NewQueryCacher(apiBundle.archetype, apiBundle.dbPool, dbsqlc.New().JobCountByState),
+	}
 }
 
 func (*stateAndCountGetEndpoint) Meta() *apiendpoint.EndpointMeta {
@@ -518,6 +565,10 @@ func (*stateAndCountGetEndpoint) Meta() *apiendpoint.EndpointMeta {
 		Pattern:    "GET /api/states",
 		StatusCode: http.StatusOK,
 	}
+}
+
+func (a *stateAndCountGetEndpoint) SubServices() []startstop.Service {
+	return []startstop.Service{a.queryCacher}
 }
 
 type stateAndCountGetRequest struct{}
@@ -534,12 +585,31 @@ type stateAndCountGetResponse struct {
 }
 
 func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
-	stateAndCount, err := dbsqlc.New().JobCountByState(ctx, a.dbPool)
-	if err != nil {
-		return nil, fmt.Errorf("error getting states and counts: %w", err)
+	// Counts the total number of jobs in a state and count result.
+	totalJobs := func(stateAndCountRes []*dbsqlc.JobCountByStateRow) int {
+		var totalJobs int
+		for _, stateAndCount := range stateAndCountRes {
+			totalJobs += int(stateAndCount.Count)
+		}
+		return totalJobs
 	}
 
-	stateAndCountMap := sliceutil.KeyBy(stateAndCount, func(r *dbsqlc.JobCountByStateRow) (rivertype.JobState, int) {
+	// Counting jobs can be an expensive operation given a large table, so in
+	// the presence of such, prefer to use a result that's cached periodically
+	// instead of querying inline with the API request. In case we don't have a
+	// cached result yet or there's a relatively small number of job rows, run
+	// the query directly (in the case of the latter so we present the freshest
+	// possible information).
+	stateAndCountRes, ok := a.queryCacher.CachedRes()
+	if !ok || totalJobs(stateAndCountRes) < a.queryCacheSkipThreshold {
+		var err error
+		stateAndCountRes, err = dbsqlc.New().JobCountByState(ctx, a.dbPool)
+		if err != nil {
+			return nil, fmt.Errorf("error getting states and counts: %w", err)
+		}
+	}
+
+	stateAndCountMap := sliceutil.KeyBy(stateAndCountRes, func(r *dbsqlc.JobCountByStateRow) (rivertype.JobState, int) {
 		return rivertype.JobState(r.State), int(r.Count)
 	})
 
@@ -562,6 +632,10 @@ func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCount
 type workflowGetEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[jobCancelRequest, workflowGetResponse]
+}
+
+func newWorkflowGetEndpoint(apiBundle apiBundle) *workflowGetEndpoint {
+	return &workflowGetEndpoint{apiBundle: apiBundle}
 }
 
 func (*workflowGetEndpoint) Meta() *apiendpoint.EndpointMeta {
@@ -610,6 +684,10 @@ func (a *workflowGetEndpoint) Execute(ctx context.Context, req *workflowGetReque
 type workflowListEndpoint struct {
 	apiBundle
 	apiendpoint.Endpoint[jobCancelRequest, listResponse[workflowListItem]]
+}
+
+func newWorkflowListEndpoint(apiBundle apiBundle) *workflowListEndpoint {
+	return &workflowListEndpoint{apiBundle: apiBundle}
 }
 
 func (*workflowListEndpoint) Meta() *apiendpoint.EndpointMeta {

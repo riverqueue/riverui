@@ -2,6 +2,7 @@ package riverui
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -11,6 +12,8 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
+	"github.com/riverqueue/river/rivershared/riversharedtest"
+	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivertype"
 	"github.com/riverqueue/riverui/internal/apierror"
@@ -21,30 +24,35 @@ import (
 type setupEndpointTestBundle struct {
 	client *river.Client[pgx.Tx]
 	exec   riverdriver.ExecutorTx
+	logger *slog.Logger
 	tx     pgx.Tx
 }
 
-func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T) (*TEndpoint, *setupEndpointTestBundle) {
+func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(apiBundle apiBundle) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
 	t.Helper()
 
 	var (
-		endpoint       TEndpoint
 		logger         = riverinternaltest.Logger(t)
 		client, driver = insertOnlyClient(t, logger)
 		tx             = riverinternaltest.TestTx(ctx, t)
 	)
 
-	if withSetBundle, ok := any(&endpoint).(withSetBundle); ok {
-		withSetBundle.SetBundle(&apiBundle{
-			client: client,
-			dbPool: tx,
-			logger: logger,
-		})
+	endpoint := initFunc(apiBundle{
+		archetype: riversharedtest.BaseServiceArchetype(t),
+		client:    client,
+		dbPool:    tx,
+		logger:    logger,
+	})
+
+	if service, ok := any(endpoint).(startstop.Service); ok {
+		require.NoError(t, service.Start(ctx))
+		t.Cleanup(service.Stop)
 	}
 
-	return &endpoint, &setupEndpointTestBundle{
+	return endpoint, &setupEndpointTestBundle{
 		client: client,
 		exec:   driver.UnwrapExecutor(tx),
+		logger: logger,
 		tx:     tx,
 	}
 }
@@ -57,7 +65,7 @@ func TestHandlerHealthCheckGetEndpoint(t *testing.T) {
 	t.Run("CompleteSuccess", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[healthCheckGetEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newHealthCheckGetEndpoint)
 
 		resp, err := endpoint.Execute(ctx, &healthCheckGetRequest{Name: healthCheckNameComplete})
 		require.NoError(t, err)
@@ -67,7 +75,7 @@ func TestHandlerHealthCheckGetEndpoint(t *testing.T) {
 	t.Run("CompleteDatabaseError", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[healthCheckGetEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newHealthCheckGetEndpoint)
 
 		// Roll back prematurely so we get a database error.
 		require.NoError(t, bundle.tx.Rollback(ctx))
@@ -82,7 +90,7 @@ func TestHandlerHealthCheckGetEndpoint(t *testing.T) {
 	t.Run("Minimal", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[healthCheckGetEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newHealthCheckGetEndpoint)
 
 		resp, err := endpoint.Execute(ctx, &healthCheckGetRequest{Name: healthCheckNameMinimal})
 		require.NoError(t, err)
@@ -92,7 +100,7 @@ func TestHandlerHealthCheckGetEndpoint(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[healthCheckGetEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newHealthCheckGetEndpoint)
 
 		_, err := endpoint.Execute(ctx, &healthCheckGetRequest{Name: "other"})
 		requireAPIError(t, apierror.NewNotFound("Health check %q not found. Use either `complete` or `minimal`.", "other"), err)
@@ -107,7 +115,7 @@ func TestJobCancelEndpoint(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[jobCancelEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newJobCancelEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
@@ -128,7 +136,7 @@ func TestJobCancelEndpoint(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[jobCancelEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newJobCancelEndpoint)
 
 		_, err := endpoint.Execute(ctx, &jobCancelRequest{JobIDs: []int64String{123}})
 		requireAPIError(t, apierror.NewNotFoundJob(123), err)
@@ -143,7 +151,7 @@ func TestJobDeleteEndpoint(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[jobDeleteEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newJobDeleteEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
@@ -162,7 +170,7 @@ func TestJobDeleteEndpoint(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[jobDeleteEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newJobDeleteEndpoint)
 
 		_, err := endpoint.Execute(ctx, &jobDeleteRequest{JobIDs: []int64String{123}})
 		requireAPIError(t, apierror.NewNotFoundJob(123), err)
@@ -177,7 +185,7 @@ func TestJobGetEndpoint(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[jobGetEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newJobGetEndpoint)
 
 		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
 
@@ -189,7 +197,7 @@ func TestJobGetEndpoint(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[jobGetEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newJobGetEndpoint)
 
 		_, err := endpoint.Execute(ctx, &jobGetRequest{JobID: 123})
 		requireAPIError(t, apierror.NewNotFoundJob(123), err)
@@ -204,7 +212,7 @@ func TestAPIHandlerJobList(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[jobListEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
@@ -227,7 +235,7 @@ func TestAPIHandlerJobList(t *testing.T) {
 	t.Run("Limit", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[jobListEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
@@ -241,7 +249,7 @@ func TestAPIHandlerJobList(t *testing.T) {
 	t.Run("FiltersFinalizedStatesAndOrdersDescending", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[jobListEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
@@ -259,7 +267,7 @@ func TestAPIHandlerJobList(t *testing.T) {
 	t.Run("FiltersNonFinalizedStates", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[jobListEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
@@ -283,7 +291,7 @@ func TestJobRetryEndpoint(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[jobRetryEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newJobRetryEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
 			FinalizedAt: ptrutil.Ptr(time.Now()),
@@ -310,7 +318,7 @@ func TestJobRetryEndpoint(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[jobRetryEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newJobRetryEndpoint)
 
 		_, err := endpoint.Execute(ctx, &jobRetryRequest{JobIDs: []int64String{123}})
 		requireAPIError(t, apierror.NewNotFoundJob(123), err)
@@ -325,7 +333,7 @@ func TestAPIHandlerQueueGet(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[queueGetEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueGetEndpoint)
 
 		queue := testfactory.Queue(ctx, t, bundle.exec, nil)
 
@@ -341,7 +349,7 @@ func TestAPIHandlerQueueGet(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[queueGetEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newQueueGetEndpoint)
 
 		_, err := endpoint.Execute(ctx, &queueGetRequest{Name: "does_not_exist"})
 		requireAPIError(t, apierror.NewNotFoundQueue("does_not_exist"), err)
@@ -356,7 +364,7 @@ func TestAPIHandlerQueueList(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[queueListEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueListEndpoint)
 
 		queue1 := testfactory.Queue(ctx, t, bundle.exec, nil)
 		queue2 := testfactory.Queue(ctx, t, bundle.exec, nil)
@@ -376,7 +384,7 @@ func TestAPIHandlerQueueList(t *testing.T) {
 	t.Run("Limit", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[queueListEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueListEndpoint)
 
 		queue1 := testfactory.Queue(ctx, t, bundle.exec, nil)
 		_ = testfactory.Queue(ctx, t, bundle.exec, nil)
@@ -396,7 +404,7 @@ func TestAPIHandlerQueuePause(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[queuePauseEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newQueuePauseEndpoint)
 
 		queue := testfactory.Queue(ctx, t, bundle.exec, nil)
 
@@ -408,7 +416,7 @@ func TestAPIHandlerQueuePause(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[queuePauseEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newQueuePauseEndpoint)
 
 		_, err := endpoint.Execute(ctx, &queuePauseRequest{Name: "does_not_exist"})
 		requireAPIError(t, apierror.NewNotFoundQueue("does_not_exist"), err)
@@ -423,7 +431,7 @@ func TestAPIHandlerQueueResume(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[queueResumeEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueResumeEndpoint)
 
 		queue := testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{
 			PausedAt: ptrutil.Ptr(time.Now()),
@@ -437,7 +445,7 @@ func TestAPIHandlerQueueResume(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[queueResumeEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newQueueResumeEndpoint)
 
 		_, err := endpoint.Execute(ctx, &queueResumeRequest{Name: "does_not_exist"})
 		requireAPIError(t, apierror.NewNotFoundQueue("does_not_exist"), err)
@@ -452,35 +460,35 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[stateAndCountGetEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
 
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
 
-		for range 2 {
+		for i := 0; i < 2; i++ {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCancelled), FinalizedAt: ptrutil.Ptr(time.Now())})
 		}
 
-		for range 3 {
+		for i := 0; i < 3; i++ {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
 		}
 
-		for range 4 {
+		for i := 0; i < 4; i++ {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateDiscarded), FinalizedAt: ptrutil.Ptr(time.Now())})
 		}
 
-		for range 5 {
+		for i := 0; i < 5; i++ {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStatePending)})
 		}
 
-		for range 6 {
+		for i := 0; i < 6; i++ {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRetryable)})
 		}
 
-		for range 7 {
+		for i := 0; i < 7; i++ {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
 		}
 
-		for range 8 {
+		for i := 0; i < 8; i++ {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateScheduled)})
 		}
 
@@ -497,6 +505,46 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 			Scheduled: 8,
 		}, resp)
 	})
+
+	t.Run("WithCachedQueryAboveSkipThreshold", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
+
+		const queryCacheSkipThreshold = 3
+		for i := 0; i < queryCacheSkipThreshold+1; i++ {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+		}
+
+		_, err := endpoint.queryCacher.RunQuery(ctx)
+		require.NoError(t, err)
+
+		resp, err := endpoint.Execute(ctx, &stateAndCountGetRequest{})
+		require.NoError(t, err)
+		require.Equal(t, &stateAndCountGetResponse{
+			Available: queryCacheSkipThreshold + 1,
+		}, resp)
+	})
+
+	t.Run("WithCachedQueryBelowSkipThreshold", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
+
+		const queryCacheSkipThreshold = 3
+		for i := 0; i < queryCacheSkipThreshold-1; i++ {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+		}
+
+		_, err := endpoint.queryCacher.RunQuery(ctx)
+		require.NoError(t, err)
+
+		resp, err := endpoint.Execute(ctx, &stateAndCountGetRequest{})
+		require.NoError(t, err)
+		require.Equal(t, &stateAndCountGetResponse{
+			Available: queryCacheSkipThreshold - 1,
+		}, resp)
+	})
 }
 
 func TestAPIHandlerWorkflowGet(t *testing.T) {
@@ -507,7 +555,7 @@ func TestAPIHandlerWorkflowGet(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[workflowGetEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newWorkflowGetEndpoint)
 
 		workflowID := uuid.New()
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
@@ -523,7 +571,7 @@ func TestAPIHandlerWorkflowGet(t *testing.T) {
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, _ := setupEndpoint[workflowGetEndpoint](ctx, t)
+		endpoint, _ := setupEndpoint(ctx, t, newWorkflowGetEndpoint)
 
 		workflowID := uuid.New()
 
@@ -540,7 +588,7 @@ func TestAPIHandlerWorkflowList(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[workflowListEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newWorkflowListEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
 			Metadata: []byte(`{"workflow_id":"1", "workflow_name":"first_wf", "task":"a"}`),
@@ -610,7 +658,7 @@ func TestAPIHandlerWorkflowList(t *testing.T) {
 	t.Run("Limit", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint[workflowListEndpoint](ctx, t)
+		endpoint, bundle := setupEndpoint(ctx, t, newWorkflowListEndpoint)
 
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
 			Metadata: []byte(`{"workflow_id":"1", "workflow_name":"first_wf", "task":"a"}`),

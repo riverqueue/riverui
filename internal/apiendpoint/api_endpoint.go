@@ -33,15 +33,7 @@ type Endpoint[TReq any, TResp any] struct {
 func (e *Endpoint[TReq, TResp]) SetLogger(logger *slog.Logger) { e.logger = logger }
 func (e *Endpoint[TReq, TResp]) SetMeta(meta *EndpointMeta)    { e.meta = meta }
 
-// EndpointInterface is an interface to an API endpoint. Some of it is
-// implemented by an embedded Endpoint struct, and some of it should be
-// implemented by the endpoint itself.
-type EndpointInterface[TReq any, TResp any] interface {
-	// Execute executes the API endpoint.
-	//
-	// This should be implemented by each specific API endpoint.
-	Execute(ctx context.Context, req *TReq) (*TResp, error)
-
+type EndpointInterface interface {
 	// Meta returns metadata about an API endpoint, like the path it should be
 	// mounted at, and the status code it returns on success.
 	//
@@ -58,6 +50,18 @@ type EndpointInterface[TReq any, TResp any] interface {
 	//
 	// Implementation inherited from an embedded Endpoint struct.
 	SetMeta(meta *EndpointMeta)
+}
+
+// EndpointExecuteInterface is an interface to an API endpoint. Some of it is
+// implemented by an embedded Endpoint struct, and some of it should be
+// implemented by the endpoint itself.
+type EndpointExecuteInterface[TReq any, TResp any] interface {
+	EndpointInterface
+
+	// Execute executes the API endpoint.
+	//
+	// This should be implemented by each specific API endpoint.
+	Execute(ctx context.Context, req *TReq) (*TResp, error)
 }
 
 // EndpointMeta is metadata about an API endpoint.
@@ -84,7 +88,7 @@ func (m *EndpointMeta) validate() {
 
 // Mount mounts an endpoint to a Go http.ServeMux. The logger is used to log
 // information about endpoint execution.
-func Mount[TReq any, TResp any](mux *http.ServeMux, logger *slog.Logger, apiEndpoint EndpointInterface[TReq, TResp]) {
+func Mount[TReq any, TResp any](mux *http.ServeMux, logger *slog.Logger, apiEndpoint EndpointExecuteInterface[TReq, TResp]) EndpointInterface {
 	apiEndpoint.SetLogger(logger)
 
 	meta := apiEndpoint.Meta()
@@ -94,10 +98,12 @@ func Mount[TReq any, TResp any](mux *http.ServeMux, logger *slog.Logger, apiEndp
 	mux.HandleFunc(meta.Pattern, func(w http.ResponseWriter, r *http.Request) {
 		executeAPIEndpoint(w, r, logger, meta, apiEndpoint.Execute)
 	})
+
+	return apiEndpoint
 }
 
 func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Request, logger *slog.Logger, meta *EndpointMeta, execute func(ctx context.Context, req *TReq) (*TResp, error)) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 	defer cancel()
 
 	// Run as much code as we can in a sub-function that can return an error.
