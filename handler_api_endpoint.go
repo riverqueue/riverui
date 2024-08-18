@@ -183,7 +183,7 @@ func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) 
 			jobID := int64(jobID)
 			_, err := a.client.JobDeleteTx(ctx, tx, jobID)
 			if err != nil {
-				if errors.Is(rivertype.ErrJobRunning, err) {
+				if errors.Is(err, rivertype.ErrJobRunning) {
 					return nil, apierror.NewBadRequest("Job %d is running and can't be deleted until it finishes.", jobID)
 				}
 				if errors.Is(err, river.ErrNotFound) {
