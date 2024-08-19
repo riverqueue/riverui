@@ -131,7 +131,7 @@ func executeAPIEndpoint[TReq any, TResp any](w http.ResponseWriter, r *http.Requ
 		}
 
 		if err := validate.StructCtx(ctx, &req); err != nil {
-			return apierror.NewBadRequest(validate.PublicFacingMessage(err))
+			return apierror.NewBadRequest(validate.PublicFacingMessage(err)) //nolint:govet
 		}
 
 		resp, err := execute(ctx, &req)

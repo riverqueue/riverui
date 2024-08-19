@@ -2,7 +2,7 @@ module github.com/riverqueue/riverui
 
 go 1.22
 
-toolchain go1.22.5
+toolchain go1.23.0
 
 require (
 	github.com/go-playground/validator/v10 v10.22.0
