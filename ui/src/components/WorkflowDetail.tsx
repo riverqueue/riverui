@@ -14,7 +14,7 @@ import { Button } from "@components/Button";
 import { EllipsisHorizontalIcon } from "@heroicons/react/20/solid";
 import { JobState } from "@services/types";
 
-type nameToJobMap = {
+type JobsByTask = {
   [key: string]: JobWithKnownMetadata;
 };
 
@@ -36,7 +36,7 @@ export default function WorkflowDetail({
   );
   const firstTask = tasks[0];
   // TODO: this is being repeated in WorkflowDiagram, dedupe
-  const jobsByTask = tasks.reduce((acc: nameToJobMap, job) => {
+  const jobsByTask: JobsByTask = tasks.reduce((acc: JobsByTask, job) => {
     acc[job.metadata.task] = job;
     return acc;
   }, {});
@@ -95,7 +95,7 @@ const SelectedJobDetails = ({
   jobsByTask,
 }: {
   job: JobWithKnownMetadata;
-  jobsByTask: nameToJobMap;
+  jobsByTask: JobsByTask;
 }) => {
   const stagedAt = useMemo(
     () =>
@@ -157,28 +157,9 @@ const SelectedJobDetails = ({
             <dt className={dtClasses}>Dependencies</dt>
             <dd className={ddClasses}>
               {job.metadata.deps &&
-                job.metadata.deps.map((dep) => (
+                job.metadata.deps.map((dep: string) => (
                   <div className="flex items-center gap-2" key={dep}>
-                    {jobsByTask[dep] ? (
-                      <Link
-                        search={{ selected: jobsByTask[dep].id }}
-                        className="flex items-center gap-x-2 font-mono text-slate-900 dark:text-slate-200"
-                      >
-                        <TaskStateIcon
-                          jobState={jobsByTask[dep]?.state}
-                          className="size-4"
-                        />
-                        <span className="truncate">{dep}</span>
-                      </Link>
-                    ) : (
-                      <div className="flex items-center gap-x-2 font-mono text-slate-900 dark:text-slate-200">
-                        <TaskStateIcon
-                          jobState={jobsByTask[dep]?.state}
-                          className="size-4"
-                        />
-                        <span className="truncate">{dep}</span>
-                      </div>
-                    )}
+                    <DependencyItem depName={dep} depJob={jobsByTask[dep]} />
                   </div>
                 ))}
             </dd>
@@ -215,5 +196,32 @@ const SelectedJobDetails = ({
         </div>
       </div>
     </>
+  );
+};
+
+const DependencyItem = ({
+  depJob,
+  depName,
+}: {
+  depJob?: JobWithKnownMetadata;
+  depName: string;
+}) => {
+  if (!depJob) {
+    return (
+      <div className="flex items-center gap-x-2 font-mono text-slate-900 dark:text-slate-200">
+        <TaskStateIcon jobState={JobState.Discarded} className="size-4" />
+        <span className="truncate">{depName}</span>
+      </div>
+    );
+  }
+
+  return (
+    <Link
+      search={{ selected: depJob.id }}
+      className="flex items-center gap-x-2 font-mono text-slate-900 dark:text-slate-200"
+    >
+      <TaskStateIcon jobState={depJob.state} className="size-4" />
+      <span className="truncate">{depName}</span>
+    </Link>
   );
 };
