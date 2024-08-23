@@ -42,6 +42,15 @@ $ docker pull ghcr.io/riverqueue/riverui:latest
 $ docker run -p 8080:8080 --env DATABASE_URL ghcr.io/riverqueue/riverui:latest
 ```
 
+### Environment variables
+
+- `DATABASE_URL=...` - define database url
+- `PORT=8080` - define listening port
+- `RIVER_DEBUG=true` - enable debugging logs
+- `CORS_ORIGINS=url1,url2` - define allowed CORS origins
+- `OTEL_ENABLED=true` - enable OTEL integration
+- `BASIC_AUTH_USER=admin`, `BASIC_AUTH_PASSWORD=changeme` - enable basic auth username/password
+
 ## Development
 
 See [developing River UI](./docs/development.md).
