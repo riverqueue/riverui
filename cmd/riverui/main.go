@@ -78,10 +78,12 @@ func initAndServe(ctx context.Context) int {
 	}
 
 	handlerOpts := &riverui.HandlerOpts{
-		Client: client,
-		DBPool: dbPool,
-		Logger: logger,
-		Prefix: pathPrefix,
+		Client:            client,
+		DBPool:            dbPool,
+		Logger:            logger,
+		Prefix:            pathPrefix,
+		BasicAuthUser:     os.Getenv("BASIC_AUTH_USER"),
+		BasicAuthPassword: os.Getenv("BASIC_AUTH_PASSWORD"),
 	}
 
 	server, err := riverui.NewServer(handlerOpts)

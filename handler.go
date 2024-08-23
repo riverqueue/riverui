@@ -3,6 +3,7 @@ package riverui
 import (
 	"context"
 	"embed"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -37,7 +38,9 @@ type HandlerOpts struct {
 	// Logger is the logger to use logging errors within the handler.
 	Logger *slog.Logger
 	// Prefix is the path prefix to use for the API and UI HTTP requests.
-	Prefix string
+	Prefix            string
+	BasicAuthUser     string
+	BasicAuthPassword string
 }
 
 func (opts *HandlerOpts) validate() error {
@@ -146,6 +149,10 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 		middlewareStack.Use(&stripPrefixMiddleware{prefix})
 	}
 
+	if opts.BasicAuthUser != "" && opts.BasicAuthPassword != "" {
+		middlewareStack.Use(basicAuthMiddleware{opts.BasicAuthUser, opts.BasicAuthPassword})
+	}
+
 	server := &Server{
 		handler:  middlewareStack.Mount(mux),
 		services: services,
@@ -230,6 +237,45 @@ func mountStaticFiles(logger *slog.Logger, mux *http.ServeMux) error {
 		})
 
 		return nil
+	})
+}
+
+// Requires basic auth username/password authentication on all endpoints
+// https://en.wikipedia.org/wiki/Basic_access_authentication
+type basicAuthMiddleware struct {
+	username string
+	password string
+}
+
+func (m basicAuthMiddleware) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		basicAuthHeader := r.Header.Get("Authorization")
+		if basicAuthHeader == "" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="riverui restricted"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if !strings.HasPrefix(basicAuthHeader, "Basic ") {
+			w.Header().Set("WWW-Authenticate", `Basic realm="riverui restricted"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		data, err := base64.StdEncoding.DecodeString(basicAuthHeader[len("Basic "):])
+		if err != nil {
+			w.Header().Set("WWW-Authenticate", `Basic realm="riverui restricted"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		parts := strings.Split(string(data), ":")
+		if len(parts) != 2 || parts[0] != m.username || parts[1] != m.password {
+			w.Header().Set("WWW-Authenticate", `Basic realm="riverui restricted"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
 	})
 }
 
