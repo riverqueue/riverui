@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Job counts are cached for very large job tables to make request timeouts less likely. [PR #108](https://github.com/riverqueue/riverui/pull/108).
+- Added basic auth config parameter for protection. [PR #113](https://github.com/riverqueue/riverui/pull/113)
 
 ## [0.3.1] - 2024-08-02
 
