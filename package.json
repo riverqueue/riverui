@@ -45,6 +45,7 @@
     "@typescript-eslint/parser": "^7.13.1",
     "@vitejs/plugin-react-swc": "^3.7.0",
     "autoprefixer": "^10.4.20",
+    "concurrently": "^8.2.2",
     "eslint": "^8.45.0",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.10",
@@ -60,13 +61,15 @@
     "vitest": "^2.0.5"
   },
   "scripts": {
-    "dev": "vite",
     "build": "tsc && vite build",
+    "build-storybook": "storybook build",
+    "dev": "concurrently --kill-others \"npm:watch:*\"",
     "fmt": "eslint --cache --fix --report-unused-disable-directives --max-warnings 0 .",
     "lint": "eslint --cache --report-unused-disable-directives --max-warnings 0 .",
-    "preview": "vite preview",
-    "test": "vitest",
+    "preview": "LIVE_FS=true reflex -c .reflex.server",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "test": "vitest",
+    "watch:frontend": "vite --open http://localhost:8080/",
+    "watch:backend": "LIVE_FS=true DEV=true reflex -c .reflex.server"
   }
 }

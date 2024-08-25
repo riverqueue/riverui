@@ -23,7 +23,6 @@ import (
 	"github.com/riverqueue/riverui/internal/apiendpoint"
 	"github.com/riverqueue/riverui/internal/apimiddleware"
 	"github.com/riverqueue/riverui/internal/dbsqlc"
-	"github.com/riverqueue/riverui/ui"
 )
 
 type DBTXWithBegin interface {
@@ -87,7 +86,7 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 
 	prefix := valutil.ValOrDefault(strings.TrimSuffix(opts.Prefix, "/"), "")
 
-	frontendIndex, err := fs.Sub(ui.Index, "dist")
+	frontendIndex, err := fs.Sub(FrontendIndex, "dist")
 	if err != nil {
 		return nil, fmt.Errorf("error getting frontend index: %w", err)
 	}
