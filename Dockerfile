@@ -5,10 +5,10 @@ ARG PATH_PREFIX="/"
 
 FROM node:20-alpine AS build-ui
 WORKDIR /app
-COPY ui/package.json ui/package-lock.json ./
+COPY package.json package-lock.json ./
 RUN npm install
 ENV NODE_ENV=production
-COPY ui/ .
+COPY . .
 ARG PATH_PREFIX
 # The URL (potentially relative) of the riverui API server to use. Defaults to
 # /api if unset:
@@ -31,8 +31,7 @@ COPY *.go internal docs/README.md LICENSE ./
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY public/ public/
-COPY ui/*.go ./ui/
-COPY --from=build-ui /app/dist ./ui/dist
+COPY --from=build-ui /app/dist ./dist
 
 RUN go build -o /bin/riverui ./cmd/riverui
 
