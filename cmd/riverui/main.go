@@ -48,7 +48,7 @@ func initAndServe(ctx context.Context) int {
 		logger.ErrorContext(ctx, "invalid path prefix", slog.String("prefix", pathPrefix))
 		return 1
 	}
-	pathPrefix = normalizePathPrefix(pathPrefix)
+	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
 
 	corsOriginString := os.Getenv("CORS_ORIGINS")
 	corsOrigins := strings.Split(corsOriginString, ",")
@@ -138,15 +138,4 @@ func mustEnv(name string) string {
 		os.Exit(1)
 	}
 	return val
-}
-
-func normalizePathPrefix(prefix string) string {
-	if prefix == "" {
-		return "/"
-	}
-	prefix = strings.TrimSuffix(prefix, "/")
-	if !strings.HasPrefix(prefix, "/") {
-		return "/" + prefix
-	}
-	return prefix
 }

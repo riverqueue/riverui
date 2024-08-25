@@ -50,11 +50,11 @@ func (opts *HandlerOpts) validate() error {
 	if opts.Logger == nil {
 		return errors.New("logger is required")
 	}
-	opts.Prefix = normalizePathPrefix(opts.Prefix)
+	opts.Prefix = NormalizePathPrefix(opts.Prefix)
 	return nil
 }
 
-func normalizePathPrefix(prefix string) string {
+func NormalizePathPrefix(prefix string) string {
 	if prefix == "" {
 		return "/"
 	}
