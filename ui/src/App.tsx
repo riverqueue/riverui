@@ -14,9 +14,11 @@ const queryClient = new QueryClient();
 
 // Create a new router instance
 const router = createRouter({
-  basepath: import.meta.env.BASE_URL,
+  basepath:
+    window && window.__riverUiBasePath ? window.__riverUiBasePath() : "/",
   context: { queryClient },
   routeTree,
+  trailingSlash: "preserve",
 });
 
 // Register your router for maximum type safety

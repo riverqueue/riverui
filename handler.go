@@ -3,8 +3,10 @@ package riverui
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -17,6 +19,7 @@ import (
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/randutil"
+	"github.com/riverqueue/river/rivershared/util/valutil"
 	"github.com/riverqueue/riverui/internal/apiendpoint"
 	"github.com/riverqueue/riverui/internal/apimiddleware"
 	"github.com/riverqueue/riverui/internal/dbsqlc"
@@ -34,6 +37,8 @@ type HandlerOpts struct {
 	Client *river.Client[pgx.Tx]
 	// DBPool is the database connection pool to use for API requests.
 	DBPool DBTXWithBegin
+	// DevMode is whether the server is running in development mode.
+	DevMode bool
 	// Logger is the logger to use logging errors within the handler.
 	Logger *slog.Logger
 	// Prefix is the path prefix to use for the API and UI HTTP requests.
@@ -80,13 +85,31 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 		return nil, err
 	}
 
+	prefix := valutil.ValOrDefault(strings.TrimSuffix(opts.Prefix, "/"), "")
+
 	frontendIndex, err := fs.Sub(ui.Index, "dist")
 	if err != nil {
 		return nil, fmt.Errorf("error getting frontend index: %w", err)
 	}
+	if !opts.DevMode {
+		if _, err := frontendIndex.Open(".vite/manifest.json"); err != nil {
+			return nil, errors.New("manifest.json not found")
+		}
+		if _, err := frontendIndex.Open("index.html"); err != nil {
+			return nil, errors.New("index.html not found")
+		}
+	}
+	manifest, err := readManifest(frontendIndex, opts.DevMode)
+	if err != nil {
+		return nil, err
+	}
+
 	httpFS := http.FS(frontendIndex)
 	fileServer := http.FileServer(httpFS)
-	serveIndex := serveFileContents("index.html", httpFS)
+	serveIndex, err := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
+	if err != nil {
+		return nil, err
+	}
 
 	apiBundle := apiBundle{
 		// TODO: Switch to baseservice.NewArchetype when available.
@@ -99,8 +122,6 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 		dbPool: opts.DBPool,
 		logger: opts.Logger,
 	}
-
-	prefix := opts.Prefix
 
 	mux := http.NewServeMux()
 
@@ -188,6 +209,27 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
+func readManifest(frontendIndex fs.FS, devMode bool) (map[string]interface{}, error) {
+	if devMode {
+		return map[string]interface{}{}, nil
+	} else {
+		file, err := frontendIndex.Open(".vite/manifest.json")
+		if err != nil {
+			return nil, err
+		}
+		bytes, err := io.ReadAll(file)
+		if err != nil {
+			return nil, errors.New("could not read .vite/manifest.json")
+		}
+		var manifest map[string]interface{}
+		err = json.Unmarshal(bytes, &manifest)
+		if err != nil {
+			return nil, errors.New("could not unmarshal .vite/manifest.json")
+		}
+		return manifest, nil
+	}
+}
+
 //go:embed public
 var publicFS embed.FS
 
@@ -243,10 +285,15 @@ type stripPrefixMiddleware struct {
 }
 
 func (m *stripPrefixMiddleware) Middleware(handler http.Handler) http.Handler {
-	if m.prefix == "" {
+	if m.prefix == "" || m.prefix == "/" {
 		return handler
 	}
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		if !strings.HasSuffix(m.prefix, "/") && request.URL.Path == m.prefix {
+			http.Redirect(responseWriter, request, m.prefix+"/", http.StatusMovedPermanently)
+			return
+		}
+
 		path := strings.TrimPrefix(request.URL.Path, m.prefix)
 		if path == "" {
 			path = "/"

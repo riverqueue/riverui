@@ -40,7 +40,11 @@ func main() {
 }
 
 func initAndServe(ctx context.Context) int {
-	var pathPrefix string
+	var (
+		devMode    bool
+		pathPrefix string
+	)
+	flag.BoolVar(&devMode, "dev", false, "enable development mode")
 	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
 	flag.Parse()
 
@@ -78,10 +82,11 @@ func initAndServe(ctx context.Context) int {
 	}
 
 	handlerOpts := &riverui.HandlerOpts{
-		Client: client,
-		DBPool: dbPool,
-		Logger: logger,
-		Prefix: pathPrefix,
+		Client:  client,
+		DBPool:  dbPool,
+		DevMode: devMode,
+		Logger:  logger,
+		Prefix:  pathPrefix,
 	}
 
 	server, err := riverui.NewServer(handlerOpts)

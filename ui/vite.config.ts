@@ -5,8 +5,11 @@ import tsconfigPaths from "vite-tsconfig-paths";
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: "",
   build: {
+    manifest: true,
     rollupOptions: {
+      input: "src/main.tsx",
       output: {
         manualChunks: {
           // use vite-bundle-visualizer to find good candidates for manual chunks:
@@ -16,6 +19,7 @@ export default defineConfig({
         },
       },
     },
+    target: "esnext",
   },
   plugins: [react(), TanStackRouterVite(), tsconfigPaths()],
 });
