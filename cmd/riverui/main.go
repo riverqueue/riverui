@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
 
@@ -26,9 +25,6 @@ var logger *slog.Logger //nolint:gochecknoglobals
 
 func main() {
 	ctx := context.Background()
-	if err := godotenv.Load(); err != nil {
-		fmt.Printf("No .env file detected, using environment variables\n")
-	}
 
 	if os.Getenv("RIVER_DEBUG") == "1" || os.Getenv("RIVER_DEBUG") == "true" {
 		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
