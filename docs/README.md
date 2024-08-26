@@ -2,7 +2,7 @@
 
 River UI is a graphical user interface for the [River job queue](https://github.com/riverqueue/river). It lets users view and manage jobs without having to resort to querying the database or the command line.
 
-A [live demo of River UI](https://ui.riverqueue.com/jobs) is available to see what it looks like.
+A [live demo of River UI](https://ui.riverqueue.com) is available to see what it looks like.
 
 ## Installation
 
