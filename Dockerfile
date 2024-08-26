@@ -26,6 +26,6 @@ COPY --from=build-ui /app/dist ./dist
 RUN go build -o /bin/riverui ./cmd/riverui
 
 FROM alpine:3.19.1
-
+ENV PATH_PREFIX="/"
 COPY --from=build-go /bin/riverui /bin/riverui
-CMD ["/bin/riverui"]
+CMD ["/bin/sh", "-c", "/bin/riverui -prefix=$PATH_PREFIX"]
