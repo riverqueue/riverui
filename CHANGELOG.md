@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Job counts are cached for very large job tables to make request timeouts less likely. [PR #108](https://github.com/riverqueue/riverui/pull/108).
+- River UI has been restructured to properly support a dynamic path prefix on built static assets. The `-prefix` CLI option or the `PATH_PREFIX` Docker container env can both be used to set a URL prefix on both the API routes and the frontend HTML routes. [PR #115](https://github.com/riverqueue/riverui/pull/115).
 
 ## [0.3.1] - 2024-08-02
 
