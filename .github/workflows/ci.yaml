@@ -72,13 +72,12 @@ jobs:
       - name: Migrate test DB
         run: river migrate-up --database-url "$TEST_DATABASE_URL"
 
-      # ensure that there is a file in `ui/dist` to prevent a lint error about
+      # ensure that there is a file in `dist` to prevent a lint error about
       # it during CI when there is nothing there:
-      - name: touch file in ui/dist
-        run: mkdir -p ui/dist && touch ui/dist/keepfile.txt
+      - name: touch file in dist
+        run: make fake_assets
 
       - name: Test
-        working-directory: .
         run: go test  -race ./... -timeout 2m
 
   golangci:
@@ -100,10 +99,10 @@ jobs:
           check-latest: true
           go-version-file: "./go.mod"
 
-      # ensure that there is a file in `ui/dist` to prevent a lint error about
+      # ensure that there is a file in `dist` to prevent a lint error about
       # it during CI when there is nothing there:
-      - name: touch file in ui/dist
-        run: mkdir -p ui/dist && touch ui/dist/keepfile.txt
+      - name: touch file in dist
+        run: make fake_assets
 
       - name: Lint
         uses: golangci/golangci-lint-action@v4
@@ -133,7 +132,7 @@ jobs:
       - name: Setup sqlc
         uses: sqlc-dev/setup-sqlc@v4
         with:
-          sqlc-version: "1.26.0"
+          sqlc-version: "1.27.0"
 
       - name: Run sqlc diff
         run: |
@@ -159,9 +158,6 @@ jobs:
           - "20.12.2"
       fail-fast: false
     timeout-minutes: 5
-    defaults:
-      run:
-        working-directory: ui
 
     env:
       NODE_ENV: test
@@ -174,7 +170,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           cache: "npm"
-          cache-dependency-path: ui/package-lock.json
+          cache-dependency-path: package-lock.json
           node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
@@ -185,7 +181,7 @@ jobs:
         id: cache-eslint
         uses: actions/cache@v4
         with:
-          path: ui/.eslintcache
+          path: .eslintcache
           key: eslint-v1-${{ runner.os }}-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             eslint-v1-${{ runner.os }}-${{ matrix.node-version }}-
@@ -222,20 +218,18 @@ jobs:
         uses: actions/setup-node@v4
         with:
           cache: "npm"
-          cache-dependency-path: ui/package-lock.json
+          cache-dependency-path: package-lock.json
           node-version: "20.12.2"
 
       - name: Install dependencies
         run: npm install
         shell: sh
-        working-directory: ui
 
       - name: Build UI bundle
         env:
           NODE_ENV: production
           VITE_RIVER_API_BASE_URL: /api
         run: npm exec vite build
-        working-directory: ui
 
       # We use `export` below so that we can reuse the variables in the command
       # itself (to make a filename). A subshell is used to make sure the export

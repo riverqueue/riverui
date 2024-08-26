@@ -1,13 +1,23 @@
 package riverui
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"html/template"
+	"io"
 	"net/http"
 	"strings"
 )
 
 func intercept404(handler, on404 http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			// pre-emptively intercept the root path and serve the dynamically processed index.html:
+			on404.ServeHTTP(w, r)
+			return
+		}
+
 		hookedWriter := &spaResponseWriter{ResponseWriter: w}
 		handler.ServeHTTP(hookedWriter, r)
 
@@ -17,7 +27,7 @@ func intercept404(handler, on404 http.Handler) http.Handler {
 	})
 }
 
-func serveFileContents(file string, files http.FileSystem) http.HandlerFunc {
+func serveIndexHTML(devMode bool, manifest map[string]interface{}, pathPrefix string, files http.FileSystem) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		// Restrict only to instances where the browser is looking for an HTML file
 		if !strings.Contains(req.Header.Get("Accept"), "text/html") {
@@ -27,22 +37,57 @@ func serveFileContents(file string, files http.FileSystem) http.HandlerFunc {
 			return
 		}
 
-		// Open the file and return its contents using http.ServeContent
-		index, err := files.Open(file)
+		rawIndex, err := files.Open("index.html")
 		if err != nil {
-			rw.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(rw, "%s not found", file)
-
+			http.Error(rw, "could not open index.html", http.StatusInternalServerError)
 			return
 		}
 
-		fileInfo, err := index.Stat()
-		if err != nil {
-			rw.WriteHeader(http.StatusNotFound)
-			fmt.Fprintf(rw, "%s not found", file)
+		config := struct {
+			APIURL string `json:"apiUrl"` //nolint:tagliatelle
+			Base   string `json:"base"`
+		}{
+			APIURL: pathPrefix + "/api",
+			Base:   pathPrefix,
+		}
 
+		templateData := map[string]interface{}{
+			"Config":   config,
+			"Dev":      devMode,
+			"Manifest": manifest,
+			"Base":     pathPrefix,
+		}
+
+		fileInfo, err := rawIndex.Stat()
+		if err != nil {
+			http.Error(rw, "could not stat index.html", http.StatusInternalServerError)
 			return
 		}
+
+		indexBuf, err := io.ReadAll(rawIndex)
+		if err != nil {
+			http.Error(rw, "could not read index.html", http.StatusInternalServerError)
+			return
+		}
+
+		tmpl, err := template.New("index.html").Funcs(template.FuncMap{
+			"marshal": func(v interface{}) template.JS {
+				a, _ := json.Marshal(v)
+				return template.JS(a) //nolint:gosec
+			},
+		}).Parse(string(indexBuf))
+		if err != nil {
+			http.Error(rw, "could not parse index.html", http.StatusInternalServerError)
+			return
+		}
+
+		var output bytes.Buffer
+		if err = tmpl.Execute(&output, templateData); err != nil {
+			http.Error(rw, "could not execute index.html", http.StatusInternalServerError)
+			return
+		}
+
+		index := bytes.NewReader(output.Bytes())
 
 		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeContent(rw, req, fileInfo.Name(), fileInfo.ModTime(), index)

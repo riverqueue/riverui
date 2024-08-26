@@ -22,9 +22,14 @@ export const API = {
 };
 
 export function APIUrl(path: string, query?: URLSearchParams) {
-  return `${import.meta.env.VITE_RIVER_API_BASE_URL}${path}${
-    query ? `?${query}` : ""
-  }`;
+  const configText =
+    document.querySelector("script#config__json")?.textContent || "{}";
+  const pageConfig = JSON.parse(configText);
+
+  const riverApiBaseUrl =
+    pageConfig.apiUrl || import.meta.env.VITE_RIVER_API_BASE_URL;
+
+  return `${riverApiBaseUrl}${path}${query ? `?${query}` : ""}`;
 }
 
 type APIErrorResponse = {

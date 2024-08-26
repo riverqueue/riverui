@@ -46,9 +46,11 @@ func TestNewHandlerIntegration(t *testing.T) {
 			t.Cleanup(func() { tx.Rollback(ctx) })
 
 			server, err := NewServer(&HandlerOpts{
-				Client: client,
-				DBPool: tx,
-				Logger: logger,
+				Client:  client,
+				DBPool:  tx,
+				DevMode: true,
+				LiveFS:  true,
+				Logger:  logger,
 			})
 			require.NoError(t, err)
 

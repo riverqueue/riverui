@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
 
@@ -26,9 +25,6 @@ var logger *slog.Logger //nolint:gochecknoglobals
 
 func main() {
 	ctx := context.Background()
-	if err := godotenv.Load(); err != nil {
-		fmt.Printf("No .env file detected, using environment variables\n")
-	}
 
 	if os.Getenv("RIVER_DEBUG") == "1" || os.Getenv("RIVER_DEBUG") == "true" {
 		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
@@ -40,7 +36,14 @@ func main() {
 }
 
 func initAndServe(ctx context.Context) int {
-	var pathPrefix string
+	var (
+		devMode    bool
+		liveFS     bool
+		pathPrefix string
+	)
+	_, liveFS = os.LookupEnv("LIVE_FS")
+	_, devMode = os.LookupEnv("DEV")
+
 	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
 	flag.Parse()
 
@@ -48,7 +51,7 @@ func initAndServe(ctx context.Context) int {
 		logger.ErrorContext(ctx, "invalid path prefix", slog.String("prefix", pathPrefix))
 		return 1
 	}
-	pathPrefix = normalizePathPrefix(pathPrefix)
+	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
 
 	corsOriginString := os.Getenv("CORS_ORIGINS")
 	corsOrigins := strings.Split(corsOriginString, ",")
@@ -78,10 +81,12 @@ func initAndServe(ctx context.Context) int {
 	}
 
 	handlerOpts := &riverui.HandlerOpts{
-		Client: client,
-		DBPool: dbPool,
-		Logger: logger,
-		Prefix: pathPrefix,
+		Client:  client,
+		DBPool:  dbPool,
+		DevMode: devMode,
+		LiveFS:  liveFS,
+		Logger:  logger,
+		Prefix:  pathPrefix,
 	}
 
 	server, err := riverui.NewServer(handlerOpts)
@@ -138,15 +143,4 @@ func mustEnv(name string) string {
 		os.Exit(1)
 	}
 	return val
-}
-
-func normalizePathPrefix(prefix string) string {
-	if prefix == "" {
-		return "/"
-	}
-	prefix = strings.TrimSuffix(prefix, "/")
-	if !strings.HasPrefix(prefix, "/") {
-		return "/" + prefix
-	}
-	return prefix
 }

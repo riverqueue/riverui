@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <link
+      rel="icon"
+      href="{{ .Base }}/favicon.ico"
+      type="image/x-icon"
+      sizes="32x32"
+    />
+    <link
+      rel="icon"
+      href="{{ .Base }}/icon.svg"
+      type="image/svg+xml"
+      sizes="any"
+    />
+    <link
+      rel="apple-touch-icon"
+      href="{{ .Base }}/apple-icon.png"
+      type="image/png"
+      sizes="512x512"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>River</title>
+
+    <script type="application/json" id="config__json">
+      {{ marshal .Config }}
+    </script>
+
+    {{- if .Dev}}
+    <script type="module">
+      import RefreshRuntime from "http://localhost:5173/@react-refresh";
+      RefreshRuntime.injectIntoGlobalHook(window);
+      window.$RefreshReg$ = () => {};
+      window.$RefreshSig$ = () => (type) => type;
+      window.__vite_plugin_react_preamble_installed__ = true;
+    </script>
+    <script type="module" src="http://localhost:5173/src/main.tsx"></script>
+    <script type="module" src="http://localhost:5173/@vite/client"></script>
+    {{- else }} {{ $js := index .Manifest "src/main.tsx" "file" }} {{ $css := index .Manifest "src/main.tsx" "css" }}
+    <script>
+      window.__riverUiBasePath = () => "{{ .Base }}";
+      window.__riverUiAssetUrl = (path) => `{{ .Base }}/${path}`;
+    </script>
+    <link rel="stylesheet" href="{{ .Base }}/{{ index $css 0}}" />
+    <script type="module" src="{{ .Base }}/{{ $js }}"></script>
+    {{- end }}
+  </head>
+  <body class="bg-white dark:bg-slate-900 h-full">
+    <div id="root" class="h-full"></div>
+  </body>
+</html>

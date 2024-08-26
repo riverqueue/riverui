@@ -3,12 +3,15 @@ package riverui
 import (
 	"context"
 	"embed"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -17,10 +20,10 @@ import (
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/randutil"
+	"github.com/riverqueue/river/rivershared/util/valutil"
 	"github.com/riverqueue/riverui/internal/apiendpoint"
 	"github.com/riverqueue/riverui/internal/apimiddleware"
 	"github.com/riverqueue/riverui/internal/dbsqlc"
-	"github.com/riverqueue/riverui/ui"
 )
 
 type DBTXWithBegin interface {
@@ -34,6 +37,10 @@ type HandlerOpts struct {
 	Client *river.Client[pgx.Tx]
 	// DBPool is the database connection pool to use for API requests.
 	DBPool DBTXWithBegin
+	// DevMode is whether the server is running in development mode.
+	DevMode bool
+	// LiveFS is whether to use the live filesystem for the frontend.
+	LiveFS bool
 	// Logger is the logger to use logging errors within the handler.
 	Logger *slog.Logger
 	// Prefix is the path prefix to use for the API and UI HTTP requests.
@@ -50,11 +57,11 @@ func (opts *HandlerOpts) validate() error {
 	if opts.Logger == nil {
 		return errors.New("logger is required")
 	}
-	opts.Prefix = normalizePathPrefix(opts.Prefix)
+	opts.Prefix = NormalizePathPrefix(opts.Prefix)
 	return nil
 }
 
-func normalizePathPrefix(prefix string) string {
+func NormalizePathPrefix(prefix string) string {
 	if prefix == "" {
 		return "/"
 	}
@@ -80,13 +87,39 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 		return nil, err
 	}
 
-	frontendIndex, err := fs.Sub(ui.Index, "dist")
+	prefix := valutil.ValOrDefault(strings.TrimSuffix(opts.Prefix, "/"), "")
+
+	frontendIndex, err := fs.Sub(FrontendIndex, "dist")
 	if err != nil {
 		return nil, fmt.Errorf("error getting frontend index: %w", err)
 	}
+
+	if opts.LiveFS {
+		if opts.DevMode {
+			fmt.Println("Using live filesystem at ./public")
+			frontendIndex = os.DirFS("./public")
+		} else {
+			fmt.Println("Using live filesystem at ./dist")
+			frontendIndex = os.DirFS("./dist")
+		}
+	}
+
+	if !opts.DevMode {
+		if _, err := frontendIndex.Open(".vite/manifest.json"); err != nil {
+			return nil, errors.New("manifest.json not found")
+		}
+		if _, err := frontendIndex.Open("index.html"); err != nil {
+			return nil, errors.New("index.html not found")
+		}
+	}
+	manifest, err := readManifest(frontendIndex, opts.DevMode)
+	if err != nil {
+		return nil, err
+	}
+
 	httpFS := http.FS(frontendIndex)
 	fileServer := http.FileServer(httpFS)
-	serveIndex := serveFileContents("index.html", httpFS)
+	serveIndex := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
 
 	apiBundle := apiBundle{
 		// TODO: Switch to baseservice.NewArchetype when available.
@@ -99,8 +132,6 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 		dbPool: opts.DBPool,
 		logger: opts.Logger,
 	}
-
-	prefix := opts.Prefix
 
 	mux := http.NewServeMux()
 
@@ -188,6 +219,27 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
+func readManifest(frontendIndex fs.FS, devMode bool) (map[string]interface{}, error) {
+	if devMode {
+		return map[string]interface{}{}, nil
+	}
+
+	file, err := frontendIndex.Open(".vite/manifest.json")
+	if err != nil {
+		return nil, err
+	}
+	bytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, errors.New("could not read .vite/manifest.json")
+	}
+	var manifest map[string]interface{}
+	err = json.Unmarshal(bytes, &manifest)
+	if err != nil {
+		return nil, errors.New("could not unmarshal .vite/manifest.json")
+	}
+	return manifest, nil
+}
+
 //go:embed public
 var publicFS embed.FS
 
@@ -243,10 +295,15 @@ type stripPrefixMiddleware struct {
 }
 
 func (m *stripPrefixMiddleware) Middleware(handler http.Handler) http.Handler {
-	if m.prefix == "" {
+	if m.prefix == "" || m.prefix == "/" {
 		return handler
 	}
 	return http.HandlerFunc(func(responseWriter http.ResponseWriter, request *http.Request) {
+		if !strings.HasSuffix(m.prefix, "/") && request.URL.Path == m.prefix {
+			http.Redirect(responseWriter, request, m.prefix+"/", http.StatusMovedPermanently)
+			return
+		}
+
 		path := strings.TrimPrefix(request.URL.Path, m.prefix)
 		if path == "" {
 			path = "/"

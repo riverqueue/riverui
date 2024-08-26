@@ -1,5 +1,5 @@
 .env
 .env.*
-ui/.env.*
-ui/dist
-ui/node_modules
+dist
+Dockerfile
+node_modules

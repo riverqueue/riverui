@@ -42,6 +42,10 @@ $ docker pull ghcr.io/riverqueue/riverui:latest
 $ docker run -p 8080:8080 --env DATABASE_URL ghcr.io/riverqueue/riverui:latest
 ```
 
+### Custom path prefix
+
+The `riverui` command accepts a `-prefix` arg to set a path prefix on both the API and static assets. When executing the Docker image, this is accepted as a `PATH_PREFIX` env.
+
 ## Development
 
 See [developing River UI](./docs/development.md).
