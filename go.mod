@@ -9,13 +9,13 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.6.0
-	github.com/riverqueue/river v0.11.2
-	github.com/riverqueue/river/riverdriver v0.11.2
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.11.2
-	github.com/riverqueue/river/rivershared v0.11.2
-	github.com/riverqueue/river/rivertype v0.11.2
+	github.com/riverqueue/river v0.11.4
+	github.com/riverqueue/river/riverdriver v0.11.4
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.11.4
+	github.com/riverqueue/river/rivershared v0.11.4
+	github.com/riverqueue/river/rivertype v0.11.4
 	github.com/rs/cors v1.11.0
-	github.com/samber/slog-http v1.0.0
+	github.com/samber/slog-http v1.4.2
 	github.com/stretchr/testify v1.9.0
 )
 
@@ -36,7 +36,7 @@ require (
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/sync v0.8.0 // indirect
 	golang.org/x/sys v0.19.0 // indirect
-	golang.org/x/text v0.16.0 // indirect
+	golang.org/x/text v0.17.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
