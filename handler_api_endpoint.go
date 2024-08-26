@@ -729,7 +729,7 @@ func (a *workflowListEndpoint) Execute(ctx context.Context, req *workflowListReq
 	case "active":
 		workflows, err := dbsqlc.New().WorkflowListActive(ctx, a.dbPool, &dbsqlc.WorkflowListActiveParams{
 			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(ptrutil.ValOrDefault(req.Limit, 100)),
+			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error listing workflows: %w", err)
@@ -739,7 +739,7 @@ func (a *workflowListEndpoint) Execute(ctx context.Context, req *workflowListReq
 	case "inactive":
 		workflows, err := dbsqlc.New().WorkflowListInactive(ctx, a.dbPool, &dbsqlc.WorkflowListInactiveParams{
 			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(ptrutil.ValOrDefault(req.Limit, 100)),
+			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error listing workflows: %w", err)
@@ -748,7 +748,7 @@ func (a *workflowListEndpoint) Execute(ctx context.Context, req *workflowListReq
 	default:
 		workflows, err := dbsqlc.New().WorkflowListAll(ctx, a.dbPool, &dbsqlc.WorkflowListAllParams{
 			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(ptrutil.ValOrDefault(req.Limit, 100)),
+			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error listing workflows: %w", err)

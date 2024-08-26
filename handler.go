@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -38,6 +39,8 @@ type HandlerOpts struct {
 	DBPool DBTXWithBegin
 	// DevMode is whether the server is running in development mode.
 	DevMode bool
+	// LiveFS is whether to use the live filesystem for the frontend.
+	LiveFS bool
 	// Logger is the logger to use logging errors within the handler.
 	Logger *slog.Logger
 	// Prefix is the path prefix to use for the API and UI HTTP requests.
@@ -90,6 +93,17 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting frontend index: %w", err)
 	}
+
+	if opts.LiveFS {
+		if opts.DevMode {
+			fmt.Println("Using live filesystem at ./public")
+			frontendIndex = os.DirFS("./public")
+		} else {
+			fmt.Println("Using live filesystem at ./dist")
+			frontendIndex = os.DirFS("./dist")
+		}
+	}
+
 	if !opts.DevMode {
 		if _, err := frontendIndex.Open(".vite/manifest.json"); err != nil {
 			return nil, errors.New("manifest.json not found")
@@ -105,10 +119,7 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 
 	httpFS := http.FS(frontendIndex)
 	fileServer := http.FileServer(httpFS)
-	serveIndex, err := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
-	if err != nil {
-		return nil, err
-	}
+	serveIndex := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
 
 	apiBundle := apiBundle{
 		// TODO: Switch to baseservice.NewArchetype when available.
@@ -211,22 +222,22 @@ func (s *Server) Start(ctx context.Context) error {
 func readManifest(frontendIndex fs.FS, devMode bool) (map[string]interface{}, error) {
 	if devMode {
 		return map[string]interface{}{}, nil
-	} else {
-		file, err := frontendIndex.Open(".vite/manifest.json")
-		if err != nil {
-			return nil, err
-		}
-		bytes, err := io.ReadAll(file)
-		if err != nil {
-			return nil, errors.New("could not read .vite/manifest.json")
-		}
-		var manifest map[string]interface{}
-		err = json.Unmarshal(bytes, &manifest)
-		if err != nil {
-			return nil, errors.New("could not unmarshal .vite/manifest.json")
-		}
-		return manifest, nil
 	}
+
+	file, err := frontendIndex.Open(".vite/manifest.json")
+	if err != nil {
+		return nil, err
+	}
+	bytes, err := io.ReadAll(file)
+	if err != nil {
+		return nil, errors.New("could not read .vite/manifest.json")
+	}
+	var manifest map[string]interface{}
+	err = json.Unmarshal(bytes, &manifest)
+	if err != nil {
+		return nil, errors.New("could not unmarshal .vite/manifest.json")
+	}
+	return manifest, nil
 }
 
 //go:embed public

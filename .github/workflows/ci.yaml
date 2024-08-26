@@ -75,7 +75,7 @@ jobs:
       # ensure that there is a file in `dist` to prevent a lint error about
       # it during CI when there is nothing there:
       - name: touch file in dist
-        run: mkdir -p dist && touch dist/keepfile.txt
+        run: make fake_assets
 
       - name: Test
         run: go test  -race ./... -timeout 2m
@@ -102,7 +102,7 @@ jobs:
       # ensure that there is a file in `dist` to prevent a lint error about
       # it during CI when there is nothing there:
       - name: touch file in dist
-        run: mkdir -p dist && touch dist/keepfile.txt
+        run: make fake_assets
 
       - name: Lint
         uses: golangci/golangci-lint-action@v4

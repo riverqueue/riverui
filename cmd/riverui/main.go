@@ -38,9 +38,12 @@ func main() {
 func initAndServe(ctx context.Context) int {
 	var (
 		devMode    bool
+		liveFS     bool
 		pathPrefix string
 	)
-	flag.BoolVar(&devMode, "dev", false, "enable development mode")
+	_, liveFS = os.LookupEnv("LIVE_FS")
+	_, devMode = os.LookupEnv("DEV")
+
 	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
 	flag.Parse()
 
@@ -81,6 +84,7 @@ func initAndServe(ctx context.Context) int {
 		Client:  client,
 		DBPool:  dbPool,
 		DevMode: devMode,
+		LiveFS:  liveFS,
 		Logger:  logger,
 		Prefix:  pathPrefix,
 	}
