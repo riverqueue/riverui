@@ -7,7 +7,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
-	"github.com/riverqueue/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest"
 )
 
 func TestWithTx(t *testing.T) {

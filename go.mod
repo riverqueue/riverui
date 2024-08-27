@@ -1,4 +1,4 @@
-module github.com/riverqueue/riverui
+module riverqueue.com/riverui
 
 go 1.22
 

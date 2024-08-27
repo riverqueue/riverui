@@ -18,7 +18,8 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
-	"github.com/riverqueue/riverui"
+
+	"riverqueue.com/riverui"
 )
 
 var logger *slog.Logger //nolint:gochecknoglobals

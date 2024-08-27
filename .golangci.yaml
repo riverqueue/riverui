@@ -61,6 +61,7 @@ linters-settings:
       - Standard
       - Default
       - Prefix(github.com/riverqueue)
+      - Prefix(riverqueue.com/riverui)
 
   gomoddirectives:
     replace-local: true

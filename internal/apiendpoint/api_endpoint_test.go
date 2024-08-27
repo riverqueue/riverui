@@ -15,8 +15,8 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/stretchr/testify/require"
 
-	"github.com/riverqueue/riverui/internal/apierror"
-	"github.com/riverqueue/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/apierror"
+	"riverqueue.com/riverui/internal/riverinternaltest"
 )
 
 func TestMountAndServe(t *testing.T) {

@@ -21,9 +21,10 @@ import (
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/randutil"
 	"github.com/riverqueue/river/rivershared/util/valutil"
-	"github.com/riverqueue/riverui/internal/apiendpoint"
-	"github.com/riverqueue/riverui/internal/apimiddleware"
-	"github.com/riverqueue/riverui/internal/dbsqlc"
+
+	"riverqueue.com/riverui/internal/apiendpoint"
+	"riverqueue.com/riverui/internal/apimiddleware"
+	"riverqueue.com/riverui/internal/dbsqlc"
 )
 
 type DBTXWithBegin interface {
