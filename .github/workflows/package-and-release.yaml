@@ -1,0 +1,180 @@
+name: Package and Release
+
+on:
+  workflow_call:
+    inputs:
+      after-version:
+        required: false
+        type: string
+      module-base:
+        required: true
+        type: string
+      module-dir:
+        required: true
+        type: string
+      storage-bucket:
+        required: true
+        type: string
+      version-tag:
+        required: true
+        type: string
+    secrets:
+      r2-access-key-id:
+        description: "Cloudflare R2 access key ID passed from caller workflow"
+        required: true
+      r2-endpoint-url:
+        description: "Cloudflare R2 jurisdiction-specific endpoint URL"
+        required: true
+      r2-secret-access-key:
+        description: "A secret access key passed from the caller workflow"
+        required: true
+
+jobs:
+  package:
+    name: Package
+    runs-on: ubuntu-latest
+    env:
+      AWS_DEFAULT_REGION: auto
+      AWS_ACCESS_KEY_ID: ${{ secrets.r2-access-key-id }}
+      AWS_ENDPOINT_URL: ${{ secrets.r2-endpoint-url }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.r2-secret-access-key }}
+      OUTPUT_DIR: /tmp/mod-zip-result
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+          node-version: "20.12.2"
+
+      - name: Install dependencies
+        run: npm install
+        shell: sh
+
+      - name: Build JS 🏗️
+        run: npm exec vite build
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          check-latest: true
+          go-version-file: "packager/go.mod"
+          cache-dependency-path: |
+            packager/go.sum
+
+      - name: Display Go version
+        run: go version
+
+      - name: Install dependencies
+        working-directory: ./packager
+        run: |
+          echo "::group::go get"
+          go get -t ./...
+          echo "::endgroup::"
+
+      - name: Build packager
+        working-directory: ./packager
+        run: go install .
+
+      - name: Fetch tags
+        run: git fetch --tags -f origin
+
+      - name: Determine module names and version details
+        id: module_info
+        run: |
+          BASE_MODULE_NAME=${{ inputs.module-base }}
+          MODULE_NAME=$(go list -m)
+          echo "base_module_name=${BASE_MODULE_NAME}" >> $GITHUB_OUTPUT
+          echo "module_name=${MODULE_NAME}" >> $GITHUB_OUTPUT
+          if [ "$MODULE_NAME" == "$BASE_MODULE_NAME" ]; then
+            TAG_PREFIX=""
+          else
+            TAG_PREFIX=${MODULE_NAME#$BASE_MODULE_NAME/}/
+          fi
+          echo "tag_prefix=${TAG_PREFIX}" >> $GITHUB_OUTPUT
+          VERSION_TAG=${{ inputs.version-tag }}
+          echo "version_tag=${VERSION_TAG}" >> $GITHUB_OUTPUT
+          VERSION_NUMBER=${VERSION_TAG#$TAG_PREFIX}
+          echo "version_number=${VERSION_NUMBER}" >> $GITHUB_OUTPUT
+        working-directory: ${{ inputs.module-dir }}
+
+      - name: Extract timestamp
+        id: extract_timestamp
+        run: echo "timestamp=$(git log -1 --format=%ct ${{ steps.module_info.outputs.version_tag }})" >> $GITHUB_OUTPUT
+
+      - name: print stuff
+        run: |
+          echo "base module: ${{ steps.module_info.outputs.base_module_name }}"
+          echo "module: ${{ steps.module_info.outputs.module_name }}"
+          echo "tag_prefix: ${{ steps.module_info.outputs.tag_prefix }}"
+          echo "timestamp: ${{ steps.extract_timestamp.outputs.timestamp }}"
+          echo "version_tag: ${{ steps.module_info.outputs.version_tag }}"
+          echo "version_number: ${{ steps.module_info.outputs.version_number }}"
+
+      - name: Remove all undesirable files
+        # Remove all files that we don't want to end up in the final mod release .zip file, including:
+        # * node_modules
+        # * UI source files, .json, .js
+        run: |
+          rm -r .eslintrc.cjs .github .storybook .stylelintignore .vscode node_modules package.json package-lock.json public src
+          find . -type f -name '*.json' -exec rm -f {} +
+
+      - name: Package module
+        # if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          packager \
+            -dir ${{ inputs.module-dir }} \
+            -output ${{ env.OUTPUT_DIR }} \
+            -mod ${{ steps.module_info.outputs.module_name }} \
+            -timestamp ${{ steps.extract_timestamp.outputs.timestamp }} \
+            -version ${{ steps.module_info.outputs.version_number }}
+
+      - name: Extract sorted version list and write files
+        id: version_list
+        run: |
+          AFTER_VERSION="${{ inputs.after-version }}"
+          TAG_PREFIX="${{ steps.module_info.outputs.tag_prefix }}"
+          TAG_MATCHER="${TAG_PREFIX}v*"
+
+          if [ -n "$AFTER_VERSION" ]; then
+            VERSION_LIST=$(git tag -l "$TAG_MATCHER" | sed "s#^$TAG_PREFIX##" | sort -V | awk -v threshold="$AFTER_VERSION" '$0 > threshold')
+          else
+            VERSION_LIST=$(git tag -l "$TAG_MATCHER" | sed "s#^$TAG_PREFIX##" | sort -V)
+          fi
+
+          LATEST_VERSION=$(echo "$VERSION_LIST" | tail -n 1)
+
+          echo "Latest version: $LATEST_VERSION"
+          echo "All versions:"
+          echo "$VERSION_LIST"
+
+          if [ -z "$VERSION_LIST" ]; then
+            echo "Error: Version list is empty."
+            exit 1
+          fi
+
+          if [ -z "$LATEST_VERSION" ]; then
+            echo "Error: Latest version is empty."
+            exit 1
+          fi
+
+          echo "latest_version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
+          echo "$VERSION_LIST" > ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v/list
+
+      - name: List results
+        run: |
+          tree ${{ env.OUTPUT_DIR }}
+          ls -la ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}
+          ls -la ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v
+          cat ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v/list
+
+      - name: Sync files to R2
+        run: |
+          aws s3 cp ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v/ s3://${{ inputs.storage-bucket }}/${{ steps.module_info.outputs.module_name }}/@v/ --recursive
+          aws s3 cp s3://${{ inputs.storage-bucket }}/${{ steps.module_info.outputs.module_name }}/@v/${{ steps.version_list.outputs.latest_version }}.info s3://${{ inputs.storage-bucket }}/${{ steps.module_info.outputs.module_name }}/@latest

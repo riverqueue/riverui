@@ -1,6 +1,7 @@
 .env
 .env.*
 !.env.example
+/packager/packager
 .tool-versions
 /riverui
 

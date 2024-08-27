@@ -1,0 +1,27 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - master
+      - "*"
+    tags:
+      # Additional packages must be added both here AND in the job list below:
+      - "v*"
+
+jobs:
+  release_riverui:
+    uses: ./.github/workflows/package-and-release.yaml
+    if: startsWith(github.ref, 'refs/tags/v')
+    with:
+      after-version: v0.4.0
+      module-base: riverqueue.com/riverui
+      module-dir: .
+      storage-bucket: ${{ vars.RELEASE_STORAGE_BUCKET }}
+      version-tag: ${{ github.ref_name}}
+    permissions:
+      contents: read
+    secrets:
+      r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+      r2-endpoint-url: ${{ secrets.R2_ENDPOINT_URL }}
+      r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}

@@ -3,3 +3,4 @@
 dist
 Dockerfile
 node_modules
+packager
