@@ -8,7 +8,8 @@ import (
 
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
-	"github.com/riverqueue/riverui/internal/dbsqlc"
+
+	"riverqueue.com/riverui/internal/dbsqlc"
 )
 
 // QueryCacher executes a database query periodically and caches the result. The
@@ -131,7 +132,7 @@ func (s *QueryCacher[TRes]) Start(ctx context.Context) error {
 //
 // So this:
 //
-//	QueryCacher[[]*github.com/riverqueue/riverui/internal/dbsqlc.JobCountByStateRow]
+//	QueryCacher[[]*riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]
 //
 // Becomes this:
 //

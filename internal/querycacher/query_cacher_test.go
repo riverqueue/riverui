@@ -11,9 +11,10 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/startstoptest"
-	"github.com/riverqueue/riverui/internal/dbsqlc"
-	"github.com/riverqueue/riverui/internal/riverinternaltest"
-	"github.com/riverqueue/riverui/internal/riverinternaltest/testfactory"
+
+	"riverqueue.com/riverui/internal/dbsqlc"
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 )
 
 func TestQueryCacher(t *testing.T) {
@@ -118,8 +119,8 @@ func TestSimplifyArchetypeLogName(t *testing.T) {
 	require.Equal(t, "Simple[[]*int]", simplifyArchetypeLogName("Simple[[]*int]"))
 
 	// More realistic examples.
-	require.Equal(t, "QueryCacher[dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[github.com/riverqueue/riverui/internal/dbsqlc.JobCountByStateRow]"))
-	require.Equal(t, "QueryCacher[*dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[*github.com/riverqueue/riverui/internal/dbsqlc.JobCountByStateRow]"))
-	require.Equal(t, "QueryCacher[[]dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[[]github.com/riverqueue/riverui/internal/dbsqlc.JobCountByStateRow]"))
-	require.Equal(t, "QueryCacher[[]*dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[[]*github.com/riverqueue/riverui/internal/dbsqlc.JobCountByStateRow]"))
+	require.Equal(t, "QueryCacher[dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]"))
+	require.Equal(t, "QueryCacher[*dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[*riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]"))
+	require.Equal(t, "QueryCacher[[]dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[[]riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]"))
+	require.Equal(t, "QueryCacher[[]*dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[[]*riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]"))
 }

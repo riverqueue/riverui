@@ -16,9 +16,10 @@ import (
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivertype"
-	"github.com/riverqueue/riverui/internal/apierror"
-	"github.com/riverqueue/riverui/internal/riverinternaltest"
-	"github.com/riverqueue/riverui/internal/riverinternaltest/testfactory"
+
+	"riverqueue.com/riverui/internal/apierror"
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 )
 
 type setupEndpointTestBundle struct {

@@ -19,11 +19,12 @@ import (
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
-	"github.com/riverqueue/riverui/internal/apiendpoint"
-	"github.com/riverqueue/riverui/internal/apierror"
-	"github.com/riverqueue/riverui/internal/dbsqlc"
-	"github.com/riverqueue/riverui/internal/querycacher"
-	"github.com/riverqueue/riverui/internal/util/pgxutil"
+
+	"riverqueue.com/riverui/internal/apiendpoint"
+	"riverqueue.com/riverui/internal/apierror"
+	"riverqueue.com/riverui/internal/dbsqlc"
+	"riverqueue.com/riverui/internal/querycacher"
+	"riverqueue.com/riverui/internal/util/pgxutil"
 )
 
 // A bundle of common utilities needed for many API endpoints.
