@@ -123,7 +123,6 @@ jobs:
         # * UI source files, .json, .js
         run: |
           rm -r .eslintrc.cjs .github .storybook .stylelintignore .vscode node_modules package.json package-lock.json src
-          find . -type f -name '*.json' -exec rm -f {} +
 
       - name: Package module
         # if: startsWith(github.ref, 'refs/tags/')
