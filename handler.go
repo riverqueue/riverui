@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivershared/baseservice"
@@ -24,20 +25,22 @@ import (
 
 	"riverqueue.com/riverui/internal/apiendpoint"
 	"riverqueue.com/riverui/internal/apimiddleware"
-	"riverqueue.com/riverui/internal/dbsqlc"
 )
 
-type DBTXWithBegin interface {
+// DB is the interface for a pgx database connection.
+type DB interface {
 	Begin(ctx context.Context) (pgx.Tx, error)
-	dbsqlc.DBTX
+	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
+	Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error)
+	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
 }
 
-// HandlerOpts are the options for creating a new Handler.
-type HandlerOpts struct {
+// ServerOpts are the options for creating a new Server.
+type ServerOpts struct {
 	// Client is the River client to use for API requests.
 	Client *river.Client[pgx.Tx]
-	// DBPool is the database connection pool to use for API requests.
-	DBPool DBTXWithBegin
+	// DB is the database to use for API requests.
+	DB DB
 	// DevMode is whether the server is running in development mode.
 	DevMode bool
 	// LiveFS is whether to use the live filesystem for the frontend.
@@ -48,12 +51,12 @@ type HandlerOpts struct {
 	Prefix string
 }
 
-func (opts *HandlerOpts) validate() error {
+func (opts *ServerOpts) validate() error {
 	if opts.Client == nil {
 		return errors.New("client is required")
 	}
-	if opts.DBPool == nil {
-		return errors.New("db pool is required")
+	if opts.DB == nil {
+		return errors.New("db is required")
 	}
 	if opts.Logger == nil {
 		return errors.New("logger is required")
@@ -73,14 +76,18 @@ func NormalizePathPrefix(prefix string) string {
 	return prefix
 }
 
+// Server is an HTTP server that serves the River UI and API.  It must be
+// started with Start to initialize caching and background query functionality
+// prior to serving requests. Server implements http.Handler, so it can be
+// directly mounted in an http.ServeMux.
 type Server struct {
 	baseStartStop startstop.BaseStartStop
 	handler       http.Handler
 	services      []startstop.Service
 }
 
-// NewServer creates a new http.Handler that serves the River UI and API.
-func NewServer(opts *HandlerOpts) (*Server, error) {
+// NewServer creates a new Server that serves the River UI and API.
+func NewServer(opts *ServerOpts) (*Server, error) {
 	if opts == nil {
 		return nil, errors.New("opts is required")
 	}
@@ -130,7 +137,7 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 			Time:   &baseservice.UnStubbableTimeGenerator{},
 		},
 		client: opts.Client,
-		dbPool: opts.DBPool,
+		dbPool: opts.DB,
 		logger: opts.Logger,
 	}
 
@@ -186,12 +193,16 @@ func NewServer(opts *HandlerOpts) (*Server, error) {
 	return server, nil
 }
 
-// Handler returns an http.Handler that can be mounted to serve HTTP requests.
-func (s *Server) Handler() http.Handler { return s.handler }
+// ServeHTTP returns an http.ServeHTTP that can be mounted to serve HTTP
+// requests.
+func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	s.handler.ServeHTTP(rw, req)
+}
 
 // Start starts the server's background services. Notably, this does _not_ cause
-// the server to start listening for HTTP in any way. To do that, call Handler
-// and mount or run it using Go's built in `net/http`.
+// the server to start listening for HTTP in any way. To serve HTTP requests,
+// the Server implements `http.Handler` via a `ServeHTTP` method and can be
+// mounted in an existing `http.ServeMux`.
 func (s *Server) Start(ctx context.Context) error {
 	ctx, shouldStart, started, stopped := s.baseStartStop.StartInit(ctx)
 	if !shouldStart {

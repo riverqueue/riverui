@@ -81,9 +81,9 @@ func initAndServe(ctx context.Context) int {
 		return 1
 	}
 
-	handlerOpts := &riverui.HandlerOpts{
+	handlerOpts := &riverui.ServerOpts{
 		Client:  client,
-		DBPool:  dbPool,
+		DB:      dbPool,
 		DevMode: devMode,
 		LiveFS:  liveFS,
 		Logger:  logger,
@@ -101,7 +101,7 @@ func initAndServe(ctx context.Context) int {
 		return 1
 	}
 
-	logHandler := sloghttp.Recovery(server.Handler())
+	logHandler := sloghttp.Recovery(server)
 	config := sloghttp.Config{
 		WithSpanID:  otelEnabled,
 		WithTraceID: otelEnabled,
