@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+
+- Removed the vendored Inter font to reduce bundle size with no noticeable impact on the UI.
+
 ## [0.4.0] - 2024-08-26
 
 ### Added
