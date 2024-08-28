@@ -16,7 +16,7 @@ export default {
         "brand-primary": "rgb(37, 99, 235)",
       },
       fontFamily: {
-        sans: ["Inter var", ...defaultTheme.fontFamily.sans],
+        sans: [...defaultTheme.fontFamily.sans],
       },
       keyframes: {
         pausingSpin: {
