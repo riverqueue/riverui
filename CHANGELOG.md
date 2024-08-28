@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0-pre1] - 2024-08-27
+
+### Changed
+
+- The module name was changed from `github.com/riverqueue/riverui` to `riverqueue.com/riverui`. This change was made to facilitate bundling of module releases that include vendored frontend assets, which will enable the embedded `Handler` type to be usable by anybody who `go get` installs the module without requiring a complex build setup.
+
 ### Removed
 
 - Removed the vendored Inter font to reduce bundle size with no noticeable impact on the UI.
