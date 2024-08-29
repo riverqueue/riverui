@@ -31,7 +31,7 @@ import (
 type apiBundle struct {
 	archetype *baseservice.Archetype
 	client    *river.Client[pgx.Tx]
-	dbPool    DBTXWithBegin
+	dbPool    DB
 	logger    *slog.Logger
 }
 

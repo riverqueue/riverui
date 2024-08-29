@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The module name was changed from `github.com/riverqueue/riverui` to `riverqueue.com/riverui`. This change was made to facilitate bundling of module releases that include vendored frontend assets, which will enable the embedded `Handler` type to be usable by anybody who `go get` installs the module without requiring a complex build setup.
+- Rename `HandlerOpts` to `ServerOpts` for consistency. The `Handler` type was renamed to `Server` in [PR #108](https://github.com/riverqueue/riverui/pull/108) but the opts type was not renamed until now. [PR #133](https://github.com/riverqueue/riverui/pull/133).
+- Implement `http.Handler` on `Server` type via a `ServeHTTP` method so that it can be used directly without needing to call `.Handler()` on it. [PR #133](https://github.com/riverqueue/riverui/pull/133).
+- Directly specify `DB` interface type and rename it. Avoids relying on embedding a type from an internal package. [PR #133](https://github.com/riverqueue/riverui/pull/133).
 
 ### Removed
 
