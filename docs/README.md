@@ -48,4 +48,4 @@ The `riverui` command accepts a `-prefix` arg to set a path prefix on both the A
 
 ## Development
 
-See [developing River UI](./docs/development.md).
+See [developing River UI](./development.md).
