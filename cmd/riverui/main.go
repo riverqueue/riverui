@@ -116,7 +116,7 @@ func initAndServe(ctx context.Context) int {
 
 	log.Printf("starting server on %s", srv.Addr)
 
-	if err = srv.ListenAndServe(); err != nil && errors.Is(err, http.ErrServerClosed) {
+	if err = srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		logger.ErrorContext(ctx, "error from ListenAndServe", slog.String("error", err.Error()))
 		return 1
 	}
