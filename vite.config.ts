@@ -20,6 +20,7 @@ export default defineConfig({
         },
       },
     },
+    sourcemap: true,
     target: "esnext",
   },
   plugins: [react(), TanStackRouterVite(), tsconfigPaths()],
