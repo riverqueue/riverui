@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2024-09-01
+
+### Fixed
+
+- Downgrade `@headlessui/react` version to v2.1.1 to fix issues with listbox menus (refresh settings and theme selector). [PR #139](https://github.com/riverqueue/riverui/pull/139).
+
 ## [0.5.0] - 2024-08-28
 
 ### Changed

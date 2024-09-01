@@ -14,6 +14,7 @@ export default defineConfig({
         manualChunks: {
           // use vite-bundle-visualizer to find good candidates for manual chunks:
           dagrejs: ["@dagrejs/dagre"],
+          headlessui: ["@headlessui/react"],
           "react-dom": ["react-dom"],
           reactflow: ["reactflow"],
         },
