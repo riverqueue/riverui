@@ -80,7 +80,10 @@ export function RefreshPauser(
           </div>
         )}
       </ListboxButton>
-      <ListboxOptions className="absolute right-0 top-full mt-3 w-32 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md shadow-black/5 ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5">
+      <ListboxOptions
+        anchor="bottom end"
+        className="z-20 mt-3 w-32 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md shadow-black/5 ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5"
+      >
         <div className="px-2 text-xs font-semibold leading-6 text-slate-500">
           Live Updates
         </div>
