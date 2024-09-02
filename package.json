@@ -8,7 +8,7 @@
     "@headlessui/react": "2.1.1",
     "@headlessui/tailwindcss": "^0.2.1",
     "@heroicons/react": "^2.1.5",
-    "@tailwindcss/typography": "^0.5.14",
+    "@tailwindcss/typography": "^0.5.15",
     "@tanstack/react-query": "^5.52.0",
     "@tanstack/react-router": "^1.49.2",
     "clsx": "^2.1.1",
