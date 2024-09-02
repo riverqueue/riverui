@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2] - 2024-09-02
+
+### Fixed
+
+- Fix `ListenAndServe()` inverted error check. Thanks [Martin Tournoij](https://github.com/arp242)! 🙏🏻 [PR #137](https://github.com/riverqueue.com/riverui/pull/137).
+- Fix refresh and theme selector dropdown positioning. [PR #146](https://github.com/riverqueue/riverui/pull/146).
+
 ## [0.5.1] - 2024-09-01
 
 ### Fixed
