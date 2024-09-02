@@ -36,7 +36,7 @@
     "@tailwindcss/forms": "^0.5.7",
     "@tanstack/eslint-plugin-query": "^5.52.0",
     "@tanstack/react-query-devtools": "^5.52.2",
-    "@tanstack/router-devtools": "^1.50.1",
+    "@tanstack/router-devtools": "^1.52.4",
     "@tanstack/router-vite-plugin": "^1.49.3",
     "@testing-library/react": "^16.0.0",
     "@types/react": "^18.3.4",
