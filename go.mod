@@ -14,7 +14,7 @@ require (
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.11.4
 	github.com/riverqueue/river/rivershared v0.11.4
 	github.com/riverqueue/river/rivertype v0.11.4
-	github.com/rs/cors v1.11.0
+	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.4.2
 	github.com/stretchr/testify v1.9.0
 )
