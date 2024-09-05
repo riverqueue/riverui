@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.3] - 2024-09-05
+
+- Remove `.gitignore` from Go module bundle because it messes with vendoring in some situations. Thanks [Pedro Henrique](https://github.com/crossworth)! 🙏🏻 [PR #149](https://github.com/riverqueue/riverui/pull/149).
+
 ## [0.5.2] - 2024-09-02
 
 ### Fixed
