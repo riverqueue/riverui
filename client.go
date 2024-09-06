@@ -8,6 +8,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 )
 
+// Client is a River client.
 type Client[TTx any] interface {
 	Driver() riverdriver.Driver[TTx]
 
@@ -44,4 +45,10 @@ type Client[TTx any] interface {
 	// Stopped() <-chan struct{}
 	// Subscribe(kinds ...river.EventKind) (<-chan *river.Event, func())
 	// SubscribeConfig(config *river.SubscribeConfig) (<-chan *river.Event, func())
+}
+
+// Client is a River Pro client with additional capabilities.
+type ProClient[TTx any] interface {
+	WorkflowCancel(ctx context.Context, workflowID string) ([]*rivertype.JobRow, error)
+	WorkflowCancelTx(ctx context.Context, tx TTx, workflowID string) ([]*rivertype.JobRow, error)
 }

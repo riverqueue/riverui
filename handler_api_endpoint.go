@@ -33,6 +33,7 @@ type apiBundle struct {
 	client    Client[pgx.Tx]
 	dbPool    DB
 	logger    *slog.Logger
+	proClient ProClient[pgx.Tx]
 }
 
 // SetBundle sets all values to the same as the given bundle.
@@ -624,6 +625,56 @@ func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCount
 		Running:   stateAndCountMap[rivertype.JobStateRunning],
 		Scheduled: stateAndCountMap[rivertype.JobStateScheduled],
 	}, nil
+}
+
+//
+// workflowCancelEndpoint
+//
+
+type workflowCancelEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[workflowCancelRequest, workflowCancelResponse]
+}
+
+func newWorkflowCancelEndpoint(apiBundle apiBundle) *workflowCancelEndpoint {
+	return &workflowCancelEndpoint{apiBundle: apiBundle}
+}
+
+func (*workflowCancelEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "PUT /api/workflows/{id}/cancel",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type workflowCancelRequest struct {
+	ID string `json:"-" validate:"required"` // from ExtractRaw
+}
+
+func (req *workflowCancelRequest) ExtractRaw(r *http.Request) error {
+	req.ID = r.PathValue("id")
+	return nil
+}
+
+type workflowCancelResponse struct {
+	CancelledTasks []*RiverJob `json:"cancelled_tasks"`
+}
+
+func (a *workflowCancelEndpoint) Execute(ctx context.Context, req *workflowCancelRequest) (*workflowCancelResponse, error) {
+	if a.apiBundle.proClient == nil {
+		return nil, apierror.NewBadRequest("Pro client not configured.")
+	}
+
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*workflowCancelResponse, error) {
+		jobs, err := a.apiBundle.proClient.WorkflowCancelTx(ctx, tx, req.ID)
+		if err != nil {
+			return nil, fmt.Errorf("error cancelling workflow: %w", err)
+		}
+
+		return &workflowCancelResponse{
+			CancelledTasks: sliceutil.Map(jobs, riverJobToSerializableJob),
+		}, nil
+	})
 }
 
 //

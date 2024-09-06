@@ -155,6 +155,7 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 		apiendpoint.Mount(mux, opts.Logger, newQueuePauseEndpoint(apiBundle)),
 		apiendpoint.Mount(mux, opts.Logger, newQueueResumeEndpoint(apiBundle)),
 		apiendpoint.Mount(mux, opts.Logger, newStateAndCountGetEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, opts.Logger, newWorkflowCancelEndpoint(apiBundle)),
 		apiendpoint.Mount(mux, opts.Logger, newWorkflowGetEndpoint(apiBundle)),
 		apiendpoint.Mount(mux, opts.Logger, newWorkflowListEndpoint(apiBundle)),
 	}
