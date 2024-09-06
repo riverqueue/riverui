@@ -30,7 +30,7 @@ import (
 // A bundle of common utilities needed for many API endpoints.
 type apiBundle struct {
 	archetype *baseservice.Archetype
-	client    *river.Client[pgx.Tx]
+	client    Client[pgx.Tx]
 	dbPool    DB
 	logger    *slog.Logger
 }
