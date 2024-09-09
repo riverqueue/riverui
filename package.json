@@ -52,7 +52,7 @@
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react-hooks": "^5.1.0-rc.0",
     "eslint-plugin-react-refresh": "^0.4.11",
-    "eslint-plugin-storybook": "^0.9.0--canary.156.ed236ca.0",
+    "eslint-plugin-storybook": "^0.9.0--canary.165.991522a.0",
     "eslint-plugin-tailwindcss": "^3.17.4",
     "fishery": "^2.2.2",
     "globals": "^15.9.0",
