@@ -27,10 +27,12 @@ updates:
           - "@chromatic-com/storybook"
           - "@storybook/*"
           - "@tanstack/*"
+          - "storybook"
       storybook:
         patterns:
           - "@chromatic-com/storybook"
           - "@storybook/*"
+          - "storybook"
       tanstack:
         patterns:
           - "@tanstack/*"
