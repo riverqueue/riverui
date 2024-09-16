@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"flag"
@@ -54,15 +55,13 @@ func initAndServe(ctx context.Context) int {
 	}
 	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
 
-	corsOriginString := os.Getenv("CORS_ORIGINS")
-	corsOrigins := strings.Split(corsOriginString, ",")
-	dbURL := mustEnv("DATABASE_URL")
-	otelEnabled := os.Getenv("OTEL_ENABLED") == "true"
-	host := os.Getenv("HOST")
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	var (
+		corsOrigins = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
+		dbURL       = mustEnv("DATABASE_URL")
+		host        = os.Getenv("HOST") // may be left empty to bind to all local interfaces
+		otelEnabled = os.Getenv("OTEL_ENABLED") == "true"
+		port        = cmp.Or(os.Getenv("PORT"), "8080")
+	)
 
 	dbPool, err := getDBPool(ctx, dbURL)
 	if err != nil {
