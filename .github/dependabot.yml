@@ -23,3 +23,12 @@ updates:
         dependency-type: "production"
       development-dependencies:
         dependency-type: "development"
+        exclude-patterns:
+          - "@storybook/*"
+          - "@tanstack/*"
+      storybook:
+        patterns:
+          - "@storybook/*"
+      tanstack:
+        patterns:
+          - "@tanstack/*"
