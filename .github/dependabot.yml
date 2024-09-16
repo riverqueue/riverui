@@ -24,10 +24,12 @@ updates:
       development-dependencies:
         dependency-type: "development"
         exclude-patterns:
+          - "@chromatic-com/storybook"
           - "@storybook/*"
           - "@tanstack/*"
       storybook:
         patterns:
+          - "@chromatic-com/storybook"
           - "@storybook/*"
       tanstack:
         patterns:
