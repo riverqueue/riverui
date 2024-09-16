@@ -217,6 +217,7 @@ const DependencyItem = ({
 
   return (
     <Link
+      to="."
       search={{ selected: depJob.id }}
       className="flex items-center gap-x-2 font-mono text-slate-900 dark:text-slate-200"
     >

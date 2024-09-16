@@ -46,6 +46,7 @@ export const Route = createFileRoute("/jobs/")({
   beforeLoad: async ({ context, search }) => {
     if (!search.state) {
       throw redirect({
+        from: Route.fullPath,
         replace: true,
         search: {
           state: JobState.Running,

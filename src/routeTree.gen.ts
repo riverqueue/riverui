@@ -153,14 +153,128 @@ declare module "@tanstack/react-router" {
 
 // Create and export the route tree
 
-export const routeTree = rootRoute.addChildren({
-  IndexRoute,
-  JobsRoute: JobsRoute.addChildren({ JobsJobIdRoute, JobsIndexRoute }),
-  QueuesRoute: QueuesRoute.addChildren({ QueuesNameRoute, QueuesIndexRoute }),
-  AboutAboutRoute,
-  WorkflowsWorkflowIdRoute,
-  WorkflowsIndexRoute,
-})
+interface JobsRouteChildren {
+  JobsJobIdRoute: typeof JobsJobIdRoute
+  JobsIndexRoute: typeof JobsIndexRoute
+}
+
+const JobsRouteChildren: JobsRouteChildren = {
+  JobsJobIdRoute: JobsJobIdRoute,
+  JobsIndexRoute: JobsIndexRoute,
+}
+
+const JobsRouteWithChildren = JobsRoute._addFileChildren(JobsRouteChildren)
+
+interface QueuesRouteChildren {
+  QueuesNameRoute: typeof QueuesNameRoute
+  QueuesIndexRoute: typeof QueuesIndexRoute
+}
+
+const QueuesRouteChildren: QueuesRouteChildren = {
+  QueuesNameRoute: QueuesNameRoute,
+  QueuesIndexRoute: QueuesIndexRoute,
+}
+
+const QueuesRouteWithChildren =
+  QueuesRoute._addFileChildren(QueuesRouteChildren)
+
+export interface FileRoutesByFullPath {
+  "/": typeof IndexRoute
+  "/jobs": typeof JobsRouteWithChildren
+  "/queues": typeof QueuesRouteWithChildren
+  "/about/about": typeof AboutAboutRoute
+  "/jobs/$jobId": typeof JobsJobIdRoute
+  "/queues/$name": typeof QueuesNameRoute
+  "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
+  "/jobs/": typeof JobsIndexRoute
+  "/queues/": typeof QueuesIndexRoute
+  "/workflows": typeof WorkflowsIndexRoute
+}
+
+export interface FileRoutesByTo {
+  "/": typeof IndexRoute
+  "/about/about": typeof AboutAboutRoute
+  "/jobs/$jobId": typeof JobsJobIdRoute
+  "/queues/$name": typeof QueuesNameRoute
+  "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
+  "/jobs": typeof JobsIndexRoute
+  "/queues": typeof QueuesIndexRoute
+  "/workflows": typeof WorkflowsIndexRoute
+}
+
+export interface FileRoutesById {
+  __root__: typeof rootRoute
+  "/": typeof IndexRoute
+  "/jobs": typeof JobsRouteWithChildren
+  "/queues": typeof QueuesRouteWithChildren
+  "/about/about": typeof AboutAboutRoute
+  "/jobs/$jobId": typeof JobsJobIdRoute
+  "/queues/$name": typeof QueuesNameRoute
+  "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
+  "/jobs/": typeof JobsIndexRoute
+  "/queues/": typeof QueuesIndexRoute
+  "/workflows/": typeof WorkflowsIndexRoute
+}
+
+export interface FileRouteTypes {
+  fileRoutesByFullPath: FileRoutesByFullPath
+  fullPaths:
+    | "/"
+    | "/jobs"
+    | "/queues"
+    | "/about/about"
+    | "/jobs/$jobId"
+    | "/queues/$name"
+    | "/workflows/$workflowId"
+    | "/jobs/"
+    | "/queues/"
+    | "/workflows"
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | "/"
+    | "/about/about"
+    | "/jobs/$jobId"
+    | "/queues/$name"
+    | "/workflows/$workflowId"
+    | "/jobs"
+    | "/queues"
+    | "/workflows"
+  id:
+    | "__root__"
+    | "/"
+    | "/jobs"
+    | "/queues"
+    | "/about/about"
+    | "/jobs/$jobId"
+    | "/queues/$name"
+    | "/workflows/$workflowId"
+    | "/jobs/"
+    | "/queues/"
+    | "/workflows/"
+  fileRoutesById: FileRoutesById
+}
+
+export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
+  JobsRoute: typeof JobsRouteWithChildren
+  QueuesRoute: typeof QueuesRouteWithChildren
+  AboutAboutRoute: typeof AboutAboutRoute
+  WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRoute
+  WorkflowsIndexRoute: typeof WorkflowsIndexRoute
+}
+
+const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
+  JobsRoute: JobsRouteWithChildren,
+  QueuesRoute: QueuesRouteWithChildren,
+  AboutAboutRoute: AboutAboutRoute,
+  WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRoute,
+  WorkflowsIndexRoute: WorkflowsIndexRoute,
+}
+
+export const routeTree = rootRoute
+  ._addFileChildren(rootRouteChildren)
+  ._addFileTypes<FileRouteTypes>()
 
 /* prettier-ignore-end */
 
