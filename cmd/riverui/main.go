@@ -23,17 +23,9 @@ import (
 	"riverqueue.com/riverui"
 )
 
-var logger *slog.Logger //nolint:gochecknoglobals
-
 func main() {
 	ctx := context.Background()
-
-	if os.Getenv("RIVER_DEBUG") == "1" || os.Getenv("RIVER_DEBUG") == "true" {
-		logger = slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelDebug}))
-	} else {
-		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
-	}
-
+	initLogger()
 	os.Exit(initAndServe(ctx))
 }
 

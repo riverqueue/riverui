@@ -46,6 +46,15 @@ $ docker run -p 8080:8080 --env DATABASE_URL ghcr.io/riverqueue/riverui:latest
 
 The `riverui` command accepts a `-prefix` arg to set a path prefix on both the API and static assets. When executing the Docker image, this is accepted as a `PATH_PREFIX` env.
 
+### Logging Configuration
+
+The `riverui` command utilizes the `RIVER_LOG_LEVEL` environment variable to configure its logging level. The following values are accepted:
+
+* `DEBUG`
+* `INFO` (default)
+* `WARN`
+* `ERROR`
+
 ## Development
 
 See [developing River UI](./development.md).
