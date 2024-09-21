@@ -50,10 +50,10 @@ The `riverui` command accepts a `-prefix` arg to set a path prefix on both the A
 
 The `riverui` command utilizes the `RIVER_LOG_LEVEL` environment variable to configure its logging level. The following values are accepted:
 
-* `DEBUG`
-* `INFO` (default)
-* `WARN`
-* `ERROR`
+* `debug`
+* `info` (default)
+* `warn`
+* `error`
 
 ## Development
 

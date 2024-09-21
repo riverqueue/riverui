@@ -14,7 +14,8 @@ func initLogger() {
 }
 
 func getLogLevel() slog.Level {
-	if isDebug() {
+	debugEnv := os.Getenv("RIVER_DEBUG")
+	if debugEnv == "1" || debugEnv == "true" {
 		return slog.LevelDebug
 	}
 
@@ -27,12 +28,7 @@ func getLogLevel() slog.Level {
 		return slog.LevelWarn
 	case "error":
 		return slog.LevelError
+	default:
+		return slog.LevelInfo
 	}
-
-	return slog.LevelInfo
-}
-
-func isDebug() bool {
-	debugEnv := os.Getenv("RIVER_DEBUG")
-	return debugEnv == "1" || debugEnv == "true"
 }
