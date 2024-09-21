@@ -50,7 +50,7 @@ func initAndServe(ctx context.Context) int {
 	var (
 		corsOrigins = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
 		dbURL       = mustEnv("DATABASE_URL")
-		host        = os.Getenv("HOST") // may be left empty to bind to all local interfaces
+		host        = os.Getenv("RIVER_HOST") // may be left empty to bind to all local interfaces
 		otelEnabled = os.Getenv("OTEL_ENABLED") == "true"
 		port        = cmp.Or(os.Getenv("PORT"), "8080")
 	)
