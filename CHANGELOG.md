@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `RIVER_LOG_LEVEL` env for env-based configuration of River UI's log level. Thank you [Taras Turchenko](https://github.com/TArch64)! 🙏🏻 [PR #183](https://github.com/riverqueue/riverui/pull/183).
+
 ### Changed
 
 - Allow `HOST` variable to specify specific host variable to bind to. [PR #157](https://github.com/riverqueue/riverui/pull/157).
