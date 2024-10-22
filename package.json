@@ -5,7 +5,7 @@
   "type": "module",
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",
-    "@headlessui/react": "^2.1.8",
+    "@headlessui/react": "^2.1.10",
     "@headlessui/tailwindcss": "^0.2.1",
     "@heroicons/react": "^2.1.5",
     "@tailwindcss/typography": "^0.5.15",
