@@ -52,7 +52,7 @@ func (e *APIError) Write(ctx context.Context, logger *slog.Logger, w http.Respon
 }
 
 // Interface is an interface to an API error. This is needed for use with
-// errors.As because APIError itself is emedded on another error struct, and
+// errors.As because APIError itself is embedded on another error struct, and
 // won't be usable as an errors.As target.
 type Interface interface {
 	Error() string

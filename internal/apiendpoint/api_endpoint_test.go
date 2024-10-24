@@ -309,7 +309,7 @@ func (a *postEndpoint) Execute(ctx context.Context, req *postRequest) (*postResp
 
 	if req.MakePostgresError {
 		// Wrap the error to make it more realistic.
-		return nil, fmt.Errorf("error runnning Postgres query: %w", &pgconn.PgError{Code: pgerrcode.InsufficientPrivilege})
+		return nil, fmt.Errorf("error running Postgres query: %w", &pgconn.PgError{Code: pgerrcode.InsufficientPrivilege})
 	}
 
 	return &postResponse{Message: req.Message}, nil
