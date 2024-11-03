@@ -6,8 +6,8 @@ import { QueryClientProvider } from "@tanstack/react-query";
 
 import { queryClient } from "@services/queryClient";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { RefreshSettingProvider } from "@contexts/RefreshSettings";
-import { SidebarSettingProvider } from "@contexts/SidebarSetting";
+import { SidebarSettingProvider } from "@contexts/SidebarSetting.provider";
+import { RefreshSettingProvider } from "@contexts/RefreshSettings.provider";
 
 function ThemeWatcher() {
   const { resolvedTheme, setTheme } = useTheme();
