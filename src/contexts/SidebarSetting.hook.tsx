@@ -1,8 +1,6 @@
 import { useContext } from "react";
-import {
-  SidebarSettingContext,
-  UseSidebarSettingProps,
-} from "./SidebarSetting";
+import { UseSidebarSettingProps } from "./SidebarSetting.provider";
+import { SidebarSettingContext } from "./SidebarSetting";
 
 const defaultContext: UseSidebarSettingProps = {
   open: false,
