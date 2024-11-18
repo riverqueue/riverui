@@ -5,15 +5,15 @@ go 1.22
 toolchain go1.23.0
 
 require (
-	github.com/go-playground/validator/v10 v10.22.1
+	github.com/go-playground/validator/v10 v10.23.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.7.1
-	github.com/riverqueue/river v0.14.1
-	github.com/riverqueue/river/riverdriver v0.14.1
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.1
-	github.com/riverqueue/river/rivershared v0.14.1
-	github.com/riverqueue/river/rivertype v0.14.1
+	github.com/riverqueue/river v0.14.2
+	github.com/riverqueue/river/riverdriver v0.14.2
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.2
+	github.com/riverqueue/river/rivershared v0.14.2
+	github.com/riverqueue/river/rivertype v0.14.2
 	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.4.4
 	github.com/stretchr/testify v1.9.0
@@ -38,9 +38,9 @@ require (
 	go.uber.org/goleak v1.3.0 // indirect
 	golang.org/x/crypto v0.28.0 // indirect
 	golang.org/x/net v0.23.0 // indirect
-	golang.org/x/sync v0.8.0 // indirect
+	golang.org/x/sync v0.9.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
+	golang.org/x/text v0.20.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
