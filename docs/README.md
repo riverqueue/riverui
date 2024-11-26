@@ -1,4 +1,4 @@
-# River UI
+# River UI [![Go Reference](https://pkg.go.dev/badge/riverqueue.com/riverui.svg)](https://pkg.go.dev/riverqueue.com/riverui)
 
 River UI is a graphical user interface for the [River job queue](https://github.com/riverqueue/river). It lets users view and manage jobs without having to resort to querying the database or the command line.
 
