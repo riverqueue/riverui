@@ -21,6 +21,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"riverqueue.com/riverui"
+	"riverqueue.com/riverui/internal/apimiddleware"
 )
 
 func main() {
@@ -48,11 +49,13 @@ func initAndServe(ctx context.Context) int {
 	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
 
 	var (
-		corsOrigins = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
-		dbURL       = mustEnv("DATABASE_URL")
-		host        = os.Getenv("RIVER_HOST") // may be left empty to bind to all local interfaces
-		otelEnabled = os.Getenv("OTEL_ENABLED") == "true"
-		port        = cmp.Or(os.Getenv("PORT"), "8080")
+		basicAuthUsername = os.Getenv("RIVER_BASIC_AUTH_USER")
+		basicAuthPassword = os.Getenv("RIVER_BASIC_AUTH_PASS")
+		corsOrigins       = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
+		dbURL             = mustEnv("DATABASE_URL")
+		host              = os.Getenv("RIVER_HOST") // may be left empty to bind to all local interfaces
+		otelEnabled       = os.Getenv("OTEL_ENABLED") == "true"
+		port              = cmp.Or(os.Getenv("PORT"), "8080")
 	)
 
 	dbPool, err := getDBPool(ctx, dbURL)
@@ -61,11 +64,6 @@ func initAndServe(ctx context.Context) int {
 		return 1
 	}
 	defer dbPool.Close()
-
-	corsHandler := cors.New(cors.Options{
-		AllowedMethods: []string{"GET", "HEAD", "POST", "PUT"},
-		AllowedOrigins: corsOrigins,
-	})
 
 	client, err := river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
 	if err != nil {
@@ -88,21 +86,32 @@ func initAndServe(ctx context.Context) int {
 		return 1
 	}
 
-	if err := server.Start(ctx); err != nil {
+	if err = server.Start(ctx); err != nil {
 		logger.ErrorContext(ctx, "error starting UI server", slog.String("error", err.Error()))
 		return 1
 	}
 
-	logHandler := sloghttp.Recovery(server)
-	config := sloghttp.Config{
+	corsHandler := cors.New(cors.Options{
+		AllowedMethods: []string{"GET", "HEAD", "POST", "PUT"},
+		AllowedOrigins: corsOrigins,
+	})
+	logHandler := sloghttp.NewWithConfig(logger, sloghttp.Config{
 		WithSpanID:  otelEnabled,
 		WithTraceID: otelEnabled,
+	})
+
+	middlewareStack := apimiddleware.NewMiddlewareStack(
+		apimiddleware.MiddlewareFunc(sloghttp.Recovery),
+		apimiddleware.MiddlewareFunc(corsHandler.Handler),
+		apimiddleware.MiddlewareFunc(logHandler),
+	)
+	if basicAuthUsername != "" && basicAuthPassword != "" {
+		middlewareStack.Use(&authMiddleware{username: basicAuthUsername, password: basicAuthPassword})
 	}
-	wrappedHandler := sloghttp.NewWithConfig(logger, config)(corsHandler.Handler(logHandler))
 
 	srv := &http.Server{
 		Addr:              host + ":" + port,
-		Handler:           wrappedHandler,
+		Handler:           middlewareStack.Mount(server),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

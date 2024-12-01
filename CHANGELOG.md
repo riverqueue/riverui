@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for basic auth to the riverui executable. Thanks [Taras Turchenko](https://github.com/TArch64)! [PR #241](https://github.com/riverqueue/riverui/pull/241).
+
 ## [0.6.0] - 2024-11-26
 
 ### Added
