@@ -55,6 +55,11 @@ The `riverui` command utilizes the `RIVER_LOG_LEVEL` environment variable to con
 * `warn`
 * `error`
 
+### Basic HTTP Authentication
+
+The `riverui` supports basic HTTP authentication to protect access to the UI.
+To enable it, set the `RIVER_BASIC_AUTH_USER` and `RIVER_BASIC_AUTH_PASS` environment variables.
+
 ## Development
 
 See [developing River UI](./development.md).
