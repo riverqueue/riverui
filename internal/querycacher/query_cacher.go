@@ -2,6 +2,7 @@ package querycacher
 
 import (
 	"context"
+	"math/rand/v2"
 	"regexp"
 	"sync"
 	"time"
@@ -34,7 +35,7 @@ func NewQueryCacher[TRes any](archetype *baseservice.Archetype, db dbsqlc.DBTX, 
 	// +/- 1s random variance to ticker interval. Makes sure that given multiple
 	// query caches running simultaneously, they all start and are scheduled a
 	// little differently to make a thundering herd problem less likely.
-	randomTickVariance := time.Duration(archetype.Rand.Float64()*float64(2*time.Second)) - 1*time.Second
+	randomTickVariance := time.Duration(rand.Float64()*float64(2*time.Second)) - 1*time.Second //nolint:gosec
 
 	queryCacher := baseservice.Init(archetype, &QueryCacher[TRes]{
 		db:         db,
