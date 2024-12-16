@@ -20,7 +20,6 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
-	"github.com/riverqueue/river/rivershared/util/randutil"
 	"github.com/riverqueue/river/rivershared/util/valutil"
 
 	"riverqueue.com/riverui/internal/apiendpoint"
@@ -130,15 +129,10 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	serveIndex := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
 
 	apiBundle := apiBundle{
-		// TODO: Switch to baseservice.NewArchetype when available.
-		archetype: &baseservice.Archetype{
-			Logger: opts.Logger,
-			Rand:   randutil.NewCryptoSeededConcurrentSafeRand(),
-			Time:   &baseservice.UnStubbableTimeGenerator{},
-		},
-		client: opts.Client,
-		dbPool: opts.DB,
-		logger: opts.Logger,
+		archetype: baseservice.NewArchetype(opts.Logger),
+		client:    opts.Client,
+		dbPool:    opts.DB,
+		logger:    opts.Logger,
 	}
 
 	mux := http.NewServeMux()
