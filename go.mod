@@ -8,7 +8,7 @@ require (
 	github.com/go-playground/validator/v10 v10.23.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
-	github.com/jackc/pgx/v5 v5.7.1
+	github.com/jackc/pgx/v5 v5.7.2
 	github.com/riverqueue/river v0.14.3
 	github.com/riverqueue/river/riverdriver v0.14.3
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.14.3
