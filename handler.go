@@ -203,11 +203,8 @@ func (s *Server) Start(ctx context.Context) error {
 		return nil
 	}
 
-	// TODO: Replace with startstop.StartAll when possible.
-	for _, service := range s.services {
-		if err := service.Start(ctx); err != nil {
-			return err
-		}
+	if err := startstop.StartAll(ctx, s.services...); err != nil {
+		return err
 	}
 
 	go func() {
