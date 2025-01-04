@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -26,25 +25,59 @@ import (
 
 func main() {
 	ctx := context.Background()
-	initLogger()
-	os.Exit(initAndServe(ctx))
-}
 
-func initAndServe(ctx context.Context) int {
-	var (
-		devMode    bool
-		liveFS     bool
-		pathPrefix string
-	)
-	_, liveFS = os.LookupEnv("LIVE_FS")
-	_, devMode = os.LookupEnv("DEV")
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		Level: getLogLevel(),
+	}))
 
+	var pathPrefix string
 	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
 	flag.Parse()
 
+	initRes, err := initServer(ctx, logger, pathPrefix)
+	if err != nil {
+		logger.ErrorContext(ctx, "Error initializing server", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+
+	if err := startAndListen(ctx, logger, initRes); err != nil {
+		logger.ErrorContext(ctx, "Error starting server", slog.String("error", err.Error()))
+		os.Exit(1)
+	}
+}
+
+// Translates either a "1" or "true" from env to a Go boolean.
+func envBooleanTrue(val string) bool {
+	return val == "1" || val == "true"
+}
+
+func getLogLevel() slog.Level {
+	if envBooleanTrue(os.Getenv("RIVER_DEBUG")) {
+		return slog.LevelDebug
+	}
+
+	switch strings.ToLower(os.Getenv("RIVER_LOG_LEVEL")) {
+	case "debug":
+		return slog.LevelDebug
+	case "warn":
+		return slog.LevelWarn
+	case "error":
+		return slog.LevelError
+	default:
+		return slog.LevelInfo
+	}
+}
+
+type initServerResult struct {
+	dbPool     *pgxpool.Pool   // database pool; close must be deferred by caller!
+	httpServer *http.Server    // HTTP server wrapping the UI server
+	logger     *slog.Logger    // application logger (also internalized in UI server)
+	uiServer   *riverui.Server // River UI server
+}
+
+func initServer(ctx context.Context, logger *slog.Logger, pathPrefix string) (*initServerResult, error) {
 	if !strings.HasPrefix(pathPrefix, "/") || pathPrefix == "" {
-		logger.ErrorContext(ctx, "invalid path prefix", slog.String("prefix", pathPrefix))
-		return 1
+		return nil, fmt.Errorf("invalid path prefix: %s", pathPrefix)
 	}
 	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
 
@@ -52,43 +85,43 @@ func initAndServe(ctx context.Context) int {
 		basicAuthUsername = os.Getenv("RIVER_BASIC_AUTH_USER")
 		basicAuthPassword = os.Getenv("RIVER_BASIC_AUTH_PASS")
 		corsOrigins       = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
-		dbURL             = mustEnv("DATABASE_URL")
+		databaseURL       = os.Getenv("DATABASE_URL")
+		devMode           = envBooleanTrue(os.Getenv("DEV"))
 		host              = os.Getenv("RIVER_HOST") // may be left empty to bind to all local interfaces
-		otelEnabled       = os.Getenv("OTEL_ENABLED") == "true"
+		liveFS            = envBooleanTrue(os.Getenv("LIVE_FS"))
+		otelEnabled       = envBooleanTrue(os.Getenv("OTEL_ENABLED"))
 		port              = cmp.Or(os.Getenv("PORT"), "8080")
 	)
 
-	dbPool, err := getDBPool(ctx, dbURL)
-	if err != nil {
-		logger.ErrorContext(ctx, "error connecting to db", slog.String("error", err.Error()))
-		return 1
+	if databaseURL == "" && os.Getenv("PGDATABASE") == "" {
+		return nil, errors.New("expect to have DATABASE_URL or database configuration in standard PG* env vars like PGDATABASE/PGHOST/PGPORT/PGUSER/PGPASSWORD")
 	}
-	defer dbPool.Close()
+
+	poolConfig, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing db config: %w", err)
+	}
+
+	dbPool, err := pgxpool.NewWithConfig(ctx, poolConfig)
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to db: %w", err)
+	}
 
 	client, err := river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
 	if err != nil {
-		logger.ErrorContext(ctx, "error creating river client", slog.String("error", err.Error()))
-		return 1
+		return nil, err
 	}
 
-	handlerOpts := &riverui.ServerOpts{
+	uiServer, err := riverui.NewServer(&riverui.ServerOpts{
 		Client:  client,
 		DB:      dbPool,
 		DevMode: devMode,
 		LiveFS:  liveFS,
 		Logger:  logger,
 		Prefix:  pathPrefix,
-	}
-
-	server, err := riverui.NewServer(handlerOpts)
+	})
 	if err != nil {
-		logger.ErrorContext(ctx, "error creating handler", slog.String("error", err.Error()))
-		return 1
-	}
-
-	if err = server.Start(ctx); err != nil {
-		logger.ErrorContext(ctx, "error starting UI server", slog.String("error", err.Error()))
-		return 1
+		return nil, err
 	}
 
 	corsHandler := cors.New(cors.Options{
@@ -109,40 +142,30 @@ func initAndServe(ctx context.Context) int {
 		middlewareStack.Use(&authMiddleware{username: basicAuthUsername, password: basicAuthPassword})
 	}
 
-	srv := &http.Server{
-		Addr:              host + ":" + port,
-		Handler:           middlewareStack.Mount(server),
-		ReadHeaderTimeout: 5 * time.Second,
-	}
-
-	log.Printf("starting server on %s", srv.Addr)
-
-	if err = srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		logger.ErrorContext(ctx, "error from ListenAndServe", slog.String("error", err.Error()))
-		return 1
-	}
-
-	return 0
+	return &initServerResult{
+		dbPool: dbPool,
+		httpServer: &http.Server{
+			Addr:              host + ":" + port,
+			Handler:           middlewareStack.Mount(uiServer),
+			ReadHeaderTimeout: 5 * time.Second,
+		},
+		logger:   logger,
+		uiServer: uiServer,
+	}, nil
 }
 
-func getDBPool(ctx context.Context, dbURL string) (*pgxpool.Pool, error) {
-	poolConfig, err := pgxpool.ParseConfig(dbURL)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing db config: %w", err)
+func startAndListen(ctx context.Context, logger *slog.Logger, initRes *initServerResult) error {
+	defer initRes.dbPool.Close()
+
+	if err := initRes.uiServer.Start(ctx); err != nil {
+		return err
 	}
 
-	dbPool, err := pgxpool.NewWithConfig(ctx, poolConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error connecting to db: %w", err)
-	}
-	return dbPool, nil
-}
+	logger.InfoContext(ctx, "Starting server", slog.String("addr", initRes.httpServer.Addr))
 
-func mustEnv(name string) string {
-	val := os.Getenv(name)
-	if val == "" {
-		logger.Error("missing required env var", slog.String("name", name))
-		os.Exit(1)
+	if err := initRes.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
 	}
-	return val
+
+	return nil
 }
