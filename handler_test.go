@@ -41,7 +41,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 			logger := riverinternaltest.Logger(t)
 
 			// Start a new savepoint so that the state of our test data stays
-			// prestine between API calls.
+			// pristine between API calls.
 			tx, err := tx.Begin(ctx)
 			require.NoError(t, err)
 			t.Cleanup(func() { tx.Rollback(ctx) })

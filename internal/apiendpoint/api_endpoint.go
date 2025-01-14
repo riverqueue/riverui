@@ -45,7 +45,7 @@ type EndpointInterface interface {
 	// Implementation inherited from an embedded Endpoint struct.
 	SetLogger(logger *slog.Logger)
 
-	// SetMeta sets metadata on an Endpoint struct after its extracted from a
+	// SetMeta sets metadata on an Endpoint struct after it's extracted from a
 	// call to an endpoint's Meta function.
 	//
 	// Implementation inherited from an embedded Endpoint struct.
