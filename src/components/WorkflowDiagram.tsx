@@ -1,4 +1,4 @@
-import ReactFlow, { MiniMap } from "reactflow";
+import { ReactFlow, MiniMap } from "@xyflow/react";
 import type {
   Edge,
   Node,
@@ -6,10 +6,10 @@ import type {
   NodeSelectionChange,
   NodeTypes,
   Position,
-} from "reactflow";
+} from "@xyflow/react";
 import dagre from "@dagrejs/dagre";
 
-import "reactflow/dist/style.css";
+import "@xyflow/react/dist/style.css";
 
 import { JobWithKnownMetadata } from "@services/jobs";
 import { useTheme } from "next-themes";
