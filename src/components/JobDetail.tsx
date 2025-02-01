@@ -202,7 +202,10 @@ export default function JobDetail({
                     <dd className="mt-1 overflow-hidden text-ellipsis font-mono text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
                       {jobWithMetadata.metadata.workflow_id ? (
                         <Link
-                          to={`/workflows/${jobWithMetadata.metadata.workflow_id}`}
+                          to="/workflows/$workflowId"
+                          params={{
+                            workflowId: jobWithMetadata.metadata.workflow_id,
+                          }}
                           search={{ selected: job.id }}
                         >
                           {jobWithMetadata.metadata.workflow_id}

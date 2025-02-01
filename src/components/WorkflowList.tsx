@@ -138,7 +138,10 @@ const WorkflowTable = ({
           <tr key={workflowItem.id}>
             <td className="max-w-72 py-2 pl-4 pr-3 text-sm font-medium text-slate-700 dark:text-slate-300 sm:w-auto sm:pl-0">
               <div className="truncate font-mono font-semibold dark:text-slate-100">
-                <Link to={`/workflows/${workflowItem.id}`}>
+                <Link
+                  to="/workflows/$workflowId"
+                  params={{ workflowId: workflowItem.id }}
+                >
                   {workflowItem.id}
                 </Link>
               </div>
