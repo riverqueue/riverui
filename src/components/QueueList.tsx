@@ -108,7 +108,7 @@ const QueueList = ({
                   </td>
                   <td className="py-2 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
                     <button
-                      className="rounded-md bg-white px-2 py-1 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-inset ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-slate-700 dark:hover:bg-white/20"
+                      className="rounded-md bg-white px-2 py-1 text-sm font-semibold text-slate-900 shadow-xs ring-1 ring-inset ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-slate-700 dark:hover:bg-white/20"
                       onClick={
                         queue.pausedAt
                           ? () => resumeQueue(queue.name)

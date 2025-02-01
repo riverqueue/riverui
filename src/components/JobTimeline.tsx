@@ -62,7 +62,7 @@ const StatusStep = ({
       className={clsx(
         "relative ms-6 pb-4 before:absolute before:-left-1 before:top-0 before:block before:h-full before:w-0.5 before:border-l before:content-['']",
         statusVerticalLineClasses,
-        "before:last:border-transparent dark:before:last:border-transparent"
+        "last:before:border-transparent dark:last:before:border-transparent"
       )}
     >
       <span
@@ -87,13 +87,13 @@ const StatusStep = ({
 const statusVerticalLineClassesFor = (status: StepStatus): string => {
   switch (status) {
     case "active":
-      return "before:border-gray-200 before:dark:border-gray-700";
+      return "before:border-gray-200 dark:before:border-gray-700";
     case "pending":
-      return "before:border-gray-200 before:dark:border-gray-700";
+      return "before:border-gray-200 dark:before:border-gray-700";
     case "complete":
-      return "before:border-green-400 before:dark:border-green-900";
+      return "before:border-green-400 dark:before:border-green-900";
     case "failed":
-      return "before:border-red-200 before:dark:border-red-900";
+      return "before:border-red-200 dark:before:border-red-900";
   }
   return "";
 };

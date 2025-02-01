@@ -55,7 +55,7 @@ function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
   };
 
   return (
-    <span className="isolate inline-flex rounded-md shadow-sm">
+    <span className="isolate inline-flex rounded-md shadow-xs">
       <ButtonForGroup
         Icon={ArrowUturnLeftIcon}
         text="Retry"

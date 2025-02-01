@@ -107,7 +107,7 @@ export function ThemeSelector(
           >
             {({ selected }) => (
               <>
-                <div className="rounded-md bg-white p-1 shadow ring-1 ring-slate-900/5 dark:bg-slate-700 dark:ring-inset dark:ring-white/5">
+                <div className="rounded-md bg-white p-1 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-700 dark:ring-inset dark:ring-white/5">
                   <theme.icon
                     className={clsx(
                       "size-4",

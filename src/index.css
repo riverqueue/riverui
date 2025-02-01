@@ -1,6 +1,71 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+@plugin '@tailwindcss/forms';
+@plugin '@tailwindcss/typography';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --animate-spin-slow: spin 3s linear infinite;
+  --animate-spin-50-50: pausingSpin 10s linear infinite;
+
+  --color-brand-primary: rgb(37, 99, 235);
+
+  --font-sans: ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji',
+    'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+  @keyframes pausingSpin {
+    0% {
+      transform: rotate(0);
+      animation-timing-function: ease-in-out;
+    }
+    15%,
+    50% {
+      transform: rotate(180deg);
+    }
+    50% {
+      transform: rotate(180deg);
+      animation-timing-function: ease-in-out;
+    }
+    65%,
+    100% {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+/*
+  The default border color has changed to `currentColor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentColor);
+  }
+
+  a {
+    color: var(--color-sky-500);
+    font-weight: 600;
+    text-decoration: inherit;
+  }
+
+  .dark a:hover {
+    color: var(--color-sky-600);
+  }
+
+  a:hover,
+  .dark a:hover {
+    color: var(--color-brand-primary);
+  }
+}
 
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -15,19 +80,4 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
-}
-
-a {
-  font-weight: 600;
-  color: theme("colors.sky.500");
-  text-decoration: inherit;
-}
-
-.dark a:hover {
-  color: theme("colors.sky.600");
-}
-
-a:hover,
-.dark a:hover {
-  color: theme("colors.brand-primary");
 }

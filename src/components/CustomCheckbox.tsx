@@ -40,7 +40,7 @@ export function CustomCheckbox({
       ref={checkboxRef}
       checked={checked}
       className={classNames(
-        "h-4 w-4 rounded border-slate-300 text-brand-primary focus:ring-indigo-600",
+        "h-4 w-4 rounded-sm border-slate-300 text-brand-primary focus:ring-indigo-600",
         // Background color applied to control in dark mode
         "dark:bg-white/5 dark:border-slate-700",
         className || ""

@@ -47,13 +47,13 @@ export function DropdownMenu({
           props.className,
 
           // Anchor positioning
-          "[--anchor-gap:theme(spacing.2)] [--anchor-padding:theme(spacing.3)] data-[anchor~=start]:[--anchor-offset:-4px] data-[anchor~=end]:[--anchor-offset:4px]",
+          "[--anchor-gap:--spacing(2)] [--anchor-padding:--spacing(3)] data-[anchor~=start]:[--anchor-offset:-4px] data-[anchor~=end]:[--anchor-offset:4px]",
 
           // Base styles
           "isolate w-max rounded-xl p-1",
 
           // Invisible border that is only visible in `forced-colors` mode for accessibility purposes
-          "outline outline-1 outline-transparent focus:outline-none",
+          "outline outline-1 outline-transparent focus:outline-hidden",
 
           // Handle scrolling when menu won't fit in viewport
           "overflow-y-auto",
@@ -85,26 +85,26 @@ export function DropdownItem(
         props.className,
 
         // Base styles
-        "group cursor-default rounded-lg px-3.5 py-2.5 focus:outline-none sm:px-3 sm:py-1.5",
+        "group cursor-default rounded-lg px-3.5 py-2.5 focus:outline-hidden sm:px-3 sm:py-1.5",
 
         // Text styles
         "text-left text-sm/6 text-zinc-950 dark:text-white sm:text-sm/6 forced-colors:text-[CanvasText]",
 
         // Focus
-        "data-[focus]:bg-blue-500 data-[focus]:text-white",
+        "data-focus:bg-blue-500 data-focus:text-white",
 
         // Disabled state
-        "data-[disabled]:opacity-50",
+        "data-disabled:opacity-50",
 
         // Forced colors mode
-        "forced-color-adjust-none forced-colors:data-[focus]:bg-[Highlight] forced-colors:data-[focus]:text-[HighlightText] forced-colors:[&>[data-slot=icon]]:data-[focus]:text-[HighlightText]",
+        "forced-color-adjust-none forced-colors:data-focus:bg-[Highlight] forced-colors:data-focus:text-[HighlightText] forced-colors:data-focus:*:data-[slot=icon]:text-[HighlightText]",
 
         // Use subgrid when available but fallback to an explicit grid layout if not
         "col-span-full grid grid-cols-[auto_1fr_1.5rem_0.5rem_auto] items-center supports-[grid-template-columns:subgrid]:grid-cols-subgrid",
 
         // Icon
-        "[&>[data-slot=icon]]:col-start-1 [&>[data-slot=icon]]:row-start-1 [&>[data-slot=icon]]:mr-2.5 [&>[data-slot=icon]]:size-5 sm:[&>[data-slot=icon]]:mr-2 [&>[data-slot=icon]]:sm:size-4",
-        "[&>[data-slot=icon]]:text-zinc-500 [&>[data-slot=icon]]:data-[focus]:text-white [&>[data-slot=icon]]:dark:text-zinc-500 [&>[data-slot=icon]]:data-[focus]:dark:text-white"
+        "*:data-[slot=icon]:col-start-1 *:data-[slot=icon]:row-start-1 *:data-[slot=icon]:mr-2.5 *:data-[slot=icon]:size-5 sm:*:data-[slot=icon]:mr-2 sm:*:data-[slot=icon]:size-4",
+        "*:data-[slot=icon]:text-zinc-500 data-focus:*:data-[slot=icon]:text-white dark:*:data-[slot=icon]:text-zinc-500 dark:data-focus:*:data-[slot=icon]:text-white"
       )}
     />
   );
@@ -147,7 +147,7 @@ export function DropdownHeading({
       {...props}
       className={clsx(
         className,
-        "col-span-full grid grid-cols-[1fr,auto] gap-x-12 px-3.5 pb-1 pt-2 text-sm/5 font-medium text-zinc-500 dark:text-zinc-400 sm:px-3 sm:text-xs/5"
+        "col-span-full grid grid-cols-[1fr_auto] gap-x-12 px-3.5 pb-1 pt-2 text-sm/5 font-medium text-zinc-500 dark:text-zinc-400 sm:px-3 sm:text-xs/5"
       )}
     />
   );
@@ -189,7 +189,7 @@ export function DropdownDescription({
       {...props}
       className={clsx(
         className,
-        "col-span-2 col-start-2 row-start-2 text-sm/5 text-zinc-500 group-data-[focus]:text-white dark:text-zinc-400 sm:text-xs/5 forced-colors:group-data-[focus]:text-[HighlightText]"
+        "col-span-2 col-start-2 row-start-2 text-sm/5 text-zinc-500 group-data-focus:text-white dark:text-zinc-400 sm:text-xs/5 forced-colors:group-data-focus:text-[HighlightText]"
       )}
     />
   );
@@ -213,7 +213,7 @@ export function DropdownShortcut({
         <kbd
           key={index}
           className={clsx([
-            "min-w-[2ch] text-center font-sans capitalize text-zinc-400 group-data-[focus]:text-white forced-colors:group-data-[focus]:text-[HighlightText]",
+            "min-w-[2ch] text-center font-sans capitalize text-zinc-400 group-data-focus:text-white forced-colors:group-data-focus:text-[HighlightText]",
 
             // Make sure key names that are longer than one character (like "Tab") have extra space
             index > 0 && char.length > 1 && "pl-1",

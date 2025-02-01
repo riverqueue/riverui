@@ -88,7 +88,7 @@ const dlClasses = "grid grid-cols-[130px_auto] text-base/6 sm:text-sm/6";
 const dtClasses =
   "col-start-1 border-zinc-950/5 pt-2 text-zinc-500 first:border-none sm:border-zinc-950/5 sm:py-2 dark:border-white/5 dark:text-zinc-400 sm:dark:border-white/5";
 const ddClasses =
-  "pb-2 pt-1 text-zinc-950 sm:border-zinc-950/5 sm:py-2 dark:text-white dark:sm:border-white/5 sm:[&:nth-child(2)]:border-none";
+  "pb-2 pt-1 text-zinc-950 sm:border-zinc-950/5 sm:py-2 dark:text-white dark:sm:border-white/5 sm:nth-2:border-none";
 
 const SelectedJobDetails = ({
   job,
