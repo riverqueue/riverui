@@ -31,7 +31,7 @@ export const ToastContentSuccess = ({
     <div className="ml-4 flex shrink-0">
       <button
         type="button"
-        className="inline-flex rounded-md bg-white text-slate-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-slate-900 dark:text-slate-500"
+        className="inline-flex rounded-md bg-white text-slate-400 hover:text-gray-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-slate-900 dark:text-slate-500"
         onClick={() => toast.dismiss(t.id)}
       >
         <span className="sr-only">Close</span>
@@ -68,7 +68,7 @@ export const ToastContentError = ({
     <div className="ml-4 flex shrink-0">
       <button
         type="button"
-        className="inline-flex rounded-md bg-white text-slate-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-slate-900 dark:text-slate-500"
+        className="inline-flex rounded-md bg-white text-slate-400 hover:text-gray-500 focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-slate-900 dark:text-slate-500"
         onClick={() => toast.dismiss(t.id)}
       >
         <span className="sr-only">Close</span>

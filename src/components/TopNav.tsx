@@ -12,7 +12,7 @@ const TopNav = ({ children }: TopNavProps) => {
 
   return (
     <div className="sticky top-0 z-10 bg-white dark:border-slate-700 dark:bg-slate-900 lg:mx-auto">
-      <div className="flex h-16 items-center gap-x-4 border-b  px-4 shadow-sm dark:border-slate-800 sm:gap-x-6 sm:px-6 lg:px-8 lg:shadow-none">
+      <div className="flex h-16 items-center gap-x-4 border-b  px-4 shadow-xs dark:border-slate-800 sm:gap-x-6 sm:px-6 lg:px-8 lg:shadow-none">
         <button
           type="button"
           className="-m-2.5 p-2.5 text-slate-700 lg:hidden"

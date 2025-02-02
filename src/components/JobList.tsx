@@ -193,7 +193,7 @@ function JobListActionButtons({
   return (
     <span
       className={classNames(
-        "inline-flex rounded-md shadow-sm mr-6",
+        "inline-flex rounded-md shadow-xs mr-6",
         className || ""
       )}
     >
@@ -388,7 +388,7 @@ const JobList = (props: JobListProps) => {
           </h1>
           <Dropdown>
             <HeadlessMenuButton
-              className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1 text-slate-700 data-[active]:border-slate-200 data-[hover]:border-slate-200 dark:text-slate-300 dark:data-[active]:border-slate-700 dark:data-[hover]:border-slate-700"
+              className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1 text-slate-700 data-active:border-slate-200 data-hover:border-slate-200 dark:text-slate-300 dark:data-active:border-slate-700 dark:data-hover:border-slate-700"
               aria-label="Account options"
             >
               <span className="flex min-w-36 flex-1 items-center justify-between text-left">
@@ -404,7 +404,7 @@ const JobList = (props: JobListProps) => {
               </span>
               <ChevronUpDownIcon className="ml-auto mr-1 size-4 shrink-0 stroke-zinc-400" />
             </HeadlessMenuButton>
-            <DropdownMenu className="z-40 min-w-[--button-width]">
+            <DropdownMenu className="z-40 min-w-(--button-width)">
               {filterItems.map((item: JobStateFilterItem) => (
                 <DropdownItem
                   key={item.state}

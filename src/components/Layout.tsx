@@ -157,7 +157,7 @@ const Layout = ({ children }: LayoutProps) => {
         </Transition>
 
         {/* Static sidebar for desktop */}
-        <div className="hidden overflow-x-hidden bg-slate-100 shadow shadow-slate-400 transition-all hover:w-40 dark:bg-slate-800 dark:shadow-slate-600 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4">
+        <div className="hidden overflow-x-hidden bg-slate-100 shadow-sm shadow-slate-400 transition-all hover:w-40 dark:bg-slate-800 dark:shadow-slate-600 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4">
           <div className="flex w-40 grow flex-col">
             <nav className="flex flex-1 flex-col">
               <ul role="list" className="flex   flex-1 flex-col">

@@ -5,7 +5,6 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import eslintConfigPrettier from "eslint-config-prettier";
 import storybook from "eslint-plugin-storybook";
-import tailwindcss from "eslint-plugin-tailwindcss";
 
 export default tseslint.config(
   { ignores: ["dist"] },
@@ -24,7 +23,6 @@ export default tseslint.config(
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
       storybook: storybook,
-      tailwindcss: tailwindcss,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
