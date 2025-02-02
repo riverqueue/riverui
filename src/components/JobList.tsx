@@ -50,7 +50,7 @@ const timestampForRelativeDisplay = (job: Job): Date => {
   }
 };
 
-const JobTimeDisplay = ({ job }: { job: Job }): JSX.Element => {
+const JobTimeDisplay = ({ job }: { job: Job }): React.JSX.Element => {
   return (
     <span>
       <RelativeTimeFormatter

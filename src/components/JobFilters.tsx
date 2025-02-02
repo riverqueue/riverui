@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { useMemo } from "react";
+import React, { useMemo } from "react";
 
 import Logo from "@components/Logo";
 import { StatesAndCounts } from "@services/states";
@@ -10,7 +10,7 @@ type JobFiltersProps = {
   statesAndCounts?: StatesAndCounts;
 };
 
-export const JobFilters: (props: JobFiltersProps) => JSX.Element = ({
+export const JobFilters: (props: JobFiltersProps) => React.JSX.Element = ({
   statesAndCounts,
 }) => {
   const filterItems = useMemo(

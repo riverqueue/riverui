@@ -17,7 +17,7 @@ export default defineConfig({
           dagrejs: ["@dagrejs/dagre"],
           headlessui: ["@headlessui/react"],
           "react-dom": ["react-dom"],
-          reactflow: ["reactflow"],
+          reactflow: ["@xyflow/react"],
         },
       },
     },

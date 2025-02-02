@@ -1,6 +1,6 @@
 import { memo, useMemo } from "react";
-import { Handle, Position } from "reactflow";
-import type { NodeProps } from "reactflow";
+import { Handle, Position } from "@xyflow/react";
+import type { Node, NodeProps } from "@xyflow/react";
 import clsx from "clsx";
 import { differenceInSeconds } from "date-fns";
 import { useTime } from "react-time-sync";
@@ -15,8 +15,10 @@ export type WorkflowNodeData = {
   job: JobWithKnownMetadata;
 };
 
+type WorkflowNode = Node<WorkflowNodeData, "workflow">;
+
 const WorkflowNode = memo(
-  ({ data, isConnectable, selected }: NodeProps<WorkflowNodeData>) => {
+  ({ data, isConnectable, selected }: NodeProps<WorkflowNode>) => {
     const { hasDownstreamDeps, hasUpstreamDeps, job } = data;
 
     return (
