@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Allow `PG*` env vars as an alternative to `DATABASE_URL`. [PR #256](https://github.com/riverqueue/riverui/pull/256).
 
+### Fixed
+
+- Queue list columns no longer resize when pausing/resuming a queue. [PR #286](https://github.com/riverqueue/riverui/pull/286).
+
 ## [0.7.0] - 2024-12-16
 
 ### Added
