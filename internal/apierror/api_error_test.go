@@ -27,11 +27,10 @@ func TestAPIError(t *testing.T) {
 func TestAPIErrorJSON(t *testing.T) {
 	t.Parallel()
 
-	require.Equal(t,
+	require.JSONEq(t,
 		`{"message":"Bad request. Try sending JSON next time."}`,
 		string(mustMarshalJSON(
-			t, NewBadRequest("Bad request. Try sending JSON next time.")),
-		),
+			t, NewBadRequest("Bad request. Try sending JSON next time."))),
 	)
 }
 
@@ -46,8 +45,8 @@ func TestAPIErrorWrite(t *testing.T) {
 
 	NewBadRequest("Bad request. Try sending JSON next time.").Write(ctx, logger, recorder)
 
-	require.Equal(t, 400, recorder.Result().StatusCode) //nolint:bodyclose
-	require.Equal(t,
+	require.Equal(t, 400, recorder.Result().StatusCode)
+	require.JSONEq(t,
 		`{"message":"Bad request. Try sending JSON next time."}`,
 		recorder.Body.String(),
 	)

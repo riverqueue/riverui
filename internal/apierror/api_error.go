@@ -72,7 +72,7 @@ func WithInternalError[TAPIError Interface](apiErr TAPIError, internalErr error)
 // BadRequest
 //
 
-type BadRequest struct {
+type BadRequest struct { //nolint:errname
 	APIError
 }
 
@@ -106,7 +106,7 @@ func NewInternalServerError(format string, a ...any) *InternalServerError {
 // NotFound
 //
 
-type NotFound struct {
+type NotFound struct { //nolint:errname
 	APIError
 }
 
@@ -127,7 +127,7 @@ func NewNotFoundWorkflow(id string) *NotFound { return NewNotFound("Workflow not
 // ServiceUnavailable
 //
 
-type ServiceUnavailable struct {
+type ServiceUnavailable struct { //nolint:errname
 	APIError
 }
 

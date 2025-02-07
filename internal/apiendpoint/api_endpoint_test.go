@@ -217,7 +217,7 @@ func mustUnmarshalJSON[T any](t *testing.T, data []byte) *T {
 func requireStatusAndJSONResponse[T any](t *testing.T, expectedStatusCode int, expectedResp *T, recorder *httptest.ResponseRecorder) {
 	t.Helper()
 
-	require.Equal(t, expectedStatusCode, recorder.Result().StatusCode, "Unexpected status code; response body: %s", recorder.Body.String()) //nolint:bodyclose
+	require.Equal(t, expectedStatusCode, recorder.Result().StatusCode, "Unexpected status code; response body: %s", recorder.Body.String())
 	require.Equal(t, expectedResp, mustUnmarshalJSON[T](t, recorder.Body.Bytes()))
 	require.Equal(t, "application/json; charset=utf-8", recorder.Header().Get("Content-Type"))
 }
@@ -226,7 +226,7 @@ func requireStatusAndJSONResponse[T any](t *testing.T, expectedStatusCode int, e
 func requireStatusAndResponse(t *testing.T, expectedStatusCode int, expectedResp string, recorder *httptest.ResponseRecorder) {
 	t.Helper()
 
-	require.Equal(t, expectedStatusCode, recorder.Result().StatusCode, "Unexpected status code; response body: %s", recorder.Body.String()) //nolint:bodyclose
+	require.Equal(t, expectedStatusCode, recorder.Result().StatusCode, "Unexpected status code; response body: %s", recorder.Body.String())
 	require.Equal(t, expectedResp, recorder.Body.String())
 }
 
