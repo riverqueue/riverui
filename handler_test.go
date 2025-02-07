@@ -67,7 +67,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 
 			server.ServeHTTP(recorder, req)
 
-			status := recorder.Result().StatusCode //nolint:bodyclose
+			status := recorder.Result().StatusCode
 			t.Logf("Response status: %d", status)
 
 			if status >= 200 && status < 300 {
@@ -141,7 +141,7 @@ func TestMountStaticFiles(t *testing.T) {
 
 	mux.ServeHTTP(recorder, req)
 
-	status := recorder.Result().StatusCode //nolint:bodyclose
+	status := recorder.Result().StatusCode
 	require.Equal(t, http.StatusOK, status)
 
 	require.Equal(t, "text/plain; charset=utf-8", recorder.Header().Get("Content-Type"))

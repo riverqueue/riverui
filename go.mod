@@ -1,21 +1,21 @@
 module riverqueue.com/riverui
 
-go 1.22
+go 1.22.0
 
-toolchain go1.23.0
+toolchain go1.23.5
 
 require (
 	github.com/go-playground/validator/v10 v10.24.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgerrcode v0.0.0-20240316143900-6e2875d9b438
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/riverqueue/river v0.15.0
-	github.com/riverqueue/river/riverdriver v0.15.0
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.15.0
-	github.com/riverqueue/river/rivershared v0.15.0
-	github.com/riverqueue/river/rivertype v0.15.0
+	github.com/riverqueue/river v0.16.0
+	github.com/riverqueue/river/riverdriver v0.16.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.16.0
+	github.com/riverqueue/river/rivershared v0.16.0
+	github.com/riverqueue/river/rivertype v0.16.0
 	github.com/rs/cors v1.11.1
-	github.com/samber/slog-http v1.5.0
+	github.com/samber/slog-http v1.5.1
 	github.com/stretchr/testify v1.10.0
 )
 
