@@ -46,6 +46,14 @@ jobs:
         with:
           fetch-depth: 1
 
+      - id: install-aws-cli
+        name: Install AWS CLI
+        uses: unfor19/install-aws-cli-action@v1
+        with:
+          version: 2.22.35
+          verbose: false
+          arch: amd64
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
