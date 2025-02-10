@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.8.0] - 2025-02-10
+
 ### Added
 
 - Allow `PG*` env vars as an alternative to `DATABASE_URL`. [PR #256](https://github.com/riverqueue/riverui/pull/256).
