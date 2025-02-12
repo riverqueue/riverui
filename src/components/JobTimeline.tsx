@@ -156,6 +156,17 @@ const WaitStep = ({ job }: { job: Job }) => {
     );
   }
 
+  if (job.state === JobState.Pending) {
+    return (
+      <StatusStep
+        Icon={QueueListIcon}
+        name="Wait"
+        description="Pending"
+        status="pending"
+      />
+    );
+  }
+
   if (job.state === JobState.Retryable && scheduledAtInFuture) {
     return (
       <StatusStep
@@ -164,19 +175,22 @@ const WaitStep = ({ job }: { job: Job }) => {
         status="complete"
         descriptionTitle={job.scheduledAt.toUTCString()}
       >
-        –
+        —
       </StatusStep>
     );
   }
 
-  const endTime =
-    job.state === JobState.Available ? undefined : job.attemptedAt;
-
-  const status = job.state === JobState.Available ? "active" : "complete";
+  if (job.state === JobState.Available) {
+    return (
+      <StatusStep Icon={QueueListIcon} name="Wait" status="active">
+        (<DurationCompact startTime={job.scheduledAt} />)
+      </StatusStep>
+    );
+  }
 
   return (
-    <StatusStep Icon={QueueListIcon} name="Wait" status={status}>
-      (<DurationCompact startTime={job.scheduledAt} endTime={endTime} />)
+    <StatusStep Icon={QueueListIcon} name="Wait" status="complete">
+      (<DurationCompact startTime={job.attemptedAt} />)
     </StatusStep>
   );
 };
@@ -235,9 +249,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     );
   }
 
-  const lastError: AttemptError | undefined = job.errors.find(
-    (e) => e.attempt === job.attempt
-  );
+  const lastError: AttemptError | undefined = job.errors.at(-1);
   const jobEndTime: Date | undefined = job.finalizedAt || lastError?.at;
 
   const errored =
