@@ -106,6 +106,12 @@ class JobFactory extends Factory<Job, object> {
     const erroredAt = add(attemptedAt, {
       seconds: faker.number.float({ min: 0.01, max: 95 }),
     });
+    const multilineError = `
+      This is a long error message that spans multiple lines.
+      It is used to test the ability of the JobAttemptErrors component to display long error messages.
+       
+      It should not show as a single paragraph with no linebreaks.
+    `.trim();
     return this.params({
       attempt: 9,
       attemptedAt,
@@ -123,13 +129,13 @@ class JobFactory extends Factory<Job, object> {
       errors: [
         attemptErrorFactory.build({ attempt: 1 }),
         attemptErrorFactory.build({ attempt: 2 }),
-        attemptErrorFactory.build({ attempt: 3 }),
+        attemptErrorFactory.build({ attempt: 3, error: multilineError }),
         attemptErrorFactory.build({ attempt: 4 }),
         attemptErrorFactory.build({ attempt: 5 }),
         attemptErrorFactory.build({ attempt: 6 }),
         attemptErrorFactory.build({ attempt: 7 }),
-        attemptErrorFactory.build({ attempt: 8 }),
-        attemptErrorFactory.build({ attempt: 9 }),
+        attemptErrorFactory.build({ attempt: 8, error: multilineError }),
+        attemptErrorFactory.build({ attempt: 9, trace: undefined }),
         attemptErrorFactory.build({
           at: erroredAt,
           attempt: 10,
