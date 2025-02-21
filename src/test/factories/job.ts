@@ -7,13 +7,25 @@ import { add, sub } from "date-fns";
 
 class AttemptErrorFactory extends Factory<AttemptError, object> {}
 
+const sampleTrace = `
+worker.go:184: panic: runtime error: invalid memory address or nil pointer dereference
+    panic({0x1035d3c40?, 0x103c0f530?})
+        /opt/homebrew/Cellar/go/1.24.0/libexec/src/runtime/panic.go:787 +0xf0
+    github.com/riverqueue/myapp/worker.(*SyntheticBaseWorker).syntheticSleepOrError(0x0, {0x1036c44c0, 0x14000056380}, {0x1036bb5e0, 0x140000b0320})
+        /Users/username/River/myapp/worker/synthetic_base_job.go:22 +0x50
+    github.com/riverqueue/myapp/worker.(*ChargeCreditCard).Work(0x1400000c090, {0x1036c44c0, 0x14000056380}, 0x1400004a310)
+        /Users/username/River/myapp/worker/charge_credit_card.go:33 +0x19c
+    github.com/riverqueue/river/rivertest.(*wrapperWorkUnit[...]).Work(0x1036c4320, {0x1036c44c0, 0x140000562a0})
+        /Users/username/River/river/rivertest/worker.go:281 +0x60
+`.trim();
+
 export const attemptErrorFactory = AttemptErrorFactory.define(({ params }) => {
   const attempt = params.attempt || 1;
   return {
     at: params.at || sub(new Date(), { seconds: (21 - attempt) * 7.3 }),
     attempt,
     error: "Failed yet again with some Go message",
-    trace: "...",
+    trace: sampleTrace,
   };
 });
 
