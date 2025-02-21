@@ -130,7 +130,7 @@ export default function JobDetail({
           </div>
         </header>
 
-        <div className="mx-auto grid gap-8 pb-16 sm:grid-cols-2 sm:px-6 lg:px-8">
+        <div className="mx-auto grid gap-8 pb-16 grid-cols-1 sm:grid-cols-2 sm:px-6 lg:px-8">
           {/* Description list */}
           <div className="">
             <dl className="grid grid-cols-12">
@@ -221,69 +221,67 @@ export default function JobDetail({
 
           <JobTimeline job={job} />
 
-          <div className="sm:order-3 sm:col-span-2">
-            <div>
-              <dl className="grid-cols-1 gap-x-4 border-slate-100 dark:border-slate-800 md:grid md:grid-cols-2 md:border-t">
-                <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0 md:border-t-0">
-                  <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
-                    Args
-                  </dt>
-                  <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
-                    <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
-                      {JSON.stringify(job.args, null, 2)}
-                    </pre>
-                  </dd>
-                </div>
-                <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                  <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
-                    Metadata
-                  </dt>
-                  <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
-                    <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
-                      {JSON.stringify(job.metadata, null, 2)}
-                    </pre>
-                  </dd>
-                </div>
-                <div className="border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:col-span-1 sm:px-0">
-                  <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
-                    Attempted By
-                  </dt>
-                  <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
-                    <ul role="list">
-                      {attemptsToDisplay.map((attemptedBy, i) => (
-                        <li
-                          className="font-mono"
-                          key={i}
-                          title={job.errors.at(i)?.at.toISOString()}
-                        >
-                          {attemptedBy}
-                        </li>
-                      ))}
-                    </ul>
-                    {!showAllAttempts && job.attemptedBy.length > 5 && (
-                      <button
-                        type="button"
-                        className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
-                        onClick={() => setShowAllAttempts(true)}
+          <div className="sm:order-3 col-span-1 sm:col-span-2">
+            <dl className="grid-cols-1 gap-x-4 border-slate-100 dark:border-slate-800 md:grid md:grid-cols-2 md:border-t">
+              <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0 md:border-t-0">
+                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+                  Args
+                </dt>
+                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                  <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
+                    {JSON.stringify(job.args, null, 2)}
+                  </pre>
+                </dd>
+              </div>
+              <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
+                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+                  Metadata
+                </dt>
+                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                  <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
+                    {JSON.stringify(job.metadata, null, 2)}
+                  </pre>
+                </dd>
+              </div>
+              <div className="border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:col-span-1 sm:px-0">
+                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+                  Attempted By
+                </dt>
+                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                  <ul role="list">
+                    {attemptsToDisplay.map((attemptedBy, i) => (
+                      <li
+                        className="font-mono"
+                        key={i}
+                        title={job.errors.at(i)?.at.toISOString()}
                       >
-                        Show all {job.attemptedBy.length} attempts
-                      </button>
-                    )}
-                    {showAllAttempts && (
-                      <button
-                        type="button"
-                        className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
-                        onClick={() => setShowAllAttempts(false)}
-                      >
-                        Show fewer attempts
-                      </button>
-                    )}
-                  </dd>
-                </div>
+                        {attemptedBy}
+                      </li>
+                    ))}
+                  </ul>
+                  {!showAllAttempts && job.attemptedBy.length > 5 && (
+                    <button
+                      type="button"
+                      className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
+                      onClick={() => setShowAllAttempts(true)}
+                    >
+                      Show all {job.attemptedBy.length} attempts
+                    </button>
+                  )}
+                  {showAllAttempts && (
+                    <button
+                      type="button"
+                      className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
+                      onClick={() => setShowAllAttempts(false)}
+                    >
+                      Show fewer attempts
+                    </button>
+                  )}
+                </dd>
+              </div>
 
-                <JobAttemptErrors job={job} />
-              </dl>
-            </div>
+              <JobAttemptErrors job={job} />
+            </dl>
           </div>
         </div>
       </main>

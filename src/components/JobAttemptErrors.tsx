@@ -1,4 +1,4 @@
-import { Job } from "@services/jobs";
+import { type AttemptError, Job } from "@services/jobs";
 import RelativeTimeFormatter from "./RelativeTimeFormatter";
 import { useState } from "react";
 import clsx from "clsx";
@@ -40,12 +40,12 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
                       <p className="font-mono font-medium leading-5 text-slate-900 dark:text-slate-100">
                         {error.attempt.toString()}
                       </p>
-                      <div className="ml-4 max-w-full overflow-hidden">
+                      <div className="ml-4 flex-1 max-w-full min-w-0">
                         <h5
                           className={clsx(
                             "font-mono text-sm font-medium text-slate-900 dark:text-slate-100 mb-2",
                             isMultilineError(error) &&
-                              "block whitespace-pre-wrap bg-slate-300/20 dark:bg-slate-700/20 px-4 py-2 -mt-2 rounded-md max-h-80 h-min overflow-y-auto resize-y"
+                              "block whitespace-pre bg-slate-300/20 dark:bg-slate-700/20 px-4 py-2 -mt-2 rounded-md max-h-80 h-min overflow-auto resize-y"
                           )}
                           aria-description="Error message"
                         >
@@ -57,7 +57,7 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
                               Stack Trace:
                             </h6>
                             <pre
-                              className="h-min max-h-80 overflow-x-auto bg-slate-300/10 text-sm text-slate-700 dark:bg-slate-700/10 dark:text-slate-300 px-4 py-2 whitespace-pre resize-y"
+                              className="w-full h-min max-h-80 bg-slate-300/10 text-sm text-slate-700 dark:bg-slate-700/10 dark:text-slate-300 px-4 py-2 whitespace-pre overflow-x-auto resize-y"
                               aria-description="Stack trace"
                             >
                               {error.trace}
