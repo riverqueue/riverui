@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.8.1] - 2025-02-27
+
+### Changed
+
+- Updated JS dependencies.
+
 ### Fixed
 
 - Fix negative wait times in job timeline. [PR #288](https://github.com/riverqueue/riverui/pull/288).
