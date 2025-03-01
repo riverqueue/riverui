@@ -21,6 +21,11 @@ updates:
     groups:
       production-dependencies:
         dependency-type: "production"
+        exclude-patterns:
+          - "@chromatic-com/storybook"
+          - "@storybook/*"
+          - "@tanstack/*"
+          - "storybook"
       development-dependencies:
         dependency-type: "development"
         exclude-patterns:
