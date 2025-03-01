@@ -1,4 +1,6 @@
 import js from "@eslint/js";
+import css from "@eslint/css";
+import { tailwindSyntax } from "@eslint/css/syntax";
 import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
@@ -38,6 +40,20 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+    },
+  },
+  {
+    files: ["**/*.css"],
+    plugins: {
+      css,
+    },
+    language: "css/css",
+    languageOptions: {
+      customSyntax: tailwindSyntax,
+      tolerant: true,
+    },
+    rules: {
+      "css/no-duplicate-imports": "error",
     },
   }
 );
