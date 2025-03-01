@@ -87,7 +87,7 @@ export const apiJobToJob = (job: JobFromAPI): Job => ({
 });
 
 const apiAttemptErrorsToAttemptErrors = (
-  errors: AttemptErrorFromAPI[]
+  errors: AttemptErrorFromAPI[],
 ): AttemptError[] => {
   return errors.map((error) => ({
     attempt: error.attempt,
@@ -134,17 +134,17 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
 }) => {
   const [, state, limit] = queryKey;
   const searchParamsStringValues = Object.fromEntries(
-    Object.entries({ state, limit }).map(([k, v]) => [k, String(v)])
+    Object.entries({ state, limit }).map(([k, v]) => [k, String(v)]),
   );
   const query = new URLSearchParams(searchParamsStringValues);
 
   return API.get<ListResponse<JobFromAPI>>(
     { path: "/jobs", query },
-    { signal }
+    { signal },
   ).then(
     // Map from JobFromAPI to Job:
     // TODO: there must be a cleaner way to do this given the type definitions?
-    (response) => response.data.map(apiJobToJob)
+    (response) => response.data.map(apiJobToJob),
   );
 };
 

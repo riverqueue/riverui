@@ -45,7 +45,7 @@ function WorkflowsIndexComponent() {
   const refetchInterval = refreshSettings.intervalMs;
   const loaderDeps = Route.useLoaderDeps();
   const workflowsQuery = useQuery(
-    workflowsQueryOptions(loaderDeps, { refetchInterval })
+    workflowsQueryOptions(loaderDeps, { refetchInterval }),
   );
 
   return (
@@ -65,7 +65,7 @@ const workflowsQueryOptions = (
     limit: number;
     state?: WorkflowState;
   },
-  opts?: { refetchInterval: number }
+  opts?: { refetchInterval: number },
 ) => {
   return queryOptions({
     queryKey: listWorkflowsKey({ limit, state }),

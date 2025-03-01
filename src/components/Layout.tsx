@@ -56,7 +56,7 @@ const Layout = ({ children }: LayoutProps) => {
           hidden: !featureEnabledWorkflows,
         },
       ].filter((item) => item.hidden === undefined || item.hidden === false),
-    [featureEnabledWorkflows]
+    [featureEnabledWorkflows],
   );
 
   return (
@@ -100,7 +100,7 @@ const Layout = ({ children }: LayoutProps) => {
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                   >
-                    <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
+                    <div className="absolute top-0 left-full flex w-16 justify-center pt-5">
                       <button
                         type="button"
                         className="-m-2.5 p-2.5"
@@ -119,14 +119,14 @@ const Layout = ({ children }: LayoutProps) => {
                     {/* Componentize this, I only removed the w-40 class: */}
                     <div className="flex grow flex-col">
                       <nav className="flex flex-1 flex-col">
-                        <ul role="list" className="flex   flex-1 flex-col">
+                        <ul role="list" className="flex flex-1 flex-col">
                           <>
                             {navigation.map((item) => (
                               <li key={item.name}>
                                 <Link
                                   to={item.href}
                                   search={item.search}
-                                  className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm font-semibold leading-6 transition-colors"
+                                  className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm leading-6 font-semibold transition-colors"
                                   activeProps={{
                                     className:
                                       "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 dark:hover:text-white border-brand-primary",
@@ -157,16 +157,16 @@ const Layout = ({ children }: LayoutProps) => {
         </Transition>
 
         {/* Static sidebar for desktop */}
-        <div className="hidden overflow-x-hidden bg-slate-100 shadow-sm shadow-slate-400 transition-all hover:w-40 dark:bg-slate-800 dark:shadow-slate-600 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4">
+        <div className="hidden overflow-x-hidden bg-slate-100 shadow-sm shadow-slate-400 transition-all hover:w-40 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4 dark:bg-slate-800 dark:shadow-slate-600">
           <div className="flex w-40 grow flex-col">
             <nav className="flex flex-1 flex-col">
-              <ul role="list" className="flex   flex-1 flex-col">
+              <ul role="list" className="flex flex-1 flex-col">
                 {navigation.map((item) => (
                   <li key={item.name}>
                     <Link
                       to={item.href}
                       search={item.search}
-                      className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm font-semibold leading-6 transition-colors"
+                      className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm leading-6 font-semibold transition-colors"
                       activeProps={{
                         className:
                           "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 dark:hover:text-white border-brand-primary",

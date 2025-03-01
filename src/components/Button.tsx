@@ -193,7 +193,7 @@ export type ButtonProps = (
 
 export const Button = React.forwardRef(function Button(
   { color, outline, plain, className, children, ...props }: ButtonProps,
-  ref: React.ForwardedRef<HTMLElement>
+  ref: React.ForwardedRef<HTMLElement>,
 ) {
   const classes = clsx(
     className,
@@ -202,7 +202,7 @@ export const Button = React.forwardRef(function Button(
       ? styles.outline
       : plain
         ? styles.plain
-        : clsx(styles.solid, styles.colors[color ?? "dark/zinc"])
+        : clsx(styles.solid, styles.colors[color ?? "dark/zinc"]),
   );
 
   return "to" in props ? (
@@ -230,7 +230,7 @@ export function TouchTarget({ children }: { children: React.ReactNode }) {
     <>
       {children}
       <span
-        className="absolute left-1/2 top-1/2 size-[max(100%,2.75rem)] -translate-x-1/2 -translate-y-1/2 [@media(pointer:fine)]:hidden"
+        className="absolute top-1/2 left-1/2 size-[max(100%,2.75rem)] -translate-x-1/2 -translate-y-1/2 [@media(pointer:fine)]:hidden"
         aria-hidden="true"
       />
     </>

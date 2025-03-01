@@ -18,7 +18,7 @@ export function formatRelative(
     includeSeconds,
     humanize = true,
     now = new Date(),
-  }: FormatRelativeOptions = {}
+  }: FormatRelativeOptions = {},
 ) {
   const diff = differenceInSeconds(now, date);
 
@@ -52,7 +52,7 @@ export function getFormatUpdateInterval(date: Date, now: Date = new Date()) {
 export function formatDurationShort(
   dateA: Date,
   dateB: Date,
-  subsecond?: boolean
+  subsecond?: boolean,
 ): string {
   const totalMs = differenceInMilliseconds(dateA, dateB);
   const totalSeconds = Math.floor(totalMs / 1000);

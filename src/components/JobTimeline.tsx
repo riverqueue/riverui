@@ -22,7 +22,7 @@ const useRelativeFormattedTime = (time: Date, addSuffix: boolean): string => {
   const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
   const relative = useMemo(
     () => formatDistanceStrict(time, now, { addSuffix }),
-    [addSuffix, now, time]
+    [addSuffix, now, time],
   );
   return relative;
 };
@@ -60,15 +60,15 @@ const StatusStep = ({
   return (
     <li
       className={clsx(
-        "relative ms-6 pb-4 before:absolute before:-left-1 before:top-0 before:block before:h-full before:w-0.5 before:border-l before:content-['']",
+        "relative ms-6 pb-4 before:absolute before:top-0 before:-left-1 before:block before:h-full before:w-0.5 before:border-l before:content-['']",
         statusVerticalLineClasses,
-        "last:before:border-transparent dark:last:before:border-transparent"
+        "last:before:border-transparent dark:last:before:border-transparent",
       )}
     >
       <span
         className={clsx(
           "absolute -start-5 flex size-8 items-center justify-center rounded-full ring-4 ring-white dark:ring-gray-900",
-          statusIconClasses
+          statusIconClasses,
         )}
       >
         <Icon
@@ -76,7 +76,7 @@ const StatusStep = ({
           aria-hidden="true"
         />
       </span>
-      <h3 className="ml-6 pt-1.5 font-medium leading-tight">{name}</h3>
+      <h3 className="ml-6 pt-1.5 leading-tight font-medium">{name}</h3>
       <p className="ml-6 text-sm" title={descriptionTitle}>
         {children || description}
       </p>
@@ -142,7 +142,7 @@ const WaitStep = ({ job }: { job: Job }) => {
   const nowSec = useTime();
   const scheduledAtInFuture = useMemo(
     () => job.scheduledAt >= new Date(nowSec * 1000),
-    [job.scheduledAt, nowSec]
+    [job.scheduledAt, nowSec],
   );
 
   if (job.state === JobState.Scheduled && !job.attemptedAt) {
@@ -347,7 +347,7 @@ type JobTimelineProps = {
 
 export default function JobTimeline({ job }: JobTimelineProps) {
   return (
-    <ol className="relative px-2 text-gray-500 dark:text-gray-400 sm:px-0">
+    <ol className="relative px-2 text-gray-500 sm:px-0 dark:text-gray-400">
       <StatusStep
         Icon={CircleStackIcon}
         name="Created"

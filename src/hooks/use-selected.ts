@@ -27,7 +27,7 @@ export const useSelected = <P>(initialState: Array<P>) => {
         remove(items);
       }
     },
-    [add, remove]
+    [add, remove],
   );
 
   const clear = useCallback(() => setSelected(new Set()), []);

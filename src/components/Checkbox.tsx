@@ -19,7 +19,7 @@ export function CheckboxGroup({
         // Basic groups
         "space-y-3",
         // With descriptions
-        "has-data-[slot=description]:space-y-6 has-data-[slot=description]:**:data-[slot=label]:font-medium"
+        "has-data-[slot=description]:space-y-6 has-data-[slot=description]:**:data-[slot=label]:font-medium",
       )}
     />
   );
@@ -44,7 +44,7 @@ export function CheckboxField({
         // Description layout
         "*:data-[slot=description]:col-start-2 *:data-[slot=description]:row-start-2",
         // With description
-        "has-data-[slot=description]:**:data-[slot=label]:font-medium"
+        "has-data-[slot=description]:**:data-[slot=label]:font-medium",
       )}
     />
   );

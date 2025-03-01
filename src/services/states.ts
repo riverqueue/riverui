@@ -18,6 +18,6 @@ export const countsByState: QueryFunction<
   CountsByStateKey
 > = async ({ signal }) => {
   return API.get<StatesAndCounts>({ path: "/states" }, { signal }).then(
-    (response) => response
+    (response) => response,
   );
 };

@@ -15,18 +15,18 @@ export const JobFilters: (props: JobFiltersProps) => React.JSX.Element = ({
 }) => {
   const filterItems = useMemo(
     () => jobStateFilterItems(statesAndCounts),
-    [statesAndCounts]
+    [statesAndCounts],
   );
 
   return (
     <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white px-6 pb-4 dark:border-gray-800 dark:bg-gray-900">
-      <div className="mt-3  hidden h-10 shrink-0 items-center text-slate-900 dark:text-slate-100 lg:flex">
+      <div className="mt-3 hidden h-10 shrink-0 items-center text-slate-900 lg:flex dark:text-slate-100">
         <Logo className="h-full w-auto" />
       </div>
       <nav className="flex flex-1 flex-col">
         <ul role="list" className="flex flex-1 flex-col gap-y-4">
           <li>
-            <div className="text-xs font-semibold leading-6 text-slate-500 dark:text-slate-500">
+            <div className="text-xs leading-6 font-semibold text-slate-500 dark:text-slate-500">
               Job State
             </div>
             <ul role="list" className="-mx-2 mt-2 space-y-1">
@@ -35,7 +35,7 @@ export const JobFilters: (props: JobFiltersProps) => React.JSX.Element = ({
                   <li key={item.name}>
                     <Link
                       to="/jobs"
-                      className="group flex gap-x-3 rounded-md p-2 text-sm font-semibold leading-6"
+                      className="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
                       activeProps={{
                         className:
                           "bg-gray-50 dark:bg-gray-800 text-indigo-600 dark:text-slate-100",

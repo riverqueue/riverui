@@ -63,10 +63,13 @@ export const listQueues: QueryFunction<Queue[], ListQueuesKey> = async ({
   signal,
 }) => {
   const query = new URLSearchParams({ limit: "100" });
-  return API.get<ListResponse<QueueFromAPI>>({ path: "/queues", query }, { signal }).then(
+  return API.get<ListResponse<QueueFromAPI>>(
+    { path: "/queues", query },
+    { signal },
+  ).then(
     // Map from QueueFromAPI to Queue:
     // TODO: there must be a cleaner way to do this given the type definitions?
-    (response) => response.data.map(apiQueueToQueue)
+    (response) => response.data.map(apiQueueToQueue),
   );
 };
 

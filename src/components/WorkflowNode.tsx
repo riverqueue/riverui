@@ -26,7 +26,7 @@ const WorkflowNode = memo(
         className={clsx(
           "w-64 overflow-hidden rounded-xl border-2 border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800",
           selected &&
-            "shadow-lg ring-2 ring-brand-primary ring-offset-2 ring-offset-white dark:shadow-white/20 dark:ring-offset-slate-900"
+            "shadow-lg ring-2 ring-brand-primary ring-offset-2 ring-offset-white dark:shadow-white/20 dark:ring-offset-slate-900",
         )}
         key={job.id}
       >
@@ -36,7 +36,7 @@ const WorkflowNode = memo(
           style={{ top: 30 }}
           className={clsx(
             "left-[-7px] size-4 border-4 border-slate-50 bg-slate-300 dark:border-slate-800 dark:bg-slate-600",
-            hasUpstreamDeps || "opacity-0"
+            hasUpstreamDeps || "opacity-0",
           )}
           isConnectable={isConnectable}
         />
@@ -46,7 +46,7 @@ const WorkflowNode = memo(
           style={{ top: 30 }}
           className={clsx(
             "right-[-7px] size-4 border-4 border-slate-50 bg-slate-300 dark:border-slate-800 dark:bg-slate-600",
-            hasDownstreamDeps || "opacity-0"
+            hasDownstreamDeps || "opacity-0",
           )}
           isConnectable={isConnectable}
         />
@@ -74,7 +74,7 @@ const WorkflowNode = memo(
         </div>
       </div>
     );
-  }
+  },
 );
 
 export default WorkflowNode;

@@ -21,7 +21,7 @@ const tabs: StateTab[] = [
 ];
 
 const workflowStateAndBadgeColor = (
-  workflow: WorkflowListItem
+  workflow: WorkflowListItem,
 ): [string, BadgeColor] => {
   const anyActive =
     workflow.countAvailable > 0 ||
@@ -97,13 +97,13 @@ const WorkflowTable = ({
         <tr>
           <th
             scope="col"
-            className="hidden px-3 py-2.5 text-left font-mono text-sm font-semibold text-slate-900 dark:text-slate-100 lg:table-cell"
+            className="hidden px-3 py-2.5 text-left font-mono text-sm font-semibold text-slate-900 lg:table-cell dark:text-slate-100"
           >
             ID
           </th>
           <th
             scope="col"
-            className="py-2.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 dark:text-slate-100 sm:pl-0"
+            className="py-2.5 pr-3 pl-4 text-left text-sm font-semibold text-slate-900 sm:pl-0 dark:text-slate-100"
           >
             Name
           </th>
@@ -115,19 +115,19 @@ const WorkflowTable = ({
           </th>
           <th
             scope="col"
-            className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 md:table-cell"
+            className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 md:table-cell dark:text-slate-100"
           >
             Created
           </th>
           <th
             scope="col"
-            className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:table-cell"
+            className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
           >
             Pending Jobs
           </th>
           <th
             scope="col"
-            className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:table-cell"
+            className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
           >
             Total Jobs
           </th>
@@ -136,7 +136,7 @@ const WorkflowTable = ({
       <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900">
         {workflowItems.map((workflowItem) => (
           <tr key={workflowItem.id}>
-            <td className="max-w-72 py-2 pl-4 pr-3 text-sm font-medium text-slate-700 dark:text-slate-300 sm:w-auto sm:pl-0">
+            <td className="max-w-72 py-2 pr-3 pl-4 text-sm font-medium text-slate-700 sm:w-auto sm:pl-0 dark:text-slate-300">
               <div className="truncate font-mono font-semibold dark:text-slate-100">
                 <Link
                   to="/workflows/$workflowId"
@@ -145,7 +145,7 @@ const WorkflowTable = ({
                   {workflowItem.id}
                 </Link>
               </div>
-              <div className="mt-1 truncate text-slate-500 dark:text-slate-300 lg:hidden">
+              <div className="mt-1 truncate text-slate-500 lg:hidden dark:text-slate-300">
                 {workflowItem.name || "Unnamed workflow"}
               </div>
               <div className="mt-1 truncate md:hidden">
@@ -156,7 +156,7 @@ const WorkflowTable = ({
                 />
               </div>
             </td>
-            <td className="py-2 pl-4 pr-3 text-sm font-medium text-slate-700 dark:text-slate-300 sm:w-auto sm:pl-0 lg:max-w-44">
+            <td className="py-2 pr-3 pl-4 text-sm font-medium text-slate-700 sm:w-auto sm:pl-0 lg:max-w-44 dark:text-slate-300">
               <div className="lg:hidden">
                 <BadgeForWorkflow workflow={workflowItem} />
               </div>
@@ -177,20 +177,20 @@ const WorkflowTable = ({
                 {workflowItem.name || "Unnamed workflow"}
               </div>
             </td>
-            <td className="hidden px-3 py-2 text-sm text-slate-500 dark:text-slate-300 lg:table-cell">
+            <td className="hidden px-3 py-2 text-sm text-slate-500 lg:table-cell dark:text-slate-300">
               <BadgeForWorkflow workflow={workflowItem} />
             </td>
-            <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 md:table-cell">
+            <td className="hidden px-3 py-2 text-right text-sm text-slate-500 md:table-cell dark:text-slate-300">
               <RelativeTimeFormatter
                 time={workflowItem.createdAt}
                 addSuffix
                 includeSeconds
               />
             </td>
-            <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 sm:table-cell">
+            <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
               {workflowItem.countPending}
             </td>
-            <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 sm:table-cell">
+            <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
               {jobCount(workflowItem)}
             </td>
           </tr>
@@ -209,7 +209,7 @@ const WorkflowList = ({
     <div className="size-full">
       <TopNav>
         <header className="flex flex-1 items-center">
-          <h1 className="hidden text-base font-semibold leading-6 text-slate-900 dark:text-slate-100 sm:block">
+          <h1 className="hidden text-base leading-6 font-semibold text-slate-900 sm:block dark:text-slate-100">
             Workflows
           </h1>
 

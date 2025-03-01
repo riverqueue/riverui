@@ -33,7 +33,7 @@ export const getWorkflow: QueryFunction<Workflow, GetWorkflowKey> = async ({
   const [, workflowID] = queryKey;
   return API.get<WorkflowFromAPI>(
     { path: `/workflows/${workflowID}` },
-    { signal }
+    { signal },
   ).then(apiWorkflowToWorkflow);
 };
 
@@ -76,7 +76,7 @@ export type ListWorkflowsKey = [
 ];
 
 export const listWorkflowsKey = (
-  args: ListWorkflowsFilters
+  args: ListWorkflowsFilters,
 ): ListWorkflowsKey => {
   return ["listWorkflows", args.state, args.limit];
 };
@@ -93,16 +93,16 @@ export const listWorkflows: QueryFunction<
 
   return API.get<ListResponse<WorkflowListItemFromAPI>>(
     { path: "/workflows", query },
-    { signal }
+    { signal },
   ).then(
     // Map from WorkflowListItemFromAPI to WorkflowListItem:
     // TODO: there must be a cleaner way to do this given the type definitions?
-    (response) => response.data.map(apiWorkflowListItemToWorkflowListItem)
+    (response) => response.data.map(apiWorkflowListItemToWorkflowListItem),
   );
 };
 
 export const apiWorkflowListItemToWorkflowListItem = (
-  workflow: WorkflowListItemFromAPI
+  workflow: WorkflowListItemFromAPI,
 ): WorkflowListItem => ({
   countAvailable: workflow.count_available,
   countCancelled: workflow.count_cancelled,

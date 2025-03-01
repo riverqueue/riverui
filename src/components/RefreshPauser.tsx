@@ -30,7 +30,7 @@ const refreshIntervals: RefreshIntervalSetting[] = [
 export function RefreshPauser(
   props: React.ComponentPropsWithoutRef<
     typeof Listbox<"div", RefreshIntervalSetting>
-  >
+  >,
 ) {
   const { intervalMs, setIntervalMs } = useRefreshSetting();
   const [mounted, setMounted] = useState(false);
@@ -82,9 +82,9 @@ export function RefreshPauser(
       </ListboxButton>
       <ListboxOptions
         anchor="bottom end"
-        className="z-20 mt-3 w-32 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md shadow-black/5 ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5"
+        className="z-20 mt-3 w-32 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md ring-1 shadow-black/5 ring-black/5 dark:bg-slate-800 dark:ring-white/5"
       >
-        <div className="px-2 text-xs font-semibold leading-6 text-slate-500">
+        <div className="px-2 text-xs leading-6 font-semibold text-slate-500">
           Live Updates
         </div>
         {refreshIntervals.map((intervalSetting) => (
@@ -93,13 +93,13 @@ export function RefreshPauser(
             value={intervalSetting}
             className={({ focus, selected }) =>
               clsx(
-                "flex cursor-pointer select-none rounded-[0.625rem] px-2 py-1",
+                "flex cursor-pointer rounded-[0.625rem] px-2 py-1 select-none",
                 {
                   "text-blue-600 dark:text-blue-400": selected,
                   "text-slate-900 dark:text-white": focus && !selected,
                   "text-slate-700 dark:text-slate-300": !focus && !selected,
                   "bg-slate-100 dark:bg-slate-700": focus,
-                }
+                },
               )
             }
           >

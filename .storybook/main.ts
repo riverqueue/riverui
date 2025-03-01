@@ -8,7 +8,7 @@ const config: StorybookConfig = {
     "@storybook/addon-onboarding",
     "@storybook/addon-interactions",
     "@storybook/addon-themes",
-    "@chromatic-com/storybook"
+    "@chromatic-com/storybook",
   ],
   core: {
     disableTelemetry: true,

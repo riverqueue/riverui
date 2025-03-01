@@ -47,7 +47,7 @@ function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
 
   // Enable immediate retry if the job is not running or pending:
   const retryDisabled = [JobState.Running, JobState.Pending].includes(
-    job.state
+    job.state,
   );
   const retryJob = (event: FormEvent) => {
     event.preventDefault();
@@ -108,7 +108,7 @@ export default function JobDetail({
       <main>
         <header>
           {/* Heading */}
-          <div className="mb-8 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 dark:bg-gray-700/10 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+          <div className="mb-8 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 sm:flex-row sm:items-center sm:px-6 lg:px-8 dark:bg-gray-700/10">
             <div>
               <h1 className="flex gap-x-3 text-2xl leading-7">
                 <span className="font-semibold text-slate-900 dark:text-white">
@@ -130,47 +130,47 @@ export default function JobDetail({
           </div>
         </header>
 
-        <div className="mx-auto grid gap-8 pb-16 grid-cols-1 sm:grid-cols-2 sm:px-6 lg:px-8">
+        <div className="mx-auto grid grid-cols-1 gap-8 pb-16 sm:grid-cols-2 sm:px-6 lg:px-8">
           {/* Description list */}
           <div className="">
             <dl className="grid grid-cols-12">
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   State
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {capitalize(job.state)}
                 </dd>
               </div>
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Attempt
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {job.attempt.toString()} / {job.maxAttempts.toString()}
                 </dd>
               </div>
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Priority
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {job.priority.toString()}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Queue
                 </dt>
-                <dd className="mt-1 flex overflow-hidden font-mono text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 flex overflow-hidden font-mono text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {job.queue}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Tags
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {job.tags.length == 0
                     ? "–"
                     : job.tags.map((tag) => (
@@ -184,22 +184,22 @@ export default function JobDetail({
                       ))}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Created
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   <RelativeTimeFormatter time={job.createdAt} addSuffix />
                 </dd>
               </div>
               {featureEnabledWorkflows &&
                 jobWithMetadata &&
                 jobWithMetadata.metadata.workflow_id && (
-                  <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                    <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+                  <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                    <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                       Workflow
                     </dt>
-                    <dd className="mt-1 overflow-hidden text-ellipsis font-mono text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
+                    <dd className="mt-1 overflow-hidden font-mono text-sm leading-6 text-ellipsis text-slate-700 sm:mt-2 dark:text-slate-300">
                       {jobWithMetadata.metadata.workflow_id ? (
                         <Link
                           to="/workflows/$workflowId"
@@ -221,33 +221,33 @@ export default function JobDetail({
 
           <JobTimeline job={job} />
 
-          <div className="sm:order-3 col-span-1 sm:col-span-2">
-            <dl className="grid-cols-1 gap-x-4 border-slate-100 dark:border-slate-800 md:grid md:grid-cols-2 md:border-t">
-              <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0 md:border-t-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+          <div className="col-span-1 sm:order-3 sm:col-span-2">
+            <dl className="grid-cols-1 gap-x-4 border-slate-100 md:grid md:grid-cols-2 md:border-t dark:border-slate-800">
+              <div className="col-span-1 border-t border-slate-100 px-4 py-6 sm:px-0 md:border-t-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Args
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
                     {JSON.stringify(job.args, null, 2)}
                   </pre>
                 </dd>
               </div>
-              <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-1 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Metadata
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
                     {JSON.stringify(job.metadata, null, 2)}
                   </pre>
                 </dd>
               </div>
-              <div className="border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:col-span-1 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="border-t border-slate-100 px-4 py-6 sm:col-span-1 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Attempted By
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   <ul role="list">
                     {attemptsToDisplay.map((attemptedBy, i) => (
                       <li

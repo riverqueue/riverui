@@ -25,7 +25,7 @@ export default function ButtonForGroup({
       outline
       className={classNames(
         "rounded-none first:rounded-l-md last:rounded-r-md",
-        className || ""
+        className || "",
       )}
       {...props}
       color={undefined}

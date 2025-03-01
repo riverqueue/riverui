@@ -12,7 +12,7 @@ export interface SidebarSettingProviderProps {
 }
 
 export const SidebarSettingProvider: React.FC<SidebarSettingProviderProps> = (
-  props
+  props,
 ) => {
   const context = useContext(SidebarSettingContext);
 

@@ -20,12 +20,12 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
   };
 
   return (
-    <div className="sm:col-span-2 border-slate-100 dark:border-slate-800 border-t py-6 px-4 sm:px-0">
+    <div className="border-t border-slate-100 px-4 py-6 sm:col-span-2 sm:px-0 dark:border-slate-800">
       <div className="lg:px-0">
-        <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+        <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
           Errors
         </dt>
-        <dd className="mt-1 text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
+        <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
           {job.errors.length === 0 ? (
             <>No errors</>
           ) : (
@@ -37,15 +37,15 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
                 {errorsToDisplay.map((error) => (
                   <li key={error.attempt} className="py-4 sm:py-6">
                     <div className="flex items-start">
-                      <p className="font-mono font-medium leading-5 text-slate-900 dark:text-slate-100">
+                      <p className="font-mono leading-5 font-medium text-slate-900 dark:text-slate-100">
                         {error.attempt.toString()}
                       </p>
-                      <div className="ml-4 flex-1 max-w-full min-w-0">
+                      <div className="ml-4 max-w-full min-w-0 flex-1">
                         <h5
                           className={clsx(
-                            "font-mono text-sm font-medium text-slate-900 dark:text-slate-100 mb-2",
+                            "mb-2 font-mono text-sm font-medium text-slate-900 dark:text-slate-100",
                             isMultilineError(error) &&
-                              "block whitespace-pre bg-slate-300/20 dark:bg-slate-700/20 px-4 py-2 -mt-2 rounded-md max-h-80 h-min overflow-auto resize-y"
+                              "-mt-2 block h-min max-h-80 resize-y overflow-auto rounded-md bg-slate-300/20 px-4 py-2 whitespace-pre dark:bg-slate-700/20",
                           )}
                           aria-description="Error message"
                         >
@@ -57,7 +57,7 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
                               Stack Trace:
                             </h6>
                             <pre
-                              className="w-full h-min max-h-80 bg-slate-300/10 text-sm text-slate-700 dark:bg-slate-700/10 dark:text-slate-300 px-4 py-2 whitespace-pre overflow-x-auto resize-y"
+                              className="h-min max-h-80 w-full resize-y overflow-x-auto bg-slate-300/10 px-4 py-2 text-sm whitespace-pre text-slate-700 dark:bg-slate-700/10 dark:text-slate-300"
                               aria-description="Stack trace"
                             >
                               {error.trace}

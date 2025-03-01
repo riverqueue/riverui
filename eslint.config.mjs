@@ -55,5 +55,5 @@ export default tseslint.config(
     rules: {
       "css/no-duplicate-imports": "error",
     },
-  }
+  },
 );

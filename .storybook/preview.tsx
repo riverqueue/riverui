@@ -29,7 +29,7 @@ function withRouter(Story: PartialStoryFn, { parameters }: StoryContext) {
       path,
       getParentRoute: () => rootRoute,
       component: Story,
-    })
+    }),
   );
 
   rootRoute.addChildren(children);

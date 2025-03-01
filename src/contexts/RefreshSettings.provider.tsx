@@ -6,7 +6,7 @@ export interface RefreshSettingProviderProps {
 }
 
 export const RefreshSettingProvider: React.FC<RefreshSettingProviderProps> = (
-  props
+  props,
 ) => {
   const context = useContext(RefreshSettingContext);
 
@@ -25,7 +25,7 @@ const RefreshSetting: React.FC<RefreshSettingProviderProps> = ({
       intervalMs,
       setIntervalMs,
     }),
-    [intervalMs, setIntervalMs]
+    [intervalMs, setIntervalMs],
   );
 
   return (

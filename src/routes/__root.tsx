@@ -6,7 +6,7 @@ import { Root } from "@components/Root";
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   {
     component: RootComponent,
-  }
+  },
 );
 
 function RootComponent() {

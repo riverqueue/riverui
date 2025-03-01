@@ -7,7 +7,7 @@ export const HeadlessLink = React.forwardRef(function HeadlessLink(
   props: { to?: LinkProps["to"] } & Omit<LinkProps, "to"> & {
       className: string;
     },
-  ref: React.ForwardedRef<HTMLAnchorElement>
+  ref: React.ForwardedRef<HTMLAnchorElement>,
 ) {
   return (
     <HeadlessDataInteractive>

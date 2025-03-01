@@ -32,7 +32,7 @@ export default function WorkflowDetail({
   const { tasks } = workflow;
   const selectedJob = useMemo(
     () => tasks.find((task) => task.id === selectedJobId),
-    [tasks, selectedJobId]
+    [tasks, selectedJobId],
   );
   const firstTask = tasks[0];
   // TODO: this is being repeated in WorkflowDiagram, dedupe
@@ -46,7 +46,7 @@ export default function WorkflowDetail({
       <TopNavTitleOnly title="Workflow Detail" />
       <header>
         {/* Heading */}
-        <div className="mb-4 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 dark:bg-gray-700/10 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+        <div className="mb-4 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 sm:flex-row sm:items-center sm:px-6 lg:px-8 dark:bg-gray-700/10">
           <div>
             <h1 className="flex gap-x-3 text-2xl leading-7">
               <span className="font-semibold text-slate-900 dark:text-white">
@@ -68,7 +68,7 @@ export default function WorkflowDetail({
         </div>
       </header>
 
-      <div className="mx-auto h-[500px] overflow-hidden border-2 border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-800/50 md:mx-7 md:rounded-lg">
+      <div className="mx-auto h-[500px] overflow-hidden border-2 border-slate-200 bg-slate-100 md:mx-7 md:rounded-lg dark:border-slate-800 dark:bg-slate-800/50">
         <WorkflowDiagram
           selectedJobId={selectedJobId}
           setSelectedJobId={setSelectedJobId}
@@ -102,7 +102,7 @@ const SelectedJobDetails = ({
       job.metadata.workflow_staged_at
         ? new Date(job.metadata.workflow_staged_at)
         : undefined,
-    [job.metadata.workflow_staged_at]
+    [job.metadata.workflow_staged_at],
   );
 
   return (
@@ -149,7 +149,7 @@ const SelectedJobDetails = ({
           </dl>
         </div>
 
-        <div className="order-first col-span-2 border-t border-slate-100 pt-4 dark:border-slate-800 sm:order-none sm:col-span-1 sm:border-t-0">
+        <div className="order-first col-span-2 border-t border-slate-100 pt-4 sm:order-none sm:col-span-1 sm:border-t-0 dark:border-slate-800">
           <Subheading>Workflow Task</Subheading>
           <dl className={dlClasses}>
             <dt className={dtClasses}>Task</dt>
@@ -177,7 +177,7 @@ const SelectedJobDetails = ({
           </dl>
         </div>
 
-        <div className="col-span-2 border-t border-slate-100 py-4 text-sm dark:border-slate-800 sm:col-span-1 sm:px-0">
+        <div className="col-span-2 border-t border-slate-100 py-4 text-sm sm:col-span-1 sm:px-0 dark:border-slate-800">
           <dt className={dtClasses}>Args</dt>
           <dd className={clsx(ddClasses, "text-base leading-6 sm:text-sm")}>
             <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
@@ -185,7 +185,7 @@ const SelectedJobDetails = ({
             </pre>
           </dd>
         </div>
-        <div className="col-span-2 border-t border-slate-100 py-4 text-sm dark:border-slate-800 sm:col-span-1 sm:px-0">
+        <div className="col-span-2 border-t border-slate-100 py-4 text-sm sm:col-span-1 sm:px-0 dark:border-slate-800">
           <dt className={dtClasses}>Metadata</dt>
           <dd className={clsx(ddClasses, "text-base leading-6 sm:text-sm")}>
             {/* <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2"> */}

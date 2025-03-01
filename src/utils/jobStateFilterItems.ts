@@ -8,7 +8,7 @@ export type JobStateFilterItem = {
 };
 
 export const jobStateFilterItems: (
-  statesAndCounts: StatesAndCounts | undefined
+  statesAndCounts: StatesAndCounts | undefined,
 ) => JobStateFilterItem[] = (statesAndCounts) => {
   const getCount = (state: JobState): bigint => {
     if (statesAndCounts) {

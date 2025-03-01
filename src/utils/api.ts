@@ -11,13 +11,13 @@ export const API = {
   post: <TBody extends BodyInit, TResponse>(
     path: string,
     body?: TBody,
-    config: RequestInit = {}
+    config: RequestInit = {},
   ) => request<TResponse>(APIUrl(path), { ...config, method: "POST", body }),
 
   put: <TBody extends BodyInit, TResponse>(
     path: string,
     body?: TBody,
-    config: RequestInit = {}
+    config: RequestInit = {},
   ) => request<TResponse>(APIUrl(path), { ...config, method: "PUT", body }),
 };
 
@@ -44,7 +44,7 @@ export class NotFoundError extends Error {}
 
 async function request<TResponse>(
   url: string,
-  config: RequestInit
+  config: RequestInit,
 ): Promise<TResponse> {
   const response = await fetch(url, config);
   if (response.ok) {

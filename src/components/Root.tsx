@@ -10,7 +10,7 @@ const TanStackRouterDevtools =
         // Lazy load in development
         import("@tanstack/router-devtools").then((res) => ({
           default: res.TanStackRouterDevtools,
-        }))
+        })),
       );
 
 type RootProps = PropsWithChildren<object>;

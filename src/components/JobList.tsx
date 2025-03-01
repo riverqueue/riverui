@@ -67,7 +67,7 @@ type JobListItemProps = {
   job: Job;
   onChangeSelect: (
     checked: boolean,
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => void;
 };
 
@@ -86,12 +86,12 @@ const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
         <div
           className={classNames(
             states[job.state],
-            "flex-none rounded-full p-1"
+            "flex-none rounded-full p-1",
           )}
         >
           <div className="size-2 rounded-full bg-current" />
         </div>
-        <h2 className="min-w-0 grow text-sm font-medium leading-5">
+        <h2 className="min-w-0 grow text-sm leading-5 font-medium">
           <Link
             to="/jobs/$jobId"
             params={{ jobId: job.id }}
@@ -100,7 +100,7 @@ const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
             <span className="truncate">{job.kind}</span>
           </Link>
         </h2>
-        <div className="text-nowrap text-right text-sm leading-5 text-slate-700 dark:text-slate-100">
+        <div className="text-right text-sm leading-5 text-nowrap text-slate-700 dark:text-slate-100">
           <JobTimeDisplay job={job} />
         </div>
       </div>
@@ -113,7 +113,7 @@ const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
         <svg viewBox="0 0 2 2" className="size-0.5 flex-none fill-gray-400">
           <circle cx={1} cy={1} r={1} />
         </svg>
-        <p className="grow truncate whitespace-nowrap font-mono">
+        <p className="grow truncate font-mono whitespace-nowrap">
           {JSON.stringify(job.args)}
         </p>
         <Badge color="zinc" className="flex-none font-mono text-xs">
@@ -193,8 +193,8 @@ function JobListActionButtons({
   return (
     <span
       className={classNames(
-        "inline-flex rounded-md shadow-xs mr-6",
-        className || ""
+        "mr-6 inline-flex rounded-md shadow-xs",
+        className || "",
       )}
     >
       <ButtonForGroup
@@ -272,7 +272,7 @@ const JobRows = ({
         removeSelectedJob(jobIDs);
       }
     },
-    [jobIDs, addSelectedJob, removeSelectedJob]
+    [jobIDs, addSelectedJob, removeSelectedJob],
   );
 
   const isIndeterminate =
@@ -284,7 +284,7 @@ const JobRows = ({
   return (
     <div className="flex min-h-dvh flex-col">
       <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex min-h-12 items-center space-x-4 border-b border-slate-300 py-2 dark:border-slate-700 sm:justify-between">
+        <div className="flex min-h-12 items-center space-x-4 border-b border-slate-300 py-2 sm:justify-between dark:border-slate-700">
           <CustomCheckbox
             aria-label={"Select all jobs"}
             className="grow-0"
@@ -303,7 +303,7 @@ const JobRows = ({
           />
           {selectedJobs.length > 0 && (
             <>
-              <div className="hidden grow text-sm text-slate-600 dark:text-slate-400 sm:block">
+              <div className="hidden grow text-sm text-slate-600 sm:block dark:text-slate-400">
                 {selectedJobs.length.toString()} selected
               </div>
               <Badge color="amber" className="hidden sm:flex">
@@ -316,7 +316,7 @@ const JobRows = ({
       </div>
       <ul
         role="list"
-        className="grow divide-y divide-slate-200 px-4 dark:divide-slate-800 sm:px-6 lg:px-8"
+        className="grow divide-y divide-slate-200 px-4 sm:px-6 lg:px-8 dark:divide-slate-800"
       >
         {jobs.map((job) => (
           <JobListItem
@@ -376,14 +376,14 @@ const JobList = (props: JobListProps) => {
 
   const filterItems = useMemo(
     () => jobStateFilterItems(statesAndCounts),
-    [statesAndCounts]
+    [statesAndCounts],
   );
 
   return (
     <div className="lg:pl-56">
       <TopNav>
         <header className="flex flex-1 items-center lg:hidden">
-          <h1 className="hidden text-base font-semibold leading-6 text-slate-900 dark:text-slate-100 lg:inline">
+          <h1 className="hidden text-base leading-6 font-semibold text-slate-900 lg:inline dark:text-slate-100">
             Jobs
           </h1>
           <Dropdown>
@@ -396,20 +396,20 @@ const JobList = (props: JobListProps) => {
                   {stateFormatted}
                 </span>
                 <span
-                  className="ml-3 block w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700"
+                  className="ml-3 block w-9 min-w-max rounded-full bg-white px-2.5 py-0.5 text-center text-xs leading-5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-white dark:ring-gray-700"
                   aria-hidden="true"
                 >
                   {jobsInState.toString()}
                 </span>
               </span>
-              <ChevronUpDownIcon className="ml-auto mr-1 size-4 shrink-0 stroke-zinc-400" />
+              <ChevronUpDownIcon className="mr-1 ml-auto size-4 shrink-0 stroke-zinc-400" />
             </HeadlessMenuButton>
             <DropdownMenu className="z-40 min-w-(--button-width)">
               {filterItems.map((item: JobStateFilterItem) => (
                 <DropdownItem
                   key={item.state}
                   to="/jobs"
-                  className="group flex rounded-md p-2 text-sm font-semibold leading-6"
+                  className="group flex rounded-md p-2 text-sm leading-6 font-semibold"
                   activeProps={{
                     className:
                       "bg-gray-50 dark:bg-gray-800 text-indigo-600 dark:text-slate-100",
@@ -422,7 +422,7 @@ const JobList = (props: JobListProps) => {
                   params={{}}
                 >
                   <span className="">{item.name}</span>
-                  <span className="col-span-4 ml-auto w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700">
+                  <span className="col-span-4 ml-auto w-9 min-w-max rounded-full bg-white px-2.5 py-0.5 text-center text-xs leading-5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-white dark:ring-gray-700">
                     {item.count.toString()}
                   </span>
                 </DropdownItem>

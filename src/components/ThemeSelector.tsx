@@ -52,7 +52,7 @@ function SystemIcon(props: React.ComponentPropsWithoutRef<"svg">) {
 }
 
 export function ThemeSelector(
-  props: React.ComponentPropsWithoutRef<typeof Listbox<"div">>
+  props: React.ComponentPropsWithoutRef<typeof Listbox<"div">>,
 ) {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
@@ -75,19 +75,19 @@ export function ThemeSelector(
         <LightIcon
           className={clsx(
             "size-4 dark:hidden",
-            theme === "system" ? "fill-slate-400" : "fill-sky-400"
+            theme === "system" ? "fill-slate-400" : "fill-sky-400",
           )}
         />
         <DarkIcon
           className={clsx(
             "hidden size-4 dark:block",
-            theme === "system" ? "fill-slate-400" : "fill-sky-400"
+            theme === "system" ? "fill-slate-400" : "fill-sky-400",
           )}
         />
       </ListboxButton>
       <ListboxOptions
         anchor="bottom end"
-        className="z-20 mt-3 w-36 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md shadow-black/5 ring-1 ring-black/5 dark:bg-slate-800 dark:ring-white/5"
+        className="z-20 mt-3 w-36 space-y-1 rounded-xl bg-white p-3 text-sm font-medium shadow-md ring-1 shadow-black/5 ring-black/5 dark:bg-slate-800 dark:ring-white/5"
       >
         {themes.map((theme) => (
           <ListboxOption
@@ -95,25 +95,25 @@ export function ThemeSelector(
             value={theme.value}
             className={({ focus, selected }) =>
               clsx(
-                "flex cursor-pointer select-none items-center rounded-[0.625rem] p-1",
+                "flex cursor-pointer items-center rounded-[0.625rem] p-1 select-none",
                 {
                   "text-blue-600 dark:text-blue-400": selected,
                   "text-slate-900 dark:text-white": focus && !selected,
                   "text-slate-700 dark:text-slate-300": !focus && !selected,
                   "bg-slate-100 dark:bg-slate-700": focus,
-                }
+                },
               )
             }
           >
             {({ selected }) => (
               <>
-                <div className="rounded-md bg-white p-1 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-700 dark:ring-inset dark:ring-white/5">
+                <div className="rounded-md bg-white p-1 shadow-sm ring-1 ring-slate-900/5 dark:bg-slate-700 dark:ring-white/5 dark:ring-inset">
                   <theme.icon
                     className={clsx(
                       "size-4",
                       selected
                         ? "fill-blue-600 dark:fill-blue-400"
-                        : "fill-slate-600 dark:fill-slate-400"
+                        : "fill-slate-600 dark:fill-slate-400",
                     )}
                   />
                 </div>

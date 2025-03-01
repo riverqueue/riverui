@@ -85,7 +85,10 @@ function JobsIndexComponent() {
   const queryClient = useQueryClient();
 
   const jobsQuery = useQuery(
-    jobsQueryOptions(Route.useLoaderDeps(), { pauseRefetches, refetchInterval })
+    jobsQueryOptions(Route.useLoaderDeps(), {
+      pauseRefetches,
+      refetchInterval,
+    }),
   );
   const statesQuery = useQuery(statesQueryOptions({ refetchInterval }));
 
@@ -179,7 +182,7 @@ const jobsQueryOptions = (
     limit: number;
     state: JobState;
   },
-  opts?: { pauseRefetches: boolean; refetchInterval: number }
+  opts?: { pauseRefetches: boolean; refetchInterval: number },
 ) => {
   const keepPreviousDataUnlessStateChanged: PlaceholderDataFunction<
     Job[],

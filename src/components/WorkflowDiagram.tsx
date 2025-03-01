@@ -36,7 +36,7 @@ const nodeHeight = 44;
 const getLayoutedElements = (
   nodes: Node<WorkflowNodeData, NodeTypeKey>[],
   edges: Edge[],
-  direction = "TB"
+  direction = "TB",
 ): { nodes: Node<WorkflowNodeData, NodeTypeKey>[]; edges: Edge[] } => {
   const isHorizontal = direction === "LR";
   dagreGraph.setGraph({
@@ -127,7 +127,7 @@ export default function WorkflowDiagram({
       });
       return acc;
     },
-    {}
+    {},
   );
 
   const initialNodes: Node<WorkflowNodeData, NodeTypeKey>[] = useMemo(
@@ -145,7 +145,7 @@ export default function WorkflowDiagram({
         selected: selectedJobId === job.id,
         type: "workflowNode",
       })),
-    [tasks, selectedJobId, tasksWithDownstreamDeps]
+    [tasks, selectedJobId, tasksWithDownstreamDeps],
   );
 
   const jobsByTask = tasks.reduce((acc: nameToJobMap, job) => {
@@ -182,11 +182,11 @@ export default function WorkflowDiagram({
   const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
     initialNodes,
     initialEdges,
-    "LR"
+    "LR",
   );
 
   const isNodeSelectionChange = (
-    change: NodeChange
+    change: NodeChange,
   ): change is NodeSelectionChange => {
     return change.type === "select";
   };
@@ -204,7 +204,7 @@ export default function WorkflowDiagram({
         return;
       }
     },
-    [selectedJobId, setSelectedJobId]
+    [selectedJobId, setSelectedJobId],
   );
 
   return (
@@ -221,7 +221,7 @@ export default function WorkflowDiagram({
         proOptions={{ hideAttribution: true }}
       >
         <MiniMap
-          className="hidden bg-slate-400 dark:bg-slate-500 md:block"
+          className="hidden bg-slate-400 md:block dark:bg-slate-500"
           maskColor={minimapMaskColor}
           // TODO: dynamic class name based on state
           nodeClassName="fill-slate-500 dark:fill-slate-800"

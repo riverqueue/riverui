@@ -45,13 +45,13 @@ export default function WorkflowListEmptyState({
 
       {!hasExistingWorkflows && (
         <div className="flex justify-center">
-          <div className="mx-4 mt-12 flex max-w-xl flex-col gap-6 overflow-hidden rounded-lg border border-slate-400/30 bg-white py-6 shadow-lg dark:bg-slate-800 md:mt-20">
+          <div className="mx-4 mt-12 flex max-w-xl flex-col gap-6 overflow-hidden rounded-lg border border-slate-400/30 bg-white py-6 shadow-lg md:mt-20 dark:bg-slate-800">
             <div className="flex flex-col px-4 sm:px-6">
               <div className="flex grow">
-                <Logo className="mr-3 mt-1 h-6 w-auto text-brand-primary dark:text-white" />
+                <Logo className="mt-1 mr-3 h-6 w-auto text-brand-primary dark:text-white" />
                 <Badge color="blue">Pro</Badge>
               </div>
-              <h3 className="mt-4 text-lg font-medium leading-6 text-slate-900 dark:text-white">
+              <h3 className="mt-4 text-lg leading-6 font-medium text-slate-900 dark:text-white">
                 Build faster with Workflows
               </h3>
             </div>

@@ -29,7 +29,7 @@ export function Dropdown(props: HeadlessMenuProps) {
 }
 
 export function DropdownButton<T extends React.ElementType = typeof Button>(
-  props: React.ComponentProps<typeof HeadlessMenuButton<T>>
+  props: React.ComponentProps<typeof HeadlessMenuButton<T>>,
 ) {
   return <HeadlessMenuButton as={Button} {...props} />;
 }
@@ -47,7 +47,7 @@ export function DropdownMenu({
           props.className,
 
           // Anchor positioning
-          "[--anchor-gap:--spacing(2)] [--anchor-padding:--spacing(3)] data-[anchor~=start]:[--anchor-offset:-4px] data-[anchor~=end]:[--anchor-offset:4px]",
+          "[--anchor-gap:--spacing(2)] [--anchor-padding:--spacing(3)] data-[anchor~=end]:[--anchor-offset:4px] data-[anchor~=start]:[--anchor-offset:-4px]",
 
           // Base styles
           "isolate w-max rounded-xl p-1",
@@ -62,10 +62,10 @@ export function DropdownMenu({
           "bg-white backdrop-blur-xl dark:bg-slate-800",
 
           // Shadows
-          "shadow-lg ring-1 ring-zinc-950/10 dark:ring-inset dark:ring-white/10",
+          "shadow-lg ring-1 ring-zinc-950/10 dark:ring-white/10 dark:ring-inset",
 
           // Define grid at the menu level if subgrid is supported
-          "supports-[grid-template-columns:subgrid]:grid supports-[grid-template-columns:subgrid]:grid-cols-[auto_1fr_1.5rem_0.5rem_auto]"
+          "supports-[grid-template-columns:subgrid]:grid supports-[grid-template-columns:subgrid]:grid-cols-[auto_1fr_1.5rem_0.5rem_auto]",
         )}
       />
     </HeadlessTransition>
@@ -74,7 +74,7 @@ export function DropdownMenu({
 
 export function DropdownItem(
   props: { to?: LinkProps["to"] } & Omit<Omit<LinkProps, "to">, "type"> &
-    HeadlessMenuItemProps<"button">
+    HeadlessMenuItemProps<"button">,
 ) {
   return (
     <HeadlessMenuItem
@@ -88,7 +88,7 @@ export function DropdownItem(
         "group cursor-default rounded-lg px-3.5 py-2.5 focus:outline-hidden sm:px-3 sm:py-1.5",
 
         // Text styles
-        "text-left text-sm/6 text-zinc-950 dark:text-white sm:text-sm/6 forced-colors:text-[CanvasText]",
+        "text-left text-sm/6 text-zinc-950 sm:text-sm/6 dark:text-white forced-colors:text-[CanvasText]",
 
         // Focus
         "data-focus:bg-blue-500 data-focus:text-white",
@@ -104,7 +104,7 @@ export function DropdownItem(
 
         // Icon
         "*:data-[slot=icon]:col-start-1 *:data-[slot=icon]:row-start-1 *:data-[slot=icon]:mr-2.5 *:data-[slot=icon]:size-5 sm:*:data-[slot=icon]:mr-2 sm:*:data-[slot=icon]:size-4",
-        "*:data-[slot=icon]:text-zinc-500 data-focus:*:data-[slot=icon]:text-white dark:*:data-[slot=icon]:text-zinc-500 dark:data-focus:*:data-[slot=icon]:text-white"
+        "*:data-[slot=icon]:text-zinc-500 data-focus:*:data-[slot=icon]:text-white dark:*:data-[slot=icon]:text-zinc-500 dark:data-focus:*:data-[slot=icon]:text-white",
       )}
     />
   );
@@ -117,7 +117,7 @@ export function DropdownHeader({
   return (
     <div
       {...props}
-      className={clsx(className, "col-span-5 px-3.5 pb-1 pt-2.5 sm:px-3")}
+      className={clsx(className, "col-span-5 px-3.5 pt-2.5 pb-1 sm:px-3")}
     />
   );
 }
@@ -132,7 +132,7 @@ export function DropdownSection({
       className={clsx(
         className,
         // Define grid at the section level instead of the item level if subgrid is supported
-        "col-span-full supports-[grid-template-columns:subgrid]:grid supports-[grid-template-columns:subgrid]:grid-cols-[auto_1fr_1.5rem_0.5rem_auto]"
+        "col-span-full supports-[grid-template-columns:subgrid]:grid supports-[grid-template-columns:subgrid]:grid-cols-[auto_1fr_1.5rem_0.5rem_auto]",
       )}
     />
   );
@@ -147,7 +147,7 @@ export function DropdownHeading({
       {...props}
       className={clsx(
         className,
-        "col-span-full grid grid-cols-[1fr_auto] gap-x-12 px-3.5 pb-1 pt-2 text-sm/5 font-medium text-zinc-500 dark:text-zinc-400 sm:px-3 sm:text-xs/5"
+        "col-span-full grid grid-cols-[1fr_auto] gap-x-12 px-3.5 pt-2 pb-1 text-sm/5 font-medium text-zinc-500 sm:px-3 sm:text-xs/5 dark:text-zinc-400",
       )}
     />
   );
@@ -162,7 +162,7 @@ export function DropdownSeparator({
       {...props}
       className={clsx(
         className,
-        "col-span-full mx-3.5 my-1 h-px border-0 bg-zinc-950/5 dark:bg-white/10 sm:mx-3 forced-colors:bg-[CanvasText]"
+        "col-span-full mx-3.5 my-1 h-px border-0 bg-zinc-950/5 sm:mx-3 dark:bg-white/10 forced-colors:bg-[CanvasText]",
       )}
     />
   );
@@ -189,7 +189,7 @@ export function DropdownDescription({
       {...props}
       className={clsx(
         className,
-        "col-span-2 col-start-2 row-start-2 text-sm/5 text-zinc-500 group-data-focus:text-white dark:text-zinc-400 sm:text-xs/5 forced-colors:group-data-focus:text-[HighlightText]"
+        "col-span-2 col-start-2 row-start-2 text-sm/5 text-zinc-500 group-data-focus:text-white sm:text-xs/5 dark:text-zinc-400 forced-colors:group-data-focus:text-[HighlightText]",
       )}
     />
   );
@@ -206,14 +206,14 @@ export function DropdownShortcut({
       {...props}
       className={clsx(
         className,
-        "col-start-5 row-start-1 flex justify-self-end"
+        "col-start-5 row-start-1 flex justify-self-end",
       )}
     >
       {(Array.isArray(keys) ? keys : keys.split("")).map((char, index) => (
         <kbd
           key={index}
           className={clsx([
-            "min-w-[2ch] text-center font-sans capitalize text-zinc-400 group-data-focus:text-white forced-colors:group-data-focus:text-[HighlightText]",
+            "min-w-[2ch] text-center font-sans text-zinc-400 capitalize group-data-focus:text-white forced-colors:group-data-focus:text-[HighlightText]",
 
             // Make sure key names that are longer than one character (like "Tab") have extra space
             index > 0 && char.length > 1 && "pl-1",
