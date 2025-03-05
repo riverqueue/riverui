@@ -4,9 +4,6 @@ import { ReactElement } from "react";
 import { Providers } from "@providers";
 
 import "./global-type-overrides";
-
-import "./App.css";
-
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 
