@@ -1,19 +1,5 @@
-/*
-  This example requires some changes to your config:
-  
-  ```
-  // tailwind.config.js
-  module.exports = {
-    // ...
-    plugins: [
-      // ...
-      require('@tailwindcss/forms'),
-    ],
-  }
-  ```
-*/
-import { Fragment, PropsWithChildren, useMemo } from "react";
-
+import Toast from "@components/Toast";
+import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
 import {
   Dialog,
   DialogPanel,
@@ -26,11 +12,9 @@ import {
   RectangleGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-
-import { Link } from "@tanstack/react-router";
-import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
 import useFeature from "@hooks/use-feature";
-import Toast from "@components/Toast";
+import { Link } from "@tanstack/react-router";
+import { Fragment, PropsWithChildren, useMemo } from "react";
 
 type LayoutProps = PropsWithChildren<object>;
 
@@ -43,17 +27,17 @@ const Layout = ({ children }: LayoutProps) => {
     () =>
       [
         {
-          name: "Jobs",
           href: "/jobs",
           icon: QueueListIcon,
+          name: "Jobs",
           search: {},
         },
-        { name: "Queues", href: "/queues", icon: InboxStackIcon },
+        { href: "/queues", icon: InboxStackIcon, name: "Queues" },
         {
-          name: "Workflows",
+          hidden: !featureEnabledWorkflows,
           href: "/workflows",
           icon: RectangleGroupIcon,
-          hidden: !featureEnabledWorkflows,
+          name: "Workflows",
         },
       ].filter((item) => item.hidden === undefined || item.hidden === false),
     [featureEnabledWorkflows],
@@ -62,7 +46,7 @@ const Layout = ({ children }: LayoutProps) => {
   return (
     <>
       <div className="h-full">
-        <Transition show={sidebarOpen} as={Fragment}>
+        <Transition as={Fragment} show={sidebarOpen}>
           <Dialog
             as="div"
             className="relative z-50 lg:hidden"
@@ -102,14 +86,14 @@ const Layout = ({ children }: LayoutProps) => {
                   >
                     <div className="absolute top-0 left-full flex w-16 justify-center pt-5">
                       <button
-                        type="button"
                         className="-m-2.5 p-2.5"
                         onClick={() => setSidebarOpen(false)}
+                        type="button"
                       >
                         <span className="sr-only">Close sidebar</span>
                         <XMarkIcon
-                          className="size-6 text-slate-900 dark:text-slate-100"
                           aria-hidden="true"
+                          className="size-6 text-slate-900 dark:text-slate-100"
                         />
                       </button>
                     </div>
@@ -119,27 +103,27 @@ const Layout = ({ children }: LayoutProps) => {
                     {/* Componentize this, I only removed the w-40 class: */}
                     <div className="flex grow flex-col">
                       <nav className="flex flex-1 flex-col">
-                        <ul role="list" className="flex flex-1 flex-col">
+                        <ul className="flex flex-1 flex-col" role="list">
                           <>
                             {navigation.map((item) => (
                               <li key={item.name}>
                                 <Link
-                                  to={item.href}
-                                  search={item.search}
-                                  className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm leading-6 font-semibold transition-colors"
                                   activeProps={{
                                     className:
                                       "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 dark:hover:text-white border-brand-primary",
                                   }}
+                                  className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm leading-6 font-semibold transition-colors"
                                   inactiveProps={{
                                     className:
                                       "text-slate-600 dark:text-slate-400 dark:hover:text-white hover:text-slate-900 border-transparent dark:hover:bg-slate-800 hover:bg-slate-200",
                                   }}
                                   onClick={() => setSidebarOpen(false)}
+                                  search={item.search}
+                                  to={item.href}
                                 >
                                   <item.icon
-                                    className="size-6 shrink-0"
                                     aria-hidden="true"
+                                    className="size-6 shrink-0"
                                   />
                                   {item.name}
                                 </Link>
@@ -160,25 +144,25 @@ const Layout = ({ children }: LayoutProps) => {
         <div className="hidden overflow-x-hidden bg-slate-100 shadow-sm shadow-slate-400 transition-all hover:w-40 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4 dark:bg-slate-800 dark:shadow-slate-600">
           <div className="flex w-40 grow flex-col">
             <nav className="flex flex-1 flex-col">
-              <ul role="list" className="flex flex-1 flex-col">
+              <ul className="flex flex-1 flex-col" role="list">
                 {navigation.map((item) => (
                   <li key={item.name}>
                     <Link
-                      to={item.href}
-                      search={item.search}
-                      className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm leading-6 font-semibold transition-colors"
                       activeProps={{
                         className:
                           "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 dark:hover:text-white border-brand-primary",
                       }}
+                      className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm leading-6 font-semibold transition-colors"
                       inactiveProps={{
                         className:
                           "text-slate-600 dark:text-slate-400 dark:hover:text-white hover:text-slate-900 border-transparent dark:hover:bg-slate-800 hover:bg-slate-200",
                       }}
+                      search={item.search}
+                      to={item.href}
                     >
                       <item.icon
-                        className="size-6 shrink-0"
                         aria-hidden="true"
+                        className="size-6 shrink-0"
                       />
                       {item.name}
                     </Link>

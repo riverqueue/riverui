@@ -34,11 +34,11 @@ export const useSelected = <P>(initialState: Array<P>) => {
 
   // Convert the Set to an array when returning
   return {
+    add,
+    change,
+    clear,
+    remove,
     selected: Array.from(selected),
     selectedSet: selected,
-    add,
-    remove,
-    clear,
-    change,
   };
 };

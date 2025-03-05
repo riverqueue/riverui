@@ -1,4 +1,5 @@
 import { Queue } from "@services/queues";
+
 import TopNavTitleOnly from "./TopNavTitleOnly";
 
 const Content = ({ loading, queue }: QueueDetailProps) => {

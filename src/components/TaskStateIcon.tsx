@@ -8,10 +8,9 @@ import {
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/20/solid";
-import clsx from "clsx";
-
 import { JobState } from "@services/types";
 import { capitalize } from "@utils/string";
+import clsx from "clsx";
 
 export const TaskStateIcon = ({
   className,

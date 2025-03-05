@@ -1,9 +1,9 @@
-import { Link } from "@tanstack/react-router";
-import React, { useMemo } from "react";
-
 import Logo from "@components/Logo";
 import { StatesAndCounts } from "@services/states";
+import { Link } from "@tanstack/react-router";
 import { jobStateFilterItems } from "@utils/jobStateFilterItems";
+import React, { useMemo } from "react";
+
 import { Badge } from "./Badge";
 
 type JobFiltersProps = {
@@ -24,34 +24,34 @@ export const JobFilters: (props: JobFiltersProps) => React.JSX.Element = ({
         <Logo className="h-full w-auto" />
       </div>
       <nav className="flex flex-1 flex-col">
-        <ul role="list" className="flex flex-1 flex-col gap-y-4">
+        <ul className="flex flex-1 flex-col gap-y-4" role="list">
           <li>
             <div className="text-xs leading-6 font-semibold text-slate-500 dark:text-slate-500">
               Job State
             </div>
-            <ul role="list" className="-mx-2 mt-2 space-y-1">
+            <ul className="-mx-2 mt-2 space-y-1" role="list">
               {filterItems.map((item) => {
                 return (
                   <li key={item.name}>
                     <Link
-                      to="/jobs"
-                      className="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
                       activeProps={{
                         className:
                           "bg-gray-50 dark:bg-gray-800 text-indigo-600 dark:text-slate-100",
                       }}
+                      className="group flex gap-x-3 rounded-md p-2 text-sm leading-6 font-semibold"
                       inactiveProps={{
                         className:
                           "text-gray-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800",
                       }}
-                      search={{ state: item.state }}
                       params={{}}
+                      search={{ state: item.state }}
+                      to="/jobs"
                     >
                       {item.name}
                       {item.count ? (
                         <Badge
-                          color="light"
                           className="ml-auto w-9 min-w-max justify-end whitespace-nowrap"
+                          color="light"
                         >
                           {item.count.toString()}
                         </Badge>

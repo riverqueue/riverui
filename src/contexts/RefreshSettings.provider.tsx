@@ -1,4 +1,5 @@
-import { Fragment, useContext, useState, useMemo } from "react";
+import { Fragment, useContext, useMemo, useState } from "react";
+
 import { RefreshSettingContext } from "./RefreshSettings";
 
 export interface RefreshSettingProviderProps {

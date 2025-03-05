@@ -1,4 +1,5 @@
 import { JobState } from "@services/types";
+
 import { Button } from "./Button";
 import TopNavTitleOnly from "./TopNavTitleOnly";
 
@@ -23,7 +24,7 @@ export default function JobNotFound({ jobId }: JobNotFoundProps) {
             Sorry, there is no job with ID <code>{jobId.toString()}</code>.
           </p>
           <div className="mt-10 flex items-center justify-center gap-x-6">
-            <Button plain to="/jobs" search={{ state: JobState.Available }}>
+            <Button plain search={{ state: JobState.Available }} to="/jobs">
               Return to job list <span aria-hidden="true">&rarr;</span>
             </Button>
           </div>

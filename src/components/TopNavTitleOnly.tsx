@@ -1,8 +1,9 @@
 import { ReactNode } from "react";
+
 import TopNav from "./TopNav";
 
 type TopNavTitleOnlyProps = {
-  title: string | ReactNode;
+  title: ReactNode | string;
 };
 
 const TopNavTitleOnly = ({ title }: TopNavTitleOnlyProps) => {

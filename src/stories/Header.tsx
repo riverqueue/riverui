@@ -1,30 +1,30 @@
 import { Button } from "./Button";
 import "./header.css";
 
+interface HeaderProps {
+  onCreateAccount: () => void;
+  onLogin: () => void;
+  onLogout: () => void;
+  user?: User;
+}
+
 type User = {
   name: string;
 };
 
-interface HeaderProps {
-  user?: User;
-  onLogin: () => void;
-  onLogout: () => void;
-  onCreateAccount: () => void;
-}
-
 export const Header = ({
-  user,
+  onCreateAccount,
   onLogin,
   onLogout,
-  onCreateAccount,
+  user,
 }: HeaderProps) => (
   <header>
     <div className="storybook-header">
       <div>
         <svg
-          width="32"
           height="32"
           viewBox="0 0 32 32"
+          width="32"
           xmlns="http://www.w3.org/2000/svg"
         >
           <g fill="none" fillRule="evenodd">
@@ -50,16 +50,16 @@ export const Header = ({
             <span className="welcome">
               Welcome, <b>{user.name}</b>!
             </span>
-            <Button size="small" onClick={onLogout} label="Log out" />
+            <Button label="Log out" onClick={onLogout} size="small" />
           </>
         ) : (
           <>
-            <Button size="small" onClick={onLogin} label="Log in" />
+            <Button label="Log in" onClick={onLogin} size="small" />
             <Button
+              label="Sign up"
+              onClick={onCreateAccount}
               primary
               size="small"
-              onClick={onCreateAccount}
-              label="Sign up"
             />
           </>
         )}

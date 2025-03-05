@@ -1,21 +1,20 @@
+import { Badge } from "@components/Badge";
+import ButtonForGroup from "@components/ButtonForGroup";
+import JobAttemptErrors from "@components/JobAttemptErrors";
+import JobTimeline from "@components/JobTimeline";
+import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import {
   ArrowUturnLeftIcon,
   TrashIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-
+import useFeature from "@hooks/use-feature";
 import { Job, JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
-import { capitalize } from "@utils/string";
-import JobTimeline from "@components/JobTimeline";
-import { FormEvent, useMemo, useState } from "react";
-import TopNavTitleOnly from "@components/TopNavTitleOnly";
-import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
-import JobAttemptErrors from "@components/JobAttemptErrors";
-import { Badge } from "@components/Badge";
-import ButtonForGroup from "@components/ButtonForGroup";
-import useFeature from "@hooks/use-feature";
 import { Link } from "@tanstack/react-router";
+import { capitalize } from "@utils/string";
+import { FormEvent, useMemo, useState } from "react";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -23,64 +22,6 @@ type JobDetailProps = {
   job: Job;
   retry: () => void;
 };
-
-function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
-  // Can only delete jobs that aren't running:
-  const deleteDisabled = job.state === JobState.Running;
-
-  const deleteJob = (event: FormEvent) => {
-    event.preventDefault();
-    deleteFn();
-  };
-
-  // Can only cancel jobs that aren't already finalized (completed, discarded, cancelled):
-  const cancelDisabled = [
-    JobState.Cancelled,
-    JobState.Completed,
-    JobState.Discarded,
-  ].includes(job.state);
-
-  const cancelJob = (event: FormEvent) => {
-    event.preventDefault();
-    cancel();
-  };
-
-  // Enable immediate retry if the job is not running or pending:
-  const retryDisabled = [JobState.Running, JobState.Pending].includes(
-    job.state,
-  );
-  const retryJob = (event: FormEvent) => {
-    event.preventDefault();
-    retry();
-  };
-
-  return (
-    <span className="isolate inline-flex rounded-md shadow-xs">
-      <ButtonForGroup
-        Icon={ArrowUturnLeftIcon}
-        text="Retry"
-        disabled={retryDisabled}
-        onClick={retryJob}
-      />
-      <ButtonForGroup
-        Icon={XCircleIcon}
-        text="Cancel"
-        disabled={cancelDisabled}
-        onClick={cancelJob}
-      />
-      <ButtonForGroup
-        Icon={TrashIcon}
-        text="Delete"
-        disabled={deleteDisabled}
-        onClick={deleteJob}
-      />
-    </span>
-  );
-}
-
-function isJobWithKnownMetadata(job: Job): job is JobWithKnownMetadata {
-  return (job as JobWithKnownMetadata).metadata !== undefined;
-}
 
 export default function JobDetail({
   cancel,
@@ -175,9 +116,9 @@ export default function JobDetail({
                     ? "–"
                     : job.tags.map((tag) => (
                         <Badge
+                          className="m-1 font-mono text-xs"
                           color="blue"
                           key={tag}
-                          className="m-1 font-mono text-xs"
                         >
                           {tag}
                         </Badge>
@@ -189,7 +130,7 @@ export default function JobDetail({
                   Created
                 </dt>
                 <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
-                  <RelativeTimeFormatter time={job.createdAt} addSuffix />
+                  <RelativeTimeFormatter addSuffix time={job.createdAt} />
                 </dd>
               </div>
               {featureEnabledWorkflows &&
@@ -202,11 +143,11 @@ export default function JobDetail({
                     <dd className="mt-1 overflow-hidden font-mono text-sm leading-6 text-ellipsis text-slate-700 sm:mt-2 dark:text-slate-300">
                       {jobWithMetadata.metadata.workflow_id ? (
                         <Link
-                          to="/workflows/$workflowId"
                           params={{
                             workflowId: jobWithMetadata.metadata.workflow_id,
                           }}
                           search={{ selected: job.id }}
+                          to="/workflows/$workflowId"
                         >
                           {jobWithMetadata.metadata.workflow_id}
                         </Link>
@@ -261,18 +202,18 @@ export default function JobDetail({
                   </ul>
                   {!showAllAttempts && job.attemptedBy.length > 5 && (
                     <button
-                      type="button"
                       className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
                       onClick={() => setShowAllAttempts(true)}
+                      type="button"
                     >
                       Show all {job.attemptedBy.length} attempts
                     </button>
                   )}
                   {showAllAttempts && (
                     <button
-                      type="button"
                       className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
                       onClick={() => setShowAllAttempts(false)}
+                      type="button"
                     >
                       Show fewer attempts
                     </button>
@@ -287,4 +228,62 @@ export default function JobDetail({
       </main>
     </>
   );
+}
+
+function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
+  // Can only delete jobs that aren't running:
+  const deleteDisabled = job.state === JobState.Running;
+
+  const deleteJob = (event: FormEvent) => {
+    event.preventDefault();
+    deleteFn();
+  };
+
+  // Can only cancel jobs that aren't already finalized (completed, discarded, cancelled):
+  const cancelDisabled = [
+    JobState.Cancelled,
+    JobState.Completed,
+    JobState.Discarded,
+  ].includes(job.state);
+
+  const cancelJob = (event: FormEvent) => {
+    event.preventDefault();
+    cancel();
+  };
+
+  // Enable immediate retry if the job is not running or pending:
+  const retryDisabled = [JobState.Pending, JobState.Running].includes(
+    job.state,
+  );
+  const retryJob = (event: FormEvent) => {
+    event.preventDefault();
+    retry();
+  };
+
+  return (
+    <span className="isolate inline-flex rounded-md shadow-xs">
+      <ButtonForGroup
+        disabled={retryDisabled}
+        Icon={ArrowUturnLeftIcon}
+        onClick={retryJob}
+        text="Retry"
+      />
+      <ButtonForGroup
+        disabled={cancelDisabled}
+        Icon={XCircleIcon}
+        onClick={cancelJob}
+        text="Cancel"
+      />
+      <ButtonForGroup
+        disabled={deleteDisabled}
+        Icon={TrashIcon}
+        onClick={deleteJob}
+        text="Delete"
+      />
+    </span>
+  );
+}
+
+function isJobWithKnownMetadata(job: Job): job is JobWithKnownMetadata {
+  return (job as JobWithKnownMetadata).metadata !== undefined;
 }

@@ -1,19 +1,20 @@
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import { WorkflowState } from "@services/types";
 import { WorkflowListItem } from "@services/workflows";
 import { Link } from "@tanstack/react-router";
-import { WorkflowState } from "@services/types";
+import clsx from "clsx";
+
 import { Badge, BadgeColor } from "./Badge";
 import TopNav from "./TopNav";
-import clsx from "clsx";
 import WorkflowListEmptyState from "./WorkflowListEmptyState";
+
+type StateTab = { name: string; state: undefined | WorkflowState };
 
 type WorkflowListProps = {
   loading: boolean;
   showingAll: boolean;
   workflowItems: WorkflowListItem[];
 };
-
-type StateTab = { name: string; state: WorkflowState | undefined };
 const tabs: StateTab[] = [
   { name: "All", state: undefined },
   { name: "Active", state: WorkflowState.Active },
@@ -65,19 +66,19 @@ const WorkflowFilters = ({ className }: { className?: string }) => {
     >
       {tabs.map((tab) => (
         <Link
-          key={tab.name}
-          to="/workflows"
-          search={tab.state ? { state: tab.state } : {}}
-          className="rounded-md px-3 py-2 text-sm font-medium"
           activeOptions={{ exact: true }}
           activeProps={{
             className:
               "bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-700 dark:hover:text-slate-300",
           }}
+          className="rounded-md px-3 py-2 text-sm font-medium"
           inactiveProps={{
             className:
               "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300",
           }}
+          key={tab.name}
+          search={tab.state ? { state: tab.state } : {}}
+          to="/workflows"
         >
           {tab.name}
         </Link>
@@ -96,38 +97,38 @@ const WorkflowTable = ({
       <thead>
         <tr>
           <th
-            scope="col"
             className="hidden px-3 py-2.5 text-left font-mono text-sm font-semibold text-slate-900 lg:table-cell dark:text-slate-100"
+            scope="col"
           >
             ID
           </th>
           <th
-            scope="col"
             className="py-2.5 pr-3 pl-4 text-left text-sm font-semibold text-slate-900 sm:pl-0 dark:text-slate-100"
+            scope="col"
           >
             Name
           </th>
           <th
-            scope="col"
             className="table-cell px-3 py-2.5 text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
+            scope="col"
           >
             Status
           </th>
           <th
-            scope="col"
             className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 md:table-cell dark:text-slate-100"
+            scope="col"
           >
             Created
           </th>
           <th
-            scope="col"
             className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
+            scope="col"
           >
             Pending Jobs
           </th>
           <th
-            scope="col"
             className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
+            scope="col"
           >
             Total Jobs
           </th>
@@ -139,8 +140,8 @@ const WorkflowTable = ({
             <td className="max-w-72 py-2 pr-3 pl-4 text-sm font-medium text-slate-700 sm:w-auto sm:pl-0 dark:text-slate-300">
               <div className="truncate font-mono font-semibold dark:text-slate-100">
                 <Link
-                  to="/workflows/$workflowId"
                   params={{ workflowId: workflowItem.id }}
+                  to="/workflows/$workflowId"
                 >
                   {workflowItem.id}
                 </Link>
@@ -150,9 +151,9 @@ const WorkflowTable = ({
               </div>
               <div className="mt-1 truncate md:hidden">
                 <RelativeTimeFormatter
-                  time={workflowItem.createdAt}
                   addSuffix
                   includeSeconds
+                  time={workflowItem.createdAt}
                 />
               </div>
             </td>
@@ -182,9 +183,9 @@ const WorkflowTable = ({
             </td>
             <td className="hidden px-3 py-2 text-right text-sm text-slate-500 md:table-cell dark:text-slate-300">
               <RelativeTimeFormatter
-                time={workflowItem.createdAt}
                 addSuffix
                 includeSeconds
+                time={workflowItem.createdAt}
               />
             </td>
             <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">

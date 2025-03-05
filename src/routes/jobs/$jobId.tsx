@@ -1,14 +1,6 @@
-import {
-  ErrorComponent,
-  createFileRoute,
-  getRouteApi,
-} from "@tanstack/react-router";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
-import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import JobDetail from "@components/JobDetail";
-import { NotFoundError } from "@utils/api";
 import JobNotFound from "@components/JobNotFound";
-import { toastError, toastSuccess } from "@services/toast";
+import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import {
   cancelJobs,
   deleteJobs,
@@ -16,7 +8,15 @@ import {
   getJobKey,
   retryJobs,
 } from "@services/jobs";
+import { toastError, toastSuccess } from "@services/toast";
 import { JobState } from "@services/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  createFileRoute,
+  ErrorComponent,
+  getRouteApi,
+} from "@tanstack/react-router";
+import { NotFoundError } from "@utils/api";
 
 const routeApi = getRouteApi("/jobs/$jobId");
 

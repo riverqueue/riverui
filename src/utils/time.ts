@@ -6,47 +6,9 @@ import {
 
 export interface FormatRelativeOptions {
   addSuffix?: boolean;
-  includeSeconds?: boolean;
   humanize?: boolean;
+  includeSeconds?: boolean;
   now?: Date;
-}
-
-export function formatRelative(
-  date: Date,
-  {
-    addSuffix,
-    includeSeconds,
-    humanize = true,
-    now = new Date(),
-  }: FormatRelativeOptions = {},
-) {
-  const diff = differenceInSeconds(now, date);
-
-  if (humanize) {
-    if (diff < 30) {
-      return "now";
-    }
-    return formatDistance(date, now, { addSuffix, includeSeconds });
-  }
-
-  if (diff < 60 && includeSeconds) {
-    return `${diff}s`;
-  }
-  return formatDistance(date, now, { addSuffix, includeSeconds });
-}
-
-export function getFormatUpdateInterval(date: Date, now: Date = new Date()) {
-  const diff = differenceInSeconds(now, date);
-
-  if (diff < 60) {
-    return 1000;
-  } else if (diff < 3600) {
-    return 60000;
-  } else if (diff >= 3600 && diff <= 86400) {
-    return 3600000;
-  } else {
-    return 0;
-  }
 }
 
 export function formatDurationShort(
@@ -77,4 +39,42 @@ export function formatDurationShort(
       : "." + String(hundredths).padStart(2, "0")) +
     "s"
   }`;
+}
+
+export function formatRelative(
+  date: Date,
+  {
+    addSuffix,
+    humanize = true,
+    includeSeconds,
+    now = new Date(),
+  }: FormatRelativeOptions = {},
+) {
+  const diff = differenceInSeconds(now, date);
+
+  if (humanize) {
+    if (diff < 30) {
+      return "now";
+    }
+    return formatDistance(date, now, { addSuffix, includeSeconds });
+  }
+
+  if (diff < 60 && includeSeconds) {
+    return `${diff}s`;
+  }
+  return formatDistance(date, now, { addSuffix, includeSeconds });
+}
+
+export function getFormatUpdateInterval(date: Date, now: Date = new Date()) {
+  const diff = differenceInSeconds(now, date);
+
+  if (diff < 60) {
+    return 1000;
+  } else if (diff < 3600) {
+    return 60000;
+  } else if (diff >= 3600 && diff <= 86400) {
+    return 3600000;
+  } else {
+    return 0;
+  }
 }

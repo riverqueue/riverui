@@ -1,4 +1,3 @@
-import { ReactFlow, MiniMap } from "@xyflow/react";
 import type {
   Edge,
   Node,
@@ -7,24 +6,24 @@ import type {
   NodeTypes,
   Position,
 } from "@xyflow/react";
-import dagre from "@dagrejs/dagre";
 
-import "@xyflow/react/dist/style.css";
-
-import { JobWithKnownMetadata } from "@services/jobs";
-import { useTheme } from "next-themes";
-import { JobState } from "@services/types";
 import WorkflowNode, { WorkflowNodeData } from "@components/WorkflowNode";
+import dagre from "@dagrejs/dagre";
+import "@xyflow/react/dist/style.css";
+import { JobWithKnownMetadata } from "@services/jobs";
+import { JobState } from "@services/types";
+import { MiniMap, ReactFlow } from "@xyflow/react";
+import { useTheme } from "next-themes";
 import { useCallback, useMemo } from "react";
+
+type nameToJobMap = {
+  [key: string]: JobWithKnownMetadata;
+};
 
 type WorkflowDiagramProps = {
   selectedJobId?: bigint;
   setSelectedJobId: (id: bigint | undefined) => void;
   tasks: JobWithKnownMetadata[];
-};
-
-type nameToJobMap = {
-  [key: string]: JobWithKnownMetadata;
 };
 
 const dagreGraph = new dagre.graphlib.Graph();
@@ -37,7 +36,7 @@ const getLayoutedElements = (
   nodes: Node<WorkflowNodeData, NodeTypeKey>[],
   edges: Edge[],
   direction = "TB",
-): { nodes: Node<WorkflowNodeData, NodeTypeKey>[]; edges: Edge[] } => {
+): { edges: Edge[]; nodes: Node<WorkflowNodeData, NodeTypeKey>[] } => {
   const isHorizontal = direction === "LR";
   dagreGraph.setGraph({
     align: "UL",
@@ -48,7 +47,7 @@ const getLayoutedElements = (
   });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { width: nodeWidth, height: nodeHeight });
+    dagreGraph.setNode(node.id, { height: nodeHeight, width: nodeWidth });
   });
 
   edges.forEach((edge) => {
@@ -72,26 +71,26 @@ const getLayoutedElements = (
     return node;
   });
 
-  return { nodes, edges };
+  return { edges, nodes };
 };
 
 const edgeColorsLight = {
   blocked: "#cbd5e1",
-  unblocked: "#cbd5e1",
   failed: "#dc2626",
+  unblocked: "#cbd5e1",
 };
 const edgeColorsDark = {
   blocked: "#475569",
-  unblocked: "#475569",
   failed: "#dc2626",
+  unblocked: "#475569",
 };
 
 const depStatusFromJob = (job: JobWithKnownMetadata) => {
   switch (job.state) {
-    case JobState.Completed:
-      return "unblocked";
     case (JobState.Cancelled, JobState.Discarded):
       return "failed";
+    case JobState.Completed:
+      return "unblocked";
     default:
       return "blocked";
   }
@@ -169,8 +168,8 @@ export default function WorkflowDiagram({
           id: `e-${dep.id}-${job.id}`,
           source: dep.id.toString(),
           style: {
-            strokeWidth: 2,
             stroke: edgeColor,
+            strokeWidth: 2,
           },
           target: job.id.toString(),
           type: "smoothstep",
@@ -179,7 +178,7 @@ export default function WorkflowDiagram({
     return [...acc, ...newEdges];
   }, []);
 
-  const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+  const { edges: layoutedEdges, nodes: layoutedNodes } = getLayoutedElements(
     initialNodes,
     initialEdges,
     "LR",
@@ -212,10 +211,10 @@ export default function WorkflowDiagram({
       <ReactFlow
         defaultViewport={{ x: 32, y: 32, zoom: 1 }}
         edges={layoutedEdges}
+        nodes={layoutedNodes}
         // fitView
         nodesFocusable={true}
         nodeTypes={nodeTypes}
-        nodes={layoutedNodes}
         onEdgesChange={(_newEdges) => {}}
         onNodesChange={onNodesChange}
         proOptions={{ hideAttribution: true }}

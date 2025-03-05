@@ -1,14 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-
 import QueueList from "@components/QueueList";
+import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import {
   listQueues,
   listQueuesKey,
   pauseQueue,
   resumeQueue,
 } from "@services/queues";
-import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/queues/")({
   beforeLoad: ({ abortController }) => {

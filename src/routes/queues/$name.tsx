@@ -1,10 +1,10 @@
-import { ErrorComponent, createFileRoute } from "@tanstack/react-router";
+import QueueDetail from "@components/QueueDetail";
+import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { getQueue, getQueueKey } from "@services/queues";
 import { useQuery } from "@tanstack/react-query";
-import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { createFileRoute, ErrorComponent } from "@tanstack/react-router";
 // import QueueDetail from "@components/QueueDetail";
 import { NotFoundError } from "@utils/api";
-import QueueDetail from "@components/QueueDetail";
 
 export const Route = createFileRoute("/queues/$name")({
   parseParams: ({ name }) => ({ name }),

@@ -12,9 +12,9 @@ const stateClasses: Record<JobState, string> = {
   [JobState.Scheduled]: "text-cyan-400 bg-cyan-400/10",
 };
 
-type JobStateIconProps = React.ComponentPropsWithoutRef<"div"> & {
+type JobStateIconProps = {
   state: JobState;
-};
+} & React.ComponentPropsWithoutRef<"div">;
 
 export default function JobStateIcon({ className, state }: JobStateIconProps) {
   return (

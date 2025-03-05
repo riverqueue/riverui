@@ -1,7 +1,7 @@
-import { Queue } from "@services/queues";
-import { PauseCircleIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
-import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import TopNavTitleOnly from "@components/TopNavTitleOnly";
+import { PauseCircleIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
+import { Queue } from "@services/queues";
 
 type QueueListProps = {
   loading: boolean;
@@ -30,38 +30,38 @@ const QueueList = ({
             <thead>
               <tr>
                 <th
-                  scope="col"
                   className="py-2.5 pr-3 pl-4 text-left text-sm font-semibold text-slate-900 sm:pl-0 dark:text-slate-100"
+                  scope="col"
                 >
                   Name
                 </th>
                 <th
-                  scope="col"
                   className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 md:table-cell dark:text-slate-100"
+                  scope="col"
                 >
                   Created
                 </th>
                 <th
-                  scope="col"
                   className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
+                  scope="col"
                 >
                   Available
                 </th>
                 <th
-                  scope="col"
                   className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
+                  scope="col"
                 >
                   Running
                 </th>
                 <th
-                  scope="col"
                   className="table-cell w-20 min-w-20 px-3 py-2 text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
+                  scope="col"
                 >
                   Status
                 </th>
                 <th
-                  scope="col"
                   className="relative w-12 py-2.5 pr-4 pl-3 sm:pr-0"
+                  scope="col"
                 >
                   <span className="sr-only">Controls</span>
                 </th>
@@ -86,18 +86,18 @@ const QueueList = ({
                       <dt className="sr-only">Created</dt>
                       <dd className="mt-1 truncate">
                         <RelativeTimeFormatter
-                          time={queue.createdAt}
                           addSuffix
                           includeSeconds
+                          time={queue.createdAt}
                         />
                       </dd>
                     </dl>
                   </td>
                   <td className="hidden px-3 py-2 text-right text-sm text-slate-500 md:table-cell dark:text-slate-300">
                     <RelativeTimeFormatter
-                      time={queue.createdAt}
                       addSuffix
                       includeSeconds
+                      time={queue.createdAt}
                     />
                   </td>
                   <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
@@ -121,11 +121,11 @@ const QueueList = ({
                       type="button"
                     >
                       {queue.pausedAt ? (
-                        <PlayCircleIcon className="size-5" aria-hidden="true" />
+                        <PlayCircleIcon aria-hidden="true" className="size-5" />
                       ) : (
                         <PauseCircleIcon
-                          className="size-5"
                           aria-hidden="true"
+                          className="size-5"
                         />
                       )}
                       <span className="sr-only">

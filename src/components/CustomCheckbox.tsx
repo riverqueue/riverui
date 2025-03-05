@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useRef } from "react";
 import { classNames } from "@utils/style";
+import React, { useCallback, useEffect, useRef } from "react";
 
 export function CustomCheckbox({
   checked,
   className,
-  onChange,
   indeterminate,
+  onChange,
   ...props
 }: {
   className?: string;
@@ -37,7 +37,6 @@ export function CustomCheckbox({
 
   return (
     <input
-      ref={checkboxRef}
       checked={checked}
       className={classNames(
         "h-4 w-4 rounded-sm border-slate-300 text-brand-primary focus:ring-indigo-600",
@@ -46,6 +45,7 @@ export function CustomCheckbox({
         className || "",
       )}
       onChange={controlledOnChange}
+      ref={checkboxRef}
       type="checkbox"
       {...props}
     />

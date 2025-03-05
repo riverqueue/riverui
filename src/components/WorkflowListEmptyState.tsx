@@ -1,9 +1,9 @@
+import { Badge } from "@components/Badge";
+import Logo from "@components/Logo";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { RectangleGroupIcon } from "@heroicons/react/24/outline";
 import { listWorkflows, listWorkflowsKey } from "@services/workflows";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import Logo from "@components/Logo";
-import { Badge } from "@components/Badge";
 
 export default function WorkflowListEmptyState({
   showingAll,
@@ -11,10 +11,10 @@ export default function WorkflowListEmptyState({
   showingAll: boolean;
 }) {
   const opts = queryOptions({
-    queryKey: listWorkflowsKey({ limit: 1, state: undefined }),
-    queryFn: listWorkflows,
-    refetchInterval: 60000,
     enabled: !showingAll,
+    queryFn: listWorkflows,
+    queryKey: listWorkflowsKey({ limit: 1, state: undefined }),
+    refetchInterval: 60000,
   });
 
   const anyWorkflowsQuery = useQuery(opts);
@@ -67,14 +67,14 @@ export default function WorkflowListEmptyState({
             </div>
             <div className="flex gap-4 px-4 sm:px-6">
               <a
-                href="https://riverqueue.com/pro"
                 className="rounded-lg bg-brand-primary px-4 py-2 text-sm text-white hover:bg-blue-500 hover:text-white"
+                href="https://riverqueue.com/pro"
               >
                 Learn more
               </a>
               <a
-                href="https://riverqueue.com/pro"
                 className="flex items-center rounded-lg bg-transparent px-4 py-2 text-sm text-slate-800 hover:text-slate-600 dark:text-slate-200 dark:hover:text-slate-400"
+                href="https://riverqueue.com/pro"
               >
                 Docs
                 <ArrowRightIcon className="ml-2 size-4" />

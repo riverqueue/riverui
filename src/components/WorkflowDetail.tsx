@@ -1,18 +1,17 @@
-import { Workflow } from "@services/workflows";
-import WorkflowDiagram from "@components/WorkflowDiagram";
-import TopNavTitleOnly from "@components/TopNavTitleOnly";
-import { useMemo } from "react";
-import { Link } from "@tanstack/react-router";
-import clsx from "clsx";
-
-import { capitalize } from "@utils/string";
+import { Button } from "@components/Button";
 import { Subheading } from "@components/Heading";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
-import { JobWithKnownMetadata } from "@services/jobs";
 import { TaskStateIcon } from "@components/TaskStateIcon";
-import { Button } from "@components/Button";
+import TopNavTitleOnly from "@components/TopNavTitleOnly";
+import WorkflowDiagram from "@components/WorkflowDiagram";
 import { EllipsisHorizontalIcon } from "@heroicons/react/20/solid";
+import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
+import { Workflow } from "@services/workflows";
+import { Link } from "@tanstack/react-router";
+import { capitalize } from "@utils/string";
+import clsx from "clsx";
+import { useMemo } from "react";
 
 type JobsByTask = {
   [key: string]: JobWithKnownMetadata;
@@ -114,9 +113,9 @@ const SelectedJobDetails = ({
             <dt className={dtClasses}>ID</dt>
             <dd className={ddClasses}>
               <Link
-                to="/jobs/$jobId"
-                params={{ jobId: job.id }}
                 className="font-mono text-slate-900 dark:text-slate-200"
+                params={{ jobId: job.id }}
+                to="/jobs/$jobId"
               >
                 <span className="truncate">{job.id.toString()}</span>
               </Link>
@@ -125,7 +124,7 @@ const SelectedJobDetails = ({
             <dt className={dtClasses}>State</dt>
             <dd className={clsx(ddClasses, "flex items-center")}>
               {capitalize(job.state)}
-              <TaskStateIcon jobState={job.state} className="ml-2 size-4" />
+              <TaskStateIcon className="ml-2 size-4" jobState={job.state} />
             </dd>
 
             <dt className={dtClasses}>Kind</dt>
@@ -144,7 +143,7 @@ const SelectedJobDetails = ({
 
             <dt className={dtClasses}>Created</dt>
             <dd className={ddClasses}>
-              <RelativeTimeFormatter time={job.createdAt} addSuffix />
+              <RelativeTimeFormatter addSuffix time={job.createdAt} />
             </dd>
           </dl>
         </div>
@@ -159,7 +158,7 @@ const SelectedJobDetails = ({
               {job.metadata.deps &&
                 job.metadata.deps.map((dep: string) => (
                   <div className="flex items-center gap-2" key={dep}>
-                    <DependencyItem depName={dep} depJob={jobsByTask[dep]} />
+                    <DependencyItem depJob={jobsByTask[dep]} depName={dep} />
                   </div>
                 ))}
             </dd>
@@ -169,8 +168,8 @@ const SelectedJobDetails = ({
                 <span>Not yet staged, pending dependencies</span>
               ) : (
                 <RelativeTimeFormatter
-                  time={stagedAt || job.createdAt}
                   addSuffix
+                  time={stagedAt || job.createdAt}
                 />
               )}
             </dd>
@@ -209,7 +208,7 @@ const DependencyItem = ({
   if (!depJob) {
     return (
       <div className="flex items-center gap-x-2 font-mono text-slate-900 dark:text-slate-200">
-        <TaskStateIcon jobState={JobState.Discarded} className="size-4" />
+        <TaskStateIcon className="size-4" jobState={JobState.Discarded} />
         <span className="truncate">{depName}</span>
       </div>
     );
@@ -217,11 +216,11 @@ const DependencyItem = ({
 
   return (
     <Link
-      to="."
-      search={{ selected: depJob.id }}
       className="flex items-center gap-x-2 font-mono text-slate-900 dark:text-slate-200"
+      search={{ selected: depJob.id }}
+      to="."
     >
-      <TaskStateIcon jobState={depJob.state} className="size-4" />
+      <TaskStateIcon className="size-4" jobState={depJob.state} />
       <span className="truncate">{depName}</span>
     </Link>
   );

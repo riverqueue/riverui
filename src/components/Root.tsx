@@ -1,6 +1,5 @@
-import { Outlet } from "@tanstack/react-router";
-
 import Layout from "@components/Layout";
+import { Outlet } from "@tanstack/react-router";
 import React, { PropsWithChildren, Suspense } from "react";
 
 const TanStackRouterDevtools =

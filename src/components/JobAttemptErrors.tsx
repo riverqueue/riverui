@@ -1,7 +1,8 @@
 import { type AttemptError, Job } from "@services/jobs";
-import RelativeTimeFormatter from "./RelativeTimeFormatter";
-import { useState } from "react";
 import clsx from "clsx";
+import { useState } from "react";
+
+import RelativeTimeFormatter from "./RelativeTimeFormatter";
 
 type JobAttemptErrorsProps = {
   job: Job;
@@ -31,23 +32,23 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
           ) : (
             <>
               <ol
-                role="list"
                 className="divide-y divide-slate-300 dark:divide-slate-700"
+                role="list"
               >
                 {errorsToDisplay.map((error) => (
-                  <li key={error.attempt} className="py-4 sm:py-6">
+                  <li className="py-4 sm:py-6" key={error.attempt}>
                     <div className="flex items-start">
                       <p className="font-mono leading-5 font-medium text-slate-900 dark:text-slate-100">
                         {error.attempt.toString()}
                       </p>
                       <div className="ml-4 max-w-full min-w-0 flex-1">
                         <h5
+                          aria-description="Error message"
                           className={clsx(
                             "mb-2 font-mono text-sm font-medium text-slate-900 dark:text-slate-100",
                             isMultilineError(error) &&
                               "-mt-2 block h-min max-h-80 resize-y overflow-auto rounded-md bg-slate-300/20 px-4 py-2 whitespace-pre dark:bg-slate-700/20",
                           )}
-                          aria-description="Error message"
                         >
                           {error.error}
                         </h5>
@@ -57,15 +58,15 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
                               Stack Trace:
                             </h6>
                             <pre
-                              className="h-min max-h-80 w-full resize-y overflow-x-auto bg-slate-300/10 px-4 py-2 text-sm whitespace-pre text-slate-700 dark:bg-slate-700/10 dark:text-slate-300"
                               aria-description="Stack trace"
+                              className="h-min max-h-80 w-full resize-y overflow-x-auto bg-slate-300/10 px-4 py-2 text-sm whitespace-pre text-slate-700 dark:bg-slate-700/10 dark:text-slate-300"
                             >
                               {error.trace}
                             </pre>
                           </>
                         )}
                         <p className="mt-4 text-sm text-slate-700 dark:text-slate-300">
-                          <RelativeTimeFormatter time={error.at} addSuffix />
+                          <RelativeTimeFormatter addSuffix time={error.at} />
                         </p>
                       </div>
                     </div>
@@ -76,9 +77,9 @@ export default function JobAttemptErrors({ job }: JobAttemptErrorsProps) {
                 <>
                   <div className="mt-2 flex">
                     <button
-                      type="button"
                       className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
                       onClick={() => setShowAllErrors(!showAllErrors)}
+                      type="button"
                     >
                       {showAllErrors
                         ? "Show fewer"

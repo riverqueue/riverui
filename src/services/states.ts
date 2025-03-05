@@ -1,7 +1,8 @@
 import type { QueryFunction } from "@tanstack/react-query";
 
-import type { JobState, SnakeToCamelCase } from "./types";
 import { API } from "@utils/api";
+
+import type { JobState, SnakeToCamelCase } from "./types";
 
 export type StatesAndCounts = {
   [Key in JobState as SnakeToCamelCase<Key>]: bigint;

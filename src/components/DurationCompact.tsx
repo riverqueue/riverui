@@ -9,8 +9,8 @@ type DurationCompactProps = {
 };
 
 export const DurationCompact = ({
-  startTime,
   endTime,
+  startTime,
   subsecond,
 }: DurationCompactProps) => {
   const [relative, setRelative] = useState("");

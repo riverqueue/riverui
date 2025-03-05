@@ -1,3 +1,4 @@
+import { DurationCompact } from "@components/DurationCompact";
 import {
   ArrowPathRoundedSquareIcon,
   CheckCircleIcon,
@@ -8,14 +9,12 @@ import {
   TrashIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import clsx from "clsx";
-import { formatDistanceStrict } from "date-fns";
-
 import { AttemptError, Job } from "@services/jobs";
 import { Heroicon, JobState } from "@services/types";
-import { DurationCompact } from "@components/DurationCompact";
-import { useTime } from "react-time-sync";
+import clsx from "clsx";
+import { formatDistanceStrict } from "date-fns";
 import { useMemo } from "react";
+import { useTime } from "react-time-sync";
 
 const useRelativeFormattedTime = (time: Date, addSuffix: boolean): string => {
   const nowSec = useTime();
@@ -27,31 +26,31 @@ const useRelativeFormattedTime = (time: Date, addSuffix: boolean): string => {
   return relative;
 };
 
+type StepStatus = "active" | "complete" | "failed" | "pending";
+
 function RelativeTime({
-  time,
   addSuffix = false,
+  time,
 }: {
-  time: Date;
   addSuffix?: boolean;
+  time: Date;
 }) {
   return useRelativeFormattedTime(time, addSuffix);
 }
 
-type StepStatus = "pending" | "active" | "complete" | "failed";
-
 const StatusStep = ({
   children,
-  Icon,
-  name,
   description,
   descriptionTitle,
+  Icon,
+  name,
   status,
 }: {
   children?: React.ReactNode;
-  Icon: Heroicon;
-  name: string;
   description?: string;
   descriptionTitle?: string;
+  Icon: Heroicon;
+  name: string;
   status: StepStatus;
 }) => {
   const statusVerticalLineClasses = statusVerticalLineClassesFor(status);
@@ -72,8 +71,8 @@ const StatusStep = ({
         )}
       >
         <Icon
-          className={clsx("size-5 text-slate-900 dark:text-white")}
           aria-hidden="true"
+          className={clsx("size-5 text-slate-900 dark:text-white")}
         />
       </span>
       <h3 className="ml-6 pt-1.5 leading-tight font-medium">{name}</h3>
@@ -88,12 +87,12 @@ const statusVerticalLineClassesFor = (status: StepStatus): string => {
   switch (status) {
     case "active":
       return "before:border-gray-200 dark:before:border-gray-700";
-    case "pending":
-      return "before:border-gray-200 dark:before:border-gray-700";
     case "complete":
       return "before:border-green-400 dark:before:border-green-900";
     case "failed":
       return "before:border-red-200 dark:before:border-red-900";
+    case "pending":
+      return "before:border-gray-200 dark:before:border-gray-700";
   }
   return "";
 };
@@ -102,12 +101,12 @@ const statusIconClassesFor = (status: StepStatus): string => {
   switch (status) {
     case "active":
       return "bg-yellow-200 dark:bg-yellow-600";
-    case "pending":
-      return "bg-gray-100 dark:bg-gray-700";
     case "complete":
       return "bg-green-300 dark:bg-green-700";
     case "failed":
       return "bg-red-200 dark:bg-red-700";
+    case "pending":
+      return "bg-gray-100 dark:bg-gray-700";
   }
   return "";
 };
@@ -116,10 +115,10 @@ const ScheduledStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Scheduled && job.scheduledAt > new Date()) {
     return (
       <StatusStep
+        descriptionTitle={job.scheduledAt.toUTCString()}
         Icon={ClockIcon}
         name="Scheduled"
         status="active"
-        descriptionTitle={job.scheduledAt.toUTCString()}
       >
         <RelativeTime time={job.scheduledAt} />
       </StatusStep>
@@ -128,12 +127,12 @@ const ScheduledStep = ({ job }: { job: Job }) => {
 
   return (
     <StatusStep
+      descriptionTitle={job.scheduledAt.toUTCString()}
       Icon={ClockIcon}
       name="Scheduled"
       status="complete"
-      descriptionTitle={job.scheduledAt.toUTCString()}
     >
-      <RelativeTime time={job.scheduledAt} addSuffix={true} />
+      <RelativeTime addSuffix={true} time={job.scheduledAt} />
     </StatusStep>
   );
 };
@@ -148,9 +147,9 @@ const WaitStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Scheduled && !job.attemptedAt) {
     return (
       <StatusStep
+        description="—"
         Icon={QueueListIcon}
         name="Wait"
-        description="—"
         status="pending"
       />
     );
@@ -159,9 +158,9 @@ const WaitStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Pending) {
     return (
       <StatusStep
+        description="Pending"
         Icon={QueueListIcon}
         name="Wait"
-        description="Pending"
         status="pending"
       />
     );
@@ -170,10 +169,10 @@ const WaitStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Retryable && scheduledAtInFuture) {
     return (
       <StatusStep
+        descriptionTitle={job.scheduledAt.toUTCString()}
         Icon={QueueListIcon}
         name="Wait"
         status="complete"
-        descriptionTitle={job.scheduledAt.toUTCString()}
       >
         —
       </StatusStep>
@@ -204,9 +203,9 @@ const RunningStep = ({ job }: { job: Job }) => {
   ) {
     return (
       <StatusStep
+        description="Not yet started"
         Icon={ArrowPathRoundedSquareIcon}
         name="Running"
-        description="Not yet started"
         status="pending"
       />
     );
@@ -215,10 +214,10 @@ const RunningStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Running) {
     return (
       <StatusStep
+        descriptionTitle={job.attemptedAt.toUTCString()}
         Icon={ArrowPathRoundedSquareIcon}
         name="Running"
         status="active"
-        descriptionTitle={job.attemptedAt.toUTCString()}
       >
         <DurationCompact startTime={job.attemptedAt} />
       </StatusStep>
@@ -239,10 +238,10 @@ const RunningStep = ({ job }: { job: Job }) => {
         name="Running"
         status={state}
       >
-        <RelativeTime time={job.attemptedAt} addSuffix={true} /> (
+        <RelativeTime addSuffix={true} time={job.attemptedAt} /> (
         <DurationCompact
-          startTime={job.attemptedAt}
           endTime={job.finalizedAt!}
+          startTime={job.attemptedAt}
         />
         )
       </StatusStep>
@@ -257,19 +256,19 @@ const RunningStep = ({ job }: { job: Job }) => {
 
   return (
     <StatusStep
-      Icon={errored ? ExclamationCircleIcon : CheckCircleIcon}
-      name={errored ? "Errored" : "Running"}
-      status={errored ? "failed" : "complete"}
       descriptionTitle={
         errored ? lastError?.at.toUTCString() : job.attemptedAt.toUTCString()
       }
+      Icon={errored ? ExclamationCircleIcon : CheckCircleIcon}
+      name={errored ? "Errored" : "Running"}
+      status={errored ? "failed" : "complete"}
     >
-      <RelativeTime time={job.attemptedAt} addSuffix={true} />
+      <RelativeTime addSuffix={true} time={job.attemptedAt} />
       {jobEndTime && (
         <>
           {" "}
           (
-          <DurationCompact startTime={job.attemptedAt} endTime={jobEndTime} />)
+          <DurationCompact endTime={jobEndTime} startTime={job.attemptedAt} />)
         </>
       )}
     </StatusStep>
@@ -280,12 +279,12 @@ const RetryableStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Retryable) {
     return (
       <StatusStep
+        descriptionTitle={job.scheduledAt.toUTCString()}
         Icon={ClockIcon}
         name="Awaiting Retry"
-        descriptionTitle={job.scheduledAt.toUTCString()}
         status="active"
       >
-        Job errored, retrying <RelativeTime time={job.scheduledAt} addSuffix />
+        Job errored, retrying <RelativeTime addSuffix time={job.scheduledAt} />
       </StatusStep>
     );
   }
@@ -295,9 +294,9 @@ const FinalizedStep = ({ job }: { job: Job }) => {
   if (!job.finalizedAt) {
     return (
       <StatusStep
+        description="—"
         Icon={CheckCircleIcon}
         name="Complete"
-        description="—"
         status="pending"
       />
     );
@@ -306,36 +305,36 @@ const FinalizedStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Completed) {
     return (
       <StatusStep
+        descriptionTitle={job.finalizedAt.toUTCString()}
         Icon={CheckCircleIcon}
         name="Complete"
         status="complete"
-        descriptionTitle={job.finalizedAt.toUTCString()}
       >
-        <RelativeTime time={job.finalizedAt} addSuffix={true} />
+        <RelativeTime addSuffix={true} time={job.finalizedAt} />
       </StatusStep>
     );
   }
   if (job.state === JobState.Discarded) {
     return (
       <StatusStep
+        descriptionTitle={job.finalizedAt.toUTCString()}
         Icon={TrashIcon}
         name="Discarded"
         status="failed"
-        descriptionTitle={job.finalizedAt.toUTCString()}
       >
-        <RelativeTime time={job.finalizedAt} addSuffix={true} />
+        <RelativeTime addSuffix={true} time={job.finalizedAt} />
       </StatusStep>
     );
   }
   if (job.state === JobState.Cancelled) {
     return (
       <StatusStep
+        descriptionTitle={job.finalizedAt.toUTCString()}
         Icon={XCircleIcon}
         name="Cancelled"
         status="failed"
-        descriptionTitle={job.finalizedAt.toUTCString()}
       >
-        <RelativeTime time={job.finalizedAt} addSuffix={true} />
+        <RelativeTime addSuffix={true} time={job.finalizedAt} />
       </StatusStep>
     );
   }
@@ -349,12 +348,12 @@ export default function JobTimeline({ job }: JobTimelineProps) {
   return (
     <ol className="relative px-2 text-gray-500 sm:px-0 dark:text-gray-400">
       <StatusStep
+        descriptionTitle={job.createdAt.toUTCString()}
         Icon={CircleStackIcon}
         name="Created"
         status="complete"
-        descriptionTitle={job.createdAt.toUTCString()}
       >
-        <RelativeTime time={job.createdAt} addSuffix={true} />
+        <RelativeTime addSuffix={true} time={job.createdAt} />
       </StatusStep>
       <ScheduledStep job={job} />
       <WaitStep job={job} />
