@@ -1,21 +1,20 @@
+import { Badge } from "@components/Badge";
+import ButtonForGroup from "@components/ButtonForGroup";
+import JobAttemptErrors from "@components/JobAttemptErrors";
+import JobTimeline from "@components/JobTimeline";
+import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import {
   ArrowUturnLeftIcon,
   TrashIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-
+import useFeature from "@hooks/use-feature";
 import { Job, JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
-import { capitalize } from "@utils/string";
-import JobTimeline from "@components/JobTimeline";
-import { FormEvent, useMemo, useState } from "react";
-import TopNavTitleOnly from "@components/TopNavTitleOnly";
-import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
-import JobAttemptErrors from "@components/JobAttemptErrors";
-import { Badge } from "@components/Badge";
-import ButtonForGroup from "@components/ButtonForGroup";
-import useFeature from "@hooks/use-feature";
 import { Link } from "@tanstack/react-router";
+import { capitalize } from "@utils/string";
+import { FormEvent, useMemo, useState } from "react";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -23,64 +22,6 @@ type JobDetailProps = {
   job: Job;
   retry: () => void;
 };
-
-function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
-  // Can only delete jobs that aren't running:
-  const deleteDisabled = job.state === JobState.Running;
-
-  const deleteJob = (event: FormEvent) => {
-    event.preventDefault();
-    deleteFn();
-  };
-
-  // Can only cancel jobs that aren't already finalized (completed, discarded, cancelled):
-  const cancelDisabled = [
-    JobState.Cancelled,
-    JobState.Completed,
-    JobState.Discarded,
-  ].includes(job.state);
-
-  const cancelJob = (event: FormEvent) => {
-    event.preventDefault();
-    cancel();
-  };
-
-  // Enable immediate retry if the job is not running or pending:
-  const retryDisabled = [JobState.Running, JobState.Pending].includes(
-    job.state
-  );
-  const retryJob = (event: FormEvent) => {
-    event.preventDefault();
-    retry();
-  };
-
-  return (
-    <span className="isolate inline-flex rounded-md shadow-xs">
-      <ButtonForGroup
-        Icon={ArrowUturnLeftIcon}
-        text="Retry"
-        disabled={retryDisabled}
-        onClick={retryJob}
-      />
-      <ButtonForGroup
-        Icon={XCircleIcon}
-        text="Cancel"
-        disabled={cancelDisabled}
-        onClick={cancelJob}
-      />
-      <ButtonForGroup
-        Icon={TrashIcon}
-        text="Delete"
-        disabled={deleteDisabled}
-        onClick={deleteJob}
-      />
-    </span>
-  );
-}
-
-function isJobWithKnownMetadata(job: Job): job is JobWithKnownMetadata {
-  return (job as JobWithKnownMetadata).metadata !== undefined;
-}
 
 export default function JobDetail({
   cancel,
@@ -108,7 +49,7 @@ export default function JobDetail({
       <main>
         <header>
           {/* Heading */}
-          <div className="mb-8 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 dark:bg-gray-700/10 sm:flex-row sm:items-center sm:px-6 lg:px-8">
+          <div className="mb-8 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 sm:flex-row sm:items-center sm:px-6 lg:px-8 dark:bg-gray-700/10">
             <div>
               <h1 className="flex gap-x-3 text-2xl leading-7">
                 <span className="font-semibold text-slate-900 dark:text-white">
@@ -130,83 +71,83 @@ export default function JobDetail({
           </div>
         </header>
 
-        <div className="mx-auto grid gap-8 pb-16 grid-cols-1 sm:grid-cols-2 sm:px-6 lg:px-8">
+        <div className="mx-auto grid grid-cols-1 gap-8 pb-16 sm:grid-cols-2 sm:px-6 lg:px-8">
           {/* Description list */}
           <div className="">
             <dl className="grid grid-cols-12">
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   State
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {capitalize(job.state)}
                 </dd>
               </div>
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Attempt
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {job.attempt.toString()} / {job.maxAttempts.toString()}
                 </dd>
               </div>
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Priority
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {job.priority.toString()}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Queue
                 </dt>
-                <dd className="mt-1 flex overflow-hidden font-mono text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 flex overflow-hidden font-mono text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {job.queue}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Tags
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   {job.tags.length == 0
                     ? "–"
                     : job.tags.map((tag) => (
                         <Badge
+                          className="m-1 font-mono text-xs"
                           color="blue"
                           key={tag}
-                          className="m-1 font-mono text-xs"
                         >
                           {tag}
                         </Badge>
                       ))}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Created
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
-                  <RelativeTimeFormatter time={job.createdAt} addSuffix />
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
+                  <RelativeTimeFormatter addSuffix time={job.createdAt} />
                 </dd>
               </div>
               {featureEnabledWorkflows &&
                 jobWithMetadata &&
                 jobWithMetadata.metadata.workflow_id && (
-                  <div className="col-span-6 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                    <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+                  <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                    <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                       Workflow
                     </dt>
-                    <dd className="mt-1 overflow-hidden text-ellipsis font-mono text-sm leading-6 text-slate-700 dark:text-slate-300 sm:mt-2">
+                    <dd className="mt-1 overflow-hidden font-mono text-sm leading-6 text-ellipsis text-slate-700 sm:mt-2 dark:text-slate-300">
                       {jobWithMetadata.metadata.workflow_id ? (
                         <Link
-                          to="/workflows/$workflowId"
                           params={{
                             workflowId: jobWithMetadata.metadata.workflow_id,
                           }}
                           search={{ selected: job.id }}
+                          to="/workflows/$workflowId"
                         >
                           {jobWithMetadata.metadata.workflow_id}
                         </Link>
@@ -221,33 +162,33 @@ export default function JobDetail({
 
           <JobTimeline job={job} />
 
-          <div className="sm:order-3 col-span-1 sm:col-span-2">
-            <dl className="grid-cols-1 gap-x-4 border-slate-100 dark:border-slate-800 md:grid md:grid-cols-2 md:border-t">
-              <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0 md:border-t-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+          <div className="col-span-1 sm:order-3 sm:col-span-2">
+            <dl className="grid-cols-1 gap-x-4 border-slate-100 md:grid md:grid-cols-2 md:border-t dark:border-slate-800">
+              <div className="col-span-1 border-t border-slate-100 px-4 py-6 sm:px-0 md:border-t-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Args
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
                     {JSON.stringify(job.args, null, 2)}
                   </pre>
                 </dd>
               </div>
-              <div className="col-span-1 border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="col-span-1 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Metadata
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
                     {JSON.stringify(job.metadata, null, 2)}
                   </pre>
                 </dd>
               </div>
-              <div className="border-t border-slate-100 px-4 py-6 dark:border-slate-800 sm:col-span-1 sm:px-0">
-                <dt className="text-sm font-medium leading-6 text-slate-900 dark:text-slate-100">
+              <div className="border-t border-slate-100 px-4 py-6 sm:col-span-1 sm:px-0 dark:border-slate-800">
+                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Attempted By
                 </dt>
-                <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2">
+                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
                   <ul role="list">
                     {attemptsToDisplay.map((attemptedBy, i) => (
                       <li
@@ -261,18 +202,18 @@ export default function JobDetail({
                   </ul>
                   {!showAllAttempts && job.attemptedBy.length > 5 && (
                     <button
-                      type="button"
                       className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
                       onClick={() => setShowAllAttempts(true)}
+                      type="button"
                     >
                       Show all {job.attemptedBy.length} attempts
                     </button>
                   )}
                   {showAllAttempts && (
                     <button
-                      type="button"
                       className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
                       onClick={() => setShowAllAttempts(false)}
+                      type="button"
                     >
                       Show fewer attempts
                     </button>
@@ -287,4 +228,62 @@ export default function JobDetail({
       </main>
     </>
   );
+}
+
+function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
+  // Can only delete jobs that aren't running:
+  const deleteDisabled = job.state === JobState.Running;
+
+  const deleteJob = (event: FormEvent) => {
+    event.preventDefault();
+    deleteFn();
+  };
+
+  // Can only cancel jobs that aren't already finalized (completed, discarded, cancelled):
+  const cancelDisabled = [
+    JobState.Cancelled,
+    JobState.Completed,
+    JobState.Discarded,
+  ].includes(job.state);
+
+  const cancelJob = (event: FormEvent) => {
+    event.preventDefault();
+    cancel();
+  };
+
+  // Enable immediate retry if the job is not running or pending:
+  const retryDisabled = [JobState.Pending, JobState.Running].includes(
+    job.state,
+  );
+  const retryJob = (event: FormEvent) => {
+    event.preventDefault();
+    retry();
+  };
+
+  return (
+    <span className="isolate inline-flex rounded-md shadow-xs">
+      <ButtonForGroup
+        disabled={retryDisabled}
+        Icon={ArrowUturnLeftIcon}
+        onClick={retryJob}
+        text="Retry"
+      />
+      <ButtonForGroup
+        disabled={cancelDisabled}
+        Icon={XCircleIcon}
+        onClick={cancelJob}
+        text="Cancel"
+      />
+      <ButtonForGroup
+        disabled={deleteDisabled}
+        Icon={TrashIcon}
+        onClick={deleteJob}
+        text="Delete"
+      />
+    </span>
+  );
+}
+
+function isJobWithKnownMetadata(job: Job): job is JobWithKnownMetadata {
+  return (job as JobWithKnownMetadata).metadata !== undefined;
 }

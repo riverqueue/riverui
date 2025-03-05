@@ -11,15 +11,25 @@ export const API = {
   post: <TBody extends BodyInit, TResponse>(
     path: string,
     body?: TBody,
-    config: RequestInit = {}
-  ) => request<TResponse>(APIUrl(path), { ...config, method: "POST", body }),
+    config: RequestInit = {},
+  ) => request<TResponse>(APIUrl(path), { ...config, body, method: "POST" }),
 
   put: <TBody extends BodyInit, TResponse>(
     path: string,
     body?: TBody,
-    config: RequestInit = {}
-  ) => request<TResponse>(APIUrl(path), { ...config, method: "PUT", body }),
+    config: RequestInit = {},
+  ) => request<TResponse>(APIUrl(path), { ...config, body, method: "PUT" }),
 };
+
+type APIError = {
+  msg: string;
+};
+
+type APIErrorResponse = {
+  error: APIError;
+};
+
+export class NotFoundError extends Error {}
 
 export function APIUrl(path: string, query?: URLSearchParams) {
   const configText =
@@ -32,19 +42,9 @@ export function APIUrl(path: string, query?: URLSearchParams) {
   return `${riverApiBaseUrl}${path}${query ? `?${query}` : ""}`;
 }
 
-type APIErrorResponse = {
-  error: APIError;
-};
-
-type APIError = {
-  msg: string;
-};
-
-export class NotFoundError extends Error {}
-
 async function request<TResponse>(
   url: string,
-  config: RequestInit
+  config: RequestInit,
 ): Promise<TResponse> {
   const response = await fetch(url, config);
   if (response.ok) {

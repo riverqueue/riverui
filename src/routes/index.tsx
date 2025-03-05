@@ -1,5 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
 import { JobState } from "@services/types";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
   loader: () => {

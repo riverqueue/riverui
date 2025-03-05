@@ -1,5 +1,10 @@
 import { Fragment, useContext, useMemo, useState } from "react";
+
 import { SidebarSettingContext } from "./SidebarSetting";
+
+export interface SidebarSettingProviderProps {
+  children?: React.ReactNode;
+}
 
 export interface UseSidebarSettingProps {
   open: boolean;
@@ -7,12 +12,8 @@ export interface UseSidebarSettingProps {
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export interface SidebarSettingProviderProps {
-  children?: React.ReactNode;
-}
-
 export const SidebarSettingProvider: React.FC<SidebarSettingProviderProps> = (
-  props
+  props,
 ) => {
   const context = useContext(SidebarSettingContext);
 

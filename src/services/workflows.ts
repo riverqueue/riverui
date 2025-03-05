@@ -1,13 +1,20 @@
 import type { QueryFunction } from "@tanstack/react-query";
 
+import { apiJobToJob, JobFromAPI, JobWithKnownMetadata } from "@services/jobs";
 import { API } from "@utils/api";
-import { JobFromAPI, JobWithKnownMetadata, apiJobToJob } from "@services/jobs";
+
+import { ListResponse } from "./listResponse";
 import {
   SnakeToCamelCase,
   StringEndingWithUnderscoreAt,
   WorkflowState,
 } from "./types";
-import { ListResponse } from "./listResponse";
+
+export type Workflow = {
+  tasks: JobWithKnownMetadata[];
+};
+
+type GetWorkflowKey = ["getWorkflow", string];
 
 // Represents Job as received from the API. This just like Job, except with
 // string dates instead of Date objects and keys as snake_case instead of
@@ -15,12 +22,6 @@ import { ListResponse } from "./listResponse";
 type WorkflowFromAPI = {
   tasks: JobFromAPI[];
 };
-
-export type Workflow = {
-  tasks: JobWithKnownMetadata[];
-};
-
-type GetWorkflowKey = ["getWorkflow", string];
 
 export const getWorkflowKey = (id: string): GetWorkflowKey => {
   return ["getWorkflow", id.toString()];
@@ -33,7 +34,7 @@ export const getWorkflow: QueryFunction<Workflow, GetWorkflowKey> = async ({
   const [, workflowID] = queryKey;
   return API.get<WorkflowFromAPI>(
     { path: `/workflows/${workflowID}` },
-    { signal }
+    { signal },
   ).then(apiWorkflowToWorkflow);
 };
 
@@ -41,20 +42,11 @@ const apiWorkflowToWorkflow = (job: WorkflowFromAPI): Workflow => ({
   tasks: job.tasks.map(apiJobToJob) as JobWithKnownMetadata[],
 });
 
-type WorkflowListItemFromAPI = {
-  count_available: number;
-  count_cancelled: number;
-  count_completed: number;
-  count_discarded: number;
-  count_failed_deps: number;
-  count_pending: number;
-  count_retryable: number;
-  count_running: number;
-  count_scheduled: number;
-  created_at: string;
-  id: string;
-  name: string | null;
-};
+export type ListWorkflowsKey = [
+  "listWorkflows",
+  undefined | WorkflowState,
+  number,
+];
 
 export type WorkflowListItem = {
   [Key in keyof WorkflowListItemFromAPI as SnakeToCamelCase<Key>]: Key extends
@@ -69,14 +61,23 @@ type ListWorkflowsFilters = {
   state?: WorkflowState;
 };
 
-export type ListWorkflowsKey = [
-  "listWorkflows",
-  WorkflowState | undefined,
-  number,
-];
+type WorkflowListItemFromAPI = {
+  count_available: number;
+  count_cancelled: number;
+  count_completed: number;
+  count_discarded: number;
+  count_failed_deps: number;
+  count_pending: number;
+  count_retryable: number;
+  count_running: number;
+  count_scheduled: number;
+  created_at: string;
+  id: string;
+  name: null | string;
+};
 
 export const listWorkflowsKey = (
-  args: ListWorkflowsFilters
+  args: ListWorkflowsFilters,
 ): ListWorkflowsKey => {
   return ["listWorkflows", args.state, args.limit];
 };
@@ -93,16 +94,16 @@ export const listWorkflows: QueryFunction<
 
   return API.get<ListResponse<WorkflowListItemFromAPI>>(
     { path: "/workflows", query },
-    { signal }
+    { signal },
   ).then(
     // Map from WorkflowListItemFromAPI to WorkflowListItem:
     // TODO: there must be a cleaner way to do this given the type definitions?
-    (response) => response.data.map(apiWorkflowListItemToWorkflowListItem)
+    (response) => response.data.map(apiWorkflowListItemToWorkflowListItem),
   );
 };
 
 export const apiWorkflowListItemToWorkflowListItem = (
-  workflow: WorkflowListItemFromAPI
+  workflow: WorkflowListItemFromAPI,
 ): WorkflowListItem => ({
   countAvailable: workflow.count_available,
   countCancelled: workflow.count_cancelled,

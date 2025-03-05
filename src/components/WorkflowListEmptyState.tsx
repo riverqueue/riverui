@@ -1,9 +1,9 @@
+import { Badge } from "@components/Badge";
+import Logo from "@components/Logo";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { RectangleGroupIcon } from "@heroicons/react/24/outline";
 import { listWorkflows, listWorkflowsKey } from "@services/workflows";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import Logo from "@components/Logo";
-import { Badge } from "@components/Badge";
 
 export default function WorkflowListEmptyState({
   showingAll,
@@ -11,10 +11,10 @@ export default function WorkflowListEmptyState({
   showingAll: boolean;
 }) {
   const opts = queryOptions({
-    queryKey: listWorkflowsKey({ limit: 1, state: undefined }),
-    queryFn: listWorkflows,
-    refetchInterval: 60000,
     enabled: !showingAll,
+    queryFn: listWorkflows,
+    queryKey: listWorkflowsKey({ limit: 1, state: undefined }),
+    refetchInterval: 60000,
   });
 
   const anyWorkflowsQuery = useQuery(opts);
@@ -45,13 +45,13 @@ export default function WorkflowListEmptyState({
 
       {!hasExistingWorkflows && (
         <div className="flex justify-center">
-          <div className="mx-4 mt-12 flex max-w-xl flex-col gap-6 overflow-hidden rounded-lg border border-slate-400/30 bg-white py-6 shadow-lg dark:bg-slate-800 md:mt-20">
+          <div className="mx-4 mt-12 flex max-w-xl flex-col gap-6 overflow-hidden rounded-lg border border-slate-400/30 bg-white py-6 shadow-lg md:mt-20 dark:bg-slate-800">
             <div className="flex flex-col px-4 sm:px-6">
               <div className="flex grow">
-                <Logo className="mr-3 mt-1 h-6 w-auto text-brand-primary dark:text-white" />
+                <Logo className="mt-1 mr-3 h-6 w-auto text-brand-primary dark:text-white" />
                 <Badge color="blue">Pro</Badge>
               </div>
-              <h3 className="mt-4 text-lg font-medium leading-6 text-slate-900 dark:text-white">
+              <h3 className="mt-4 text-lg leading-6 font-medium text-slate-900 dark:text-white">
                 Build faster with Workflows
               </h3>
             </div>
@@ -67,14 +67,14 @@ export default function WorkflowListEmptyState({
             </div>
             <div className="flex gap-4 px-4 sm:px-6">
               <a
-                href="https://riverqueue.com/pro"
                 className="rounded-lg bg-brand-primary px-4 py-2 text-sm text-white hover:bg-blue-500 hover:text-white"
+                href="https://riverqueue.com/pro"
               >
                 Learn more
               </a>
               <a
-                href="https://riverqueue.com/pro"
                 className="flex items-center rounded-lg bg-transparent px-4 py-2 text-sm text-slate-800 hover:text-slate-600 dark:text-slate-200 dark:hover:text-slate-400"
+                href="https://riverqueue.com/pro"
               >
                 Docs
                 <ArrowRightIcon className="ml-2 size-4" />

@@ -2,13 +2,13 @@ import { StatesAndCounts } from "@services/states";
 import { JobState } from "@services/types";
 
 export type JobStateFilterItem = {
-  name: string;
   count: bigint;
+  name: string;
   state: JobState;
 };
 
 export const jobStateFilterItems: (
-  statesAndCounts: StatesAndCounts | undefined
+  statesAndCounts: StatesAndCounts | undefined,
 ) => JobStateFilterItem[] = (statesAndCounts) => {
   const getCount = (state: JobState): bigint => {
     if (statesAndCounts) {
@@ -19,44 +19,44 @@ export const jobStateFilterItems: (
 
   return [
     {
+      count: getCount(JobState.Pending),
       name: "Pending",
       state: JobState.Pending,
-      count: getCount(JobState.Pending),
     },
     {
+      count: getCount(JobState.Scheduled),
       name: "Scheduled",
       state: JobState.Scheduled,
-      count: getCount(JobState.Scheduled),
     },
     {
+      count: getCount(JobState.Available),
       name: "Available",
       state: JobState.Available,
-      count: getCount(JobState.Available),
     },
     {
+      count: getCount(JobState.Running),
       name: "Running",
       state: JobState.Running,
-      count: getCount(JobState.Running),
     },
     {
+      count: getCount(JobState.Retryable),
       name: "Retryable",
       state: JobState.Retryable,
-      count: getCount(JobState.Retryable),
     },
     {
+      count: getCount(JobState.Cancelled),
       name: "Cancelled",
       state: JobState.Cancelled,
-      count: getCount(JobState.Cancelled),
     },
     {
+      count: getCount(JobState.Discarded),
       name: "Discarded",
       state: JobState.Discarded,
-      count: getCount(JobState.Discarded),
     },
     {
+      count: getCount(JobState.Completed),
       name: "Completed",
       state: JobState.Completed,
-      count: getCount(JobState.Completed),
     },
   ];
 };

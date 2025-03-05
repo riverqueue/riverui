@@ -1,18 +1,18 @@
-import React, { useCallback, useEffect, useRef } from "react";
 import { classNames } from "@utils/style";
+import React, { useCallback, useEffect, useRef } from "react";
 
 export function CustomCheckbox({
   checked,
   className,
-  onChange,
   indeterminate,
+  onChange,
   ...props
 }: {
   className?: string;
   indeterminate?: boolean;
   onChange?: (
     checked: boolean,
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => void;
 } & Omit<
   React.InputHTMLAttributes<HTMLInputElement>,
@@ -32,20 +32,20 @@ export function CustomCheckbox({
         onChange(!checked, event);
       }
     },
-    [checked, onChange]
+    [checked, onChange],
   );
 
   return (
     <input
-      ref={checkboxRef}
       checked={checked}
       className={classNames(
         "h-4 w-4 rounded-sm border-slate-300 text-brand-primary focus:ring-indigo-600",
         // Background color applied to control in dark mode
-        "dark:bg-white/5 dark:border-slate-700",
-        className || ""
+        "dark:border-slate-700 dark:bg-white/5",
+        className || "",
       )}
       onChange={controlledOnChange}
+      ref={checkboxRef}
       type="checkbox"
       {...props}
     />

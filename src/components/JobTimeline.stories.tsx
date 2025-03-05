@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import JobTimeline from "./JobTimeline";
 import { jobFactory } from "@test/factories/job";
 import { sub } from "date-fns";
 
+import JobTimeline from "./JobTimeline";
+
 const meta: Meta<typeof JobTimeline> = {
-  title: "Components/JobTimeline",
   component: JobTimeline,
+  title: "Components/JobTimeline",
 };
 
 export default meta;

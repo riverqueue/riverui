@@ -1,6 +1,5 @@
-import { Outlet } from "@tanstack/react-router";
-
 import Layout from "@components/Layout";
+import { Outlet } from "@tanstack/react-router";
 import React, { PropsWithChildren, Suspense } from "react";
 
 const TanStackRouterDevtools =
@@ -10,7 +9,7 @@ const TanStackRouterDevtools =
         // Lazy load in development
         import("@tanstack/router-devtools").then((res) => ({
           default: res.TanStackRouterDevtools,
-        }))
+        })),
       );
 
 type RootProps = PropsWithChildren<object>;

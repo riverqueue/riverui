@@ -1,12 +1,9 @@
-import { RouterProvider, createRouter } from "@tanstack/react-router";
-import { QueryClient } from "@tanstack/react-query";
-import { ReactElement } from "react";
 import { Providers } from "@providers";
+import { QueryClient } from "@tanstack/react-query";
+import { createRouter, RouterProvider } from "@tanstack/react-router";
+import { ReactElement } from "react";
 
 import "./global-type-overrides";
-
-import "./App.css";
-
 // Import the generated route tree
 import { routeTree } from "./routeTree.gen";
 

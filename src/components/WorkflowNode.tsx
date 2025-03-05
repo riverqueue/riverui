@@ -1,13 +1,13 @@
-import { memo, useMemo } from "react";
-import { Handle, Position } from "@xyflow/react";
 import type { Node, NodeProps } from "@xyflow/react";
-import clsx from "clsx";
-import { differenceInSeconds } from "date-fns";
-import { useTime } from "react-time-sync";
 
+import { TaskStateIcon } from "@components/TaskStateIcon";
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
-import { TaskStateIcon } from "@components/TaskStateIcon";
+import { Handle, Position } from "@xyflow/react";
+import clsx from "clsx";
+import { differenceInSeconds } from "date-fns";
+import { memo, useMemo } from "react";
+import { useTime } from "react-time-sync";
 
 export type WorkflowNodeData = {
   hasDownstreamDeps: boolean;
@@ -26,29 +26,29 @@ const WorkflowNode = memo(
         className={clsx(
           "w-64 overflow-hidden rounded-xl border-2 border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800",
           selected &&
-            "shadow-lg ring-2 ring-brand-primary ring-offset-2 ring-offset-white dark:shadow-white/20 dark:ring-offset-slate-900"
+            "shadow-lg ring-2 ring-brand-primary ring-offset-2 ring-offset-white dark:shadow-white/20 dark:ring-offset-slate-900",
         )}
         key={job.id}
       >
         <Handle
-          type="target"
-          position={Position.Left}
-          style={{ top: 30 }}
           className={clsx(
             "left-[-7px] size-4 border-4 border-slate-50 bg-slate-300 dark:border-slate-800 dark:bg-slate-600",
-            hasUpstreamDeps || "opacity-0"
+            hasUpstreamDeps || "opacity-0",
           )}
           isConnectable={isConnectable}
+          position={Position.Left}
+          style={{ top: 30 }}
+          type="target"
         />
         <Handle
-          type="source"
-          position={Position.Right}
-          style={{ top: 30 }}
           className={clsx(
             "right-[-7px] size-4 border-4 border-slate-50 bg-slate-300 dark:border-slate-800 dark:bg-slate-600",
-            hasDownstreamDeps || "opacity-0"
+            hasDownstreamDeps || "opacity-0",
           )}
           isConnectable={isConnectable}
+          position={Position.Right}
+          style={{ top: 30 }}
+          type="source"
         />
         <div className="-my-3 flex items-center px-3 py-4">
           <div className="flex-none">
@@ -74,7 +74,7 @@ const WorkflowNode = memo(
         </div>
       </div>
     );
-  }
+  },
 );
 
 export default WorkflowNode;
@@ -96,8 +96,8 @@ const JobDuration = ({ job }: { job: JobWithKnownMetadata }) => {
     case JobState.Completed:
       return (
         <DurationMicro
-          startTime={job.attemptedAt!}
           endTime={job.finalizedAt!}
+          startTime={job.attemptedAt!}
         />
       );
     case JobState.Discarded:
@@ -116,11 +116,11 @@ const JobDuration = ({ job }: { job: JobWithKnownMetadata }) => {
 };
 
 const DurationMicro = ({
-  startTime,
   endTime,
+  startTime,
 }: {
-  startTime?: Date;
   endTime?: Date;
+  startTime?: Date;
 }) => {
   const nowSec = useTime();
   const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);

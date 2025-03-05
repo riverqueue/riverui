@@ -13,7 +13,7 @@ export function toastError({
     (t: Toast) => (
       <ToastContentError message={message} subtext={subtext} t={t} />
     ),
-    options
+    options,
   );
 }
 
@@ -29,6 +29,6 @@ export function toastSuccess({
     (t: Toast) => (
       <ToastContentSuccess message={message} subtext={subtext} t={t} />
     ),
-    options
+    options,
   );
 }

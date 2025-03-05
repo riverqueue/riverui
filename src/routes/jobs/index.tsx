@@ -1,4 +1,17 @@
-import { z } from "zod";
+import JobList from "@components/JobList";
+import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import {
+  cancelJobs,
+  deleteJobs,
+  Job,
+  listJobs,
+  ListJobsKey,
+  listJobsKey,
+  retryJobs,
+} from "@services/jobs";
+import { countsByState, countsByStateKey } from "@services/states";
+import { toastError, toastSuccess } from "@services/toast";
+import { JobState } from "@services/types";
 import {
   PlaceholderDataFunction,
   queryOptions,
@@ -6,24 +19,9 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-
-import { JobState } from "@services/types";
-import JobList from "@components/JobList";
-import {
-  Job,
-  ListJobsKey,
-  cancelJobs,
-  deleteJobs,
-  listJobs,
-  listJobsKey,
-  retryJobs,
-} from "@services/jobs";
-
-import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { countsByState, countsByStateKey } from "@services/states";
 import { useState } from "react";
-import { toastError, toastSuccess } from "@services/toast";
+import { z } from "zod";
 
 const minimumLimit = 20;
 const defaultLimit = 20;
@@ -85,7 +83,10 @@ function JobsIndexComponent() {
   const queryClient = useQueryClient();
 
   const jobsQuery = useQuery(
-    jobsQueryOptions(Route.useLoaderDeps(), { pauseRefetches, refetchInterval })
+    jobsQueryOptions(Route.useLoaderDeps(), {
+      pauseRefetches,
+      refetchInterval,
+    }),
   );
   const statesQuery = useQuery(statesQueryOptions({ refetchInterval }));
 
@@ -155,9 +156,9 @@ function JobsIndexComponent() {
 
   return (
     <JobList
+      cancelJobs={cancelMutation.mutate}
       canShowFewer={canShowFewer}
       canShowMore={canShowMore}
-      cancelJobs={cancelMutation.mutate}
       deleteJobs={deleteMutation.mutate}
       jobs={jobsQuery.data || []}
       loading={jobsQuery.isLoading}
@@ -179,7 +180,7 @@ const jobsQueryOptions = (
     limit: number;
     state: JobState;
   },
-  opts?: { pauseRefetches: boolean; refetchInterval: number }
+  opts?: { pauseRefetches: boolean; refetchInterval: number },
 ) => {
   const keepPreviousDataUnlessStateChanged: PlaceholderDataFunction<
     Job[],

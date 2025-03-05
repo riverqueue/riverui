@@ -1,21 +1,14 @@
 import type { MutationFunction, QueryFunction } from "@tanstack/react-query";
 
+import { API } from "@utils/api";
+
 import type {
   JobState,
   SnakeToCamelCase,
   StringEndingWithUnderscoreAt,
 } from "./types";
-import { API } from "@utils/api";
-import { ListResponse } from "./listResponse";
 
-// Represents AttemptError as received from the API. This just like AttemptError,
-// except with keys as snake_case instead of camelCase.
-type AttemptErrorFromAPI = {
-  at: string;
-  attempt: number;
-  error: string;
-  trace: string;
-};
+import { ListResponse } from "./listResponse";
 
 export type AttemptError = {
   [Key in keyof AttemptErrorFromAPI as SnakeToCamelCase<Key>]: Key extends `at`
@@ -23,12 +16,14 @@ export type AttemptError = {
     : AttemptErrorFromAPI[Key];
 };
 
-type KnownMetadata = {
-  deps: string[];
-  task: string;
-  workflow_id: string;
-  workflow_name?: string;
-  workflow_staged_at: string;
+export type Job = {
+  [Key in keyof JobFromAPI as SnakeToCamelCase<Key>]: Key extends
+    | StringEndingWithUnderscoreAt
+    | undefined
+    ? Date
+    : JobFromAPI[Key] extends AttemptErrorFromAPI[]
+      ? AttemptError[]
+      : JobFromAPI[Key];
 };
 
 // Represents a Job as received from the API. This just like Job, except with
@@ -53,18 +48,25 @@ export type JobFromAPI = {
   tags: string[];
 };
 
-export type Job = {
-  [Key in keyof JobFromAPI as SnakeToCamelCase<Key>]: Key extends
-    | StringEndingWithUnderscoreAt
-    | undefined
-    ? Date
-    : JobFromAPI[Key] extends AttemptErrorFromAPI[]
-      ? AttemptError[]
-      : JobFromAPI[Key];
+export type JobWithKnownMetadata = {
+  metadata: KnownMetadata;
+} & Omit<Job, "metadata">;
+
+// Represents AttemptError as received from the API. This just like AttemptError,
+// except with keys as snake_case instead of camelCase.
+type AttemptErrorFromAPI = {
+  at: string;
+  attempt: number;
+  error: string;
+  trace: string;
 };
 
-export type JobWithKnownMetadata = Omit<Job, "metadata"> & {
-  metadata: KnownMetadata;
+type KnownMetadata = {
+  deps: string[];
+  task: string;
+  workflow_id: string;
+  workflow_name?: string;
+  workflow_staged_at: string;
 };
 
 export const apiJobToJob = (job: JobFromAPI): Job => ({
@@ -87,21 +89,21 @@ export const apiJobToJob = (job: JobFromAPI): Job => ({
 });
 
 const apiAttemptErrorsToAttemptErrors = (
-  errors: AttemptErrorFromAPI[]
+  errors: AttemptErrorFromAPI[],
 ): AttemptError[] => {
   return errors.map((error) => ({
-    attempt: error.attempt,
     at: new Date(error.at),
+    attempt: error.attempt,
     error: error.error,
     trace: error.trace,
   }));
 };
 
+type CancelPayload = JobIdsPayload;
+
 type JobIdsPayload = {
   ids: bigint[];
 };
-
-type CancelPayload = JobIdsPayload;
 
 export const cancelJobs: MutationFunction<void, CancelPayload> = async ({
   ids,
@@ -117,12 +119,12 @@ export const deleteJobs: MutationFunction<void, DeletePayload> = async ({
   return API.post("/jobs/delete", JSON.stringify({ ids: ids.map(String) }));
 };
 
+export type ListJobsKey = ["listJobs", JobState, number];
+
 type ListJobsFilters = {
   limit: number;
   state: JobState;
 };
-
-export type ListJobsKey = ["listJobs", JobState, number];
 
 export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
   return ["listJobs", args.state, args.limit];
@@ -134,17 +136,17 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
 }) => {
   const [, state, limit] = queryKey;
   const searchParamsStringValues = Object.fromEntries(
-    Object.entries({ state, limit }).map(([k, v]) => [k, String(v)])
+    Object.entries({ limit, state }).map(([k, v]) => [k, String(v)]),
   );
   const query = new URLSearchParams(searchParamsStringValues);
 
   return API.get<ListResponse<JobFromAPI>>(
     { path: "/jobs", query },
-    { signal }
+    { signal },
   ).then(
     // Map from JobFromAPI to Job:
     // TODO: there must be a cleaner way to do this given the type definitions?
-    (response) => response.data.map(apiJobToJob)
+    (response) => response.data.map(apiJobToJob),
   );
 };
 

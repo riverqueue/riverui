@@ -1,32 +1,32 @@
-import React, { FormEvent, useCallback, useEffect, useMemo } from "react";
-import { Link } from "@tanstack/react-router";
+import { Badge } from "@components/Badge";
+import { Button } from "@components/Button";
+import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
+import { JobFilters } from "@components/JobFilters";
+import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import TopNav from "@components/TopNav";
 import { MenuButton as HeadlessMenuButton } from "@headlessui/react";
+import { ExclamationTriangleIcon } from "@heroicons/react/20/solid";
 import {
   ArrowUturnLeftIcon,
   ChevronUpDownIcon,
   TrashIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-
+import { useSelected } from "@hooks/use-selected";
+import { useShiftSelected } from "@hooks/use-shift-selected";
 import { Job } from "@services/jobs";
-import { JobState } from "@services/types";
-import { classNames } from "@utils/style";
 import { StatesAndCounts } from "@services/states";
-import { JobFilters } from "@components/JobFilters";
-import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
-import TopNav from "@components/TopNav";
-import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
+import { JobState } from "@services/types";
+import { Link } from "@tanstack/react-router";
 import {
   JobStateFilterItem,
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
-import { Badge } from "@components/Badge";
-import { Button } from "@components/Button";
-import { useSelected } from "@hooks/use-selected";
-import { useShiftSelected } from "@hooks/use-shift-selected";
-import { CustomCheckbox } from "./CustomCheckbox";
+import { classNames } from "@utils/style";
+import React, { FormEvent, useCallback, useEffect, useMemo } from "react";
+
 import ButtonForGroup from "./ButtonForGroup";
-import { ExclamationTriangleIcon } from "@heroicons/react/20/solid";
+import { CustomCheckbox } from "./CustomCheckbox";
 
 const states: { [key in JobState]: string } = {
   [JobState.Available]: "text-sky-500 bg-sky-100/10",
@@ -41,10 +41,10 @@ const states: { [key in JobState]: string } = {
 
 const timestampForRelativeDisplay = (job: Job): Date => {
   switch (job.state) {
-    case JobState.Running:
-      return job.attemptedAt ? job.attemptedAt : new Date();
     case JobState.Completed:
       return job.finalizedAt ? job.finalizedAt : new Date();
+    case JobState.Running:
+      return job.attemptedAt ? job.attemptedAt : new Date();
     default:
       return job.createdAt;
   }
@@ -54,9 +54,9 @@ const JobTimeDisplay = ({ job }: { job: Job }): React.JSX.Element => {
   return (
     <span>
       <RelativeTimeFormatter
-        time={timestampForRelativeDisplay(job)}
         addSuffix
         includeSeconds
+        time={timestampForRelativeDisplay(job)}
       />
     </span>
   );
@@ -67,7 +67,7 @@ type JobListItemProps = {
   job: Job;
   onChangeSelect: (
     checked: boolean,
-    event: React.ChangeEvent<HTMLInputElement>
+    event: React.ChangeEvent<HTMLInputElement>,
   ) => void;
 };
 
@@ -86,21 +86,21 @@ const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
         <div
           className={classNames(
             states[job.state],
-            "flex-none rounded-full p-1"
+            "flex-none rounded-full p-1",
           )}
         >
           <div className="size-2 rounded-full bg-current" />
         </div>
-        <h2 className="min-w-0 grow text-sm font-medium leading-5">
+        <h2 className="min-w-0 grow text-sm leading-5 font-medium">
           <Link
-            to="/jobs/$jobId"
-            params={{ jobId: job.id }}
             className="flex gap-x-2 text-slate-900 dark:text-slate-200"
+            params={{ jobId: job.id }}
+            to="/jobs/$jobId"
           >
             <span className="truncate">{job.kind}</span>
           </Link>
         </h2>
-        <div className="text-nowrap text-right text-sm leading-5 text-slate-700 dark:text-slate-100">
+        <div className="text-right text-sm leading-5 text-nowrap text-slate-700 dark:text-slate-100">
           <JobTimeDisplay job={job} />
         </div>
       </div>
@@ -110,13 +110,13 @@ const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
           <span>/</span>
           <span>{job.maxAttempts.toString()}</span>
         </div>
-        <svg viewBox="0 0 2 2" className="size-0.5 flex-none fill-gray-400">
+        <svg className="size-0.5 flex-none fill-gray-400" viewBox="0 0 2 2">
           <circle cx={1} cy={1} r={1} />
         </svg>
-        <p className="grow truncate whitespace-nowrap font-mono">
+        <p className="grow truncate font-mono whitespace-nowrap">
           {JSON.stringify(job.args)}
         </p>
-        <Badge color="zinc" className="flex-none font-mono text-xs">
+        <Badge className="flex-none font-mono text-xs" color="zinc">
           {job.queue}
         </Badge>
       </div>
@@ -128,16 +128,16 @@ type EmptySetIconProps = React.ComponentProps<"svg">;
 
 const EmptySetIcon = (props: EmptySetIconProps) => (
   <svg
-    width="200"
-    height="200"
-    viewBox="0 0 200 200"
-    xmlns="http://www.w3.org/2000/svg"
     fill="currentColor"
+    height="200"
     stroke="currentColor"
+    viewBox="0 0 200 200"
+    width="200"
+    xmlns="http://www.w3.org/2000/svg"
     {...props}
   >
-    <circle cx="100" cy="100" r="60" fill="none" strokeWidth="10" />
-    <line x1="40" y1="40" x2="160" y2="160" strokeWidth="10" />
+    <circle cx="100" cy="100" fill="none" r="60" strokeWidth="10" />
+    <line strokeWidth="10" x1="40" x2="160" y1="40" y2="160" />
   </svg>
 );
 
@@ -147,6 +147,19 @@ const EmptyState = () => (
     <h3 className="mt-2 text-sm font-semibold text-gray-900">No jobs</h3>
   </div>
 );
+
+type JobRowsProps = {
+  cancelJobs: (jobIDs: bigint[]) => void;
+  canShowFewer: boolean;
+  canShowMore: boolean;
+  deleteJobs: (jobIDs: bigint[]) => void;
+  jobs: Job[];
+  retryJobs: (jobIDs: bigint[]) => void;
+  setJobRefetchesPaused: (value: boolean) => void;
+  showFewer: () => void;
+  showMore: () => void;
+  state: JobState;
+};
 
 function JobListActionButtons({
   cancel,
@@ -184,7 +197,7 @@ function JobListActionButtons({
   };
 
   // Enable immediate retry if the job is not running or pending:
-  const retryDisabled = [JobState.Running, JobState.Pending].includes(state);
+  const retryDisabled = [JobState.Pending, JobState.Running].includes(state);
   const retryJob = (event: FormEvent) => {
     event.preventDefault();
     retry(jobIDs);
@@ -193,49 +206,36 @@ function JobListActionButtons({
   return (
     <span
       className={classNames(
-        "inline-flex rounded-md shadow-xs mr-6",
-        className || ""
+        "mr-6 inline-flex rounded-md shadow-xs",
+        className || "",
       )}
     >
       <ButtonForGroup
-        Icon={ArrowUturnLeftIcon}
-        text="Retry"
         disabled={retryDisabled}
+        Icon={ArrowUturnLeftIcon}
         onClick={retryJob}
+        text="Retry"
       />
       <ButtonForGroup
-        Icon={XCircleIcon}
-        text="Cancel"
         disabled={cancelDisabled}
+        Icon={XCircleIcon}
         onClick={cancelJob}
+        text="Cancel"
       />
       <ButtonForGroup
-        Icon={TrashIcon}
-        text="Delete"
         disabled={deleteDisabled}
+        Icon={TrashIcon}
         onClick={deleteJob}
+        text="Delete"
       />
     </span>
   );
 }
 
-type JobRowsProps = {
-  canShowFewer: boolean;
-  canShowMore: boolean;
-  cancelJobs: (jobIDs: bigint[]) => void;
-  deleteJobs: (jobIDs: bigint[]) => void;
-  jobs: Job[];
-  retryJobs: (jobIDs: bigint[]) => void;
-  setJobRefetchesPaused: (value: boolean) => void;
-  showFewer: () => void;
-  showMore: () => void;
-  state: JobState;
-};
-
 const JobRows = ({
+  cancelJobs,
   canShowFewer,
   canShowMore,
-  cancelJobs,
   deleteJobs,
   jobs,
   retryJobs,
@@ -245,12 +245,12 @@ const JobRows = ({
   state,
 }: JobRowsProps) => {
   const {
-    selected: selectedJobs,
-    selectedSet,
+    add: addSelectedJob,
     change: changeSelectedJobs,
     clear: clearSelectedJobs,
-    add: addSelectedJob,
     remove: removeSelectedJob,
+    selected: selectedJobs,
+    selectedSet,
   } = useSelected([] as Array<bigint>);
   const jobIDs = useMemo(() => jobs.map((j) => j.id), [jobs]);
   const onChange = useShiftSelected(jobIDs, changeSelectedJobs);
@@ -272,7 +272,7 @@ const JobRows = ({
         removeSelectedJob(jobIDs);
       }
     },
-    [jobIDs, addSelectedJob, removeSelectedJob]
+    [jobIDs, addSelectedJob, removeSelectedJob],
   );
 
   const isIndeterminate =
@@ -284,13 +284,13 @@ const JobRows = ({
   return (
     <div className="flex min-h-dvh flex-col">
       <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex min-h-12 items-center space-x-4 border-b border-slate-300 py-2 dark:border-slate-700 sm:justify-between">
+        <div className="flex min-h-12 items-center space-x-4 border-b border-slate-300 py-2 sm:justify-between dark:border-slate-700">
           <CustomCheckbox
             aria-label={"Select all jobs"}
-            className="grow-0"
-            name={"select_all_jobs"}
             checked={selectedJobs.length > 0}
+            className="grow-0"
             indeterminate={isIndeterminate}
+            name={"select_all_jobs"}
             onChange={handleSelectAll}
           />
           <JobListActionButtons
@@ -303,10 +303,10 @@ const JobRows = ({
           />
           {selectedJobs.length > 0 && (
             <>
-              <div className="hidden grow text-sm text-slate-600 dark:text-slate-400 sm:block">
+              <div className="hidden grow text-sm text-slate-600 sm:block dark:text-slate-400">
                 {selectedJobs.length.toString()} selected
               </div>
-              <Badge color="amber" className="hidden sm:flex">
+              <Badge className="hidden sm:flex" color="amber">
                 <ExclamationTriangleIcon className="size-4" />
                 Updates paused
               </Badge>
@@ -315,21 +315,21 @@ const JobRows = ({
         </div>
       </div>
       <ul
+        className="grow divide-y divide-slate-200 px-4 sm:px-6 lg:px-8 dark:divide-slate-800"
         role="list"
-        className="grow divide-y divide-slate-200 px-4 dark:divide-slate-800 sm:px-6 lg:px-8"
       >
         {jobs.map((job) => (
           <JobListItem
-            key={job.id.toString()}
-            job={job}
             checked={selectedSet.has(job.id)}
+            job={job}
+            key={job.id.toString()}
             onChangeSelect={(_checked, event) => onChange(event, job.id)}
           />
         ))}
       </ul>
       <nav
-        className="sticky inset-x-0 bottom-0 flex items-center justify-center border-t border-black/5 bg-white py-3 dark:border-white/5 dark:bg-slate-900"
         aria-label="Pagination"
+        className="sticky inset-x-0 bottom-0 flex items-center justify-center border-t border-black/5 bg-white py-3 dark:border-white/5 dark:bg-slate-900"
       >
         <Button
           className="mx-2"
@@ -376,53 +376,53 @@ const JobList = (props: JobListProps) => {
 
   const filterItems = useMemo(
     () => jobStateFilterItems(statesAndCounts),
-    [statesAndCounts]
+    [statesAndCounts],
   );
 
   return (
     <div className="lg:pl-56">
       <TopNav>
         <header className="flex flex-1 items-center lg:hidden">
-          <h1 className="hidden text-base font-semibold leading-6 text-slate-900 dark:text-slate-100 lg:inline">
+          <h1 className="hidden text-base leading-6 font-semibold text-slate-900 lg:inline dark:text-slate-100">
             Jobs
           </h1>
           <Dropdown>
             <HeadlessMenuButton
-              className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1 text-slate-700 data-active:border-slate-200 data-hover:border-slate-200 dark:text-slate-300 dark:data-active:border-slate-700 dark:data-hover:border-slate-700"
               aria-label="Account options"
+              className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1 text-slate-700 data-active:border-slate-200 data-hover:border-slate-200 dark:text-slate-300 dark:data-active:border-slate-700 dark:data-hover:border-slate-700"
             >
               <span className="flex min-w-36 flex-1 items-center justify-between text-left">
                 <span className="block align-middle text-base font-semibold">
                   {stateFormatted}
                 </span>
                 <span
-                  className="ml-3 block w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700"
                   aria-hidden="true"
+                  className="ml-3 block w-9 min-w-max rounded-full bg-white px-2.5 py-0.5 text-center text-xs leading-5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-white dark:ring-gray-700"
                 >
                   {jobsInState.toString()}
                 </span>
               </span>
-              <ChevronUpDownIcon className="ml-auto mr-1 size-4 shrink-0 stroke-zinc-400" />
+              <ChevronUpDownIcon className="mr-1 ml-auto size-4 shrink-0 stroke-zinc-400" />
             </HeadlessMenuButton>
             <DropdownMenu className="z-40 min-w-(--button-width)">
               {filterItems.map((item: JobStateFilterItem) => (
                 <DropdownItem
-                  key={item.state}
-                  to="/jobs"
-                  className="group flex rounded-md p-2 text-sm font-semibold leading-6"
                   activeProps={{
                     className:
                       "bg-gray-50 dark:bg-gray-800 text-indigo-600 dark:text-slate-100",
                   }}
+                  className="group flex rounded-md p-2 text-sm leading-6 font-semibold"
                   inactiveProps={{
                     className:
                       "text-gray-700 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-white hover:bg-gray-50 dark:hover:bg-gray-800",
                   }}
-                  search={{ state: item.state }}
+                  key={item.state}
                   params={{}}
+                  search={{ state: item.state }}
+                  to="/jobs"
                 >
                   <span className="">{item.name}</span>
-                  <span className="col-span-4 ml-auto w-9 min-w-max whitespace-nowrap rounded-full bg-white px-2.5 py-0.5 text-center text-xs font-medium leading-5 text-gray-600 ring-1 ring-inset ring-gray-200 dark:bg-gray-900 dark:text-white dark:ring-gray-700">
+                  <span className="col-span-4 ml-auto w-9 min-w-max rounded-full bg-white px-2.5 py-0.5 text-center text-xs leading-5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-white dark:ring-gray-700">
                     {item.count.toString()}
                   </span>
                 </DropdownItem>

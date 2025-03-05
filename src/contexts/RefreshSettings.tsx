@@ -8,5 +8,5 @@ export interface UseRefreshSettingProps {
 }
 
 export const RefreshSettingContext = createContext<
-  UseRefreshSettingProps | undefined
+  undefined | UseRefreshSettingProps
 >(undefined);

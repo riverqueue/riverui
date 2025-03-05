@@ -1,11 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import JobDetail from "./JobDetail";
 import { jobFactory } from "@test/factories/job";
 
+import JobDetail from "./JobDetail";
+
 const meta: Meta<typeof JobDetail> = {
-  title: "Pages/JobDetail",
   component: JobDetail,
+  title: "Pages/JobDetail",
 };
 
 export default meta;

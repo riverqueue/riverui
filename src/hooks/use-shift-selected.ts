@@ -13,11 +13,11 @@ import { ChangeEvent, useCallback, useState } from "react";
  */
 export const useShiftSelected = <P>(
   initialState: Array<P>,
-  change: (addOrRemove: boolean, items: Array<P>) => void
+  change: (addOrRemove: boolean, items: Array<P>) => void,
 ) => {
-  const [previousSelected, setPreviousSelected] = useState<P | null>(null);
+  const [previousSelected, setPreviousSelected] = useState<null | P>(null);
   const [previousChecked, setPreviousChecked] = useState<boolean>(false);
-  const [currentSelected, setCurrentSelected] = useState<P | null>(null);
+  const [currentSelected, setCurrentSelected] = useState<null | P>(null);
 
   const onChange = useCallback(
     (event: ChangeEvent<HTMLInputElement>, item: P) => {
@@ -26,7 +26,7 @@ export const useShiftSelected = <P>(
         const current = initialState.findIndex((x) => x === item);
         const previous = initialState.findIndex((x) => x === previousSelected);
         const previousCurrent = initialState.findIndex(
-          (x) => x === currentSelected
+          (x) => x === currentSelected,
         );
         const start = Math.min(current, previous);
         const end = Math.max(current, previous);
@@ -35,13 +35,13 @@ export const useShiftSelected = <P>(
           if (previousCurrent > end) {
             change(
               !previousChecked,
-              initialState.slice(end + 1, previousCurrent + 1)
+              initialState.slice(end + 1, previousCurrent + 1),
             );
           }
           if (previousCurrent < start) {
             change(
               !previousChecked,
-              initialState.slice(previousCurrent, start)
+              initialState.slice(previousCurrent, start),
             );
           }
           setCurrentSelected(item);
@@ -63,7 +63,7 @@ export const useShiftSelected = <P>(
       setPreviousChecked,
       currentSelected,
       setCurrentSelected,
-    ]
+    ],
   );
 
   return onChange;

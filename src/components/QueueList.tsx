@@ -1,7 +1,7 @@
-import { Queue } from "@services/queues";
-import { PauseCircleIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
-import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import TopNavTitleOnly from "@components/TopNavTitleOnly";
+import { PauseCircleIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
+import { Queue } from "@services/queues";
 
 type QueueListProps = {
   loading: boolean;
@@ -30,38 +30,38 @@ const QueueList = ({
             <thead>
               <tr>
                 <th
+                  className="py-2.5 pr-3 pl-4 text-left text-sm font-semibold text-slate-900 sm:pl-0 dark:text-slate-100"
                   scope="col"
-                  className="py-2.5 pl-4 pr-3 text-left text-sm font-semibold text-slate-900 dark:text-slate-100 sm:pl-0"
                 >
                   Name
                 </th>
                 <th
+                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 md:table-cell dark:text-slate-100"
                   scope="col"
-                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 md:table-cell"
                 >
                   Created
                 </th>
                 <th
+                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
                   scope="col"
-                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:table-cell"
                 >
                   Available
                 </th>
                 <th
+                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
                   scope="col"
-                  className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 dark:text-slate-100 sm:table-cell"
                 >
                   Running
                 </th>
                 <th
-                  scope="col"
                   className="table-cell w-20 min-w-20 px-3 py-2 text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
+                  scope="col"
                 >
                   Status
                 </th>
                 <th
+                  className="relative w-12 py-2.5 pr-4 pl-3 sm:pr-0"
                   scope="col"
-                  className="relative w-12 py-2.5 pl-3 pr-4 sm:pr-0"
                 >
                   <span className="sr-only">Controls</span>
                 </th>
@@ -70,7 +70,7 @@ const QueueList = ({
             <tbody className="divide-y divide-slate-200 bg-white dark:divide-slate-800 dark:bg-slate-900">
               {queues.map((queue) => (
                 <tr key={queue.name}>
-                  <td className="w-full max-w-0 py-2 pl-4 pr-3 text-sm font-medium text-slate-700 dark:text-slate-300 sm:w-auto sm:max-w-none sm:pl-0">
+                  <td className="w-full max-w-0 py-2 pr-3 pl-4 text-sm font-medium text-slate-700 sm:w-auto sm:max-w-none sm:pl-0 dark:text-slate-300">
                     <span className="font-mono font-semibold dark:text-slate-100">
                       {queue.name}
                     </span>
@@ -86,32 +86,32 @@ const QueueList = ({
                       <dt className="sr-only">Created</dt>
                       <dd className="mt-1 truncate">
                         <RelativeTimeFormatter
-                          time={queue.createdAt}
                           addSuffix
                           includeSeconds
+                          time={queue.createdAt}
                         />
                       </dd>
                     </dl>
                   </td>
-                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 md:table-cell">
+                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 md:table-cell dark:text-slate-300">
                     <RelativeTimeFormatter
-                      time={queue.createdAt}
                       addSuffix
                       includeSeconds
+                      time={queue.createdAt}
                     />
                   </td>
-                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 sm:table-cell">
+                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
                     {queue.countAvailable}
                   </td>
-                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 dark:text-slate-300 sm:table-cell">
+                  <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
                     {queue.countRunning}
                   </td>
                   <td className="table-cell w-20 min-w-20 px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
                     {queue.pausedAt ? "Paused" : "Active"}
                   </td>
-                  <td className="w-12 py-2 pl-3 pr-4 text-right text-sm font-medium sm:pr-0">
+                  <td className="w-12 py-2 pr-4 pl-3 text-right text-sm font-medium sm:pr-0">
                     <button
-                      className="rounded-md bg-white px-2 py-1 text-sm font-semibold text-slate-900 shadow-xs ring-1 ring-inset ring-slate-300 hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-slate-700 dark:hover:bg-white/20"
+                      className="rounded-md bg-white px-2 py-1 text-sm font-semibold text-slate-900 shadow-xs ring-1 ring-slate-300 ring-inset hover:bg-slate-50 dark:bg-white/10 dark:text-white dark:ring-slate-700 dark:hover:bg-white/20"
                       onClick={
                         queue.pausedAt
                           ? () => resumeQueue(queue.name)
@@ -121,11 +121,11 @@ const QueueList = ({
                       type="button"
                     >
                       {queue.pausedAt ? (
-                        <PlayCircleIcon className="size-5" aria-hidden="true" />
+                        <PlayCircleIcon aria-hidden="true" className="size-5" />
                       ) : (
                         <PauseCircleIcon
-                          className="size-5"
                           aria-hidden="true"
+                          className="size-5"
                         />
                       )}
                       <span className="sr-only">

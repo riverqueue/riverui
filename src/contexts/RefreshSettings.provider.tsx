@@ -1,4 +1,5 @@
-import { Fragment, useContext, useState, useMemo } from "react";
+import { Fragment, useContext, useMemo, useState } from "react";
+
 import { RefreshSettingContext } from "./RefreshSettings";
 
 export interface RefreshSettingProviderProps {
@@ -6,7 +7,7 @@ export interface RefreshSettingProviderProps {
 }
 
 export const RefreshSettingProvider: React.FC<RefreshSettingProviderProps> = (
-  props
+  props,
 ) => {
   const context = useContext(RefreshSettingContext);
 
@@ -25,7 +26,7 @@ const RefreshSetting: React.FC<RefreshSettingProviderProps> = ({
       intervalMs,
       setIntervalMs,
     }),
-    [intervalMs, setIntervalMs]
+    [intervalMs, setIntervalMs],
   );
 
   return (

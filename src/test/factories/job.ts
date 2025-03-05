@@ -1,9 +1,8 @@
-import { Factory } from "fishery";
 import { faker } from "@faker-js/faker";
-
 import { AttemptError, Job } from "@services/jobs";
 import { JobState } from "@services/types";
 import { add, sub } from "date-fns";
+import { Factory } from "fishery";
 
 class AttemptErrorFactory extends Factory<AttemptError, object> {}
 
@@ -76,15 +75,15 @@ class JobFactory extends Factory<Job, object> {
       attempt: 1,
       attemptedAt: sub(finalizedAt, { seconds: 10 }),
       attemptedBy: ["the-hardest-worker-1"],
+      createdAt,
       errors: [
         attemptErrorFactory.build({
           at: add(finalizedAt, {
-            seconds: faker.number.float({ min: 0.01, max: 2.5 }),
+            seconds: faker.number.float({ max: 2.5, min: 0.01 }),
           }),
           attempt: 1,
         }),
       ],
-      createdAt,
       finalizedAt,
       scheduledAt,
       state: JobState.Discarded,
@@ -104,7 +103,7 @@ class JobFactory extends Factory<Job, object> {
   retryable() {
     const attemptedAt = faker.date.recent({ days: 0.01 });
     const erroredAt = add(attemptedAt, {
-      seconds: faker.number.float({ min: 0.01, max: 95 }),
+      seconds: faker.number.float({ max: 95, min: 0.01 }),
     });
     const multilineError = `
       This is a long error message that spans multiple lines.
@@ -126,6 +125,7 @@ class JobFactory extends Factory<Job, object> {
         "worker-2",
         "worker-3",
       ],
+      createdAt: sub(attemptedAt, { minutes: 31, seconds: 30 }),
       errors: [
         attemptErrorFactory.build({ attempt: 1 }),
         attemptErrorFactory.build({ attempt: 2 }),
@@ -141,7 +141,6 @@ class JobFactory extends Factory<Job, object> {
           attempt: 10,
         }),
       ],
-      createdAt: sub(attemptedAt, { minutes: 31, seconds: 30 }),
       scheduledAt: add(erroredAt, { minutes: 15, seconds: 22.5 }),
       state: JobState.Retryable,
     });
@@ -176,11 +175,11 @@ class JobFactory extends Factory<Job, object> {
     const scheduledAt = add(createdAt, { minutes: 30 });
 
     return this.params({
+      attempt: 1,
       attemptedAt: add(createdAt, { seconds: 3 }),
       attemptedBy: ["worker-1"],
-      attempt: 1,
-      errors: [],
       createdAt,
+      errors: [],
       scheduledAt,
       state: JobState.Scheduled,
       tags: ["scheduled", "soon_in_future"],
@@ -192,7 +191,7 @@ export const jobFactory = JobFactory.define(({ sequence }) => {
   const createdAt = faker.date.recent({ days: 0.001 });
 
   return {
-    args: { foo: "bar", baz: 1 },
+    args: { baz: 1, foo: "bar" },
     attempt: 0,
     attemptedAt: undefined,
     attemptedBy: [],

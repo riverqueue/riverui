@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 
-const isNil = (val: string | null | undefined): boolean =>
+const isNil = (val: null | string | undefined): boolean =>
   val === undefined || val === null;
 
-const getBoolVal = (val?: string | boolean | null): boolean => {
+const getBoolVal = (val?: boolean | null | string): boolean => {
   if (typeof val === "string") {
     return val === "true";
   }

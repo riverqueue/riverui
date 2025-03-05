@@ -1,0 +1,13 @@
+# Markdown files
+*.md
+**/*.md
+
+# Public directory
+public/
+public/**
+
+# Generated files
+src/routeTree.gen.ts
+
+# Other files to ignore
+package-lock.json 

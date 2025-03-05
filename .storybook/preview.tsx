@@ -1,9 +1,8 @@
-import React from "react";
 import type { Preview } from "@storybook/react";
-import { ThemeProvider } from "next-themes";
-import { ReactRenderer } from "@storybook/react";
-import { withThemeByClassName } from "@storybook/addon-themes";
 import type { PartialStoryFn, StoryContext } from "@storybook/types";
+
+import { withThemeByClassName } from "@storybook/addon-themes";
+import { ReactRenderer } from "@storybook/react";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -11,6 +10,8 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
+import { ThemeProvider } from "next-themes";
+import React from "react";
 
 import "../src/global-type-overrides";
 import "../src/index.css";
@@ -26,10 +27,10 @@ function withRouter(Story: PartialStoryFn, { parameters }: StoryContext) {
 
   const children = routes.map((path) =>
     createRoute({
-      path,
-      getParentRoute: () => rootRoute,
       component: Story,
-    })
+      getParentRoute: () => rootRoute,
+      path,
+    }),
   );
 
   rootRoute.addChildren(children);
@@ -53,6 +54,22 @@ declare module "@storybook/types" {
 }
 
 const preview: Preview = {
+  decorators: [
+    withRouter,
+    withThemeByClassName<ReactRenderer>({
+      defaultTheme: "light",
+      themes: {
+        dark: "dark",
+        light: "light",
+      },
+    }),
+    (Story) => (
+      <ThemeProvider>
+        <Story />
+      </ThemeProvider>
+    ),
+  ],
+
   parameters: {
     controls: {
       matchers: {
@@ -61,22 +78,6 @@ const preview: Preview = {
       },
     },
   },
-
-  decorators: [
-    withRouter,
-    withThemeByClassName<ReactRenderer>({
-      themes: {
-        light: "light",
-        dark: "dark",
-      },
-      defaultTheme: "light",
-    }),
-    (Story) => (
-      <ThemeProvider>
-        <Story />
-      </ThemeProvider>
-    ),
-  ],
 };
 
 export default preview;

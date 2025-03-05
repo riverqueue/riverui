@@ -2,11 +2,11 @@ export default function Logo(props: React.ComponentPropsWithoutRef<"svg">) {
   return (
     <svg
       aria-hidden="true"
-      width="151"
+      aria-label="River logo"
+      fill="none"
       height="84"
       viewBox="0 0 151 84"
-      fill="none"
-      aria-label="River logo"
+      width="151"
       xmlns="http://www.w3.org/2000/svg"
       {...props}
     >
@@ -22,7 +22,7 @@ export default function Logo(props: React.ComponentPropsWithoutRef<"svg">) {
       </g>
       <defs>
         <clipPath id="clip0_6_2">
-          <rect width="151" height="84" fill="white" />
+          <rect fill="white" height="84" width="151" />
         </clipPath>
       </defs>
     </svg>

@@ -1,13 +1,13 @@
+import WorkflowDetail from "@components/WorkflowDetail";
+import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { getWorkflow, getWorkflowKey } from "@services/workflows";
+import { useQuery } from "@tanstack/react-query";
 import {
-  ErrorComponent,
   createFileRoute,
+  ErrorComponent,
   useNavigate,
 } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { NotFoundError } from "@utils/api";
-import { getWorkflow, getWorkflowKey } from "@services/workflows";
-import WorkflowDetail from "@components/WorkflowDetail";
 import { z } from "zod";
 
 const workflowDetailSearchSchema = z.object({
