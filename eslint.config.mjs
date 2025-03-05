@@ -11,21 +11,12 @@ import storybook from "eslint-plugin-storybook";
 
 export default tseslint.config(
   { ignores: ["dist"] },
-  perfectionist.configs["recommended-alphabetical"],
-  {
-    // Disable perfectionist sorting for router files. Due to the complex types in
-    // tanstack-router, some of the objects require an explicit custom order where
-    // some properties must be declared before others.
-    files: ["**/routes/**/*.{ts,tsx}"],
-    rules: {
-      "perfectionist/sort-objects": "off",
-    },
-  },
   {
     extends: [
       js.configs.recommended,
       ...tseslint.configs.recommended,
       eslintConfigPrettier,
+      perfectionist.configs["recommended-alphabetical"],
     ],
     files: ["**/*.{ts,tsx,js}"],
     languageOptions: {
@@ -51,6 +42,15 @@ export default tseslint.config(
           caughtErrorsIgnorePattern: "^_",
         },
       ],
+    },
+  },
+  {
+    // Disable perfectionist sorting for router files. Due to the complex types in
+    // tanstack-router, some of the objects require an explicit custom order where
+    // some properties must be declared before others.
+    files: ["**/routes/**/*.{ts,tsx}"],
+    rules: {
+      "perfectionist/sort-objects": "off",
     },
   },
   {
