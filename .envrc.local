@@ -1,0 +1,5 @@
+export CORS_ORIGINS=http://localhost:5173,https://example.com
+export DATABASE_URL=postgres://postgres:postgres@localhost:5432/river_dev
+export OTEL_ENABLED=false
+export PORT=8080
+export VITE_RIVER_API_BASE_URL=http://localhost:8080/api
