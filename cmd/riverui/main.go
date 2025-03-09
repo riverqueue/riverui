@@ -18,9 +18,9 @@ import (
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/riverapiframe/apimiddleware"
 
 	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/internal/apimiddleware"
 )
 
 func main() {
