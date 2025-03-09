@@ -4,6 +4,15 @@ River UI consists of two apps: a Go backend API, and a TypeScript UI frontend.
 
 ## Environment
 
+The project uses a combination of direnv and dotenv (to suit Vite conventions). Copy the example and edit as necessary:
+
+```sh
+cp .envrc.sample .envrc
+direnv allow
+```
+
+Direnv's `.envrc` sources dotenv's `.env.local` to make all variables available in your shell, along with a `.env` if it exists. Both `.env` and `.env.local` get read by `npm run dev`.
+
 ## Install dependencies
 
 ```sh
