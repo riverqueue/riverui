@@ -1,5 +1,4 @@
 .env
-.env.*
 !.env.example
 /packager/packager
 .tool-versions
@@ -18,7 +17,6 @@ node_modules
 dist/*
 !dist/.gitkeep
 dist-ssr
-*.local
 .eslintcache
 
 # Editor directories and files
