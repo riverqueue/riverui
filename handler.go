@@ -21,9 +21,8 @@ import (
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/valutil"
-
-	"riverqueue.com/riverui/internal/apiendpoint"
-	"riverqueue.com/riverui/internal/apimiddleware"
+	"github.com/riverqueue/riverapiframe/apiendpoint"
+	"github.com/riverqueue/riverapiframe/apimiddleware"
 )
 
 // DB is the interface for a pgx database connection.
