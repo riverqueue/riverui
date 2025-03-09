@@ -4,12 +4,6 @@ River UI consists of two apps: a Go backend API, and a TypeScript UI frontend.
 
 ## Environment
 
-The project uses a combination of direnv and a `.env` file (to suit Vite conventions). Copy the example and edit as necessary:
-
-```sh
-cp .env.example .env.local
-```
-
 ## Install dependencies
 
 ```sh
@@ -17,9 +11,11 @@ go get ./...
 npm install
 ```
 
-## Install Reflex
-
 This project uses [Reflex](https://github.com/cespare/reflex) for local dev. Install it.
+
+``` sh
+go install github.com/cespare/reflex@latest
+```
 
 ## Running the UI and API together
 

@@ -13,6 +13,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
+	"github.com/riverqueue/apiframe/apiendpoint"
+	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
@@ -20,8 +22,6 @@ import (
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
 
-	"riverqueue.com/riverui/internal/apiendpoint"
-	"riverqueue.com/riverui/internal/apierror"
 	"riverqueue.com/riverui/internal/dbsqlc"
 	"riverqueue.com/riverui/internal/querycacher"
 	"riverqueue.com/riverui/internal/util/pgxutil"
@@ -104,7 +104,7 @@ func (a *healthCheckGetEndpoint) Execute(ctx context.Context, req *healthCheckGe
 		// fall through to OK status response below
 
 	default:
-		return nil, apierror.NewNotFound("Health check %q not found. Use either `complete` or `minimal`.", req.Name)
+		return nil, apierror.NewNotFoundf("Health check %q not found. Use either `complete` or `minimal`.", req.Name)
 	}
 
 	return statusResponseOK, nil
@@ -142,7 +142,7 @@ func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) 
 			job, err := a.client.JobCancelTx(ctx, tx, jobID)
 			if err != nil {
 				if errors.Is(err, river.ErrNotFound) {
-					return nil, apierror.NewNotFoundJob(jobID)
+					return nil, NewNotFoundJob(jobID)
 				}
 				return nil, err
 			}
@@ -185,10 +185,10 @@ func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) 
 			_, err := a.client.JobDeleteTx(ctx, tx, jobID)
 			if err != nil {
 				if errors.Is(err, rivertype.ErrJobRunning) {
-					return nil, apierror.NewBadRequest("Job %d is running and can't be deleted until it finishes.", jobID)
+					return nil, apierror.NewBadRequestf("Job %d is running and can't be deleted until it finishes.", jobID)
 				}
 				if errors.Is(err, river.ErrNotFound) {
-					return nil, apierror.NewNotFoundJob(jobID)
+					return nil, NewNotFoundJob(jobID)
 				}
 				return nil, err
 			}
@@ -227,7 +227,7 @@ func (req *jobGetRequest) ExtractRaw(r *http.Request) error {
 
 	jobID, err := strconv.ParseInt(idString, 10, 64)
 	if err != nil {
-		return apierror.NewBadRequest("Couldn't convert job ID to int64: %s.", err)
+		return apierror.NewBadRequestf("Couldn't convert job ID to int64: %s.", err)
 	}
 	req.JobID = jobID
 
@@ -239,7 +239,7 @@ func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*Rive
 		job, err := a.client.JobGetTx(ctx, tx, req.JobID)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
-				return nil, apierror.NewNotFoundJob(req.JobID)
+				return nil, NewNotFoundJob(req.JobID)
 			}
 			return nil, fmt.Errorf("error getting job: %w", err)
 		}
@@ -276,7 +276,7 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil {
-			return apierror.NewBadRequest("Couldn't convert `limit` to integer: %s.", err)
+			return apierror.NewBadRequestf("Couldn't convert `limit` to integer: %s.", err)
 		}
 
 		req.Limit = &limit
@@ -344,7 +344,7 @@ func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*
 			_, err := a.client.JobRetryTx(ctx, tx, jobID)
 			if err != nil {
 				if errors.Is(err, river.ErrNotFound) {
-					return nil, apierror.NewNotFoundJob(jobID)
+					return nil, NewNotFoundJob(jobID)
 				}
 				return nil, err
 			}
@@ -388,7 +388,7 @@ func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*
 		queue, err := a.client.QueueGetTx(ctx, tx, req.Name)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
-				return nil, apierror.NewNotFoundQueue(req.Name)
+				return nil, NewNotFoundQueue(req.Name)
 			}
 			return nil, fmt.Errorf("error getting queue: %w", err)
 		}
@@ -430,7 +430,7 @@ func (req *queueListRequest) ExtractRaw(r *http.Request) error {
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil {
-			return apierror.NewBadRequest("Couldn't convert `limit` to integer: %s.", err)
+			return apierror.NewBadRequestf("Couldn't convert `limit` to integer: %s.", err)
 		}
 
 		req.Limit = &limit
@@ -490,7 +490,7 @@ func (a *queuePauseEndpoint) Execute(ctx context.Context, req *queuePauseRequest
 	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		if err := a.client.QueuePauseTx(ctx, tx, req.Name, nil); err != nil {
 			if errors.Is(err, river.ErrNotFound) {
-				return nil, apierror.NewNotFoundQueue(req.Name)
+				return nil, NewNotFoundQueue(req.Name)
 			}
 			return nil, fmt.Errorf("error pausing queue: %w", err)
 		}
@@ -532,7 +532,7 @@ func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeReque
 	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		if err := a.client.QueueResumeTx(ctx, tx, req.Name, nil); err != nil {
 			if errors.Is(err, river.ErrNotFound) {
-				return nil, apierror.NewNotFoundQueue(req.Name)
+				return nil, NewNotFoundQueue(req.Name)
 			}
 			return nil, fmt.Errorf("error resuming queue: %w", err)
 		}
@@ -670,7 +670,7 @@ func (a *workflowGetEndpoint) Execute(ctx context.Context, req *workflowGetReque
 	}
 
 	if len(jobs) < 1 {
-		return nil, apierror.NewNotFoundWorkflow(req.ID)
+		return nil, NewNotFoundWorkflow(req.ID)
 	}
 
 	return &workflowGetResponse{
@@ -712,7 +712,7 @@ func (req *workflowListRequest) ExtractRaw(r *http.Request) error {
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil {
-			return apierror.NewBadRequest("Couldn't convert `limit` to integer: %s.", err)
+			return apierror.NewBadRequestf("Couldn't convert `limit` to integer: %s.", err)
 		}
 
 		req.Limit = &limit
@@ -756,6 +756,18 @@ func (a *workflowListEndpoint) Execute(ctx context.Context, req *workflowListReq
 		}
 		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListAllToSerializableWorkflow)), nil
 	}
+}
+
+func NewNotFoundJob(jobID int64) *apierror.NotFound {
+	return apierror.NewNotFoundf("Job not found: %d.", jobID)
+}
+
+func NewNotFoundQueue(name string) *apierror.NotFound {
+	return apierror.NewNotFoundf("Queue not found: %s.", name)
+}
+
+func NewNotFoundWorkflow(id string) *apierror.NotFound {
+	return apierror.NewNotFoundf("Workflow not found: %s.", id)
 }
 
 type RiverJob struct {
