@@ -16,11 +16,11 @@ import (
 	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
 
+	"github.com/riverqueue/apiframe/apimiddleware"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 
 	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/internal/apimiddleware"
 )
 
 func main() {

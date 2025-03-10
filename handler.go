@@ -17,13 +17,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/riverqueue/apiframe/apiendpoint"
+	"github.com/riverqueue/apiframe/apimiddleware"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/valutil"
-
-	"riverqueue.com/riverui/internal/apiendpoint"
-	"riverqueue.com/riverui/internal/apimiddleware"
 )
 
 // DB is the interface for a pgx database connection.

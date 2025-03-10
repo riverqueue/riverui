@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 
+	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
@@ -17,7 +18,6 @@ import (
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivertype"
 
-	"riverqueue.com/riverui/internal/apierror"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 )
@@ -104,7 +104,7 @@ func TestHandlerHealthCheckGetEndpoint(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newHealthCheckGetEndpoint)
 
 		_, err := endpoint.Execute(ctx, &healthCheckGetRequest{Name: "other"})
-		requireAPIError(t, apierror.NewNotFound("Health check %q not found. Use either `complete` or `minimal`.", "other"), err)
+		requireAPIError(t, apierror.NewNotFoundf("Health check %q not found. Use either `complete` or `minimal`.", "other"), err)
 	})
 }
 
@@ -140,7 +140,7 @@ func TestJobCancelEndpoint(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newJobCancelEndpoint)
 
 		_, err := endpoint.Execute(ctx, &jobCancelRequest{JobIDs: []int64String{123}})
-		requireAPIError(t, apierror.NewNotFoundJob(123), err)
+		requireAPIError(t, NewNotFoundJob(123), err)
 	})
 }
 
@@ -174,7 +174,7 @@ func TestJobDeleteEndpoint(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newJobDeleteEndpoint)
 
 		_, err := endpoint.Execute(ctx, &jobDeleteRequest{JobIDs: []int64String{123}})
-		requireAPIError(t, apierror.NewNotFoundJob(123), err)
+		requireAPIError(t, NewNotFoundJob(123), err)
 	})
 }
 
@@ -201,7 +201,7 @@ func TestJobGetEndpoint(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newJobGetEndpoint)
 
 		_, err := endpoint.Execute(ctx, &jobGetRequest{JobID: 123})
-		requireAPIError(t, apierror.NewNotFoundJob(123), err)
+		requireAPIError(t, NewNotFoundJob(123), err)
 	})
 }
 
@@ -322,7 +322,7 @@ func TestJobRetryEndpoint(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newJobRetryEndpoint)
 
 		_, err := endpoint.Execute(ctx, &jobRetryRequest{JobIDs: []int64String{123}})
-		requireAPIError(t, apierror.NewNotFoundJob(123), err)
+		requireAPIError(t, NewNotFoundJob(123), err)
 	})
 }
 
@@ -353,7 +353,7 @@ func TestAPIHandlerQueueGet(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newQueueGetEndpoint)
 
 		_, err := endpoint.Execute(ctx, &queueGetRequest{Name: "does_not_exist"})
-		requireAPIError(t, apierror.NewNotFoundQueue("does_not_exist"), err)
+		requireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
 	})
 }
 
@@ -420,7 +420,7 @@ func TestAPIHandlerQueuePause(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newQueuePauseEndpoint)
 
 		_, err := endpoint.Execute(ctx, &queuePauseRequest{Name: "does_not_exist"})
-		requireAPIError(t, apierror.NewNotFoundQueue("does_not_exist"), err)
+		requireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
 	})
 }
 
@@ -449,7 +449,7 @@ func TestAPIHandlerQueueResume(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newQueueResumeEndpoint)
 
 		_, err := endpoint.Execute(ctx, &queueResumeRequest{Name: "does_not_exist"})
-		requireAPIError(t, apierror.NewNotFoundQueue("does_not_exist"), err)
+		requireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
 	})
 }
 
@@ -577,7 +577,7 @@ func TestAPIHandlerWorkflowGet(t *testing.T) {
 		workflowID := uuid.New()
 
 		_, err := endpoint.Execute(ctx, &workflowGetRequest{ID: workflowID.String()})
-		requireAPIError(t, apierror.NewNotFoundWorkflow(workflowID.String()), err)
+		requireAPIError(t, NewNotFoundWorkflow(workflowID.String()), err)
 	})
 }
 
