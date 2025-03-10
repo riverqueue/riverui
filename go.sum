@@ -37,6 +37,12 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/riverqueue/apiframe v0.0.0-20250310051455-203f3fd8260f h1:Pr3+ERes1GkCJnw/gpi9yVx9tN7VCcPjuZCFN/OBaZg=
 github.com/riverqueue/apiframe v0.0.0-20250310051455-203f3fd8260f/go.mod h1:ko/9b4SeomWrHTr4WU0i21peq90Qk2Mm8MgOqPrTcHA=
+github.com/riverqueue/apiframe v0.0.0-20250310054829-19e112904670 h1:c2t1Rgb/VC07gUXEO4OnPBKRd6Oct5yECyhxtVyIO1M=
+github.com/riverqueue/apiframe v0.0.0-20250310054829-19e112904670/go.mod h1:ko/9b4SeomWrHTr4WU0i21peq90Qk2Mm8MgOqPrTcHA=
+github.com/riverqueue/apiframe v0.0.0-20250310055546-28a3f81b743f h1:LzrDfxieq6nT71TovkyLSTYhUzTbRoV0U2llKxFUtnA=
+github.com/riverqueue/apiframe v0.0.0-20250310055546-28a3f81b743f/go.mod h1:ko/9b4SeomWrHTr4WU0i21peq90Qk2Mm8MgOqPrTcHA=
+github.com/riverqueue/apiframe v0.0.0-20250310152721-45007400f5bf h1:y0ZXBnVCUuqKNhld/VVIix5pYVPjzOZu3J48wDpatSU=
+github.com/riverqueue/apiframe v0.0.0-20250310152721-45007400f5bf/go.mod h1:ko/9b4SeomWrHTr4WU0i21peq90Qk2Mm8MgOqPrTcHA=
 github.com/riverqueue/river v0.18.0 h1:sGHeTOL9MR8+pMIVHRm59fzet8Ron/xjF3Yq/PSGb78=
 github.com/riverqueue/river v0.18.0/go.mod h1:oapX5xb/L2YnkE801QubDZ0COHxVxEGVY37icPzghhU=
 github.com/riverqueue/river/riverdriver v0.18.0 h1:a2haR5I0MQLHjLCSVFpUEeJALCLemRl5zCztucysm1E=
