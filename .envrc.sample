@@ -1,0 +1,11 @@
+# Common configuration amongst for all River UI development, committed to Git.
+# Somewhat confusingly `dotenv` is a direnv built-in, so the dotenv program
+# isn't required for this command. It's useful that the file is in dotenv format
+# though for use by JavaScript programs like Vite.
+dotenv_if_exists .env.local
+
+# `.env` can also be added for local customization to be read both by Direnv and
+# Vite. This file isn't provided by default.
+dotenv_if_exists .env
+
+# Custom env values go here.
