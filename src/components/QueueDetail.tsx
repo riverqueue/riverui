@@ -1,4 +1,4 @@
-import { Queue } from "@services/queues";
+import { Queue, QueueWithKnownMetadata } from "@services/queues";
 
 import TopNavTitleOnly from "./TopNavTitleOnly";
 
@@ -9,6 +9,20 @@ const Content = ({ loading, queue }: QueueDetailProps) => {
 
   if (!queue) {
     return <p>Queue not found.</p>;
+  }
+
+  let queueWithMetadata: QueueWithKnownMetadata | undefined;
+  if (isQueueWithKnownMetadata(queue)) {
+    queueWithMetadata = queue;
+  }
+
+  if (queueWithMetadata) {
+    return (
+      <p>
+        Loaded queue {queue.name} with concurrency config{" "}
+        {JSON.stringify(queueWithMetadata.metadata.concurrency)}
+      </p>
+    );
   }
 
   return <p>Loaded queue {queue.name}</p>;
@@ -41,3 +55,9 @@ const QueueDetail = (props: QueueDetailProps) => {
 };
 
 export default QueueDetail;
+
+function isQueueWithKnownMetadata(
+  queue: Queue,
+): queue is QueueWithKnownMetadata {
+  return (queue as QueueWithKnownMetadata).metadata !== undefined;
+}

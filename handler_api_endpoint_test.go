@@ -560,6 +560,78 @@ func TestAPIHandlerQueueResume(t *testing.T) {
 	})
 }
 
+func TestAPIHandlerQueueUpdate(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueUpdateEndpoint)
+
+		queue := testfactory.Queue(ctx, t, bundle.exec, nil)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueUpdateRequest{
+			Name: queue.Name,
+			Concurrency: apitype.ExplicitNullable[ConcurrencyConfig]{
+				Set:   true,
+				Value: &ConcurrencyConfig{GlobalLimit: 10, LocalLimit: 5},
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, queue.Name, resp.Name)
+		require.Equal(t, &ConcurrencyConfig{
+			GlobalLimit: 10,
+			LocalLimit:  5,
+		}, resp.Concurrency)
+	})
+
+	t.Run("SortsPartitionByArgs", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueUpdateEndpoint)
+
+		queue := testfactory.Queue(ctx, t, bundle.exec, nil)
+
+		// Create unsorted ByArgs array
+		unsortedArgs := []string{"z", "c", "a", "b"}
+		sortedArgs := []string{"a", "b", "c", "z"} // same array but sorted
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueUpdateRequest{
+			Name: queue.Name,
+			Concurrency: apitype.ExplicitNullable[ConcurrencyConfig]{
+				Set: true,
+				Value: &ConcurrencyConfig{
+					GlobalLimit: 10,
+					LocalLimit:  5,
+					Partition: PartitionConfig{
+						ByArgs: unsortedArgs,
+						ByKind: true,
+					},
+				},
+			},
+		})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.Equal(t, queue.Name, resp.Name)
+		require.NotNil(t, resp.Concurrency)
+		require.Equal(t, sortedArgs, resp.Concurrency.Partition.ByArgs)
+	})
+
+	t.Run("NotFound", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, _ := setupEndpoint(ctx, t, newQueueUpdateEndpoint)
+
+		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueUpdateRequest{
+			Name: "does_not_exist",
+		})
+		requireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
+	})
+}
+
 func TestStateAndCountGetEndpoint(t *testing.T) {
 	t.Parallel()
 

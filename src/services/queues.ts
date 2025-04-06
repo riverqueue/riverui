@@ -14,6 +14,25 @@ export type Queue = {
     : QueueFromAPI[Key];
 };
 
+export type QueueWithKnownMetadata = {
+  metadata: KnownMetadata;
+} & Omit<Queue, "metadata">;
+
+export interface KnownMetadata {
+  concurrency?: ConcurrencyConfig;
+}
+
+export interface PartitionConfig {
+  by_args: string[] | null;
+  by_kind: string[] | null;
+}
+
+export interface ConcurrencyConfig {
+  global_limit?: number;
+  local_limit?: number;
+  partition: PartitionConfig;
+}
+
 // Represents a Queue as received from the API. This just like Queue, except with
 // string dates instead of Date objects and keys as snake_case instead of
 // camelCase.

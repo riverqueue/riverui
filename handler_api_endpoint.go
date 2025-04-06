@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
+	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
@@ -640,6 +642,75 @@ func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeReque
 		}
 
 		return statusResponseOK, nil
+	})
+}
+
+type queueUpdateEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[queueUpdateRequest, RiverQueue]
+}
+
+func newQueueUpdateEndpoint(apiBundle apiBundle) *queueUpdateEndpoint {
+	return &queueUpdateEndpoint{apiBundle: apiBundle}
+}
+
+func (*queueUpdateEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "PATCH /api/queues/{name}",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type queueUpdateRequest struct {
+	Concurrency apitype.ExplicitNullable[ConcurrencyConfig] `json:"concurrency"`
+	Name        string                                      `json:"-" validate:"required"` // from ExtractRaw
+}
+
+func (req *queueUpdateRequest) ExtractRaw(r *http.Request) error {
+	req.Name = r.PathValue("name")
+	return nil
+}
+
+func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateRequest) (*RiverQueue, error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
+		// Construct metadata based on concurrency field
+		var metadata json.RawMessage
+		if req.Concurrency.Set {
+			if req.Concurrency.Value == nil {
+				// If concurrency is nil, clear the metadata
+				metadata = []byte("{}")
+			} else {
+				// Ensure consistent sorting of ByArgs:
+				slices.Sort(req.Concurrency.Value.Partition.ByArgs)
+
+				// Otherwise, construct metadata with the concurrency config
+				metadataStruct := map[string]interface{}{
+					"concurrency": req.Concurrency.Value,
+				}
+				var err error
+				metadata, err = json.Marshal(metadataStruct)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling metadata: %w", err)
+				}
+			}
+		}
+
+		queue, err := a.client.QueueUpdateTx(ctx, tx, req.Name, &river.QueueUpdateParams{
+			Metadata: metadata,
+		})
+		if err != nil {
+			if errors.Is(err, river.ErrNotFound) {
+				return nil, NewNotFoundQueue(req.Name)
+			}
+			return nil, fmt.Errorf("error updating queue metadata: %w", err)
+		}
+
+		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, []string{req.Name})
+		if err != nil {
+			return nil, fmt.Errorf("error getting queue counts: %w", err)
+		}
+
+		return riverQueueToSerializableQueue(*queue, countRows[0]), nil
 	})
 }
 
