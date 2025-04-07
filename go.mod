@@ -8,11 +8,11 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.4
 	github.com/riverqueue/apiframe v0.0.0-20250310152721-45007400f5bf
-	github.com/riverqueue/river v0.19.0
-	github.com/riverqueue/river/riverdriver v0.19.0
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.19.0
-	github.com/riverqueue/river/rivershared v0.19.0
-	github.com/riverqueue/river/rivertype v0.19.0
+	github.com/riverqueue/river v0.20.1
+	github.com/riverqueue/river/riverdriver v0.20.1
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.20.1
+	github.com/riverqueue/river/rivershared v0.20.1
+	github.com/riverqueue/river/rivertype v0.20.1
 	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.6.0
 	github.com/stretchr/testify v1.10.0
