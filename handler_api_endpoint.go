@@ -55,6 +55,65 @@ type statusResponse struct {
 var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
 
 //
+// featuresGetEndpoint
+//
+
+type featuresGetEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[featuresGetRequest, featuresGetResponse]
+}
+
+func newFeaturesGetEndpoint(apiBundle apiBundle) *featuresGetEndpoint {
+	return &featuresGetEndpoint{apiBundle: apiBundle}
+}
+
+func (*featuresGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/features",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type featuresGetRequest struct{}
+
+type featuresGetResponse struct {
+	HasClientTable   bool `json:"has_client_table"`
+	HasProducerTable bool `json:"has_producer_table"`
+	HasWorkflows     bool `json:"has_workflows"`
+}
+
+func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
+	hasClientTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_client")
+	if err != nil {
+		return nil, err
+	}
+
+	hasProducerTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_producer")
+	if err != nil {
+		return nil, err
+	}
+
+	indexResults, err := dbsqlc.New().IndexesExistInCurrentSchema(ctx, a.dbPool, []string{
+		"river_job_workflow_list_active",
+		"river_job_workflow_scheduling",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	indexResultsMap := make(map[string]bool, len(indexResults))
+	for _, indexResult := range indexResults {
+		indexResultsMap[indexResult.IndexNamesIndexName] = indexResult.Exists
+	}
+
+	return &featuresGetResponse{
+		HasClientTable:   hasClientTable,
+		HasProducerTable: hasProducerTable,
+		HasWorkflows:     indexResultsMap["river_job_workflow_list_active"] || indexResultsMap["river_job_workflow_scheduling"],
+	}, nil
+}
+
+//
 // healthCheckGetEndpoint
 //
 
@@ -351,6 +410,49 @@ func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*
 		}
 
 		return statusResponseOK, nil
+	})
+}
+
+//
+// producerListEndpoint
+//
+
+type producerListEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverProducer]]
+}
+
+func newProducerListEndpoint(apiBundle apiBundle) *producerListEndpoint {
+	return &producerListEndpoint{apiBundle: apiBundle}
+}
+
+func (*producerListEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/producers",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type producerListRequest struct {
+	QueueName string `json:"-" validate:"required"` // from ExtractRaw
+}
+
+func (req *producerListRequest) ExtractRaw(r *http.Request) error {
+	if queueName := r.URL.Query().Get("queue_name"); queueName != "" {
+		req.QueueName = queueName
+	}
+
+	return nil
+}
+
+func (a *producerListEndpoint) Execute(ctx context.Context, req *producerListRequest) (*listResponse[RiverProducer], error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverProducer], error) {
+		result, err := dbsqlc.New().ProducerListByQueue(ctx, tx, req.QueueName)
+		if err != nil {
+			return nil, fmt.Errorf("error listing producers: %w", err)
+		}
+
+		return listResponseFrom(sliceutil.Map(result, internalProducerToSerializableProducer)), nil
 	})
 }
 
@@ -770,6 +872,17 @@ func NewNotFoundWorkflow(id string) *apierror.NotFound {
 	return apierror.NewNotFoundf("Workflow not found: %s.", id)
 }
 
+type ConcurrencyConfig struct {
+	GlobalLimit int32           `json:"global_limit"`
+	LocalLimit  int32           `json:"local_limit"`
+	Partition   PartitionConfig `json:"partition"`
+}
+
+type PartitionConfig struct {
+	ByArgs []string `json:"by_args"`
+	ByKind bool     `json:"by_kind"`
+}
+
 type RiverJob struct {
 	ID          int64                    `json:"id"`
 	Args        json.RawMessage          `json:"args"`
@@ -853,22 +966,73 @@ func riverJobToSerializableJob(riverJob *rivertype.JobRow) *RiverJob {
 	}
 }
 
+type RiverProducer struct {
+	ID          int64              `json:"id"`
+	ClientID    string             `json:"client_id"`
+	Concurrency *ConcurrencyConfig `json:"concurrency"`
+	CreatedAt   time.Time          `json:"created_at"`
+	MaxWorkers  int                `json:"max_workers"`
+	PausedAt    *time.Time         `json:"paused_at"`
+	QueueName   string             `json:"queue_name"`
+	Running     int32              `json:"running"`
+	UpdatedAt   time.Time          `json:"updated_at"`
+}
+
+func internalProducerToSerializableProducer(internal *dbsqlc.ProducerListByQueueRow) *RiverProducer {
+	var pausedAt *time.Time
+	if internal.RiverProducer.PausedAt.Valid {
+		pausedAt = &internal.RiverProducer.PausedAt.Time
+	}
+
+	var concurrency *ConcurrencyConfig
+	if len(internal.RiverProducer.Metadata) > 0 {
+		var metadata struct {
+			Concurrency ConcurrencyConfig `json:"concurrency"`
+		}
+		if err := json.Unmarshal(internal.RiverProducer.Metadata, &metadata); err == nil {
+			concurrency = &metadata.Concurrency
+		}
+	}
+
+	return &RiverProducer{
+		ID:          internal.RiverProducer.ID,
+		ClientID:    internal.RiverProducer.ClientID,
+		Concurrency: concurrency,
+		CreatedAt:   internal.RiverProducer.CreatedAt.Time,
+		MaxWorkers:  int(internal.RiverProducer.MaxWorkers),
+		PausedAt:    pausedAt,
+		QueueName:   internal.RiverProducer.QueueName,
+		Running:     internal.Running,
+		UpdatedAt:   internal.RiverProducer.UpdatedAt.Time,
+	}
+}
+
 type RiverQueue struct {
-	CountAvailable int             `json:"count_available"`
-	CountRunning   int             `json:"count_running"`
-	CreatedAt      time.Time       `json:"created_at"`
-	Metadata       json.RawMessage `json:"metadata"`
-	Name           string          `json:"name"`
-	PausedAt       *time.Time      `json:"paused_at"`
-	UpdatedAt      time.Time       `json:"updated_at"`
+	CountAvailable int                `json:"count_available"`
+	CountRunning   int                `json:"count_running"`
+	CreatedAt      time.Time          `json:"created_at"`
+	Concurrency    *ConcurrencyConfig `json:"concurrency"`
+	Name           string             `json:"name"`
+	PausedAt       *time.Time         `json:"paused_at"`
+	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
 func riverQueueToSerializableQueue(internal rivertype.Queue, count *dbsqlc.JobCountByQueueAndStateRow) *RiverQueue {
+	var concurrency *ConcurrencyConfig
+	if len(internal.Metadata) > 0 {
+		var metadata struct {
+			Concurrency *ConcurrencyConfig `json:"concurrency"`
+		}
+		if err := json.Unmarshal(internal.Metadata, &metadata); err == nil {
+			concurrency = metadata.Concurrency
+		}
+	}
+
 	return &RiverQueue{
 		CountAvailable: int(count.CountAvailable),
 		CountRunning:   int(count.CountRunning),
 		CreatedAt:      internal.CreatedAt,
-		Metadata:       internal.Metadata,
+		Concurrency:    concurrency,
 		Name:           internal.Name,
 		PausedAt:       internal.PausedAt,
 		UpdatedAt:      internal.UpdatedAt,

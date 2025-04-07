@@ -2,8 +2,10 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries:
-      - "query.sql"
-      - "workflow.sql"
+      - pg_misc.sql
+      - river_producer.sql
+      - query.sql
+      - workflow.sql
     schema:
       - river_client.sql
       - river_client_queue.sql

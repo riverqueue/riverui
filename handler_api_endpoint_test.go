@@ -69,7 +69,54 @@ func testMountOpts(t *testing.T) *apiendpoint.MountOpts {
 	}
 }
 
-func TestHandlerHealthCheckGetEndpoint(t *testing.T) {
+func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
+	// This can't be parallelized because it tries to make DB schema changes.
+	ctx := context.Background()
+
+	t.Run("SuccessWithEverythingFalse", func(t *testing.T) { //nolint:paralleltest
+		// This can't be parallelized because it tries to make DB schema changes.
+		endpoint, bundle := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
+
+		_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_producer;`)
+		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_client CASCADE;`)
+		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_list_active;`)
+		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_scheduling;`)
+		require.NoError(t, err)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})
+		require.NoError(t, err)
+		require.Equal(t, &featuresGetResponse{
+			HasClientTable:   false,
+			HasProducerTable: false,
+			HasWorkflows:     false,
+		}, resp)
+	})
+
+	t.Run("SuccessWithEverythingTrue", func(t *testing.T) { //nolint:paralleltest
+		// This can't be parallelized because it tries to make DB schema changes.
+		endpoint, bundle := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
+
+		_, err := bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_client (id SERIAL PRIMARY KEY);`)
+		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_producer (id SERIAL PRIMARY KEY);`)
+		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `CREATE INDEX IF NOT EXISTS river_job_workflow_list_active ON river_job ((metadata->>'workflow_id'));`)
+		require.NoError(t, err)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})
+		require.NoError(t, err)
+		require.Equal(t, &featuresGetResponse{
+			HasClientTable:   true,
+			HasProducerTable: true,
+			HasWorkflows:     true,
+		}, resp)
+	})
+}
+
+func TestAPIHandlerHealthCheckGet(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -119,7 +166,7 @@ func TestHandlerHealthCheckGetEndpoint(t *testing.T) {
 	})
 }
 
-func TestJobCancelEndpoint(t *testing.T) {
+func TestAPIHandlerJobCancel(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -155,7 +202,7 @@ func TestJobCancelEndpoint(t *testing.T) {
 	})
 }
 
-func TestJobDeleteEndpoint(t *testing.T) {
+func TestAPIHandlerJobDelete(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -189,7 +236,7 @@ func TestJobDeleteEndpoint(t *testing.T) {
 	})
 }
 
-func TestJobGetEndpoint(t *testing.T) {
+func TestAPIHandlerJobGet(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -295,7 +342,7 @@ func TestAPIHandlerJobList(t *testing.T) {
 	})
 }
 
-func TestJobRetryEndpoint(t *testing.T) {
+func TestAPIHandlerJobRetry(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -334,6 +381,55 @@ func TestJobRetryEndpoint(t *testing.T) {
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobRetryRequest{JobIDs: []int64String{123}})
 		requireAPIError(t, NewNotFoundJob(123), err)
+	})
+}
+
+func TestAPIHandlerProducerList(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newProducerListEndpoint)
+
+		_, err := bundle.tx.Exec(ctx, producerSchema)
+		require.NoError(t, err)
+
+		_, err = bundle.tx.Exec(ctx, `INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES ('client1', 'queue1', 1, '{}');`)
+		require.NoError(t, err)
+
+		_, err = bundle.tx.Exec(ctx, `INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES ('client2', 'queue1', 2, '{}');`)
+		require.NoError(t, err)
+
+		_, err = bundle.tx.Exec(ctx,
+			`INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES (
+			'client2', 'queue2', 3, '{"concurrency": {"running": {"abcd": {"count": 3}, "efgh": {"count": 2}}}}'
+			);`,
+		)
+		require.NoError(t, err)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue1"})
+		require.NoError(t, err)
+		require.Equal(t, 2, len(resp.Data))
+		require.Equal(t, "client1", resp.Data[0].ClientID)
+		require.Equal(t, 1, resp.Data[0].MaxWorkers)
+		require.Equal(t, int32(0), resp.Data[0].Running)
+		require.Equal(t, "client2", resp.Data[1].ClientID)
+		require.Equal(t, 2, resp.Data[1].MaxWorkers)
+		require.Equal(t, int32(0), resp.Data[1].Running)
+
+		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue2"})
+		require.NoError(t, err)
+		require.Equal(t, 1, len(resp.Data))
+		require.Equal(t, "client2", resp.Data[0].ClientID)
+		require.Equal(t, 3, resp.Data[0].MaxWorkers)
+		require.Equal(t, int32(5), resp.Data[0].Running)
+
+		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue3"})
+		require.NoError(t, err)
+		require.Equal(t, 0, len(resp.Data))
 	})
 }
 
