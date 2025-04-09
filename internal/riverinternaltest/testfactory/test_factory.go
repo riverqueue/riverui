@@ -40,7 +40,7 @@ func Job(ctx context.Context, tb testing.TB, exec riverdriver.Executor, opts *Jo
 	return job
 }
 
-func Job_Build(tb testing.TB, opts *JobOpts) *riverdriver.JobInsertFullParams { //nolint:revive,stylecheck
+func Job_Build(tb testing.TB, opts *JobOpts) *riverdriver.JobInsertFullParams {
 	tb.Helper()
 
 	encodedArgs := opts.EncodedArgs

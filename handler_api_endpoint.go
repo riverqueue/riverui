@@ -13,6 +13,9 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
+	"riverqueue.com/riverui/internal/dbsqlc"
+	"riverqueue.com/riverui/internal/querycacher"
+	"riverqueue.com/riverui/internal/util/pgxutil"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
@@ -23,10 +26,6 @@ import (
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
-
-	"riverqueue.com/riverui/internal/dbsqlc"
-	"riverqueue.com/riverui/internal/querycacher"
-	"riverqueue.com/riverui/internal/util/pgxutil"
 )
 
 // A bundle of common utilities needed for many API endpoints.
@@ -663,7 +662,7 @@ func (*queueUpdateEndpoint) Meta() *apiendpoint.EndpointMeta {
 
 type queueUpdateRequest struct {
 	Concurrency apitype.ExplicitNullable[ConcurrencyConfig] `json:"concurrency"`
-	Name        string                                      `json:"-" validate:"required"` // from ExtractRaw
+	Name        string                                      `json:"-"           validate:"required"` // from ExtractRaw
 }
 
 func (req *queueUpdateRequest) ExtractRaw(r *http.Request) error {

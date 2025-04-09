@@ -6,15 +6,14 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"riverqueue.com/riverui/internal/dbsqlc"
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/startstoptest"
-
-	"riverqueue.com/riverui/internal/dbsqlc"
-	"riverqueue.com/riverui/internal/riverinternaltest"
-	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 )
 
 func TestQueryCacher(t *testing.T) {

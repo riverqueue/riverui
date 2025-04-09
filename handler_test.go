@@ -12,12 +12,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 
 	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
-
-	"riverqueue.com/riverui/internal/riverinternaltest"
-	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 )
 
 func TestNewHandlerIntegration(t *testing.T) {
@@ -128,7 +127,8 @@ func TestNewHandlerIntegration(t *testing.T) {
 					ByKind: true,
 				},
 			},
-		}}))
+		},
+	}))
 	makeAPICall(t, "QueueResume", http.MethodPut, makeURL("/api/queues/%s/resume", queuePaused.Name), nil)
 	makeAPICall(t, "StateAndCountGet", http.MethodGet, makeURL("/api/states"), nil)
 	makeAPICall(t, "WorkflowGet", http.MethodGet, makeURL("/api/workflows/%s", workflowID), nil)

@@ -15,12 +15,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
+	"riverqueue.com/riverui"
 
 	"github.com/riverqueue/apiframe/apimiddleware"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
-
-	"riverqueue.com/riverui"
 )
 
 func main() {
