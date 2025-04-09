@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.9.0] - 2025-04-08
+
 ### Added
 
 - Added a queue detail page with the ability to view queue stats. For River Pro customers, this page offers the ability to dynamically override concurrency limits and to view individual clients for each queue, along with how many jobs each is working. [PR #326](https://github.com/riverqueue/riverui/pull/326).
