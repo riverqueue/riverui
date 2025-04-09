@@ -9,6 +9,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
@@ -20,9 +22,6 @@ import (
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivertype"
-
-	"riverqueue.com/riverui/internal/riverinternaltest"
-	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 )
 
 type setupEndpointTestBundle struct {
@@ -412,7 +411,7 @@ func TestAPIHandlerProducerList(t *testing.T) {
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue1"})
 		require.NoError(t, err)
-		require.Equal(t, 2, len(resp.Data))
+		require.Len(t, resp.Data, 2)
 		require.Equal(t, "client1", resp.Data[0].ClientID)
 		require.Equal(t, 1, resp.Data[0].MaxWorkers)
 		require.Equal(t, int32(0), resp.Data[0].Running)
@@ -422,14 +421,14 @@ func TestAPIHandlerProducerList(t *testing.T) {
 
 		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue2"})
 		require.NoError(t, err)
-		require.Equal(t, 1, len(resp.Data))
+		require.Len(t, resp.Data, 1)
 		require.Equal(t, "client2", resp.Data[0].ClientID)
 		require.Equal(t, 3, resp.Data[0].MaxWorkers)
 		require.Equal(t, int32(5), resp.Data[0].Running)
 
 		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue3"})
 		require.NoError(t, err)
-		require.Equal(t, 0, len(resp.Data))
+		require.Empty(t, resp.Data)
 	})
 }
 
@@ -644,31 +643,31 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
 
-		for i := 0; i < 2; i++ {
+		for range 2 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCancelled), FinalizedAt: ptrutil.Ptr(time.Now())})
 		}
 
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
 		}
 
-		for i := 0; i < 4; i++ {
+		for range 4 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateDiscarded), FinalizedAt: ptrutil.Ptr(time.Now())})
 		}
 
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStatePending)})
 		}
 
-		for i := 0; i < 6; i++ {
+		for range 6 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRetryable)})
 		}
 
-		for i := 0; i < 7; i++ {
+		for range 7 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
 		}
 
-		for i := 0; i < 8; i++ {
+		for range 8 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateScheduled)})
 		}
 
@@ -692,7 +691,7 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
 
 		const queryCacheSkipThreshold = 3
-		for i := 0; i < queryCacheSkipThreshold+1; i++ {
+		for range queryCacheSkipThreshold + 1 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
 		}
 
@@ -712,7 +711,7 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
 
 		const queryCacheSkipThreshold = 3
-		for i := 0; i < queryCacheSkipThreshold-1; i++ {
+		for range queryCacheSkipThreshold - 1 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
 		}
 

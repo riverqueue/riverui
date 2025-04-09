@@ -7,10 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"riverqueue.com/riverui/internal/dbsqlc"
+
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
-
-	"riverqueue.com/riverui/internal/dbsqlc"
 )
 
 // QueryCacher executes a database query periodically and caches the result. The
@@ -35,7 +35,7 @@ func NewQueryCacher[TRes any](archetype *baseservice.Archetype, db dbsqlc.DBTX, 
 	// +/- 1s random variance to ticker interval. Makes sure that given multiple
 	// query caches running simultaneously, they all start and are scheduled a
 	// little differently to make a thundering herd problem less likely.
-	randomTickVariance := time.Duration(rand.Float64()*float64(2*time.Second)) - 1*time.Second //nolint:gosec
+	randomTickVariance := time.Duration(rand.Float64()*float64(2*time.Second)) - 1*time.Second
 
 	queryCacher := baseservice.Init(archetype, &QueryCacher[TRes]{
 		db:         db,
