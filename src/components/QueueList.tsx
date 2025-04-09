@@ -72,7 +72,12 @@ const QueueList = ({
                 <tr key={queue.name}>
                   <td className="w-full max-w-0 py-2 pr-3 pl-4 text-sm font-medium text-slate-700 sm:w-auto sm:max-w-none sm:pl-0 dark:text-slate-300">
                     <span className="font-mono font-semibold dark:text-slate-100">
-                      {queue.name}
+                      <a
+                        className="text-slate-900 dark:text-slate-200"
+                        href={`/queues/${queue.name}`}
+                      >
+                        {queue.name}
+                      </a>
                     </span>
                     <dl className="font-normal md:hidden">
                       <dt className="sr-only sm:hidden">Available</dt>

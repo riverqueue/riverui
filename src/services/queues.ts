@@ -6,6 +6,17 @@ import type { SnakeToCamelCase, StringEndingWithUnderscoreAt } from "./types";
 
 import { ListResponse } from "./listResponse";
 
+export interface ConcurrencyConfig {
+  global_limit: number;
+  local_limit: number;
+  partition: PartitionConfig;
+}
+
+export interface PartitionConfig {
+  by_args: null | string[];
+  by_kind: null | string[];
+}
+
 export type Queue = {
   [Key in keyof QueueFromAPI as SnakeToCamelCase<Key>]: Key extends
     | StringEndingWithUnderscoreAt
@@ -18,20 +29,20 @@ export type Queue = {
 // string dates instead of Date objects and keys as snake_case instead of
 // camelCase.
 export type QueueFromAPI = {
+  concurrency: ConcurrencyConfig | null;
   count_available: number;
   count_running: number;
   created_at: string;
-  metadata: object;
   name: string;
   paused_at?: string;
   updated_at: string;
 };
 
 export const apiQueueToQueue = (queue: QueueFromAPI): Queue => ({
+  concurrency: queue.concurrency,
   countAvailable: queue.count_available,
   countRunning: queue.count_running,
   createdAt: new Date(queue.created_at),
-  metadata: queue.metadata,
   name: queue.name,
   pausedAt: queue.paused_at ? new Date(queue.paused_at) : undefined,
   updatedAt: new Date(queue.updated_at),
@@ -70,7 +81,6 @@ export const listQueues: QueryFunction<Queue[], ListQueuesKey> = async ({
     { signal },
   ).then(
     // Map from QueueFromAPI to Queue:
-    // TODO: there must be a cleaner way to do this given the type definitions?
     (response) => response.data.map(apiQueueToQueue),
   );
 };
@@ -89,4 +99,20 @@ export const resumeQueue: MutationFunction<void, QueueNamePayload> = async ({
   name,
 }) => {
   return API.put(`/queues/${name}/resume`);
+};
+
+type UpdateQueuePayload = {
+  concurrency?: ConcurrencyConfig | null;
+  name: string;
+};
+
+export const updateQueue: MutationFunction<void, UpdateQueuePayload> = async ({
+  concurrency,
+  name,
+}) => {
+  return API.patch(`/queues/${name}`, JSON.stringify({ concurrency }), {
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 };

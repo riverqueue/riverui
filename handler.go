@@ -19,6 +19,7 @@ import (
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apimiddleware"
+	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
@@ -136,20 +137,28 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 
 	mux := http.NewServeMux()
 
+	mountOpts := apiendpoint.MountOpts{
+		Logger:    opts.Logger,
+		Validator: apitype.NewValidator(),
+	}
+
 	endpoints := []apiendpoint.EndpointInterface{
-		apiendpoint.Mount(mux, opts.Logger, newHealthCheckGetEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newJobCancelEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newJobDeleteEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newJobListEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newJobRetryEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newJobGetEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newQueueGetEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newQueueListEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newQueuePauseEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newQueueResumeEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newStateAndCountGetEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newWorkflowGetEndpoint(apiBundle)),
-		apiendpoint.Mount(mux, opts.Logger, newWorkflowListEndpoint(apiBundle)),
+		apiendpoint.Mount(mux, newFeaturesGetEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newHealthCheckGetEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobCancelEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobDeleteEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobGetEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobListEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobRetryEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newProducerListEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueueGetEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueueListEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueuePauseEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueueResumeEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueueUpdateEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newWorkflowGetEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newWorkflowListEndpoint(apiBundle), &mountOpts),
 	}
 
 	var services []startstop.Service

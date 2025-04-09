@@ -1,5 +1,6 @@
 "use client";
 
+import { FeaturesProvider } from "@contexts/Features.provider";
 import { RefreshSettingProvider } from "@contexts/RefreshSettings.provider";
 import { SidebarSettingProvider } from "@contexts/SidebarSetting.provider";
 import { queryClient } from "@services/queryClient";
@@ -13,9 +14,11 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <ThemeProvider attribute="class" disableTransitionOnChange>
       <ThemeWatcher />
       <QueryClientProvider client={queryClient}>
-        <SidebarSettingProvider>
-          <RefreshSettingProvider>{children}</RefreshSettingProvider>
-        </SidebarSettingProvider>
+        <FeaturesProvider>
+          <SidebarSettingProvider>
+            <RefreshSettingProvider>{children}</RefreshSettingProvider>
+          </SidebarSettingProvider>
+        </FeaturesProvider>
         <ReactQueryDevtools position="bottom" />
       </QueryClientProvider>
     </ThemeProvider>

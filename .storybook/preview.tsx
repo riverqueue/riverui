@@ -1,5 +1,4 @@
-import type { Preview } from "@storybook/react";
-import type { PartialStoryFn, StoryContext } from "@storybook/types";
+import type { Decorator, Preview } from "@storybook/react";
 
 import { withThemeByClassName } from "@storybook/addon-themes";
 import { ReactRenderer } from "@storybook/react";
@@ -13,27 +12,52 @@ import {
 import { ThemeProvider } from "next-themes";
 import React from "react";
 
+import type { Features } from "../src/services/features";
+
 import "../src/global-type-overrides";
 import "../src/index.css";
+import { FeaturesContext } from "../src/contexts/Features";
 
-function withRouter(Story: PartialStoryFn, { parameters }: StoryContext) {
+/**
+ * Decorator that provides feature flags to stories
+ * Can be overridden per story using parameters.features
+ */
+export const withFeatures: Decorator = (StoryFn, context) => {
+  // Default features with story-specific overrides
+  const features = {
+    hasProducerTable: true,
+    ...context.parameters?.features,
+  };
+
+  return (
+    <FeaturesContext.Provider value={{ features }}>
+      <StoryFn />
+    </FeaturesContext.Provider>
+  );
+};
+
+/**
+ * Decorator that provides router context for stories
+ * Can be configured per story using parameters.router
+ */
+export const withRouter: Decorator = (StoryFn, context) => {
   const {
     initialEntries = ["/"],
     initialIndex,
     routes = ["/"],
-  } = parameters?.router || {};
+  } = context.parameters?.router || {};
 
+  // Create a router instance only when needed
   const rootRoute = createRootRoute();
-
-  const children = routes.map((path) =>
+  const routeComponents = routes.map((path) =>
     createRoute({
-      component: Story,
+      component: () => <StoryFn />,
       getParentRoute: () => rootRoute,
       path,
     }),
   );
 
-  rootRoute.addChildren(children);
+  rootRoute.addChildren(routeComponents);
 
   const router = createRouter({
     history: createMemoryHistory({ initialEntries, initialIndex }),
@@ -41,10 +65,21 @@ function withRouter(Story: PartialStoryFn, { parameters }: StoryContext) {
   });
 
   return <RouterProvider router={router} />;
-}
+};
 
-declare module "@storybook/types" {
+/**
+ * Decorator for theme provider
+ */
+export const withThemeProvider: Decorator = (StoryFn) => (
+  <ThemeProvider>
+    <StoryFn />
+  </ThemeProvider>
+);
+
+// Define parameter types
+declare module "@storybook/react" {
   interface Parameters {
+    features?: Partial<Features>;
     router?: {
       initialEntries?: string[];
       initialIndex?: number;
@@ -55,6 +90,7 @@ declare module "@storybook/types" {
 
 const preview: Preview = {
   decorators: [
+    withFeatures,
     withRouter,
     withThemeByClassName<ReactRenderer>({
       defaultTheme: "light",
@@ -63,11 +99,7 @@ const preview: Preview = {
         light: "light",
       },
     }),
-    (Story) => (
-      <ThemeProvider>
-        <Story />
-      </ThemeProvider>
-    ),
+    withThemeProvider,
   ],
 
   parameters: {

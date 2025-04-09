@@ -7,6 +7,12 @@ export const API = {
   get: <TResponse>({ path, query }: GetRequestOpts, config: RequestInit = {}) =>
     request<TResponse>(APIUrl(path, query), config),
 
+  patch: <TBody extends BodyInit, TResponse>(
+    path: string,
+    body?: TBody,
+    config: RequestInit = {},
+  ) => request<TResponse>(APIUrl(path), { ...config, body, method: "PATCH" }),
+
   // Using `extends` to set a type constraint:
   post: <TBody extends BodyInit, TResponse>(
     path: string,
