@@ -248,8 +248,15 @@ const ConcurrencySettings = ({
     if (!producers || producers.length === 0)
       return { config: null, consistent: false };
 
-    const firstProducer = producers[0];
-    const allSame = producers.every((p) => {
+    // Filter out paused producers
+    const activeProducers = producers.filter((p) => !p.pausedAt);
+
+    // If there are no active producers, return null config
+    if (activeProducers.length === 0)
+      return { config: null, consistent: false };
+
+    const firstProducer = activeProducers[0];
+    const allSame = activeProducers.every((p) => {
       if (!p.concurrency && !firstProducer.concurrency) return true;
       if (!p.concurrency || !firstProducer.concurrency) return false;
 
@@ -642,6 +649,12 @@ const ClientsTable = ({ producers }: { producers: Producer[] }) => {
                 Running
               </th>
               <th
+                className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
+                scope="col"
+              >
+                Max Workers
+              </th>
+              <th
                 className="table-cell w-20 min-w-20 px-3 py-2 text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
                 scope="col"
               >
@@ -653,13 +666,19 @@ const ClientsTable = ({ producers }: { producers: Producer[] }) => {
             {producers.map((producer) => (
               <tr key={producer.id}>
                 <td className="w-full max-w-0 py-2 pr-3 pl-4 text-sm font-medium text-slate-700 sm:w-auto sm:max-w-none sm:pl-0 dark:text-slate-300">
-                  <span className="font-mono dark:text-slate-100">
+                  <span className="block w-full truncate font-mono dark:text-slate-100">
                     {producer.clientId}
                   </span>
                   <dl className="font-normal md:hidden">
                     <dt className="sr-only sm:hidden">Running</dt>
                     <dd className="mt-1 truncate sm:hidden">
                       {producer.running} running
+                    </dd>
+                    <dt className="sr-only">Max Workers</dt>
+                    <dd className="mt-1 truncate sm:hidden">
+                      {producer.maxWorkers
+                        ? `${producer.maxWorkers} max`
+                        : "No limit"}
                     </dd>
                     <dt className="sr-only">Created</dt>
                     <dd className="mt-1 truncate">
@@ -684,6 +703,9 @@ const ClientsTable = ({ producers }: { producers: Producer[] }) => {
                 </td>
                 <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
                   {producer.running}
+                </td>
+                <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
+                  {producer.maxWorkers || "-"}
                 </td>
                 <td className="table-cell w-20 min-w-20 px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
                   {producer.pausedAt ? (
