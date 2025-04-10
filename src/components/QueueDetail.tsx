@@ -666,7 +666,7 @@ const ClientsTable = ({ producers }: { producers: Producer[] }) => {
             {producers.map((producer) => (
               <tr key={producer.id}>
                 <td className="w-full max-w-0 py-2 pr-3 pl-4 text-sm font-medium text-slate-700 sm:w-auto sm:max-w-none sm:pl-0 dark:text-slate-300">
-                  <span className="font-mono dark:text-slate-100">
+                  <span className="block w-full truncate font-mono dark:text-slate-100">
                     {producer.clientId}
                   </span>
                   <dl className="font-normal md:hidden">
