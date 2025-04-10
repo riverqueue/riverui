@@ -649,6 +649,12 @@ const ClientsTable = ({ producers }: { producers: Producer[] }) => {
                 Running
               </th>
               <th
+                className="hidden px-3 py-2.5 text-right text-sm font-semibold text-slate-900 sm:table-cell dark:text-slate-100"
+                scope="col"
+              >
+                Max Workers
+              </th>
+              <th
                 className="table-cell w-20 min-w-20 px-3 py-2 text-left text-sm font-semibold text-slate-900 dark:text-slate-100"
                 scope="col"
               >
@@ -667,6 +673,12 @@ const ClientsTable = ({ producers }: { producers: Producer[] }) => {
                     <dt className="sr-only sm:hidden">Running</dt>
                     <dd className="mt-1 truncate sm:hidden">
                       {producer.running} running
+                    </dd>
+                    <dt className="sr-only">Max Workers</dt>
+                    <dd className="mt-1 truncate sm:hidden">
+                      {producer.maxWorkers
+                        ? `${producer.maxWorkers} max`
+                        : "No limit"}
                     </dd>
                     <dt className="sr-only">Created</dt>
                     <dd className="mt-1 truncate">
@@ -691,6 +703,9 @@ const ClientsTable = ({ producers }: { producers: Producer[] }) => {
                 </td>
                 <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
                   {producer.running}
+                </td>
+                <td className="hidden px-3 py-2 text-right text-sm text-slate-500 sm:table-cell dark:text-slate-300">
+                  {producer.maxWorkers || "-"}
                 </td>
                 <td className="table-cell w-20 min-w-20 px-3 py-2 text-sm text-slate-500 dark:text-slate-300">
                   {producer.pausedAt ? (
