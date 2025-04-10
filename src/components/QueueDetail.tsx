@@ -248,8 +248,15 @@ const ConcurrencySettings = ({
     if (!producers || producers.length === 0)
       return { config: null, consistent: false };
 
-    const firstProducer = producers[0];
-    const allSame = producers.every((p) => {
+    // Filter out paused producers
+    const activeProducers = producers.filter((p) => !p.pausedAt);
+
+    // If there are no active producers, return null config
+    if (activeProducers.length === 0)
+      return { config: null, consistent: false };
+
+    const firstProducer = activeProducers[0];
+    const allSame = activeProducers.every((p) => {
       if (!p.concurrency && !firstProducer.concurrency) return true;
       if (!p.concurrency || !firstProducer.concurrency) return false;
 
