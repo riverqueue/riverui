@@ -3,7 +3,9 @@ sql:
   - engine: "postgresql"
     queries:
       - pg_misc.sql
+      - river_job.sql
       - river_producer.sql
+      - river_queue.sql
       - query.sql
       - workflow.sql
     schema:

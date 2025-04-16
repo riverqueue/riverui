@@ -105,6 +105,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 	// API calls
 	//
 
+	makeAPICall(t, "Autocomplete", http.MethodGet, makeURL("/api/autocomplete?facet=job_kind"), nil)
 	makeAPICall(t, "FeaturesGet", http.MethodGet, makeURL("/api/features"), nil)
 	makeAPICall(t, "HealthCheckGetComplete", http.MethodGet, makeURL("/api/health-checks/%s", healthCheckNameComplete), nil)
 	makeAPICall(t, "HealthCheckGetMinimal", http.MethodGet, makeURL("/api/health-checks/%s", healthCheckNameMinimal), nil)
@@ -117,6 +118,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 	makeAPICall(t, "QueueGet", http.MethodGet, makeURL("/api/queues/%s", queue.Name), nil)
 	makeAPICall(t, "QueueList", http.MethodGet, makeURL("/api/queues"), nil)
 	makeAPICall(t, "QueuePause", http.MethodPut, makeURL("/api/queues/%s/pause", queue.Name), nil)
+	makeAPICall(t, "QueueResume", http.MethodPut, makeURL("/api/queues/%s/resume", queuePaused.Name), nil)
 	makeAPICall(t, "QueueUpdate", http.MethodPatch, makeURL("/api/queues/%s", queue.Name), mustMarshalJSON(t, &queueUpdateRequest{
 		Concurrency: apitype.ExplicitNullable[ConcurrencyConfig]{
 			Value: &ConcurrencyConfig{
@@ -129,7 +131,6 @@ func TestNewHandlerIntegration(t *testing.T) {
 			},
 		},
 	}))
-	makeAPICall(t, "QueueResume", http.MethodPut, makeURL("/api/queues/%s/resume", queuePaused.Name), nil)
 	makeAPICall(t, "StateAndCountGet", http.MethodGet, makeURL("/api/states"), nil)
 	makeAPICall(t, "WorkflowGet", http.MethodGet, makeURL("/api/workflows/%s", workflowID), nil)
 	makeAPICall(t, "WorkflowList", http.MethodGet, makeURL("/api/workflows"), nil)

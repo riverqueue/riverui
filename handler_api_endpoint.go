@@ -56,6 +56,110 @@ type statusResponse struct {
 var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
 
 //
+// autocompleteListEndpoint
+//
+
+type autocompleteListEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[autocompleteListRequest, listResponse[string]]
+}
+
+func newAutocompleteListEndpoint(apiBundle apiBundle) *autocompleteListEndpoint {
+	return &autocompleteListEndpoint{apiBundle: apiBundle}
+}
+
+func (*autocompleteListEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/autocomplete",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type autocompleteFacet string
+
+const (
+	autocompleteFacetJobKind   autocompleteFacet = "job_kind"
+	autocompleteFacetQueueName autocompleteFacet = "queue_name"
+)
+
+type autocompleteListRequest struct {
+	After  *string           `json:"-"` // from ExtractRaw
+	Facet  autocompleteFacet `json:"-"` // from ExtractRaw
+	Prefix *string           `json:"-"` // from ExtractRaw
+}
+
+func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
+	if after := r.URL.Query().Get("after"); after != "" {
+		req.After = &after
+	}
+
+	if facet := r.URL.Query().Get("facet"); facet != "" {
+		req.Facet = autocompleteFacet(facet)
+	}
+
+	if prefix := r.URL.Query().Get("prefix"); prefix != "" {
+		req.Prefix = &prefix
+	}
+
+	return nil
+}
+
+func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocompleteListRequest) (*listResponse[string], error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[string], error) {
+		prefix := ""
+		if req.Prefix != nil {
+			prefix = *req.Prefix
+		}
+
+		after := ""
+		if req.After != nil {
+			after = *req.After
+		}
+
+		switch req.Facet {
+		case autocompleteFacetJobKind:
+			kinds, err := dbsqlc.New().JobKindListByPrefix(ctx, tx, &dbsqlc.JobKindListByPrefixParams{
+				After:  after,
+				Max:    100,
+				Prefix: prefix,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("error listing job kinds: %w", err)
+			}
+
+			kindPtrs := make([]*string, len(kinds))
+			for i, kind := range kinds {
+				kindCopy := kind
+				kindPtrs[i] = &kindCopy
+			}
+
+			return listResponseFrom(kindPtrs), nil
+
+		case autocompleteFacetQueueName:
+			queues, err := dbsqlc.New().QueueNameListByPrefix(ctx, tx, &dbsqlc.QueueNameListByPrefixParams{
+				After:  after,
+				Max:    100,
+				Prefix: prefix,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("error listing queue names: %w", err)
+			}
+
+			queuePtrs := make([]*string, len(queues))
+			for i, queue := range queues {
+				queueCopy := queue
+				queuePtrs[i] = &queueCopy
+			}
+
+			return listResponseFrom(queuePtrs), nil
+
+		default:
+			return nil, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, queue_name", req.Facet)
+		}
+	})
+}
+
+//
 // featuresGetEndpoint
 //
 
