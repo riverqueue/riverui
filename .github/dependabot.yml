@@ -5,6 +5,27 @@
 
 version: 2
 updates:
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
+    versioning-strategy: "auto"
+    allow:
+      - dependency-type: "direct"
+    ignore:
+      - dependency-name: "node"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "golang"
+        update-types:
+          ["version-update:semver-major", "version-update:semver-minor"]
+
   - package-ecosystem: "gomod"
     directory: "/" # Location of package manifests
     groups:
@@ -14,6 +35,7 @@ updates:
           - "patch"
     schedule:
       interval: "weekly"
+
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
