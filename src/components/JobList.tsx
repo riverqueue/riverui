@@ -1,7 +1,7 @@
 import { Badge } from "@components/Badge";
 import { Button } from "@components/Button";
 import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
-import { JobFilters } from "@components/JobFilters";
+import { JobStateFilters } from "@components/JobStateFilters";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNav from "@components/TopNav";
 import { MenuButton as HeadlessMenuButton } from "@headlessui/react";
@@ -433,7 +433,7 @@ const JobList = (props: JobListProps) => {
       </TopNav>
 
       <div className="hidden lg:fixed lg:inset-y-0 lg:left-16 lg:flex lg:w-56 lg:flex-col">
-        <JobFilters statesAndCounts={statesAndCounts} />
+        <JobStateFilters statesAndCounts={statesAndCounts} />
       </div>
 
       {loading ? <div>Loading...</div> : <JobRows {...props}></JobRows>}
