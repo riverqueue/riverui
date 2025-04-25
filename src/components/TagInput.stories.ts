@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { type BadgeColor } from "./Badge";
+import { type BadgeColor, BadgeColors } from "./Badge";
 import TagInput from "./TagInput";
 
 const meta: Meta<typeof TagInput> = {
   argTypes: {
     badgeColor: {
       control: "select",
+      options: BadgeColors,
     },
     onChange: { action: "changed" },
     showHelpText: {

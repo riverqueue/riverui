@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# React Component Testing Guidelines
+
+## Test File Structure
+- Test files should be co-located with their components and use the `.test.tsx` extension
+- Example: [src/components/EditableBadge.test.tsx](mdc:src/components/EditableBadge.test.tsx) tests [src/components/EditableBadge.tsx](mdc:src/components/EditableBadge.tsx)
+
+## Test Organization
+1. Group related tests using `describe` blocks
+2. Use clear, descriptive test names that explain the behavior being tested
+3. Follow the pattern: "component name > what it does > expected outcome"
+
+## Testing Events and User Interactions
+- When testing cursor positions and text selection:
+  ```typescript
+  fireEvent.change(input, {
+    target: {
+      value: "new value",
+      selectionStart: cursorPosition,
+      selectionEnd: cursorPosition
+    }
+  });
+  ```
+- For cursor movement tests, ensure value changes to trigger React's change events
+- Mock callbacks using `vi.fn()` and clear them between tests using `beforeEach(() => { vi.clearAllMocks(); })`
+
+## Running Tests
+- Use `npm exec -- vitest --run` to run tests
+- Specify a test file path to run specific tests: `npm exec -- vitest --run src/components/MyComponent.test.tsx`
