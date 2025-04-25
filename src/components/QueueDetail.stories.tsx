@@ -1,9 +1,10 @@
-import QueueDetail from "@components/QueueDetail";
 import { type Producer } from "@services/producers";
 import { type ConcurrencyConfig } from "@services/queues";
 import { Meta, StoryObj } from "@storybook/react";
 import { producerFactory } from "@test/factories/producer";
 import { queueFactory } from "@test/factories/queue";
+
+import QueueDetail from "./QueueDetail";
 
 // Mock functions
 const mockPauseQueue = (name: string) => {
