@@ -1,64 +1,37 @@
+import {
+  Combobox,
+  ComboboxInput,
+  ComboboxOptions,
+  ComboboxOption,
+} from "@headlessui/react";
+import { useState, useEffect } from "react";
 import { XMarkIcon } from "@heroicons/react/16/solid";
+import { CheckIcon } from "@heroicons/react/20/solid";
 import clsx from "clsx";
-import React, { useEffect, useRef, useState } from "react";
 
-import { Badge, BadgeColor } from "./Badge";
+import { Badge, BadgeColor } from "@/components/Badge";
 
 export interface EditableBadgeProps {
-  /**
-   * Additional CSS classes
-   */
   className?: string;
-  /**
-   * The color of the badge
-   */
   color?: BadgeColor;
-  /**
-   * The editable content of the badge
-   */
   content: string[];
-  /**
-   * Whether the badge is currently being edited
-   */
   isEditing?: boolean;
-  /**
-   * Callback when the content is edited
-   */
-  onContentChange: (values: EditableValue) => void;
-  /**
-   * Callback when editing is complete
-   */
+  onContentChange: (values: string[]) => void;
   onEditComplete?: () => void;
-  /**
-   * Optional callback to handle showing/hiding autocomplete
-   * Returns the partial value being edited and its index
-   */
   onEditingValueChange?: (value: string, index: number) => void;
-  /**
-   * Callback when the badge is clicked to enter edit mode
-   */
   onEditStart?: () => void;
-  /**
-   * Callback when the badge is removed
-   */
   onRemove: () => void;
-  /**
-   * The non-editable prefix text (e.g., "kind:")
-   */
   prefix: string;
-}
-
-export interface EditableValue {
-  cursorPosition: number;
-  editingIndex: number; // -1 if not editing any specific value
-  editingValue: string; // The current value being edited
-  values: string[];
+  selectedSuggestion?: string | null;
+  onSuggestionApplied?: () => void;
+  onSuggestionKeyDown?: (e: React.KeyboardEvent) => void;
+  fetchSuggestions: (query: string) => Promise<string[]>;
 }
 
 export function EditableBadge({
   className,
   color = "zinc",
-  content = [], // Provide default empty array
+  content = [],
   isEditing = false,
   onContentChange,
   onEditComplete,
@@ -66,112 +39,63 @@ export function EditableBadge({
   onEditStart,
   onRemove,
   prefix,
+  selectedSuggestion = null,
+  onSuggestionApplied,
+  onSuggestionKeyDown,
+  fetchSuggestions,
 }: EditableBadgeProps) {
-  // Ensure content is always an array
-  const initialContent = Array.isArray(content) ? content : [];
-  const [editValue, setEditValue] = useState(initialContent.join(", "));
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [editValue, setEditValue] = useState<string>("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  // Update editValue when content prop changes
+  // Initialize editValue when entering edit mode
   useEffect(() => {
-    const newContent = Array.isArray(content) ? content : [];
-    setEditValue(newContent.join(", "));
-  }, [content]);
-
-  // Focus the input when entering edit mode
-  useEffect(() => {
-    if (isEditing && inputRef.current) {
-      inputRef.current.focus();
-      const length = inputRef.current.value.length;
-      inputRef.current.setSelectionRange(length, length);
+    if (isEditing) {
+      const contentArray = Array.isArray(content) ? content : [];
+      setEditValue(contentArray.join(", "));
     }
-  }, [isEditing]);
+  }, [isEditing, content]);
 
-  const getCurrentEditingValue = (
-    value: string,
-    cursorPosition: number,
-  ): EditableValue => {
-    // Split by comma but preserve empty values to maintain proper indexing
-    const values = value
+  // Fetch suggestions based on the current value after the last comma
+  useEffect(() => {
+    const currentValue = editValue.split(",").pop()?.trim() || "";
+    if (currentValue && isEditing) {
+      fetchSuggestions(currentValue).then(setSuggestions);
+    } else {
+      setSuggestions([]);
+    }
+  }, [editValue, fetchSuggestions, isEditing]);
+
+  // Handle suggestion selection
+  const handleSelect = (selected: string) => {
+    const parts = editValue.split(",").map((part) => part.trim());
+    parts.pop(); // Remove the current incomplete value
+    parts.push(selected, ""); // Add selected value and a space for next input
+    const newValue = parts.filter(Boolean).join(", ") + ", ";
+    setEditValue(newValue);
+    onSuggestionApplied?.();
+  };
+
+  // Handle input change and prevent multiple consecutive commas
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Replace multiple commas with a single comma and ensure proper spacing
+    const cleanedValue =
+      value
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .join(", ") + (value.endsWith(",") ? ", " : "");
+    setEditValue(cleanedValue);
+  };
+
+  // Finalize editing and pass values to parent
+  const handleBlur = () => {
+    const values = editValue
       .split(",")
       .map((v) => v.trim())
-      .filter((v) => v !== undefined); // Only filter undefined, keep empty strings
-
-    // Find which value is being edited based on cursor position
-    let charCount = 0;
-    let editingIndex = -1;
-    let editingValue = "";
-
-    for (let i = 0; i < values.length; i++) {
-      const valueLength = values[i].length;
-      const separatorLength = i < values.length - 1 ? 2 : 0; // ", " length
-
-      if (
-        charCount <= cursorPosition &&
-        cursorPosition <= charCount + valueLength + separatorLength
-      ) {
-        editingIndex = i;
-        editingValue = values[i];
-        break;
-      }
-      charCount += valueLength + separatorLength;
-    }
-
-    // If cursor is at the end and we haven't found an editing index,
-    // we're editing a new value
-    if (editingIndex === -1 && cursorPosition >= value.length) {
-      editingIndex = Math.max(0, values.length - 1);
-      editingValue = values[values.length - 1] || "";
-    }
-
-    return {
-      cursorPosition,
-      editingIndex,
-      editingValue,
-      values: values.filter(Boolean), // Only filter empty strings when returning final values
-    };
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isEditing) return;
-
-    const newValue = e.target.value;
-    const cursorPosition = e.target.selectionStart || 0;
-
-    // Always update the display value with exactly what the user typed
-    setEditValue(newValue);
-
-    const editingState = getCurrentEditingValue(newValue, cursorPosition);
-    onContentChange(editingState);
-    if (editingState.editingIndex !== -1) {
-      onEditingValueChange?.(
-        editingState.editingValue,
-        editingState.editingIndex,
-      );
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isEditing) return;
-
-    if (e.key === "Enter") {
-      const finalState = getCurrentEditingValue(editValue, editValue.length);
-      onContentChange(finalState);
-      onEditComplete?.();
-      inputRef.current?.blur();
-    } else if (e.key === "Escape") {
-      setEditValue(initialContent.join(", "));
-      onEditComplete?.();
-      inputRef.current?.blur();
-    }
-  };
-
-  const handleBlur = () => {
-    if (isEditing) {
-      const finalState = getCurrentEditingValue(editValue, editValue.length);
-      onContentChange(finalState);
-      onEditComplete?.();
-    }
+      .filter(Boolean);
+    onContentChange(values);
+    onEditComplete?.();
   };
 
   return (
@@ -184,30 +108,68 @@ export function EditableBadge({
       color={color}
     >
       <span className="shrink-0 font-medium">{prefix}</span>
-      <input
-        className={clsx(
-          "border-none bg-transparent p-0",
-          "focus:ring-0 focus:outline-none",
-          "text-sm/5 font-medium sm:text-xs/5", // Match Badge text styling
-          "field-sizing-content", // Allow input to shrink and grow naturally with content
-          !isEditing && "cursor-pointer",
+      <Combobox
+        value={null}
+        onChange={(value: string | null) => value && handleSelect(value)}
+      >
+        <ComboboxInput
+          className={clsx(
+            "border-none bg-transparent p-0",
+            "focus:ring-0 focus:outline-none",
+            "text-sm/5 font-medium sm:text-xs/5",
+            "field-sizing-content",
+            !isEditing && "cursor-pointer",
+          )}
+          value={editValue}
+          onChange={handleInputChange}
+          onBlur={handleBlur}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isEditing) onEditStart?.();
+          }}
+          onKeyDown={onSuggestionKeyDown}
+          placeholder="Type and select values..."
+        />
+        {suggestions.length > 0 && (
+          <ComboboxOptions className="absolute left-0 z-10 mt-1 max-h-60 w-64 overflow-auto rounded-md bg-white py-1 text-sm shadow-lg ring-1 ring-black/5 focus:outline-hidden dark:bg-gray-800 dark:ring-white/10">
+            {suggestions.map((suggestion) => (
+              <ComboboxOption
+                key={suggestion}
+                value={suggestion}
+                className="group relative cursor-default py-2 pr-9 pl-3 text-gray-900 select-none data-focus:bg-blue-600 data-focus:text-white dark:text-gray-100"
+              >
+                {({ selected, active }) => (
+                  <>
+                    <span
+                      className={clsx(
+                        "block truncate",
+                        selected && "font-semibold",
+                      )}
+                    >
+                      {suggestion}
+                    </span>
+                    {selected && (
+                      <span
+                        className={clsx(
+                          "absolute inset-y-0 right-0 flex items-center pr-4",
+                          active
+                            ? "text-white"
+                            : "text-blue-600 dark:text-blue-400",
+                        )}
+                      >
+                        <CheckIcon className="size-5" aria-hidden="true" />
+                      </span>
+                    )}
+                  </>
+                )}
+              </ComboboxOption>
+            ))}
+          </ComboboxOptions>
         )}
-        onBlur={handleBlur}
-        onChange={handleInputChange}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!isEditing) {
-            onEditStart?.();
-          }
-        }}
-        onKeyDown={handleKeyDown}
-        ref={inputRef}
-        type="text"
-        value={editValue}
-      />
+      </Combobox>
       <button
         aria-label="Remove filter"
-        className="ml-1 rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+        className="rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
         onClick={(e) => {
           e.stopPropagation();
           onRemove();
