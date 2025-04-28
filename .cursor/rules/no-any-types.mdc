@@ -1,5 +1,30 @@
 ---
 description:
 globs:
-alwaysApply: false
+alwaysApply: true
 ---
+# TypeScript Type Safety Guidelines
+
+## Avoid Using 'any' Type
+- Never use the `any` type in TypeScript code
+- Instead, use more specific types like:
+  - `unknown` for values of unknown type
+  - `Record<string, unknown>` for objects with unknown structure
+  - Create proper interfaces or types for your data structures
+
+## Examples
+- ❌ Bad: `function processData(data: any) { ... }`
+- ✅ Good: `function processData(data: unknown) { ... }`
+- ✅ Better: `function processData(data: UserData) { ... }`
+
+## Type Assertions
+- When type casting is necessary, use type assertions with specific types:
+  - ❌ Bad: `const value = someValue as any`
+  - ✅ Good: `const value = someValue as string`
+  - ✅ Better: `const value = someValue as (typeof BadgeColors)[number]`
+
+## Benefits
+- Improved type safety and error detection
+- Better IDE support with autocompletion
+- More maintainable and self-documenting code
+- Easier refactoring

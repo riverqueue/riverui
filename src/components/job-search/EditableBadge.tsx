@@ -14,11 +14,10 @@ export interface EditableBadgeProps {
   onEditingValueChange?: (value: string, index: number) => void;
   onEditStart?: () => void;
   onRemove: () => void;
-  prefix: string;
-  selectedSuggestion?: string | null;
   onSuggestionApplied?: () => void;
   onSuggestionKeyDown?: (e: React.KeyboardEvent) => void;
-  fetchSuggestions: (query: string) => Promise<string[]>;
+  prefix: string;
+  selectedSuggestion?: null | string;
 }
 
 export function EditableBadge({
@@ -31,27 +30,22 @@ export function EditableBadge({
   onEditingValueChange,
   onEditStart,
   onRemove,
-  prefix,
-  selectedSuggestion = null,
   onSuggestionApplied,
   onSuggestionKeyDown,
-  fetchSuggestions,
+  prefix,
+  selectedSuggestion = null,
 }: EditableBadgeProps) {
-  // Ensure content is always an array
   const initialContent = Array.isArray(content) ? content : [];
   const [editValue, setEditValue] = useState(initialContent.join(","));
   const [lastSelectedSuggestion, setLastSelectedSuggestion] = useState<
-    string | null
+    null | string
   >(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Update editValue when content prop changes
   useEffect(() => {
-    const newContent = Array.isArray(content) ? content : [];
-    setEditValue(newContent.join(","));
+    setEditValue(Array.isArray(content) ? content.join(",") : "");
   }, [content]);
 
-  // Update editValue when a suggestion is selected
   useEffect(() => {
     if (
       selectedSuggestion &&
@@ -59,135 +53,104 @@ export function EditableBadge({
       selectedSuggestion !== lastSelectedSuggestion
     ) {
       setLastSelectedSuggestion(selectedSuggestion);
-      // Get the current values and editing state
-      let values = editValue.split(",").map((v) => v.trim());
-      const editingState = getCurrentEditingValue(editValue, editValue.length);
-      // Update the values array with the selected suggestion
-      if (
-        editingState.editingIndex >= 0 &&
-        editingState.editingIndex < values.length
-      ) {
-        values[editingState.editingIndex] = selectedSuggestion;
+
+      const values = editValue.split(",").map((v) => v.trim());
+      const { editingIndex } = getCurrentEditingValue(
+        editValue,
+        editValue.length,
+      );
+
+      if (editingIndex < values.length) {
+        values[editingIndex] = selectedSuggestion;
       } else {
-        // Only push if not empty (prevents leading comma)
-        if (selectedSuggestion) {
-          values.push(selectedSuggestion);
-        }
+        values.push(selectedSuggestion);
       }
-      // Remove empty values and update editValue
-      values = values.filter(Boolean);
-      setEditValue(values.join(","));
-      // Do NOT sort/dedupe here—let user see their order until they exit edit mode
-      onContentChange(values);
-      // Notify that the suggestion has been applied
+
+      const cleaned = values.filter(Boolean);
+      setEditValue(cleaned.join(","));
+      onContentChange(cleaned);
       onSuggestionApplied?.();
     }
-  }, [
-    selectedSuggestion,
-    isEditing,
-    onContentChange,
-    lastSelectedSuggestion,
-    onSuggestionApplied,
-  ]);
-
-  // Focus the input when entering edit mode
-  useEffect(() => {
-    if (isEditing) {
-      // Ensure trailing comma for easy addition of a new value
-      const contentArr = Array.isArray(content) ? content : [];
-      const desired = contentArr.join(",") + (contentArr.length > 0 ? "," : "");
-      if (editValue === contentArr.join(",")) {
-        // Only update if we haven't started editing yet (to avoid clobbering user input)
-        setEditValue(desired);
-      }
-      if (inputRef.current) {
-        inputRef.current.focus();
-        const length = inputRef.current.value.length;
-        inputRef.current.setSelectionRange(length, length);
-      }
-    }
-  }, [isEditing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSuggestion, isEditing]);
 
   useEffect(() => {
-    if (isEditing) {
-      const cursorPos = editValue.length;
-      const editingState = getCurrentEditingValue(editValue, cursorPos);
-      if (editingState.editingIndex !== -1) {
-        onEditingValueChange?.(
-          editingState.editingValue,
-          editingState.editingIndex,
-        );
-      }
+    if (!isEditing) return;
+
+    const contentArr = Array.isArray(content) ? content : [];
+    const desired = contentArr.join(",") + (contentArr.length > 0 ? "," : "");
+
+    if (editValue === contentArr.join(",")) {
+      setEditValue(desired);
+      onEditingValueChange?.("", contentArr.length);
     }
+
+    if (inputRef.current) {
+      inputRef.current.focus();
+      const len = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(len, len);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
 
   const getCurrentEditingValue = (
     value: string,
-    cursorPosition: number,
+    cursor: number,
   ): { editingIndex: number; editingValue: string } => {
-    const values = value.split(",").map((v) => v.trim());
+    const parts = value.split(",").map((v) => v.trim());
 
-    // Special case: cursor is at end and value ends with a comma → new empty token
-    if (value.endsWith(",") && cursorPosition === value.length) {
-      return { editingIndex: values.length, editingValue: "" };
+    if (value.endsWith(",") && cursor === value.length) {
+      return { editingIndex: parts.length, editingValue: "" };
     }
 
-    let charCount = 0;
-    let editingIndex = -1;
-    let editingValue = "";
-    for (let i = 0; i < values.length; i++) {
-      const valueLength = values[i].length;
-      const separatorLength = i < values.length - 1 ? 1 : 0; // comma length
-      if (
-        charCount <= cursorPosition &&
-        cursorPosition <= charCount + valueLength + separatorLength
-      ) {
-        editingIndex = i;
-        editingValue = values[i];
-        break;
+    let acc = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const len = parts[i].length + (i < parts.length - 1 ? 1 : 0);
+      if (cursor <= acc + len) {
+        return { editingIndex: i, editingValue: parts[i] };
       }
-      charCount += valueLength + separatorLength;
+      acc += len;
     }
-
-    // If cursor is beyond all characters but we didn't match above, we're editing a new token
-    if (editingIndex === -1) {
-      editingIndex = values.length; // next token index
-      editingValue = "";
-    }
-    return { editingIndex, editingValue };
+    return { editingIndex: parts.length, editingValue: "" };
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isEditing) return;
-    const newValue = e.target.value;
-    const cursorPosition = e.target.selectionStart || 0;
-    setEditValue(newValue);
-    const editingState = getCurrentEditingValue(newValue, cursorPosition);
-    if (editingState.editingIndex !== -1) {
-      onEditingValueChange?.(
-        editingState.editingValue,
-        editingState.editingIndex,
-      );
-    }
+
+    const newVal = e.target.value;
+    const cursor = e.target.selectionStart ?? 0;
+    setEditValue(newVal);
+
+    const { editingIndex, editingValue } = getCurrentEditingValue(
+      newVal,
+      cursor,
+    );
+    onEditingValueChange?.(editingValue, editingIndex);
+  };
+
+  const commitAndFinish = () => {
+    const uniq = Array.from(
+      new Set(
+        editValue
+          .split(",")
+          .map((v) => v.trim())
+          .filter(Boolean),
+      ),
+    );
+    const sortedValues = [...uniq].sort();
+    onContentChange(sortedValues);
+    onEditComplete?.();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isEditing) return;
 
-    // Let parent component handle suggestion navigation/selection first
     onSuggestionKeyDown?.(e);
-    if (e.defaultPrevented) {
-      return; // Parent handled the key event (e.g., selected a suggestion)
-    }
+    if (e.defaultPrevented) return;
 
     if (e.key === "Enter") {
-      const values = editValue
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean);
-      const uniqueSorted = Array.from(new Set(values)).sort();
-      onContentChange(uniqueSorted);
-      onEditComplete?.();
+      e.preventDefault();
+      commitAndFinish();
       inputRef.current?.blur();
     } else if (e.key === "Escape") {
       setEditValue(initialContent.join(","));
@@ -197,15 +160,7 @@ export function EditableBadge({
   };
 
   const handleBlur = () => {
-    if (isEditing) {
-      const values = editValue
-        .split(",")
-        .map((v) => v.trim())
-        .filter(Boolean);
-      const uniqueSorted = Array.from(new Set(values)).sort();
-      onContentChange(uniqueSorted);
-      onEditComplete?.();
-    }
+    if (isEditing) commitAndFinish();
   };
 
   return (
@@ -218,6 +173,7 @@ export function EditableBadge({
       color={color}
     >
       <span className="shrink-0 font-medium">{prefix}</span>
+
       <input
         className={clsx(
           "border-none bg-transparent p-0",
@@ -230,16 +186,15 @@ export function EditableBadge({
         onChange={handleInputChange}
         onClick={(e) => {
           e.stopPropagation();
-          if (!isEditing) {
-            onEditStart?.();
-          }
+          if (!isEditing) onEditStart?.();
         }}
         onKeyDown={handleKeyDown}
         ref={inputRef}
+        style={{ minWidth: "2ch" }}
         type="text"
         value={editValue}
-        style={{ minWidth: "2ch" }}
       />
+
       <button
         aria-label="Remove filter"
         className="rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"

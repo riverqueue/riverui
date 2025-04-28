@@ -1,103 +1,43 @@
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/16/solid";
-import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
+import { useEffect, useRef, useState } from "react";
 
+import { fetchSuggestions as defaultFetchSuggestions } from "./api";
 import { EditableBadge } from "./EditableBadge";
+import { AVAILABLE_FILTERS, Filter, FilterType, FilterTypeId } from "./types";
 
-// Define the filter types
-export interface FilterType {
-  id: string;
-  label: string;
-  prefix: string;
-  fetchSuggestions: (
-    query: string,
-    selectedValues: string[],
-  ) => Promise<string[]>;
-}
-
-// Define the filter instance
-export interface Filter {
-  id: string;
-  typeId: string;
-  prefix: string;
-  values: string[];
-}
-
-// Define the available filter types
-export const AVAILABLE_FILTERS: FilterType[] = [
-  {
-    id: "kind",
-    label: "Job Kind",
-    prefix: "kind:",
-    fetchSuggestions: async (query: string, selectedValues: string[]) => {
-      const mockKinds = [
-        "batch",
-        "stream",
-        "scheduled",
-        "one-time",
-        "recurring",
-      ];
-      // Ensure selectedValues is an array
-      const safeSelectedValues = Array.isArray(selectedValues)
-        ? selectedValues
-        : [];
-      return mockKinds
-        .filter((kind) => kind.includes(query.toLowerCase()))
-        .filter((kind) => !safeSelectedValues.includes(kind));
-    },
-  },
-  {
-    id: "queue",
-    label: "Queue",
-    prefix: "queue:",
-    fetchSuggestions: async (query: string, selectedValues: string[]) => {
-      const mockQueues = [
-        "default",
-        "high-priority",
-        "low-priority",
-        "batch",
-        "realtime",
-      ];
-      const safeSelectedValues = Array.isArray(selectedValues)
-        ? selectedValues
-        : [];
-      return mockQueues
-        .filter((queue) => queue.includes(query.toLowerCase()))
-        .filter((queue) => !safeSelectedValues.includes(queue));
-    },
-  },
-  {
-    id: "priority",
-    label: "Priority",
-    prefix: "priority:",
-    fetchSuggestions: async (query: string, selectedValues: string[]) => {
-      const priorities = ["1", "2", "3", "4"];
-      const safeSelectedValues = Array.isArray(selectedValues)
-        ? selectedValues
-        : [];
-      return priorities
-        .filter((priority) => priority.includes(query))
-        .filter((priority) => !safeSelectedValues.includes(priority));
-    },
-  },
-];
+export type { Filter, FilterType };
+export { FilterTypeId };
 
 export interface JobSearchProps {
   /**
-   * Callback when filters change
-   * @param filters - The updated list of filters
+   * Function to fetch suggestions for a filter type
+   * @param filterTypeId - The ID of the filter type
+   * @param query - The search query
+   * @param selectedValues - Values already selected for this filter
+   * @returns Promise resolving to an array of suggestion strings
    */
-  onFiltersChange?: (filters: Filter[]) => void;
+  fetchSuggestions?: (
+    filterTypeId: FilterTypeId,
+    query: string,
+    selectedValues: string[],
+  ) => Promise<string[]>;
   /**
    * Initial filters to display
    * @default []
    */
   initialFilters?: Filter[];
+  /**
+   * Callback when filters change
+   * @param filters - The updated list of filters
+   */
+  onFiltersChange?: (filters: Filter[]) => void;
 }
 
 export function JobSearch({
-  onFiltersChange,
+  fetchSuggestions = defaultFetchSuggestions,
   initialFilters = [],
+  onFiltersChange,
 }: JobSearchProps) {
   // The current search query
   const [query, setQuery] = useState("");
@@ -117,7 +57,7 @@ export function JobSearch({
   // Whether suggestions are being loaded
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   // The currently selected suggestion
-  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(
+  const [selectedSuggestion, setSelectedSuggestion] = useState<null | string>(
     null,
   );
   // Whether a suggestion has been applied
@@ -173,15 +113,11 @@ export function JobSearch({
     const currentFilter = filters.find((f) => f.id === editingFilterId);
     if (!currentFilter) return;
 
-    const filterType = AVAILABLE_FILTERS.find(
-      (ft) => ft.id === currentFilter.typeId,
-    );
-    if (!filterType) return;
-
     setIsLoadingSuggestions(true);
     try {
-      const newSuggestions = await filterType.fetchSuggestions(
-        value,
+      const newSuggestions = await fetchSuggestions(
+        currentFilter.typeId,
+        value.trim(),
         currentFilter.values,
       );
       setSuggestions(newSuggestions);
@@ -214,8 +150,8 @@ export function JobSearch({
 
     const newFilter: Filter = {
       id: Math.random().toString(36).substr(2, 9),
-      typeId: filterType.id,
       prefix: filterType.prefix,
+      typeId: filterType.id,
       values: [],
     };
     setFilters((prev) => [...prev, newFilter]);
@@ -279,10 +215,6 @@ export function JobSearch({
                     setShowFilterDropdown(false);
                   }}
                   onRemove={() => handleRemoveFilter(filter.id)}
-                  prefix={filter.prefix}
-                  selectedSuggestion={
-                    editingFilterId === filter.id ? selectedSuggestion : null
-                  }
                   onSuggestionApplied={() => setSuggestionApplied(true)}
                   onSuggestionKeyDown={(e) => {
                     if (!editingValue || suggestions.length === 0) return;
@@ -306,13 +238,10 @@ export function JobSearch({
                       }
                     }
                   }}
-                  fetchSuggestions={async (query: string) => {
-                    const filterType = AVAILABLE_FILTERS.find(
-                      (ft) => ft.id === filter.typeId,
-                    );
-                    if (!filterType) return [];
-                    return filterType.fetchSuggestions(query, filter.values);
-                  }}
+                  prefix={filter.prefix}
+                  selectedSuggestion={
+                    editingFilterId === filter.id ? selectedSuggestion : null
+                  }
                 />
               ))}
               <input
@@ -365,33 +294,44 @@ export function JobSearch({
 
         {/* Autocomplete Dropdown */}
         {editingValue && (
-          <div className="absolute top-full right-0 left-0 z-10 mt-1 overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+          <div
+            className="absolute top-full right-0 left-0 z-10 mt-1 overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800"
+            data-testid="suggestions-dropdown"
+          >
             <div className="p-2">
-              <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                {isLoadingSuggestions
-                  ? "Loading suggestions..."
-                  : suggestions.length > 0
-                    ? `Suggestions for "${editingValue.value}"`
-                    : "No suggestions found"}
-              </div>
-              <div className="space-y-1">
-                {suggestions.map((suggestion, index) => (
-                  <button
-                    className={clsx(
-                      "flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700",
-                      highlightedIndex >= 0 &&
-                        index === highlightedIndex &&
-                        "bg-gray-100 dark:bg-gray-700",
-                    )}
-                    key={suggestion}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleSelectSuggestion(suggestion);
-                    }}
-                  >
-                    {suggestion}
-                  </button>
-                ))}
+              <div className="space-y-1" data-testid="suggestions-list">
+                {isLoadingSuggestions && (
+                  <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    Loading suggestions...
+                  </div>
+                )}
+                {suggestions.length === 0 && !isLoadingSuggestions && (
+                  <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    No suggestions found
+                  </div>
+                )}
+                <div className="space-y-1">
+                  {suggestions.map((suggestion, index) => (
+                    <button
+                      className={clsx(
+                        "flex w-full items-center rounded-md px-2 py-1 text-left text-sm text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700",
+                        highlightedIndex >= 0 &&
+                          index === highlightedIndex &&
+                          "bg-gray-100 dark:bg-gray-700",
+                      )}
+                      key={suggestion}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        handleSelectSuggestion(suggestion);
+                      }}
+                      onMouseEnter={() => {
+                        setHighlightedIndex(index);
+                      }}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>

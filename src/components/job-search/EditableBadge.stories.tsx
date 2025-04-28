@@ -1,9 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
-import { useState } from "react";
-
 import { BadgeColors } from "@/components/Badge";
 import { EditableBadge } from "@/components/job-search/EditableBadge";
+import { useState } from "react";
 
 const meta: Meta<typeof EditableBadge> = {
   argTypes: {
@@ -30,9 +29,12 @@ const EditableBadgeWithState = (
 ) => {
   const [content, setContent] = useState(args.content);
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<null | string>(
+    null,
+  );
 
-  const handleContentChange = (editableValue: EditableValue) => {
-    setContent(editableValue.values);
+  const handleContentChange = (values: string[]) => {
+    setContent(values);
   };
 
   return (
@@ -44,6 +46,8 @@ const EditableBadgeWithState = (
       onEditComplete={() => setIsEditing(false)}
       onEditStart={() => setIsEditing(true)}
       onRemove={() => console.log("Remove clicked")}
+      onSuggestionApplied={() => setSelectedSuggestion(null)}
+      selectedSuggestion={selectedSuggestion}
     />
   );
 };
@@ -64,14 +68,12 @@ const AllColorsComponent = () => {
     })),
   );
 
-  const handleContentChange = (id: string, newContent: EditableValue) => {
-    if (newContent.editingIndex === -1 || newContent.editingValue === "") {
-      setBadges((prev) =>
-        prev.map((badge) =>
-          badge.id === id ? { ...badge, content: newContent.values } : badge,
-        ),
-      );
-    }
+  const handleContentChange = (id: string, newValues: string[]) => {
+    setBadges((prev) =>
+      prev.map((badge) =>
+        badge.id === id ? { ...badge, content: newValues } : badge,
+      ),
+    );
   };
 
   const handleEditStart = (id: string) => {
@@ -108,8 +110,8 @@ const AllColorsComponent = () => {
               content={badge.content}
               isEditing={badge.isEditing}
               key={badge.id}
-              onContentChange={(newContent) =>
-                handleContentChange(badge.id, newContent)
+              onContentChange={(newValues) =>
+                handleContentChange(badge.id, newValues)
               }
               onEditComplete={() => handleEditComplete(badge.id)}
               onEditStart={() => handleEditStart(badge.id)}
@@ -155,6 +157,89 @@ const EditingStateComponent = () => {
 
 export const EditingState: Story = {
   render: () => <EditingStateComponent />,
+};
+
+// Create a component demonstrating autocomplete suggestions
+const AutocompleteDemoComponent = () => {
+  const [content, setContent] = useState<string[]>(["react"]);
+  const [isEditing, setIsEditing] = useState(true);
+  const [selectedSuggestion, setSelectedSuggestion] = useState<null | string>(
+    null,
+  );
+
+  const technologies = [
+    "react",
+    "vue",
+    "angular",
+    "svelte",
+    "typescript",
+    "javascript",
+    "html",
+    "css",
+    "tailwind",
+    "bootstrap",
+    "material-ui",
+    "chakra-ui",
+    "node",
+    "express",
+    "nextjs",
+    "gatsby",
+    "graphql",
+    "rest",
+    "apollo",
+    "redux",
+    "jest",
+    "testing-library",
+    "cypress",
+    "storybook",
+  ];
+
+  return (
+    <div className="space-y-4">
+      <div className="mb-4">
+        <h3 className="text-lg font-semibold">Autocomplete Demo</h3>
+        <p className="text-sm text-slate-500">
+          Type to see suggestions. Use arrow keys to navigate and Enter to
+          select.
+        </p>
+      </div>
+
+      <EditableBadge
+        color="indigo"
+        content={content}
+        isEditing={isEditing}
+        onContentChange={(values) => setContent(values)}
+        onEditComplete={() => setIsEditing(false)}
+        onEditingValueChange={(value) => {
+          // This simulates selecting a suggestion when the user types exactly matching text
+          const exact = technologies.find(
+            (t) => t.toLowerCase() === value.toLowerCase(),
+          );
+          if (exact) {
+            setSelectedSuggestion(exact);
+          }
+        }}
+        onEditStart={() => setIsEditing(true)}
+        onRemove={() => setContent([])}
+        onSuggestionApplied={() => setSelectedSuggestion(null)}
+        prefix="tech:"
+        selectedSuggestion={selectedSuggestion}
+      />
+
+      <div className="mt-4 text-sm text-slate-500">
+        <p>Current values: {content.join(", ")}</p>
+        <p className="mt-2">
+          Try typing: "react", "typescript", etc.
+          <br />
+          Add multiple values with commas.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export const AutocompleteDemo: Story = {
+  render: () => <AutocompleteDemoComponent />,
 };
 
 export const WithLongContent: Story = {

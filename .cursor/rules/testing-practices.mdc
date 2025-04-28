@@ -1,5 +1,5 @@
 ---
-description: 
+description: Any time we are running or editing vitest test files, like .test.ts or .test.tsx.
 globs: 
 alwaysApply: false
 ---
