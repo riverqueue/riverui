@@ -2,8 +2,8 @@ import type { Meta, StoryObj } from "@storybook/react";
 
 import { useState } from "react";
 
-import { BadgeColors } from "./Badge";
-import { EditableBadge, EditableValue } from "./EditableBadge";
+import { BadgeColors } from "@/components/Badge";
+import { EditableBadge } from "@/components/job-search/EditableBadge";
 
 const meta: Meta<typeof EditableBadge> = {
   argTypes: {

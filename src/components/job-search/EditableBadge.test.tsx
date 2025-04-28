@@ -1,5 +1,4 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import React from "react";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
 
