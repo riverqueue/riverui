@@ -42,5 +42,6 @@ SELECT DISTINCT ON (kind) kind
 FROM river_job
 WHERE (@prefix = '' OR kind ILIKE @prefix || '%')
     AND (@after = '' OR kind > @after)
+    AND (@exclude::text[] IS NULL OR kind != ALL(@exclude))
 ORDER BY kind ASC
 LIMIT @max;

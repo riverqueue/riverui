@@ -11,6 +11,10 @@ export { FilterTypeId };
 
 export interface JobSearchProps {
   /**
+   * Class name to apply to the JobSearch component
+   */
+  className?: string;
+  /**
    * Function to fetch suggestions for a filter type
    * @param filterTypeId - The ID of the filter type
    * @param query - The search query
@@ -35,6 +39,7 @@ export interface JobSearchProps {
 }
 
 export function JobSearch({
+  className,
   fetchSuggestions = defaultFetchSuggestions,
   initialFilters = [],
   onFiltersChange,
@@ -183,88 +188,108 @@ export function JobSearch({
   };
 
   return (
-    <div className="w-full" ref={containerRef}>
+    <div className={clsx("w-full", className)} ref={containerRef}>
       <div className="relative">
         {/* Search input and filters container */}
-        <div className="relative flex min-h-[38px] w-full items-center rounded-md border border-gray-300 bg-white shadow-sm focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-700 dark:bg-gray-800">
-          <div className="flex flex-1 flex-wrap items-center gap-2 px-3 py-1.5">
-            <MagnifyingGlassIcon
-              aria-hidden="true"
-              className="size-5 shrink-0 text-gray-400"
-            />
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              {filters.map((filter) => (
-                <EditableBadge
-                  color="zinc"
-                  content={filter.values}
-                  isEditing={editingFilterId === filter.id}
-                  key={filter.id}
-                  onContentChange={(values) =>
-                    handleFilterContentChange(filter.id, values)
-                  }
-                  onEditComplete={() => {
-                    setEditingFilterId(null);
-                    setEditingValue(null);
-                    setSuggestions([]);
-                    setSelectedSuggestion(null);
-                    setSuggestionApplied(false);
-                  }}
-                  onEditingValueChange={handleEditingValueChange}
-                  onEditStart={() => {
-                    setEditingFilterId(filter.id);
-                    setShowFilterDropdown(false);
-                  }}
-                  onRemove={() => handleRemoveFilter(filter.id)}
-                  onSuggestionApplied={() => setSuggestionApplied(true)}
-                  onSuggestionKeyDown={(e) => {
-                    if (!editingValue || suggestions.length === 0) return;
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setHighlightedIndex((prev) =>
-                        prev + 1 < suggestions.length ? prev + 1 : 0,
-                      );
-                    } else if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      setHighlightedIndex((prev) =>
-                        prev - 1 >= 0 ? prev - 1 : suggestions.length - 1,
-                      );
-                    } else if (e.key === "Enter") {
-                      if (
-                        highlightedIndex >= 0 &&
-                        highlightedIndex < suggestions.length
-                      ) {
-                        e.preventDefault();
-                        handleSelectSuggestion(suggestions[highlightedIndex]);
-                      }
-                    }
-                  }}
-                  prefix={filter.prefix}
-                  selectedSuggestion={
-                    editingFilterId === filter.id ? selectedSuggestion : null
-                  }
-                />
-              ))}
-              <input
-                className="min-w-[80px] flex-1 border-none bg-transparent text-gray-900 placeholder:text-gray-400 focus:border-none focus:ring-0 dark:text-white"
-                onChange={(e) => setQuery(e.target.value)}
-                onFocus={() => !editingFilterId && setShowFilterDropdown(true)}
-                placeholder="Add filter"
-                type="text"
-                value={query}
+        <div className="relative w-full rounded-md border border-gray-300 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-700 dark:bg-gray-800">
+          <div className="flex w-full items-stretch">
+            {/* Search Icon */}
+            <div className="flex items-center pr-1 pl-3">
+              <MagnifyingGlassIcon
+                aria-hidden="true"
+                className="size-5 shrink-0 text-gray-400"
               />
             </div>
+            {/* Filters and input */}
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 py-2">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                {filters.map((filter) => (
+                  <div className="max-w-full flex-shrink" key={filter.id}>
+                    <EditableBadge
+                      color="zinc"
+                      content={filter.values}
+                      isEditing={editingFilterId === filter.id}
+                      onContentChange={(values) =>
+                        handleFilterContentChange(filter.id, values)
+                      }
+                      onEditComplete={() => {
+                        setEditingFilterId(null);
+                        setEditingValue(null);
+                        setSuggestions([]);
+                        setSelectedSuggestion(null);
+                        setSuggestionApplied(false);
+                      }}
+                      onEditingValueChange={handleEditingValueChange}
+                      onEditStart={() => {
+                        setEditingFilterId(filter.id);
+                        setShowFilterDropdown(false);
+                      }}
+                      onRemove={() => handleRemoveFilter(filter.id)}
+                      onSuggestionApplied={() => setSuggestionApplied(true)}
+                      onSuggestionKeyDown={(e) => {
+                        if (!editingValue || suggestions.length === 0) return;
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setHighlightedIndex((prev) =>
+                            prev + 1 < suggestions.length ? prev + 1 : 0,
+                          );
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setHighlightedIndex((prev) =>
+                            prev - 1 >= 0 ? prev - 1 : suggestions.length - 1,
+                          );
+                        } else if (e.key === "Enter") {
+                          if (
+                            highlightedIndex >= 0 &&
+                            highlightedIndex < suggestions.length
+                          ) {
+                            e.preventDefault();
+                            handleSelectSuggestion(
+                              suggestions[highlightedIndex],
+                            );
+                          }
+                        }
+                      }}
+                      prefix={filter.prefix}
+                      selectedSuggestion={
+                        editingFilterId === filter.id
+                          ? selectedSuggestion
+                          : null
+                      }
+                    />
+                  </div>
+                ))}
+                <input
+                  autoCapitalize="none"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  className="min-w-[80px] flex-1 border-none bg-transparent p-0 text-gray-900 placeholder:text-gray-400 focus:border-none focus:ring-0 dark:text-white"
+                  onChange={(e) => setQuery(e.target.value)}
+                  onFocus={() =>
+                    !editingFilterId && setShowFilterDropdown(true)
+                  }
+                  placeholder="Add filter"
+                  spellCheck={false}
+                  type="text"
+                  value={query}
+                />
+              </div>
+            </div>
+            {/* X Icon */}
             {(filters.length > 0 || query) && (
-              <button
-                className="shrink-0 text-gray-400 hover:text-gray-500"
-                onClick={() => {
-                  setFilters([]);
-                  setQuery("");
-                  setShowFilterDropdown(false);
-                }}
-                type="button"
-              >
-                <XMarkIcon aria-hidden="true" className="size-5" />
-              </button>
+              <div className="flex items-center pr-3 pl-1">
+                <button
+                  className="shrink-0 text-gray-400 hover:text-gray-500"
+                  onClick={() => {
+                    setFilters([]);
+                    setQuery("");
+                    setShowFilterDropdown(false);
+                  }}
+                  type="button"
+                >
+                  <XMarkIcon aria-hidden="true" className="size-5" />
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -283,7 +308,6 @@ export function JobSearch({
                     key={filterType.id}
                     onClick={() => handleAddFilter(filterType)}
                   >
-                    <span className="size-2 rounded-full bg-zinc-500" />
                     {filterType.label}
                   </button>
                 ))}

@@ -1,6 +1,9 @@
 import { Badge } from "@components/Badge";
 import { Button } from "@components/Button";
+import ButtonForGroup from "@components/ButtonForGroup";
+import { CustomCheckbox } from "@components/CustomCheckbox";
 import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
+import { JobSearch } from "@components/job-search/JobSearch";
 import { JobStateFilters } from "@components/JobStateFilters";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNav from "@components/TopNav";
@@ -24,9 +27,6 @@ import {
 } from "@utils/jobStateFilterItems";
 import { classNames } from "@utils/style";
 import React, { FormEvent, useCallback, useEffect, useMemo } from "react";
-
-import ButtonForGroup from "./ButtonForGroup";
-import { CustomCheckbox } from "./CustomCheckbox";
 
 const states: { [key in JobState]: string } = {
   [JobState.Available]: "text-sky-500 bg-sky-100/10",
@@ -284,7 +284,7 @@ const JobRows = ({
   return (
     <div className="flex min-h-dvh flex-col">
       <div className="px-4 sm:px-6 lg:px-8">
-        <div className="flex min-h-12 items-center space-x-4 border-b border-slate-300 py-2 sm:justify-between dark:border-slate-700">
+        <div className="flex min-h-16 items-center space-x-4 border-b border-slate-300 py-2 sm:justify-between dark:border-slate-700">
           <CustomCheckbox
             aria-label={"Select all jobs"}
             checked={selectedJobs.length > 0}
@@ -293,14 +293,18 @@ const JobRows = ({
             name={"select_all_jobs"}
             onChange={handleSelectAll}
           />
-          <JobListActionButtons
-            cancel={cancelJobs}
-            className={classNames(selectedJobs.length === 0 ? "invisible" : "")}
-            deleteFn={deleteJobs}
-            jobIDs={selectedJobs}
-            retry={retryJobs}
-            state={state}
+          <JobSearch
+            className={classNames(selectedJobs.length === 0 ? "" : "hidden")}
           />
+          {selectedJobs.length > 0 && (
+            <JobListActionButtons
+              cancel={cancelJobs}
+              deleteFn={deleteJobs}
+              jobIDs={selectedJobs}
+              retry={retryJobs}
+              state={state}
+            />
+          )}
           {selectedJobs.length > 0 && (
             <>
               <div className="hidden grow text-sm text-slate-600 sm:block dark:text-slate-400">

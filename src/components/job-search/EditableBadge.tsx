@@ -70,6 +70,15 @@ export function EditableBadge({
       setEditValue(cleaned.join(","));
       onContentChange(cleaned);
       onSuggestionApplied?.();
+
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+          const len = inputRef.current.value.length;
+          inputRef.current.setSelectionRange(len, len);
+          inputRef.current.scrollLeft = inputRef.current.scrollWidth;
+        }
+      }, 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSuggestion, isEditing]);
@@ -166,11 +175,30 @@ export function EditableBadge({
   return (
     <Badge
       className={clsx(
-        "group relative flex items-center gap-1 pr-1",
+        "group relative flex items-center gap-1 !py-0 pr-1",
+        "max-w-full",
+        !isEditing && "cursor-pointer",
         isEditing && "ring-2 ring-blue-500 ring-offset-2",
         className,
       )}
       color={color}
+      onClick={(e) => {
+        if (
+          !isEditing &&
+          (e.target === e.currentTarget ||
+            (inputRef.current && e.target !== inputRef.current))
+        ) {
+          onEditStart?.();
+          setTimeout(() => {
+            if (inputRef.current) {
+              const len = inputRef.current.value.length;
+              inputRef.current.focus();
+              inputRef.current.setSelectionRange(len, len);
+              inputRef.current.scrollLeft = inputRef.current.scrollWidth;
+            }
+          }, 0);
+        }
+      }}
     >
       <span className="shrink-0 font-medium">{prefix}</span>
 
@@ -180,7 +208,8 @@ export function EditableBadge({
           "focus:ring-0 focus:outline-none",
           "text-sm/5 font-medium sm:text-xs/5",
           "field-sizing-content",
-          !isEditing && "cursor-pointer",
+          "max-w-full min-w-[2ch]",
+          !isEditing && "cursor-pointer truncate overflow-ellipsis",
         )}
         onBlur={handleBlur}
         onChange={handleInputChange}
@@ -190,14 +219,15 @@ export function EditableBadge({
         }}
         onKeyDown={handleKeyDown}
         ref={inputRef}
-        style={{ minWidth: "2ch" }}
+        style={{ width: isEditing ? undefined : "100%" }}
+        title={!isEditing ? editValue : undefined}
         type="text"
         value={editValue}
       />
 
       <button
         aria-label="Remove filter"
-        className="rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+        className="cursor-auto rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
         onClick={(e) => {
           e.stopPropagation();
           onRemove();

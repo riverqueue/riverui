@@ -14,18 +14,25 @@ SELECT DISTINCT ON (kind) kind
 FROM river_job
 WHERE ($1 = '' OR kind ILIKE $1 || '%')
     AND ($2 = '' OR kind > $2)
+    AND ($3::text[] IS NULL OR kind != ALL($3))
 ORDER BY kind ASC
-LIMIT $3
+LIMIT $4
 `
 
 type JobKindListByPrefixParams struct {
-	Prefix interface{}
-	After  interface{}
-	Max    int32
+	Prefix  interface{}
+	After   interface{}
+	Exclude []string
+	Max     int32
 }
 
 func (q *Queries) JobKindListByPrefix(ctx context.Context, db DBTX, arg *JobKindListByPrefixParams) ([]string, error) {
-	rows, err := db.Query(ctx, jobKindListByPrefix, arg.Prefix, arg.After, arg.Max)
+	rows, err := db.Query(ctx, jobKindListByPrefix,
+		arg.Prefix,
+		arg.After,
+		arg.Exclude,
+		arg.Max,
+	)
 	if err != nil {
 		return nil, err
 	}

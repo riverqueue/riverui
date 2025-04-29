@@ -83,14 +83,19 @@ const (
 )
 
 type autocompleteListRequest struct {
-	After  *string           `json:"-"` // from ExtractRaw
-	Facet  autocompleteFacet `json:"-"` // from ExtractRaw
-	Prefix *string           `json:"-"` // from ExtractRaw
+	After   *string           `json:"-"` // from ExtractRaw
+	Exclude []string          `json:"-"` // from ExtractRaw
+	Facet   autocompleteFacet `json:"-"` // from ExtractRaw
+	Prefix  *string           `json:"-"` // from ExtractRaw
 }
 
 func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
 	if after := r.URL.Query().Get("after"); after != "" {
 		req.After = &after
+	}
+
+	if exclude := r.URL.Query()["exclude"]; len(exclude) > 0 {
+		req.Exclude = exclude
 	}
 
 	if facet := r.URL.Query().Get("facet"); facet != "" {
@@ -119,9 +124,10 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 		switch req.Facet {
 		case autocompleteFacetJobKind:
 			kinds, err := dbsqlc.New().JobKindListByPrefix(ctx, tx, &dbsqlc.JobKindListByPrefixParams{
-				After:  after,
-				Max:    100,
-				Prefix: prefix,
+				After:   after,
+				Exclude: req.Exclude,
+				Max:     100,
+				Prefix:  prefix,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("error listing job kinds: %w", err)
@@ -137,9 +143,10 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 
 		case autocompleteFacetQueueName:
 			queues, err := dbsqlc.New().QueueNameListByPrefix(ctx, tx, &dbsqlc.QueueNameListByPrefixParams{
-				After:  after,
-				Max:    100,
-				Prefix: prefix,
+				After:   after,
+				Exclude: req.Exclude,
+				Max:     100,
+				Prefix:  prefix,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("error listing queue names: %w", err)

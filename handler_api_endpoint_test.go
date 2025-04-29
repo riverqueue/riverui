@@ -125,6 +125,39 @@ func runAutocompleteTests(t *testing.T, facet autocompleteFacet, setupFunc func(
 		require.Equal(t, "beta_"+facet.baseString(), *resp.Data[1])
 		require.Equal(t, "gamma_"+facet.baseString(), *resp.Data[2])
 	})
+
+	t.Run("WithExclude", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+		setupFunc(t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Exclude: []string{"alpha_" + facet.baseString(), "beta_" + facet.baseString()},
+			Facet:   facet,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, "alpha_task", *resp.Data[0])
+		require.Equal(t, "gamma_"+facet.baseString(), *resp.Data[1])
+	})
+
+	t.Run("WithPrefixAndExclude", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+		setupFunc(t, bundle)
+
+		prefix := alphaPrefix
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Exclude: []string{"alpha_" + facet.baseString()},
+			Facet:   facet,
+			Prefix:  &prefix,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, "alpha_task", *resp.Data[0])
+	})
 }
 
 func (f autocompleteFacet) baseString() string {

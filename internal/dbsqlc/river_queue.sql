@@ -11,6 +11,7 @@ SELECT name
 FROM river_queue
 WHERE name > @after::text
   AND (@prefix::text = '' OR name LIKE @prefix::text || '%')
+  AND (@exclude::text[] IS NULL OR name != ALL(@exclude))
 ORDER BY name
 LIMIT @max::int;
 

@@ -14,18 +14,25 @@ SELECT name
 FROM river_queue
 WHERE name > $1::text
   AND ($2::text = '' OR name LIKE $2::text || '%')
+  AND ($3::text[] IS NULL OR name != ALL($3))
 ORDER BY name
-LIMIT $3::int
+LIMIT $4::int
 `
 
 type QueueNameListByPrefixParams struct {
-	After  string
-	Prefix string
-	Max    int32
+	After   string
+	Prefix  string
+	Exclude []string
+	Max     int32
 }
 
 func (q *Queries) QueueNameListByPrefix(ctx context.Context, db DBTX, arg *QueueNameListByPrefixParams) ([]string, error) {
-	rows, err := db.Query(ctx, queueNameListByPrefix, arg.After, arg.Prefix, arg.Max)
+	rows, err := db.Query(ctx, queueNameListByPrefix,
+		arg.After,
+		arg.Prefix,
+		arg.Exclude,
+		arg.Max,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -290,3 +290,40 @@ const MultiValueDemo = () => {
 export const MultipleValues: Story = {
   render: () => <MultiValueDemo />,
 };
+
+export const NarrowWithLongFilters: Story = {
+  render: () => (
+    <div className="w-80 p-4">
+      <div className="mb-6">
+        <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+          Narrow JobSearch with Long Filters
+        </h2>
+        <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
+          Demonstrates truncation and multiline wrapping of filters with long
+          values.
+        </p>
+      </div>
+      <JobSearch
+        fetchSuggestions={mockFetchSuggestions}
+        initialFilters={[
+          {
+            id: "1",
+            prefix: "kind:",
+            typeId: FilterTypeId.JOB_KIND,
+            values: [
+              "very-long-job-kind-value-that-should-truncate",
+              "another-super-long-kind-value-to-test-wrapping",
+              "short",
+            ],
+          },
+          {
+            id: "2",
+            prefix: "queue:",
+            typeId: FilterTypeId.QUEUE,
+            values: ["queue-with-a-really-really-long-name-that-will-not-fit"],
+          },
+        ]}
+      />
+    </div>
+  ),
+};
