@@ -1,6 +1,6 @@
 import { XMarkIcon } from "@heroicons/react/16/solid";
 import clsx from "clsx";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 
 import { Badge, BadgeColor } from "../Badge";
 
@@ -8,168 +8,133 @@ export interface EditableBadgeProps {
   className?: string;
   color?: BadgeColor;
   content: string[];
+  desiredCursorPos?: null | number;
+  editing?: {
+    onComplete?: () => void;
+    onStart?: () => void;
+  };
   isEditing?: boolean;
   onContentChange: (values: string[]) => void;
-  onEditComplete?: () => void;
-  onEditingValueChange?: (value: string, index: number) => void;
-  onEditStart?: () => void;
+  onRawValueChange?: (newValue: string, cursorPos: null | number) => void;
   onRemove: () => void;
-  onSuggestionApplied?: () => void;
-  onSuggestionKeyDown?: (e: React.KeyboardEvent) => void;
   prefix: string;
-  selectedSuggestion?: null | string;
+  rawEditValue?: string;
+  suggestions?: {
+    onKeyDown?: (e: React.KeyboardEvent) => void;
+  };
 }
 
 export function EditableBadge({
   className,
   color = "zinc",
   content = [],
+  desiredCursorPos = null,
+  editing = {},
   isEditing = false,
-  onContentChange,
-  onEditComplete,
-  onEditingValueChange,
-  onEditStart,
+  onRawValueChange,
   onRemove,
-  onSuggestionApplied,
-  onSuggestionKeyDown,
   prefix,
-  selectedSuggestion = null,
+  rawEditValue = "",
+  suggestions = {},
 }: EditableBadgeProps) {
-  const initialContent = Array.isArray(content) ? content : [];
-  const [editValue, setEditValue] = useState(initialContent.join(","));
-  const [lastSelectedSuggestion, setLastSelectedSuggestion] = useState<
-    null | string
-  >(null);
+  const { onComplete: onEditComplete, onStart: onEditStart } = editing;
+  const { onKeyDown: onSuggestionKeyDown } = suggestions;
+
+  const initialContentString = content.join(",");
+  const displayValue = isEditing ? rawEditValue : initialContentString;
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setEditValue(Array.isArray(content) ? content.join(",") : "");
-  }, [content]);
-
-  useEffect(() => {
-    if (
-      selectedSuggestion &&
-      isEditing &&
-      selectedSuggestion !== lastSelectedSuggestion
-    ) {
-      setLastSelectedSuggestion(selectedSuggestion);
-
-      const values = editValue.split(",").map((v) => v.trim());
-      const { editingIndex } = getCurrentEditingValue(
-        editValue,
-        editValue.length,
-      );
-
-      if (editingIndex < values.length) {
-        values[editingIndex] = selectedSuggestion;
-      } else {
-        values.push(selectedSuggestion);
+    if (isEditing) {
+      const input = inputRef.current;
+      // If editing starts, focus the input and move cursor to end
+      if (input && document.activeElement !== input) {
+        input.focus();
+        const len = input.value.length ?? 0;
+        input.setSelectionRange(len, len);
       }
-
-      const cleaned = values.filter(Boolean);
-      setEditValue(cleaned.join(","));
-      onContentChange(cleaned);
-      onSuggestionApplied?.();
-
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-          const len = inputRef.current.value.length;
-          inputRef.current.setSelectionRange(len, len);
-          inputRef.current.scrollLeft = inputRef.current.scrollWidth;
-        }
-      }, 0);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSuggestion, isEditing]);
-
-  useEffect(() => {
-    if (!isEditing) return;
-
-    const contentArr = Array.isArray(content) ? content : [];
-    const desired = contentArr.join(",") + (contentArr.length > 0 ? "," : "");
-
-    if (editValue === contentArr.join(",")) {
-      setEditValue(desired);
-      onEditingValueChange?.("", contentArr.length);
-    }
-
-    if (inputRef.current) {
-      inputRef.current.focus();
-      const len = inputRef.current.value.length;
-      inputRef.current.setSelectionRange(len, len);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditing]);
 
-  const getCurrentEditingValue = (
-    value: string,
-    cursor: number,
-  ): { editingIndex: number; editingValue: string } => {
-    const parts = value.split(",").map((v) => v.trim());
-
-    if (value.endsWith(",") && cursor === value.length) {
-      return { editingIndex: parts.length, editingValue: "" };
-    }
-
-    let acc = 0;
-    for (let i = 0; i < parts.length; i++) {
-      const len = parts[i].length + (i < parts.length - 1 ? 1 : 0);
-      if (cursor <= acc + len) {
-        return { editingIndex: i, editingValue: parts[i] };
+  // Effect to set cursor position programmatically when desired state changes
+  useEffect(() => {
+    if (isEditing && desiredCursorPos !== null) {
+      const input = inputRef.current;
+      if (input) {
+        // Use rAF to ensure this runs after potential value updates and rendering
+        requestAnimationFrame(() => {
+          // Only set if the current position doesn't already match the desired one
+          if (
+            input.selectionStart !== desiredCursorPos ||
+            input.selectionEnd !== desiredCursorPos
+          ) {
+            input.setSelectionRange(desiredCursorPos, desiredCursorPos);
+          }
+        });
       }
-      acc += len;
     }
-    return { editingIndex: parts.length, editingValue: "" };
-  };
+    // Run when desired position changes while editing
+  }, [isEditing, desiredCursorPos]);
+
+  // Effect to blur input when edit mode ends
+  useEffect(() => {
+    if (!isEditing && inputRef.current) {
+      inputRef.current.blur();
+    }
+  }, [isEditing]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isEditing) return;
-
-    const newVal = e.target.value;
-    const cursor = e.target.selectionStart ?? 0;
-    setEditValue(newVal);
-
-    const { editingIndex, editingValue } = getCurrentEditingValue(
-      newVal,
-      cursor,
-    );
-    onEditingValueChange?.(editingValue, editingIndex);
-  };
-
-  const commitAndFinish = () => {
-    const uniq = Array.from(
-      new Set(
-        editValue
-          .split(",")
-          .map((v) => v.trim())
-          .filter(Boolean),
-      ),
-    );
-    const sortedValues = [...uniq].sort();
-    onContentChange(sortedValues);
-    onEditComplete?.();
+    onRawValueChange?.(e.target.value, e.target.selectionStart);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (!isEditing) return;
 
+    // Let parent handle suggestion nav first, check if it handled the event
     onSuggestionKeyDown?.(e);
-    if (e.defaultPrevented) return;
+    if (e.defaultPrevented) {
+      return; // Parent handled it (e.g., selected suggestion)
+    }
 
-    if (e.key === "Enter") {
+    // Handle local completion keys only if parent didn't handle event
+    if (e.key === "Enter" || e.key === "Escape") {
       e.preventDefault();
-      commitAndFinish();
-      inputRef.current?.blur();
-    } else if (e.key === "Escape") {
-      setEditValue(initialContent.join(","));
       onEditComplete?.();
-      inputRef.current?.blur();
     }
   };
 
   const handleBlur = () => {
-    if (isEditing) commitAndFinish();
+    // If blur happens while editing, complete the edit immediately
+    // Note: Suggestion clicks use onMouseDown + preventDefault to avoid blur
+    if (isEditing) {
+      onEditComplete?.();
+    }
+  };
+
+  const handleBadgeClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isEditing && e.target === e.currentTarget) {
+      onEditStart?.();
+    }
+  };
+
+  const handleInputFocus = () => {
+    if (!isEditing) {
+      onEditStart?.();
+    }
+  };
+
+  const handleInputClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    if (!isEditing) {
+      onEditStart?.();
+    }
+  };
+
+  const handleRemoveClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    onRemove();
   };
 
   return (
@@ -178,31 +143,24 @@ export function EditableBadge({
         "group relative flex items-center gap-1 !py-0 pr-1",
         "max-w-full",
         !isEditing && "cursor-pointer",
-        isEditing && "ring-2 ring-blue-500 ring-offset-2",
+        isEditing &&
+          "ring-2 ring-blue-500 ring-offset-1 dark:ring-offset-gray-800",
         className,
       )}
       color={color}
-      onClick={(e) => {
-        if (
-          !isEditing &&
-          (e.target === e.currentTarget ||
-            (inputRef.current && e.target !== inputRef.current))
-        ) {
-          onEditStart?.();
-          setTimeout(() => {
-            if (inputRef.current) {
-              const len = inputRef.current.value.length;
-              inputRef.current.focus();
-              inputRef.current.setSelectionRange(len, len);
-              inputRef.current.scrollLeft = inputRef.current.scrollWidth;
-            }
-          }, 0);
+      onClick={handleBadgeClick}
+      onMouseDown={(e) => {
+        // Prevent focus shift away *only* if clicking badge background while editing
+        // Allow default mousedown behavior (like cursor positioning) on the input itself
+        if (isEditing && e.target !== inputRef.current) {
+          e.preventDefault();
         }
       }}
     >
       <span className="shrink-0 font-medium">{prefix}</span>
 
       <input
+        aria-label={`Filter values for ${prefix}`}
         className={clsx(
           "border-none bg-transparent p-0",
           "focus:ring-0 focus:outline-none",
@@ -213,25 +171,20 @@ export function EditableBadge({
         )}
         onBlur={handleBlur}
         onChange={handleInputChange}
-        onClick={(e) => {
-          e.stopPropagation();
-          if (!isEditing) onEditStart?.();
-        }}
+        onClick={handleInputClick}
+        onFocus={handleInputFocus}
         onKeyDown={handleKeyDown}
         ref={inputRef}
-        style={{ width: isEditing ? undefined : "100%" }}
-        title={!isEditing ? editValue : undefined}
+        title={!isEditing ? displayValue : undefined}
         type="text"
-        value={editValue}
+        value={displayValue}
       />
 
       <button
-        aria-label="Remove filter"
-        className="cursor-auto rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
-        onClick={(e) => {
-          e.stopPropagation();
-          onRemove();
-        }}
+        aria-label={`Remove filter ${prefix}`}
+        className="shrink-0 cursor-pointer rounded-full p-0.5 text-gray-400 hover:bg-gray-200 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+        onClick={handleRemoveClick}
+        tabIndex={isEditing ? -1 : 0}
         type="button"
       >
         <XMarkIcon className="size-3.5" />

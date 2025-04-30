@@ -5,612 +5,223 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { EditableBadge } from "./EditableBadge";
 
 describe("EditableBadge", () => {
-  const mockFetchSuggestions = vi.fn().mockResolvedValue([]);
+  const onEditStart = vi.fn();
+  const onEditComplete = vi.fn();
+  const onRawValueChange = vi.fn();
+  const onSuggestionKeyDown = vi.fn();
+  const onRemove = vi.fn();
 
   const defaultProps = {
     color: "zinc" as const,
     content: ["value1", "value2"],
-    fetchSuggestions: mockFetchSuggestions,
+    editing: {
+      onComplete: onEditComplete,
+      onStart: onEditStart,
+    },
     isEditing: false,
-    onContentChange: vi.fn(),
-    onEditComplete: vi.fn(),
-    onEditingValueChange: vi.fn(),
-    onEditStart: vi.fn(),
-    onRemove: vi.fn(),
+    onContentChange: vi.fn(), // Still needed by type, mock it
+    onRawValueChange: onRawValueChange,
+    onRemove: onRemove,
     prefix: "test:",
+    rawEditValue: "value1,value2,", // Typical value when editing
+    suggestions: {
+      onKeyDown: onSuggestionKeyDown,
+    },
   };
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockFetchSuggestions.mockResolvedValue([]);
   });
 
-  test("renders with default props", () => {
-    render(<EditableBadge {...defaultProps} />);
+  // --- Rendering Tests --- //
 
-    // Check prefix is displayed
+  test("renders prefix and display value when not editing", () => {
+    render(<EditableBadge {...defaultProps} isEditing={false} />);
     expect(screen.getByText("test:")).toBeInTheDocument();
-
-    // Check content is displayed - use a more flexible query
-    const input = screen.getByRole("textbox");
-    expect(input).toBeInTheDocument();
-    expect(input.getAttribute("value")).toBe("value1,value2");
-
-    // Check remove button is present
-    expect(screen.getByLabelText("Remove filter")).toBeInTheDocument();
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input.value).toBe("value1,value2"); // Joined content
+    expect(input.disabled).toBe(false);
   });
 
-  test("renders with custom color", () => {
-    render(<EditableBadge {...defaultProps} color="blue" />);
-    // The Badge component should have the blue color class
-    const badge = screen.getByRole("textbox").closest(".bg-blue-500\\/15");
+  test("renders prefix and rawEditValue when editing", () => {
+    render(<EditableBadge {...defaultProps} isEditing={true} />);
+    expect(screen.getByText("test:")).toBeInTheDocument();
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input.value).toBe("value1,value2,"); // rawEditValue
+    expect(input.disabled).toBe(false);
+  });
+
+  test("renders with empty content correctly", () => {
+    render(
+      <EditableBadge
+        {...defaultProps}
+        content={[]}
+        isEditing={false}
+        rawEditValue=""
+      />,
+    );
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    expect(input.value).toBe("");
+    // Should be disabled if empty and not editing
+    // expect(input.disabled).toBe(true); // Test this explicitly if needed
+  });
+
+  test("applies custom className and color", () => {
+    render(
+      <EditableBadge {...defaultProps} className="custom-class" color="blue" />,
+    );
+    const badge = screen
+      .getByText("test:")
+      .closest(".custom-class.bg-blue-500\\/15");
     expect(badge).toBeInTheDocument();
   });
 
-  test("renders with empty content array", () => {
-    render(<EditableBadge {...defaultProps} content={[]} />);
+  test("input has min width for clickability", () => {
+    render(<EditableBadge {...defaultProps} content={[]} rawEditValue="" />);
     const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("");
+    expect(input).toHaveClass("min-w-[2ch]");
   });
 
-  test("handles non-array content by converting to array", () => {
-    // Using type assertion to test the component's handling of non-array content
-    render(<EditableBadge {...defaultProps} content={["single"]} />);
+  test("shows title attribute when not editing", () => {
+    render(<EditableBadge {...defaultProps} isEditing={false} />);
     const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("single");
+    expect(input).toHaveAttribute("title", "value1,value2");
   });
+
+  test("does not show title attribute when editing", () => {
+    render(<EditableBadge {...defaultProps} isEditing={true} />);
+    const input = screen.getByRole("textbox");
+    expect(input).not.toHaveAttribute("title");
+  });
+
+  test("renders correct aria-labels", () => {
+    render(<EditableBadge {...defaultProps} />);
+    expect(screen.getByRole("textbox")).toHaveAttribute(
+      "aria-label",
+      "Filter values for test:",
+    );
+    expect(
+      screen.getByRole("button", { name: /Remove filter/ }),
+    ).toHaveAttribute("aria-label", "Remove filter test:");
+  });
+
+  // --- Interaction Tests --- //
 
   test("calls onRemove when remove button is clicked", () => {
     render(<EditableBadge {...defaultProps} />);
-
-    const removeButton = screen.getByLabelText("Remove filter");
-    fireEvent.click(removeButton);
-
-    expect(defaultProps.onRemove).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: /Remove filter/ }));
+    expect(onRemove).toHaveBeenCalledTimes(1);
   });
 
-  test("enters edit mode when clicked", async () => {
-    const onEditStart = vi.fn();
-    render(<EditableBadge {...defaultProps} onEditStart={onEditStart} />);
-
-    const input = screen.getByRole("textbox");
-    await act(async () => {
-      fireEvent.click(input);
-    });
-
+  test("calls onEditStart when badge area clicked (not editing)", () => {
+    render(<EditableBadge {...defaultProps} isEditing={false} />);
+    const badge = screen.getByText("test:").parentElement as HTMLElement;
+    fireEvent.click(badge);
     expect(onEditStart).toHaveBeenCalledTimes(1);
   });
 
-  test("updates content when edited", async () => {
+  test("does not call onEditStart when badge area clicked (already editing)", () => {
     render(<EditableBadge {...defaultProps} isEditing={true} />);
+    const badge = screen.getByText("test:").parentElement as HTMLElement;
+    fireEvent.click(badge);
+    expect(onEditStart).not.toHaveBeenCalled();
+  });
 
-    const input = screen.getByRole("textbox");
-    // In edit mode, there should be a trailing comma
-    expect(input.getAttribute("value")).toBe("value1,value2,");
+  test("calls onEditStart when input clicked (not editing)", () => {
+    render(<EditableBadge {...defaultProps} isEditing={false} />);
+    fireEvent.click(screen.getByRole("textbox"));
+    expect(onEditStart).toHaveBeenCalledTimes(1);
+  });
 
+  test("calls onEditStart when input focused (not editing)", async () => {
+    render(<EditableBadge {...defaultProps} isEditing={false} />);
     await act(async () => {
-      fireEvent.change(input, {
-        target: { value: "value1,value2,enhancement" },
-      });
+      screen.getByRole("textbox").focus();
     });
+    expect(onEditStart).toHaveBeenCalled();
   });
 
-  test("calls onEditComplete when Enter is pressed", () => {
-    const onEditComplete = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        isEditing={true}
-        onEditComplete={onEditComplete}
-      />,
-    );
-
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    // The component calls onEditComplete, adjusting expectation to match actual calls
-    expect(onEditComplete).toHaveBeenCalled();
-    expect(defaultProps.onContentChange).toHaveBeenCalledWith([
-      "value1",
-      "value2",
-    ]);
-  });
-
-  test("calls onEditComplete and resets value when Escape is pressed", () => {
-    const onEditComplete = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        isEditing={true}
-        onEditComplete={onEditComplete}
-      />,
-    );
-
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-
-    fireEvent.change(input, { target: { value: "modified" } });
-    fireEvent.keyDown(input, { key: "Escape" });
-
-    // The component calls onEditComplete, adjusting expectation to match actual calls
-    expect(onEditComplete).toHaveBeenCalled();
-    // After pressing Escape, the value should be reset to original
-    expect(input.getAttribute("value")).toBe("value1,value2");
-  });
-
-  test("calls onEditComplete when input loses focus", () => {
-    const onEditComplete = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        isEditing={true}
-        onEditComplete={onEditComplete}
-      />,
-    );
-
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-
-    fireEvent.blur(input);
-
-    expect(onEditComplete).toHaveBeenCalledTimes(1);
-    expect(defaultProps.onContentChange).toHaveBeenCalledWith([
-      "value1",
-      "value2",
-    ]);
-  });
-
-  test("calls onEditingValueChange when editing a specific value", () => {
-    const onEditingValueChange = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        isEditing={true}
-        onEditingValueChange={onEditingValueChange}
-      />,
-    );
-
-    const input = screen.getByRole("textbox");
-
-    // Simulate editing the first value by changing just that part
-    fireEvent.change(input, {
-      target: {
-        selectionEnd: 3,
-        selectionStart: 3, // Position after "mod"
-        value: "modified,value2",
-      },
-    });
-
-    // Verify the first call was for the first value
-    expect(onEditingValueChange).toHaveBeenCalledWith("modified", 0);
-
-    // Clear the mock to make our next assertion cleaner
-    onEditingValueChange.mockClear();
-
-    // Now simulate editing the second value
-    fireEvent.change(input, {
-      target: {
-        selectionEnd: 13,
-        selectionStart: 13, // Position within "enhanced"
-        value: "modified,enhanced",
-      },
-    });
-
-    // Verify the second call was for the second value
-    expect(onEditingValueChange).toHaveBeenCalledWith("enhanced", 1);
-  });
-
-  test("calls onEditingValueChange with empty string for new token when entering edit mode", () => {
-    const onEditingValueChange = vi.fn();
-
-    render(
-      <EditableBadge
-        content={["batch", "stream"]}
-        isEditing={true}
-        onContentChange={vi.fn()}
-        onEditingValueChange={onEditingValueChange}
-        onRemove={vi.fn()}
-        prefix="kind:"
-      />,
-    );
-
-    /* When edit mode starts the badge appends a trailing comma,
-       meaning the user is about to type a **new** (empty) value.
-       The component should therefore report an empty editing value
-       at index 2 (after "batch" and "stream"). */
-    expect(onEditingValueChange).toHaveBeenCalledWith("", 2);
-  });
-
-  test("handles empty values correctly", async () => {
-    render(<EditableBadge {...defaultProps} isEditing={true} />);
-
-    const input = screen.getByRole("textbox");
-    await act(async () => {
-      fireEvent.change(input, { target: { value: "value1,,value2" } });
-    });
-  });
-
-  test("applies custom className", () => {
-    render(<EditableBadge {...defaultProps} className="custom-class" />);
-    const badge = screen.getByRole("textbox").closest(".custom-class");
-    expect(badge).toBeInTheDocument();
-  });
-
-  test("correctly handles editing a middle item in a longer list", async () => {
-    const onEditingValueChange = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        content={["value1", "value2", "enhancement", "documentation"]}
-        isEditing={true}
-        onEditingValueChange={onEditingValueChange}
-      />,
-    );
-
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe(
-      "value1,value2,enhancement,documentation,",
-    );
-
-    // Simulate editing the second value (index 1)
-    await act(async () => {
-      fireEvent.change(input, {
-        target: {
-          selectionEnd: 8,
-          selectionStart: 8, // Position within "improved"
-          value: "value1,improved,enhancement,documentation",
-        },
-      });
-    });
-
-    // Verify the call was for the second value
-    expect(onEditingValueChange).toHaveBeenCalledWith("improved", 1);
-    // Clear the mock to make our next assertion cleaner
-    onEditingValueChange.mockClear();
-    defaultProps.onContentChange.mockClear();
-
-    // Now simulate editing the third value (index 2)
-    await act(async () => {
-      fireEvent.change(input, {
-        target: {
-          selectionEnd: 20,
-          selectionStart: 20, // Position within "fixed"
-          value: "value1,improved,fixed,documentation",
-        },
-      });
-    });
-
-    // Verify the call was for the third value
-    expect(onEditingValueChange).toHaveBeenCalledWith("fixed", 2);
-  });
-
-  test("correctly updates editing state when cursor moves between values", async () => {
-    const onEditingValueChange = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        content={["value1", "value2", "enhancement"]}
-        isEditing={true}
-        onEditingValueChange={onEditingValueChange}
-      />,
-    );
-
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,enhancement,");
-
-    // First, simulate editing the first value
-    await act(async () => {
-      fireEvent.change(input, {
-        target: {
-          selectionEnd: 3,
-          selectionStart: 3, // Position within "fixed"
-          value: "fixed,value2,enhancement",
-        },
-      });
-    });
-
-    // Verify the first call was for the first value
-    expect(onEditingValueChange).toHaveBeenCalledWith("fixed", 0);
-    // Clear the mock to make our next assertion cleaner
-    onEditingValueChange.mockClear();
-    defaultProps.onContentChange.mockClear();
-
-    // Now simulate editing the second value by making a small change
-    // This is a workaround since fireEvent.change doesn't trigger when the value is the same
-    await act(async () => {
-      fireEvent.change(input, {
-        target: {
-          selectionEnd: 9,
-          selectionStart: 9, // Position within "value2x"
-          value: "fixed,value2x,enhancement",
-        },
-      });
-    });
-
-    // Verify the call was for the second value
-    expect(onEditingValueChange).toHaveBeenCalledWith("value2x", 1);
-
-    // Clear the mock again
-    onEditingValueChange.mockClear();
-    defaultProps.onContentChange.mockClear();
-
-    // Now simulate editing the third value
-    await act(async () => {
-      fireEvent.change(input, {
-        target: {
-          selectionEnd: 19,
-          selectionStart: 19, // Position within "enhanced"
-          value: "fixed,value2x,enhanced",
-        },
-      });
-    });
-
-    // Verify the call was for the third value
-    expect(onEditingValueChange).toHaveBeenCalledWith("enhanced", 2);
-  });
-
-  test("correctly handles Enter key when editing a middle value", () => {
-    const onEditComplete = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        content={["value1", "value2", "enhancement"]}
-        isEditing={true}
-        onEditComplete={onEditComplete}
-      />,
-    );
-
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,enhancement,");
-
-    // First, simulate editing the second value
-    fireEvent.change(input, {
-      target: {
-        selectionEnd: 8,
-        selectionStart: 8, // Position within 'improved'
-        value: "value1,improved,enhancement",
-      },
-    });
-
-    // Clear the mock to make our next assertion cleaner
-    defaultProps.onContentChange.mockClear();
-
-    // Now simulate pressing Enter
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    // Verify onEditComplete was called
-    expect(onEditComplete).toHaveBeenCalled();
-
-    // Check onContentChange after finalization event - values should be sorted
-    expect(defaultProps.onContentChange).toHaveBeenCalledWith([
-      "enhancement",
-      "improved",
-      "value1",
-    ]);
-  });
-
-  test("handles input changes", async () => {
+  test("calls onRawValueChange with value and cursor pos on input change (editing)", async () => {
     const user = userEvent.setup();
-    render(<EditableBadge {...defaultProps} isEditing />);
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-
-    await user.clear(input);
-    await user.type(input, "new");
-    expect(defaultProps.onEditingValueChange).toHaveBeenCalledWith("new", 0);
+    render(<EditableBadge {...defaultProps} isEditing={true} />);
+    const input = screen.getByRole("textbox") as HTMLInputElement;
+    await user.type(input, "A");
+    // Input value changes, cursor moves
+    expect(onRawValueChange).toHaveBeenLastCalledWith("value1,value2,A", 15); // rawEditValue + A - Adjusted cursor pos
   });
 
-  test("handles suggestion selection", () => {
-    const onSuggestionApplied = vi.fn();
-    const { rerender } = render(
-      <EditableBadge
-        {...defaultProps}
-        isEditing
-        onSuggestionApplied={onSuggestionApplied}
-      />,
-    );
-
+  test("does not call onRawValueChange on input change (not editing)", async () => {
+    // Input should technically be read-only or handled differently when not editing,
+    // but testing the callback guard
+    const user = userEvent.setup();
+    render(<EditableBadge {...defaultProps} isEditing={false} />);
     const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-
-    // Type a partial value
-    fireEvent.change(input, { target: { value: "new" } });
-
-    // Select a suggestion
-    rerender(
-      <EditableBadge
-        {...defaultProps}
-        isEditing
-        onSuggestionApplied={onSuggestionApplied}
-        selectedSuggestion="newValue"
-      />,
-    );
-
-    expect(defaultProps.onContentChange).toHaveBeenCalledWith(["newValue"]);
-    expect(onSuggestionApplied).toHaveBeenCalled();
+    await user.type(input, "A");
+    expect(onRawValueChange).not.toHaveBeenCalled();
   });
 
-  test("handles multiple values with suggestions", () => {
-    const onSuggestionApplied = vi.fn();
-    const { rerender } = render(
-      <EditableBadge
-        {...defaultProps}
-        isEditing
-        onSuggestionApplied={onSuggestionApplied}
-      />,
-    );
-
+  test("calls suggestions.onKeyDown on key down (editing)", () => {
+    render(<EditableBadge {...defaultProps} isEditing={true} />);
     const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-
-    // Type a partial value for the second item
-    fireEvent.change(input, { target: { value: "value1,new" } });
-
-    // Select a suggestion
-    rerender(
-      <EditableBadge
-        {...defaultProps}
-        isEditing
-        onSuggestionApplied={onSuggestionApplied}
-        selectedSuggestion="newValue"
-      />,
-    );
-
-    expect(defaultProps.onContentChange).toHaveBeenCalledWith([
-      "value1",
-      "newValue",
-    ]);
-    expect(onSuggestionApplied).toHaveBeenCalled();
-  });
-
-  test("handles Enter key to complete editing", () => {
-    render(<EditableBadge {...defaultProps} isEditing />);
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-
-    fireEvent.keyDown(input, { key: "Enter" });
-    expect(defaultProps.onEditComplete).toHaveBeenCalled();
-  });
-
-  test("handles Escape key to cancel editing", () => {
-    render(<EditableBadge {...defaultProps} isEditing />);
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-
-    fireEvent.change(input, { target: { value: "new" } });
-    fireEvent.keyDown(input, { key: "Escape" });
-    expect(defaultProps.onEditComplete).toHaveBeenCalled();
-    expect(input.getAttribute("value")).toBe("value1,value2");
-  });
-
-  // Additional tests for PRD requirements
-  test("appends trailing comma when entering edit mode for easier adding of values", () => {
-    const { rerender } = render(<EditableBadge {...defaultProps} />);
-
-    // Enter edit mode
-    rerender(<EditableBadge {...defaultProps} isEditing={true} />);
-
-    // Check that a trailing comma was added
-    const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("value1,value2,");
-  });
-
-  test("input region always has minimum width making it easy to click even when empty", () => {
-    render(<EditableBadge {...defaultProps} content={[]} />);
-
-    const input = screen.getByRole("textbox");
-    const style = window.getComputedStyle(input);
-
-    // getBoundingClientRect is not available in JSDOM, but we can check the min-width style
-    expect(style.minWidth).toBe("2ch");
-  });
-
-  test("passes key events to parent for suggestion navigation", () => {
-    const onSuggestionKeyDown = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        isEditing={true}
-        onSuggestionKeyDown={onSuggestionKeyDown}
-      />,
-    );
-
-    const input = screen.getByRole("textbox");
-
-    // Send arrow down key event
     fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(onSuggestionKeyDown).toHaveBeenCalledTimes(1);
     expect(onSuggestionKeyDown).toHaveBeenCalledWith(
       expect.objectContaining({ key: "ArrowDown" }),
     );
-
-    // Reset mock
-    onSuggestionKeyDown.mockClear();
-
-    // Send arrow up key event
-    fireEvent.keyDown(input, { key: "ArrowUp" });
-    expect(onSuggestionKeyDown).toHaveBeenCalledWith(
-      expect.objectContaining({ key: "ArrowUp" }),
-    );
   });
 
-  test("calling fetchSuggestions when editing", async () => {
-    mockFetchSuggestions.mockResolvedValue(["suggestion1", "suggestion2"]);
-
-    // Setup the component with the onEditingValueChange handler
-    const onEditingValueChange = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        isEditing={true}
-        onEditingValueChange={onEditingValueChange}
-      />,
-    );
-
-    // Simulate typing in the input
-    const input = screen.getByRole("textbox");
-    fireEvent.change(input, { target: { value: "newValue" } });
-
-    // Verify onEditingValueChange was called
-    expect(onEditingValueChange).toHaveBeenCalledWith("newValue", 0);
-  });
-
-  test("trailing commas are removed when exiting edit mode", () => {
+  test("calls onEditComplete on Enter key (editing)", () => {
     render(<EditableBadge {...defaultProps} isEditing={true} />);
-
-    // Input with trailing comma
     const input = screen.getByRole("textbox");
-    fireEvent.change(input, { target: { value: "value1,value2," } });
-
-    // Exit edit mode
     fireEvent.keyDown(input, { key: "Enter" });
-
-    // Should remove trailing comma on content change
-    expect(defaultProps.onContentChange).toHaveBeenCalledWith([
-      "value1",
-      "value2",
-    ]);
+    expect(onEditComplete).toHaveBeenCalledTimes(1);
   });
 
-  test("values are preserved in original order during editing", async () => {
-    // Start with values in alphabetical order
-    render(
-      <EditableBadge
-        {...defaultProps}
-        content={["apple", "banana", "cherry"]}
-        isEditing={true}
-      />,
-    );
-
-    // Change to non-alphabetical order
+  test("calls onEditComplete on Escape key (editing)", () => {
+    render(<EditableBadge {...defaultProps} isEditing={true} />);
     const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("apple,banana,cherry,");
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(onEditComplete).toHaveBeenCalledTimes(1);
+  });
 
+  test("calls onEditComplete on blur (editing)", async () => {
+    // Need timers for the setTimeout in onBlur
+    vi.useFakeTimers();
+    render(<EditableBadge {...defaultProps} isEditing={true} />);
+    const input = screen.getByRole("textbox");
+    fireEvent.blur(input);
+
+    // Advance timers past the 100ms delay
     await act(async () => {
-      fireEvent.change(input, { target: { value: "cherry,apple,banana" } });
+      vi.advanceTimersByTime(150);
     });
+
+    expect(onEditComplete).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
   });
 
-  test("values are sorted when edit mode is exited", async () => {
-    const onContentChange = vi.fn();
-    render(
-      <EditableBadge
-        {...defaultProps}
-        content={["cherry", "apple", "banana"]}
-        isEditing={true}
-        onContentChange={onContentChange}
-      />,
-    );
-
-    // Verify initial values are not sorted
+  test("does not call callbacks on key down / blur (not editing)", () => {
+    render(<EditableBadge {...defaultProps} isEditing={false} />);
     const input = screen.getByRole("textbox");
-    expect(input.getAttribute("value")).toBe("cherry,apple,banana,");
-
-    // Exit edit mode by pressing Enter
+    fireEvent.keyDown(input, { key: "ArrowDown" });
     fireEvent.keyDown(input, { key: "Enter" });
+    fireEvent.keyDown(input, { key: "Escape" });
+    fireEvent.blur(input);
 
-    // Verify values are sorted when edit mode is exited
-    expect(onContentChange).toHaveBeenCalledWith(["apple", "banana", "cherry"]);
+    expect(onSuggestionKeyDown).not.toHaveBeenCalled();
+    expect(onEditComplete).not.toHaveBeenCalled();
+  });
+
+  test("input is focused when isEditing becomes true", () => {
+    const { rerender } = render(
+      <EditableBadge {...defaultProps} isEditing={false} />,
+    );
+    const input = screen.getByRole("textbox");
+    expect(document.activeElement).not.toBe(input);
+
+    rerender(<EditableBadge {...defaultProps} isEditing={true} />);
+    // Focus happens in useEffect, might need short wait or act
+    // Using a simple check here, refine if flaky
+    expect(document.activeElement).toBe(input);
   });
 });

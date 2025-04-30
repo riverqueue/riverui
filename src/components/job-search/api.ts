@@ -9,9 +9,6 @@ export async function fetchSuggestions(
   query: string,
   selectedValues: string[],
 ): Promise<string[]> {
-  console.log(
-    `Fetching suggestions for filter type: ${filterTypeId}, query: ${query}, excluding: ${selectedValues.join(", ")}`,
-  );
   if (filterTypeId === FilterTypeId.PRIORITY) {
     // Priority is a hardcoded list of values—we just need to filter out
     // already selected values.

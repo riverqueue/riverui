@@ -15,6 +15,9 @@ class ResizeObserverMock {
 
 global.ResizeObserver = ResizeObserverMock;
 
+// Configure React testing environment to support act() with Vitest
+(globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
+
 // Cleanup after each test case
 afterEach(() => {
   cleanup();

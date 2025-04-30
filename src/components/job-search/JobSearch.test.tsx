@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -6,7 +7,6 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Filter, FilterTypeId, JobSearch } from "./JobSearch";
@@ -60,9 +60,12 @@ describe("JobSearch", () => {
             "scheduled",
             "one-time",
             "recurring",
+            "Chaos",
+            "AITrainingBatch",
+            "UtilizeNewModel",
           ];
           return mockKinds
-            .filter((kind) => kind.includes(query.toLowerCase()))
+            .filter((kind) => kind.toLowerCase().includes(query.toLowerCase()))
             .filter((kind) => !selectedValues.includes(kind));
         } else if (filterTypeId === "queue") {
           const mockQueues = [
@@ -223,7 +226,7 @@ describe("JobSearch", () => {
     });
   });
 
-  it("clears all filters when clicking the clear button", () => {
+  it("clears all filters when clicking the clear button", async () => {
     const initialFilters: Filter[] = [
       {
         id: "1",
@@ -240,16 +243,16 @@ describe("JobSearch", () => {
       />,
     );
 
-    // Find the clear button (XMarkIcon) which is inside the search input container
+    // Find the clear button (XMarkIcon) which might be inside or near the search input container
     const searchContainer = screen
       .getByPlaceholderText("Add filter")
       .closest("div");
-    const clearButton = within(searchContainer!.parentElement!).getByRole(
+    // Look for any button within the search container or its parent that might be the clear button
+    const buttons = within(searchContainer!.parentElement!).getAllByRole(
       "button",
-      {
-        name: "", // The XMarkIcon doesn't have a name
-      },
     );
+    // Assuming the clear button is the last button or has a specific characteristic
+    const clearButton = buttons[buttons.length - 1];
     fireEvent.click(clearButton);
 
     // Verify all filters were cleared
@@ -285,10 +288,18 @@ describe("JobSearch", () => {
     });
 
     // Click the suggestion
-    fireEvent.mouseDown(screen.getByText("scheduled"));
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByText("scheduled"));
+      // Wait for state updates to complete
+      await Promise.resolve();
+    });
 
-    // Verify both values are present (press Enter to exit edit mode)
-    fireEvent.keyDown(input, { key: "Enter" });
+    // Press Enter to exit edit mode
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+      // Wait for state updates to complete
+      await Promise.resolve();
+    });
 
     // After exiting edit mode, values should be sorted
     await waitFor(() => {
@@ -433,7 +444,11 @@ describe("JobSearch", () => {
     });
 
     // Click the suggestion with mouse
-    fireEvent.mouseDown(screen.getByText("batch"));
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByText("batch"));
+      // Wait for state updates to complete
+      await Promise.resolve();
+    });
 
     // Verify the suggestion was inserted at the correct position
     await waitFor(() => {
@@ -441,7 +456,11 @@ describe("JobSearch", () => {
     });
 
     // Exit edit mode
-    fireEvent.keyDown(input, { key: "Enter" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+      // Wait for state updates to complete
+      await Promise.resolve();
+    });
 
     // Verify final value
     await waitFor(() => {
@@ -471,7 +490,11 @@ describe("JobSearch", () => {
     await userEvent.type(input, "custom-kind");
 
     // Press Enter to save it (with no suggestion highlighted)
-    fireEvent.keyDown(input, { key: "Enter" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+      // Wait for state updates to complete
+      await Promise.resolve();
+    });
 
     // Verify the custom input was saved
     await waitFor(() => {
@@ -496,19 +519,22 @@ describe("JobSearch", () => {
     const badgeRoot = getBadgeRootByPrefix("kind:");
     fireEvent.click(badgeRoot);
 
-    // Type duplicate values in non-alphabetical order
+    // Type multiple values with duplicates and out of order
     const input = within(badgeRoot).getByRole("textbox");
     await userEvent.type(input, "stream,batch,stream");
 
-    // Exit edit mode by pressing Enter
-    fireEvent.keyDown(input, { key: "Enter" });
+    // Press Enter to save and exit edit mode
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+      // Wait for state updates to complete
+      await Promise.resolve();
+    });
 
-    // Verify values are deduplicated (order expectation removed)
+    // Verify values are sorted and deduplicated
     await waitFor(() => {
       const updatedBadge = getBadgeRootByPrefix("kind:");
       const updatedInput = within(updatedBadge).getByRole("textbox");
-      expect(updatedInput.getAttribute("value")).toContain("batch");
-      expect(updatedInput.getAttribute("value")).toContain("stream");
+      expect(updatedInput.getAttribute("value")).toBe("batch,stream");
     });
   });
 
@@ -579,13 +605,15 @@ describe("JobSearch", () => {
     });
 
     // Verify onFiltersChange was called with the new filter
-    expect(onFiltersChange).toHaveBeenCalledWith([
-      expect.objectContaining({
-        prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
-        values: [],
-      }),
-    ]);
+    await waitFor(() => {
+      expect(onFiltersChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          prefix: "kind:",
+          typeId: FilterTypeId.JOB_KIND,
+          values: [],
+        }),
+      ]);
+    });
 
     // Reset the mock
     onFiltersChange.mockClear();
@@ -595,8 +623,11 @@ describe("JobSearch", () => {
     fireEvent.click(badgeRoot);
 
     const filterInput = within(badgeRoot).getByRole("textbox");
+    // Type batch and save
     await userEvent.type(filterInput, "batch");
-    fireEvent.keyDown(filterInput, { key: "Enter" });
+    await act(async () => {
+      fireEvent.keyDown(filterInput, { key: "Enter" });
+    });
 
     // Verify onFiltersChange was called with the updated filter
     await waitFor(() => {
@@ -617,10 +648,14 @@ describe("JobSearch", () => {
     const removeButton = within(updatedBadge).getByRole("button", {
       name: /remove filter/i,
     });
-    fireEvent.click(removeButton);
+    await act(async () => {
+      fireEvent.click(removeButton);
+    });
 
     // Verify onFiltersChange was called with empty filters
-    expect(onFiltersChange).toHaveBeenCalledWith([]);
+    await waitFor(() => {
+      expect(onFiltersChange).toHaveBeenCalledWith([]);
+    });
   });
 
   it("selects a suggestion when hovering and pressing Enter", async () => {
@@ -695,6 +730,482 @@ describe("JobSearch", () => {
         expect(screen.getByTestId("suggestions-list")).toBeInTheDocument();
       },
       { timeout: 2000 },
+    );
+  });
+
+  it("provides autocomplete suggestions for mid-list edits and correctly replaces the edited value with cursor at updated item end", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: ["batch", "stream", "scheduled"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    fireEvent.click(badgeRoot);
+
+    // Simulate editing the first value (batch to bat)
+    const input = within(badgeRoot).getByRole("textbox");
+    await act(async () => {
+      fireEvent.change(input, {
+        target: {
+          selectionEnd: 3,
+          selectionStart: 3,
+          value: "bat,stream,scheduled",
+        },
+      });
+    });
+
+    // Verify suggestions appear for 'bat', should include 'batch'
+    await waitFor(() => {
+      expect(screen.getByText("batch")).toBeInTheDocument();
+    });
+
+    // Select the suggestion 'batch'
+    fireEvent.mouseDown(screen.getByText("batch"));
+
+    // Verify the filter list is updated correctly, replacing the first item
+    // and cursor is at the end of the updated item 'batch' (position 5)
+    await waitFor(() => {
+      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedInput = within(updatedBadge).getByRole(
+        "textbox",
+      ) as HTMLInputElement;
+      expect(updatedInput.getAttribute("value")).toBe("batch,stream,scheduled");
+      expect(updatedInput.selectionStart).toBe(5); // End of 'batch'
+      expect(updatedInput.selectionEnd).toBe(5);
+    });
+  });
+
+  it("hides suggestions dropdown after selecting a suggestion", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: [],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    fireEvent.click(badgeRoot);
+
+    // Type to trigger suggestions
+    const input = within(badgeRoot).getByRole("textbox");
+    await userEvent.type(input, "b");
+
+    // Wait for suggestions
+    await waitFor(() => {
+      expect(screen.getByText("batch")).toBeInTheDocument();
+    });
+
+    // Click the suggestion
+    fireEvent.mouseDown(screen.getByText("batch"));
+
+    // Verify the dropdown is hidden after selection
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("suggestions-dropdown"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows autocomplete suggestions after selecting a suggestion and typing a comma", async () => {
+    render(<JobSearch />);
+
+    // Add a new filter
+    await act(async () => {
+      await selectFilterType("Job Kind");
+    });
+
+    // Get the filter badge
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const input = within(badgeRoot).getByRole("textbox");
+    expect(document.activeElement).toBe(input);
+
+    // Verify suggestions are shown
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+        expect(screen.getByTestId("suggestions-list")).toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
+
+    // Type to trigger specific suggestion
+    await userEvent.type(input, "b");
+
+    // Wait for 'batch' suggestion
+    await waitFor(() => {
+      expect(screen.getByText("batch")).toBeInTheDocument();
+    });
+
+    // Click the suggestion
+    fireEvent.mouseDown(screen.getByText("batch"));
+
+    // Wait for suggestion to be applied
+    await waitFor(() => {
+      expect(input.getAttribute("value")).toBe("batch");
+    });
+
+    // Now type a comma to add another value
+    await userEvent.type(input, ",");
+
+    // Verify autocomplete suggestions are shown again
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+        expect(screen.getByTestId("suggestions-list")).toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
+  });
+
+  it("correctly replaces a middle value with suggestion rather than appending it", async () => {
+    // Setup initial filter with 3 values
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: ["AITrainingBatch", "Chaos", "UtilizeNewModel"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    fireEvent.click(badgeRoot);
+
+    // Simulate editing the middle value by placing cursor after "Chaos" and removing a character
+    const input = within(badgeRoot).getByRole("textbox");
+    await act(async () => {
+      fireEvent.change(input, {
+        target: {
+          selectionEnd: 15 + 5, // AITrainingBatch, + cursor after the "s" in Chaos
+          selectionStart: 15 + 5,
+          value: "AITrainingBatch,Chao,UtilizeNewModel",
+        },
+      });
+    });
+
+    // Verify suggestions appear for 'Chao', should include 'Chaos'
+    await waitFor(() => {
+      expect(screen.getByText("Chaos")).toBeInTheDocument();
+    });
+
+    // Select the suggestion 'Chaos'
+    fireEvent.mouseDown(screen.getByText("Chaos"));
+
+    // Verify the filter value is correctly updated with 'Chaos' replacing 'Chao'
+    // rather than being appended to the end
+    await waitFor(() => {
+      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedInput = within(updatedBadge).getByRole("textbox");
+      const value = updatedInput.getAttribute("value");
+      expect(value).toBe("AITrainingBatch,Chaos,UtilizeNewModel");
+      expect(value).not.toContain("AITrainingBatch,Chao,UtilizeNewModel,Chaos");
+    });
+  });
+
+  it("shows autocomplete suggestions when creating a gap between values with two commas", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: ["foo", "bar", "baz"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    fireEvent.click(badgeRoot);
+
+    // Get the input and simulate editing
+    const input = within(badgeRoot).getByRole("textbox");
+
+    // Add a comma after 'bar' to create a gap
+    await act(async () => {
+      fireEvent.change(input, {
+        target: {
+          selectionEnd: 8,
+          selectionStart: 8,
+          value: "foo,bar,,baz",
+        },
+      });
+    });
+
+    // Verify suggestions dropdown appears for empty value between commas
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+      const suggestionsList = screen.getByTestId("suggestions-list");
+      expect(suggestionsList).toBeInTheDocument();
+      // Verify we have suggestions (should show all options since no filter)
+      const buttons = within(suggestionsList).getAllByRole("button");
+      expect(buttons.length).toBeGreaterThan(0);
+    });
+  });
+
+  it("removes focus from input when edit mode ends", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: ["batch"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    await act(async () => {
+      fireEvent.click(badgeRoot);
+    });
+
+    // Get the input and verify it's focused
+    const input = within(badgeRoot).getByRole("textbox");
+    expect(document.activeElement).toBe(input);
+
+    // Press Enter to exit edit mode
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+
+    // Verify input is no longer focused
+    expect(document.activeElement).not.toBe(input);
+  });
+
+  it("does not show suggestions dropdown after selecting a suggestion with keyboard", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: [],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    fireEvent.click(badgeRoot);
+
+    // Type to trigger suggestions
+    const input = within(badgeRoot).getByRole("textbox");
+    await userEvent.type(input, "b");
+
+    // Wait for suggestions
+    await waitFor(() => {
+      expect(screen.getByText("batch")).toBeInTheDocument();
+    });
+
+    // Navigate to the first suggestion with keyboard
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    // Select the suggestion with Enter
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+      // Wait for state updates to complete
+      await Promise.resolve();
+    });
+
+    // Verify the suggestion was applied
+    await waitFor(() => {
+      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedInput = within(updatedBadge).getByRole("textbox");
+      expect(updatedInput.getAttribute("value")).toBe("batch");
+    });
+
+    // Verify the suggestions dropdown is hidden after selection
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("suggestions-dropdown"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows autocomplete suggestions for a new entry when editing a filter with a single value", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: ["batch"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    fireEvent.click(badgeRoot);
+
+    // Get the input and verify cursor position
+    const input = within(badgeRoot).getByRole("textbox") as HTMLInputElement;
+    await waitFor(() => {
+      expect(input.getAttribute("value")).toBe("batch,");
+      expect(input.selectionStart).toBe(6); // Should be after the comma
+      expect(input.selectionEnd).toBe(6);
+    });
+
+    // Verify suggestions are shown for a new entry (not for 'batch')
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+      const suggestionsList = screen.getByTestId("suggestions-list");
+      const buttons = within(suggestionsList).getAllByRole("button");
+      expect(buttons.length).toBeGreaterThan(0);
+      // Check that suggestions include items other than 'batch'
+      const suggestionTexts = buttons.map((btn) => btn.textContent);
+      expect(suggestionTexts.some((text) => text !== "batch")).toBe(true);
+    });
+  });
+
+  it("hides autocomplete suggestions after selecting a replacement value in the middle of a list", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: ["foo", "bar", "baz"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    fireEvent.click(badgeRoot);
+
+    // Simulate editing the middle value by placing cursor after 'bar' and deleting it
+    const input = within(badgeRoot).getByRole("textbox");
+    await act(async () => {
+      fireEvent.change(input, {
+        target: {
+          selectionEnd: 7, // After 'r' in 'bar'
+          selectionStart: 4, // Before 'bar'
+          value: "foo,,baz",
+        },
+      });
+    });
+
+    // Verify input value is correct after deletion
+    await waitFor(() => {
+      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedInput = within(updatedBadge).getByRole("textbox");
+      expect(updatedInput.getAttribute("value")).toBe("foo,,baz");
+    });
+
+    // Simulate typing 'ba' in the empty spot
+    await act(async () => {
+      fireEvent.change(input, {
+        target: {
+          selectionEnd: 5, // After 'a' in 'ba'
+          selectionStart: 5,
+          value: "foo,ba,baz",
+        },
+      });
+    });
+
+    // Verify input value is correct after typing
+    await waitFor(() => {
+      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedInput = within(updatedBadge).getByRole("textbox");
+      expect(updatedInput.getAttribute("value")).toBe("foo,ba,baz");
+    });
+
+    // Verify suggestions appear for 'ba'
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+        expect(screen.getByText("batch")).toBeInTheDocument();
+      },
+      { timeout: 3000 },
+    );
+
+    // Select the suggestion 'batch'
+    await act(async () => {
+      fireEvent.mouseDown(screen.getByText("batch"));
+      // Wait for state updates to complete
+      await Promise.resolve();
+    });
+
+    // Verify the filter value is updated correctly
+    await waitFor(() => {
+      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedInput = within(updatedBadge).getByRole("textbox");
+      expect(updatedInput.getAttribute("value")).toBe("foo,batch,baz");
+    });
+
+    // Verify the suggestions dropdown is hidden after selection
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("suggestions-dropdown"),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows autocomplete suggestions when backspacing the first value of a newly added filter", async () => {
+    render(<JobSearch />);
+
+    // Add a new filter
+    await act(async () => {
+      await selectFilterType("Job Kind");
+    });
+
+    // Get the filter badge
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const input = within(badgeRoot).getByRole("textbox");
+    expect(document.activeElement).toBe(input);
+
+    // Type to add two values
+    await userEvent.type(input, "batch,stream");
+
+    // Move cursor to after 'batch' and backspace
+    await act(async () => {
+      fireEvent.change(input, {
+        target: {
+          selectionEnd: 5,
+          selectionStart: 5,
+          value: "batch,stream",
+        },
+      });
+      // Simulate backspace by setting the value explicitly
+      fireEvent.change(input, {
+        target: {
+          selectionEnd: 4,
+          selectionStart: 4,
+          value: "batc,stream",
+        },
+      });
+    });
+
+    // Verify input value is correct after backspace
+    await waitFor(
+      () => {
+        expect(input.getAttribute("value")).toBe("batc,stream");
+      },
+      { timeout: 3000 },
+    );
+
+    // Verify suggestions are shown for 'batc'
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+        const suggestionsList = screen.getByTestId("suggestions-list");
+        const suggestionButtons =
+          within(suggestionsList).getAllByRole("button");
+        expect(suggestionButtons.length).toBeGreaterThan(0);
+        const suggestionTexts = suggestionButtons.map((btn) => btn.textContent);
+        expect(suggestionTexts).toContain("batch");
+      },
+      { timeout: 3000 },
     );
   });
 });
