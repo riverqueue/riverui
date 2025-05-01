@@ -169,6 +169,8 @@ export function EditableBadge({
           "max-w-full min-w-[2ch]",
           !isEditing && "cursor-pointer truncate overflow-ellipsis",
         )}
+        data-1p-ignore
+        data-form-type="other"
         onBlur={handleBlur}
         onChange={handleInputChange}
         onClick={handleInputClick}

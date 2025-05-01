@@ -105,6 +105,13 @@ describe("EditableBadge", () => {
     ).toHaveAttribute("aria-label", "Remove filter test:");
   });
 
+  test("has password manager prevention attributes", () => {
+    render(<EditableBadge {...defaultProps} />);
+    const input = screen.getByRole("textbox");
+    expect(input).toHaveAttribute("data-1p-ignore");
+    expect(input).toHaveAttribute("data-form-type", "other");
+  });
+
   // --- Interaction Tests --- //
 
   test("calls onRemove when remove button is clicked", () => {

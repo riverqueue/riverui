@@ -109,6 +109,14 @@ describe("JobSearch", () => {
     expect(input.getAttribute("value")).toBe("batch");
   });
 
+  it("has password manager prevention attributes on search input", () => {
+    render(<JobSearch />);
+    const searchInput = screen.getByTestId("job-search-input");
+    expect(searchInput).toHaveAttribute("data-1p-ignore");
+    expect(searchInput).toHaveAttribute("data-form-type", "other");
+    expect(searchInput).toHaveAttribute("autoComplete", "off");
+  });
+
   it("allows adding a new filter", async () => {
     const onFiltersChange = vi.fn();
     render(<JobSearch onFiltersChange={onFiltersChange} />);

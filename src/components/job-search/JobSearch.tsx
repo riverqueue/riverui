@@ -733,6 +733,9 @@ export function JobSearch({
                   autoComplete="off"
                   autoCorrect="off"
                   className="min-w-[80px] flex-1 border-none bg-transparent p-0 text-gray-900 placeholder:text-gray-400 focus:border-none focus:ring-0 dark:text-white"
+                  data-1p-ignore
+                  data-form-type="other"
+                  data-testid="job-search-input"
                   onChange={(e) =>
                     dispatch({ payload: e.target.value, type: "SET_QUERY" })
                   }
