@@ -119,33 +119,59 @@ export const deleteJobs: MutationFunction<void, DeletePayload> = async ({
   return API.post("/jobs/delete", JSON.stringify({ ids: ids.map(String) }));
 };
 
-export type ListJobsKey = ["listJobs", JobState, number];
+export type ListJobsKey = [
+  "listJobs",
+  JobState | undefined,
+  string[] | undefined,
+  string[] | undefined,
+  number[] | undefined,
+  number,
+];
 
 type ListJobsFilters = {
+  kinds?: string[];
   limit: number;
-  state: JobState;
+  priorities?: number[];
+  queues?: string[];
+  state?: JobState;
 };
 
 export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
-  return ["listJobs", args.state, args.limit];
+  return [
+    "listJobs",
+    args.state,
+    args.kinds,
+    args.queues,
+    args.priorities,
+    args.limit,
+  ];
 };
 
 export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   queryKey,
   signal,
 }) => {
-  const [, state, limit] = queryKey;
-  const searchParamsStringValues = Object.fromEntries(
-    Object.entries({ limit, state }).map(([k, v]) => [k, String(v)]),
-  );
-  const query = new URLSearchParams(searchParamsStringValues);
+  const [, state, kinds, queues, priorities, limit] = queryKey;
 
-  // TODO: Update API to support filtering by kind, priority, and queue
-  // The UI now supports these filters but the API doesn't yet accept them
-  // We'll need to:
-  // 1. Update the API endpoint to accept these filter parameters
-  // 2. Update the query parameters here to include them
-  // 3. Update the ListJobsKey type to include the filter values
+  // Build query params object with only defined values
+  const params: Record<string, string | string[]> = {
+    limit: String(limit),
+  };
+  if (state) params.state = state;
+  if (kinds?.length) params.kinds = kinds;
+  if (queues?.length) params.queues = queues;
+  if (priorities?.length) params.priorities = priorities.map(String);
+
+  // Convert to URLSearchParams, handling arrays correctly
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (Array.isArray(value)) {
+      value.forEach((v) => query.append(key, v));
+    } else {
+      query.append(key, value);
+    }
+  });
+
   return API.get<ListResponse<JobFromAPI>>(
     { path: "/jobs", query },
     { signal },

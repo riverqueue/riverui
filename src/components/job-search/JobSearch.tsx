@@ -511,6 +511,29 @@ export function JobSearch({
     onFiltersChange?.(state.filters);
   }, [state.filters, onFiltersChange]);
 
+  // Notify parent when editing filter values change
+  useEffect(() => {
+    if (
+      state.editingFilter.filterId &&
+      state.editingFilter.editingValue !== null
+    ) {
+      const finalizedValues = finalizeEditValue(
+        state.editingFilter.editingValue,
+      );
+      const updatedFilters = state.filters.map((filter) =>
+        filter.id === state.editingFilter.filterId
+          ? { ...filter, values: finalizedValues }
+          : filter,
+      );
+      onFiltersChange?.(updatedFilters);
+    }
+  }, [
+    state.editingFilter.editingValue,
+    state.editingFilter.filterId,
+    state.filters,
+    onFiltersChange,
+  ]);
+
   // Handles raw value change from EditableBadge input
   const handleRawValueChange = useCallback(
     async (newValue: string, cursorPos: null | number) => {

@@ -142,9 +142,14 @@ const EmptySetIcon = (props: EmptySetIconProps) => (
 );
 
 const EmptyState = () => (
-  <div className="mt-16 text-center">
+  <div className="flex h-full flex-col items-center justify-center py-16">
     <EmptySetIcon className="mx-auto size-12 text-gray-400" />
-    <h3 className="mt-2 text-sm font-semibold text-gray-900">No jobs</h3>
+    <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
+      No jobs found
+    </h3>
+    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+      Try adjusting your filters to find what you're looking for.
+    </p>
   </div>
 );
 
@@ -299,21 +304,20 @@ const JobRows = ({
   const isIndeterminate =
     selectedJobs.length > 0 && selectedJobs.length < jobs.length;
 
-  if (jobs.length === 0) {
-    return <EmptyState />;
-  }
   return (
     <div className="flex min-h-dvh flex-col">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-16 items-center space-x-4 border-b border-slate-300 py-2 sm:justify-between dark:border-slate-700">
-          <CustomCheckbox
-            aria-label={"Select all jobs"}
-            checked={selectedJobs.length > 0}
-            className="grow-0"
-            indeterminate={isIndeterminate}
-            name={"select_all_jobs"}
-            onChange={handleSelectAll}
-          />
+          {jobs.length > 0 && (
+            <CustomCheckbox
+              aria-label={"Select all jobs"}
+              checked={selectedJobs.length > 0}
+              className="grow-0"
+              indeterminate={isIndeterminate}
+              name={"select_all_jobs"}
+              onChange={handleSelectAll}
+            />
+          )}
           <JobSearch
             className={classNames(selectedJobs.length === 0 ? "" : "hidden")}
             initialFilters={initialFilters}
@@ -342,47 +346,69 @@ const JobRows = ({
           )}
         </div>
       </div>
-      <ul
-        className="grow divide-y divide-slate-200 px-4 sm:px-6 lg:px-8 dark:divide-slate-800"
-        role="list"
-      >
-        {jobs.map((job) => (
-          <JobListItem
-            checked={selectedSet.has(job.id)}
-            job={job}
-            key={job.id.toString()}
-            onChangeSelect={(_checked, event) => onChange(event, job.id)}
-          />
-        ))}
-      </ul>
-      <nav
-        aria-label="Pagination"
-        className="sticky inset-x-0 bottom-0 flex items-center justify-center border-t border-black/5 bg-white py-3 dark:border-white/5 dark:bg-slate-900"
-      >
-        <Button
-          className="mx-2"
-          color="light"
-          disabled={!canShowFewer}
-          onClick={() => showFewer()}
-        >
-          Fewer
-        </Button>
-        <Button
-          className="mx-2"
-          color="light"
-          disabled={!canShowMore}
-          onClick={() => showMore()}
-        >
-          More
-        </Button>
-      </nav>
+      {jobs.length === 0 ? (
+        <div className="grow">
+          <EmptyState />
+        </div>
+      ) : (
+        <>
+          <ul
+            className="grow divide-y divide-slate-200 px-4 sm:px-6 lg:px-8 dark:divide-slate-800"
+            role="list"
+          >
+            {jobs.map((job) => (
+              <JobListItem
+                checked={selectedSet.has(job.id)}
+                job={job}
+                key={job.id.toString()}
+                onChangeSelect={(_checked, event) => onChange(event, job.id)}
+              />
+            ))}
+          </ul>
+          <nav
+            aria-label="Pagination"
+            className="sticky inset-x-0 bottom-0 flex items-center justify-center border-t border-black/5 bg-white py-3 dark:border-white/5 dark:bg-slate-900"
+          >
+            <Button
+              className="mx-2"
+              color="light"
+              disabled={!canShowFewer}
+              onClick={() => showFewer()}
+            >
+              Fewer
+            </Button>
+            <Button
+              className="mx-2"
+              color="light"
+              disabled={!canShowMore}
+              onClick={() => showMore()}
+            >
+              More
+            </Button>
+          </nav>
+        </>
+      )}
     </div>
   );
 };
 
 const JobList = (props: JobListProps) => {
-  const { initialFilters, loading, onFiltersChange, state, statesAndCounts } =
-    props;
+  const {
+    cancelJobs,
+    canShowFewer,
+    canShowMore,
+    deleteJobs,
+    initialFilters,
+    jobs,
+    loading = false,
+    onFiltersChange,
+    retryJobs,
+    setJobRefetchesPaused,
+    showFewer,
+    showMore,
+    state,
+    statesAndCounts,
+  } = props;
 
   const stateFormatted = state.charAt(0).toUpperCase() + state.slice(1);
   const jobsInState = useMemo(() => {
@@ -458,18 +484,18 @@ const JobList = (props: JobListProps) => {
         <div>Loading...</div>
       ) : (
         <JobRows
-          cancelJobs={props.cancelJobs}
-          canShowFewer={props.canShowFewer}
-          canShowMore={props.canShowMore}
-          deleteJobs={props.deleteJobs}
+          cancelJobs={cancelJobs}
+          canShowFewer={canShowFewer}
+          canShowMore={canShowMore}
+          deleteJobs={deleteJobs}
           initialFilters={initialFilters}
-          jobs={props.jobs}
+          jobs={jobs}
           onFiltersChange={onFiltersChange}
-          retryJobs={props.retryJobs}
-          setJobRefetchesPaused={props.setJobRefetchesPaused}
-          showFewer={props.showFewer}
-          showMore={props.showMore}
-          state={props.state}
+          retryJobs={retryJobs}
+          setJobRefetchesPaused={setJobRefetchesPaused}
+          showFewer={showFewer}
+          showMore={showMore}
+          state={state}
         />
       )}
     </div>

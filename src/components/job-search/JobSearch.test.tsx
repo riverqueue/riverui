@@ -587,20 +587,19 @@ describe("JobSearch", () => {
       fireEvent.keyDown(existingInput, { key: "Enter" });
     });
 
-    // Clear the mock to track only new calls
-    onFiltersChange.mockClear();
-
     // Try to add the same filter type again
     await act(async () => {
       await selectFilterType("Job Kind");
     });
 
-    // Verify no new filter was added
-    expect(onFiltersChange).not.toHaveBeenCalled();
-
     // Verify there's only one "kind:" badge
     const kindFilters = screen.getAllByText("kind:");
     expect(kindFilters.length).toBe(1);
+
+    // Verify the existing filter is in edit mode
+    const updatedBadge = getBadgeRootByPrefix("kind:");
+    const updatedInput = within(updatedBadge).getByRole("textbox");
+    expect(document.activeElement).toBe(updatedInput);
   });
 
   it("notifies parent of all filter changes", async () => {
@@ -1215,5 +1214,42 @@ describe("JobSearch", () => {
       },
       { timeout: 3000 },
     );
+  });
+
+  it("emits updated filters during editing for live search refreshing", async () => {
+    const onFiltersChange = vi.fn();
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: ["batch"],
+      },
+    ];
+    render(
+      <JobSearch
+        initialFilters={initialFilters}
+        onFiltersChange={onFiltersChange}
+      />,
+    );
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("kind:");
+    fireEvent.click(badgeRoot);
+
+    // Type a new value to trigger filter update during editing
+    const input = within(badgeRoot).getByRole("textbox");
+    await userEvent.type(input, ",stream");
+
+    // Verify onFiltersChange was called with the updated filter values during editing
+    await waitFor(() => {
+      expect(onFiltersChange).toHaveBeenCalledWith([
+        expect.objectContaining({
+          prefix: "kind:",
+          typeId: FilterTypeId.JOB_KIND,
+          values: ["batch", "stream"],
+        }),
+      ]);
+    });
   });
 });
