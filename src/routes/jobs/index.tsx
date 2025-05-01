@@ -1,3 +1,4 @@
+import { Filter, FilterTypeId } from "@components/job-search/JobSearch";
 import JobList from "@components/JobList";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import {
@@ -20,7 +21,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 
 const minimumLimit = 20;
@@ -28,6 +29,7 @@ const defaultLimit = 20;
 const maximumLimit = 200;
 
 const jobSearchSchema = z.object({
+  kind: z.string().optional(),
   limit: z
     .number()
     .int()
@@ -36,6 +38,8 @@ const jobSearchSchema = z.object({
     .default(defaultLimit)
     .catch(defaultLimit)
     .optional(),
+  priority: z.coerce.number().int().optional(),
+  queue: z.string().optional(),
   state: z.nativeEnum(JobState).catch(JobState.Running),
 });
 
@@ -71,6 +75,7 @@ export const Route = createFileRoute("/jobs/")({
 function JobsIndexComponent() {
   const navigate = Route.useNavigate();
   const { limit, state } = Route.useLoaderDeps();
+  const { kind, priority, queue } = Route.useSearch();
   const refreshSettings = useRefreshSetting();
   const refetchInterval = refreshSettings.intervalMs;
   const [pauseRefetches, setJobRefetchesPaused] = useState(false);
@@ -102,6 +107,77 @@ function JobsIndexComponent() {
       search: (old) => ({ ...old, limit: Math.min(limit + 20, maximumLimit) }),
     });
   };
+
+  const handleFiltersChange = useCallback(
+    (filters: Filter[]) => {
+      // Initialize all filterable params as undefined to ensure removal when not present
+      const searchParams: Record<string, number | string | undefined> = {
+        kind: undefined,
+        priority: undefined,
+        queue: undefined,
+      };
+
+      // Only set values for filters that exist and have values
+      filters.forEach((filter) => {
+        switch (filter.typeId) {
+          case FilterTypeId.JOB_KIND:
+            // For now, still only use first value as the API likely doesn't support multiple
+            searchParams.kind =
+              filter.values.length > 0 ? filter.values[0] : undefined;
+            break;
+          case FilterTypeId.PRIORITY:
+            // Priority should only ever have one value
+            searchParams.priority =
+              filter.values.length > 0
+                ? parseInt(filter.values[0], 10)
+                : undefined;
+            break;
+          case FilterTypeId.QUEUE:
+            // For queue, join multiple values with commas
+            searchParams.queue =
+              filter.values.length > 0 ? filter.values.join(",") : undefined;
+            break;
+        }
+      });
+
+      // Update route search params, preserving other existing ones
+      navigate({
+        replace: true,
+        search: (old) => ({ ...old, ...searchParams }),
+      });
+    },
+    [navigate],
+  );
+
+  // Convert current search params to initial filters
+  const initialFilters = useMemo(() => {
+    const filters: Filter[] = [];
+    if (kind) {
+      filters.push({
+        id: "kind-filter",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: [kind],
+      });
+    }
+    if (priority !== undefined) {
+      filters.push({
+        id: "priority-filter",
+        prefix: "priority:",
+        typeId: FilterTypeId.PRIORITY,
+        values: [priority.toString()],
+      });
+    }
+    if (queue) {
+      filters.push({
+        id: "queue-filter",
+        prefix: "queue:",
+        typeId: FilterTypeId.QUEUE,
+        values: [queue],
+      });
+    }
+    return filters;
+  }, [kind, priority, queue]);
 
   const cancelMutation = useMutation({
     mutationFn: async (jobIDs: bigint[]) => cancelJobs({ ids: jobIDs }),
@@ -154,8 +230,10 @@ function JobsIndexComponent() {
       canShowFewer={canShowFewer}
       canShowMore={canShowMore}
       deleteJobs={deleteMutation.mutate}
+      initialFilters={initialFilters}
       jobs={jobsQuery.data || []}
       loading={jobsQuery.isLoading}
+      onFiltersChange={handleFiltersChange}
       retryJobs={retryMutation.mutate}
       setJobRefetchesPaused={setJobRefetchesPaused}
       showFewer={showFewer}

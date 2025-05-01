@@ -3,7 +3,7 @@ import { Button } from "@components/Button";
 import ButtonForGroup from "@components/ButtonForGroup";
 import { CustomCheckbox } from "@components/CustomCheckbox";
 import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
-import { JobSearch } from "@components/job-search/JobSearch";
+import { Filter, JobSearch } from "@components/job-search/JobSearch";
 import { JobStateFilters } from "@components/JobStateFilters";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNav from "@components/TopNav";
@@ -148,17 +148,36 @@ const EmptyState = () => (
   </div>
 );
 
-type JobRowsProps = {
+export type JobRowsProps = {
   cancelJobs: (jobIDs: bigint[]) => void;
   canShowFewer: boolean;
   canShowMore: boolean;
   deleteJobs: (jobIDs: bigint[]) => void;
+  initialFilters?: Filter[];
   jobs: Job[];
+  onFiltersChange?: (filters: Filter[]) => void;
   retryJobs: (jobIDs: bigint[]) => void;
   setJobRefetchesPaused: (value: boolean) => void;
   showFewer: () => void;
   showMore: () => void;
   state: JobState;
+};
+
+type JobListProps = {
+  cancelJobs: (jobIDs: bigint[]) => void;
+  canShowFewer: boolean;
+  canShowMore: boolean;
+  deleteJobs: (jobIDs: bigint[]) => void;
+  initialFilters?: Filter[];
+  jobs: Job[];
+  loading?: boolean;
+  onFiltersChange?: (filters: Filter[]) => void;
+  retryJobs: (jobIDs: bigint[]) => void;
+  setJobRefetchesPaused: (value: boolean) => void;
+  showFewer: () => void;
+  showMore: () => void;
+  state: JobState;
+  statesAndCounts: StatesAndCounts | undefined;
 };
 
 function JobListActionButtons({
@@ -237,7 +256,9 @@ const JobRows = ({
   canShowFewer,
   canShowMore,
   deleteJobs,
+  initialFilters,
   jobs,
+  onFiltersChange,
   retryJobs,
   setJobRefetchesPaused,
   showFewer,
@@ -295,7 +316,10 @@ const JobRows = ({
           />
           <JobSearch
             className={classNames(selectedJobs.length === 0 ? "" : "hidden")}
+            initialFilters={initialFilters}
+            onFiltersChange={onFiltersChange}
           />
+
           {selectedJobs.length > 0 && (
             <JobListActionButtons
               cancel={cancelJobs}
@@ -356,19 +380,9 @@ const JobRows = ({
   );
 };
 
-type JobListProps = {
-  canShowFewer: boolean;
-  canShowMore: boolean;
-  jobs: Job[];
-  loading?: boolean;
-  showFewer: () => void;
-  showMore: () => void;
-  state: JobState;
-  statesAndCounts: StatesAndCounts | undefined;
-} & JobRowsProps;
-
 const JobList = (props: JobListProps) => {
-  const { loading, state, statesAndCounts } = props;
+  const { initialFilters, loading, onFiltersChange, state, statesAndCounts } =
+    props;
 
   const stateFormatted = state.charAt(0).toUpperCase() + state.slice(1);
   const jobsInState = useMemo(() => {
@@ -440,7 +454,24 @@ const JobList = (props: JobListProps) => {
         <JobStateFilters statesAndCounts={statesAndCounts} />
       </div>
 
-      {loading ? <div>Loading...</div> : <JobRows {...props}></JobRows>}
+      {loading ? (
+        <div>Loading...</div>
+      ) : (
+        <JobRows
+          cancelJobs={props.cancelJobs}
+          canShowFewer={props.canShowFewer}
+          canShowMore={props.canShowMore}
+          deleteJobs={props.deleteJobs}
+          initialFilters={initialFilters}
+          jobs={props.jobs}
+          onFiltersChange={onFiltersChange}
+          retryJobs={props.retryJobs}
+          setJobRefetchesPaused={props.setJobRefetchesPaused}
+          showFewer={props.showFewer}
+          showMore={props.showMore}
+          state={props.state}
+        />
+      )}
     </div>
   );
 };

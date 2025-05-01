@@ -140,6 +140,12 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   );
   const query = new URLSearchParams(searchParamsStringValues);
 
+  // TODO: Update API to support filtering by kind, priority, and queue
+  // The UI now supports these filters but the API doesn't yet accept them
+  // We'll need to:
+  // 1. Update the API endpoint to accept these filter parameters
+  // 2. Update the query parameters here to include them
+  // 3. Update the ListJobsKey type to include the filter values
   return API.get<ListResponse<JobFromAPI>>(
     { path: "/jobs", query },
     { signal },
