@@ -439,11 +439,17 @@ func (*jobListEndpoint) Meta() *apiendpoint.EndpointMeta {
 }
 
 type jobListRequest struct {
-	Limit *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
-	State *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
+	Kinds  []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	Limit  *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
+	Queues []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	State  *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
 }
 
 func (req *jobListRequest) ExtractRaw(r *http.Request) error {
+	if kinds := r.URL.Query()["kinds"]; len(kinds) > 0 {
+		req.Kinds = kinds
+	}
+
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil {
@@ -457,12 +463,20 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 		req.State = (*rivertype.JobState)(&state)
 	}
 
+	if queues := r.URL.Query()["queues"]; len(queues) > 0 {
+		req.Queues = queues
+	}
+
 	return nil
 }
 
 func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJob], error) {
 	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJob], error) {
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
+
+		if len(req.Kinds) > 0 {
+			params = params.Kinds(req.Kinds...)
+		}
 
 		if req.State == nil {
 			params = params.States(rivertype.JobStateRunning).OrderBy(river.JobListOrderByTime, river.SortOrderAsc)
@@ -475,9 +489,13 @@ func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*li
 			}
 		}
 
+		if len(req.Queues) > 0 {
+			params = params.Queues(req.Queues...)
+		}
+
 		result, err := a.client.JobListTx(ctx, tx, params)
 		if err != nil {
-			return nil, fmt.Errorf("error listing queues: %w", err)
+			return nil, fmt.Errorf("error listing jobs: %w", err)
 		}
 
 		return listResponseFrom(sliceutil.Map(result.Jobs, riverJobToSerializableJob)), nil

@@ -412,6 +412,120 @@ func TestAPIHandlerJobGet(t *testing.T) {
 	})
 }
 
+func TestAPIHandlerJobList(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Kind:  ptrutil.Ptr("kind1"),
+			Queue: ptrutil.Ptr("queue1"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Kind:  ptrutil.Ptr("kind2"),
+			Queue: ptrutil.Ptr("queue2"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+		require.Equal(t, job2.ID, resp.Data[1].ID)
+	})
+
+	t.Run("FilterByKind", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Kind:  ptrutil.Ptr("kind1"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Kind:  ptrutil.Ptr("kind2"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Kinds: []string{"kind1"},
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job.ID, resp.Data[0].ID)
+	})
+
+	t.Run("FilterByQueue", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Queue: ptrutil.Ptr("queue1"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Queue: ptrutil.Ptr("queue2"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Queues: []string{"queue1"},
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job.ID, resp.Data[0].ID)
+	})
+
+	t.Run("FilterByState", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateAvailable),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+
+		state := rivertype.JobStateAvailable
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			State: &state,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job.ID, resp.Data[0].ID)
+	})
+
+	t.Run("Limit", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Limit: ptrutil.Ptr(1),
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job.ID, resp.Data[0].ID)
+	})
+}
+
 func TestAPIHandlerJobRetry(t *testing.T) {
 	t.Parallel()
 
