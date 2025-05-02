@@ -549,6 +549,12 @@ export function JobSearch({
       const currentFilter = state.filters.find((f) => f.id === currentFilterId);
       if (!currentFilter) return;
 
+      // Disable autocomplete for Job ID filter
+      if (currentFilter.typeId === FilterTypeId.JOB_ID) {
+        dispatch({ payload: [], type: "SET_SUGGESTIONS" });
+        return;
+      }
+
       // Determine the token being edited based on cursor position
       const tokenIndex = getTokenIndexAtCursor(newValue, cursorPos);
       const parts = newValue.split(",");

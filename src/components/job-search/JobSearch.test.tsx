@@ -1252,4 +1252,57 @@ describe("JobSearch", () => {
       ]);
     });
   });
+
+  it("allows adding a new Job ID filter without autocomplete suggestions", async () => {
+    const onFiltersChange = vi.fn();
+    render(<JobSearch onFiltersChange={onFiltersChange} />);
+
+    await act(async () => {
+      await selectFilterType("Job ID");
+    });
+
+    // Verify the filter was added - find the badge with id: prefix
+    const filterElement = screen.getByText("id:").closest("span");
+    expect(filterElement).toBeInTheDocument();
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByPrefix("id:");
+    fireEvent.click(badgeRoot);
+
+    // Type a value to ensure no suggestions appear
+    const input = within(badgeRoot).getByRole("textbox");
+    await userEvent.type(input, "123");
+
+    // Verify no suggestions dropdown appears
+    await waitFor(
+      () => {
+        expect(
+          screen.queryByTestId("suggestions-dropdown"),
+        ).not.toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
+
+    // Press Enter to save the value
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+      await Promise.resolve();
+    });
+
+    // Verify the value was saved
+    await waitFor(() => {
+      const updatedBadge = getBadgeRootByPrefix("id:");
+      const updatedInput = within(updatedBadge).getByRole("textbox");
+      expect(updatedInput.getAttribute("value")).toBe("123");
+    });
+
+    // Verify onFiltersChange was called with the new filter
+    expect(onFiltersChange).toHaveBeenCalledWith([
+      expect.objectContaining({
+        prefix: "id:",
+        typeId: FilterTypeId.JOB_ID,
+        values: ["123"],
+      }),
+    ]);
+  });
 });

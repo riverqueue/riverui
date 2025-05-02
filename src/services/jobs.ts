@@ -121,14 +121,18 @@ export const deleteJobs: MutationFunction<void, DeletePayload> = async ({
 
 export type ListJobsKey = [
   "listJobs",
-  JobState | undefined,
-  string[] | undefined,
-  string[] | undefined,
-  number[] | undefined,
-  number,
+  {
+    ids: bigint[] | undefined;
+    kinds: string[] | undefined;
+    limit: number;
+    priorities: number[] | undefined;
+    queues: string[] | undefined;
+    state: JobState | undefined;
+  },
 ];
 
 type ListJobsFilters = {
+  ids?: bigint[];
   kinds?: string[];
   limit: number;
   priorities?: number[];
@@ -139,11 +143,14 @@ type ListJobsFilters = {
 export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
   return [
     "listJobs",
-    args.state,
-    args.kinds,
-    args.queues,
-    args.priorities,
-    args.limit,
+    {
+      ids: args.ids,
+      kinds: args.kinds,
+      limit: args.limit,
+      priorities: args.priorities,
+      queues: args.queues,
+      state: args.state,
+    },
   ];
 };
 
@@ -151,7 +158,7 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   queryKey,
   signal,
 }) => {
-  const [, state, kinds, queues, priorities, limit] = queryKey;
+  const [, { ids, kinds, limit, priorities, queues, state }] = queryKey;
 
   // Build query params object with only defined values
   const params: Record<string, string | string[]> = {
@@ -161,6 +168,9 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   if (kinds?.length) params.kinds = kinds;
   if (queues?.length) params.queues = queues;
   if (priorities?.length) params.priorities = priorities.map(String);
+  // TODO: Add support for job IDs filter once the backing Go API is implemented
+  // if (ids?.length) params.ids = ids.map(String);
+  console.log("IDs filter not implemented yet, values: ", ids);
 
   // Convert to URLSearchParams, handling arrays correctly
   const query = new URLSearchParams();

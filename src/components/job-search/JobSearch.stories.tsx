@@ -61,35 +61,34 @@ export const Default: Story = {
 };
 
 export const WithInitialFilters: Story = {
-  render: () => (
-    <div className="w-full p-4">
-      <div className="mb-6">
-        <h2 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-          JobSearch with Initial Filters
-        </h2>
-        <p className="mb-4 text-sm text-gray-500 dark:text-gray-400">
-          JobSearch component with pre-populated filters.
-        </p>
-      </div>
-      <JobSearch
-        fetchSuggestions={mockFetchSuggestions}
-        initialFilters={[
-          {
-            id: "1",
-            prefix: "kind:",
-            typeId: FilterTypeId.JOB_KIND,
-            values: ["email"],
-          },
-          {
-            id: "2",
-            prefix: "queue:",
-            typeId: FilterTypeId.QUEUE,
-            values: ["high-priority"],
-          },
-        ]}
-      />
-    </div>
-  ),
+  args: {
+    initialFilters: [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.JOB_KIND,
+        values: ["batch"],
+      },
+      {
+        id: "2",
+        prefix: "queue:",
+        typeId: FilterTypeId.QUEUE,
+        values: ["default"],
+      },
+      {
+        id: "3",
+        prefix: "priority:",
+        typeId: FilterTypeId.PRIORITY,
+        values: ["1"],
+      },
+      {
+        id: "4",
+        prefix: "id:",
+        typeId: FilterTypeId.JOB_ID,
+        values: ["123", "456"],
+      },
+    ],
+  },
 };
 
 // Component to demonstrate changing filters

@@ -36,6 +36,18 @@ const defaultValues = {
 };
 
 const jobSearchSchema = z.object({
+  id: z
+    .union([z.string(), z.array(z.string().min(1))])
+    .optional()
+    .transform((v) => {
+      if (!v) return undefined;
+      const arr = Array.isArray(v) ? v : [v];
+      try {
+        return arr.map(BigInt);
+      } catch {
+        return undefined;
+      }
+    }),
   kind: z
     .union([z.string(), z.array(z.string().min(1))])
     .optional()
@@ -73,22 +85,23 @@ export const Route = createFileRoute("/jobs/")({
     // No need to check for search.state since it has a default value now
     return context;
   },
-  loaderDeps: ({ search: { limit, state, kind, queue, priority } }) => {
+  loaderDeps: ({ search: { limit, state, kind, queue, priority, id } }) => {
     return {
       kind,
       limit: limit || minimumLimit,
       priority: priority?.map((p) => parseInt(p, 10)),
       queue,
       state,
+      id,
     };
   },
   loader: async ({
     context: { queryClient },
-    deps: { limit, state, kind, queue },
+    deps: { limit, state, kind, queue, id },
   }) => {
     await Promise.all([
       queryClient.ensureQueryData({
-        ...jobsQueryOptions({ limit, state, kind, queue }),
+        ...jobsQueryOptions({ limit, state, kind, queue, id }),
       }),
       queryClient.ensureQueryData(statesQueryOptions()),
     ]);
@@ -99,7 +112,7 @@ export const Route = createFileRoute("/jobs/")({
 
 function JobsIndexComponent() {
   const navigate = Route.useNavigate();
-  const { limit, state, kind, queue, priority } = Route.useLoaderDeps();
+  const { id, limit, state, kind, queue, priority } = Route.useLoaderDeps();
   const refreshSettings = useRefreshSetting();
   const refetchInterval = refreshSettings.intervalMs;
   const [pauseRefetches, setJobRefetchesPaused] = useState(false);
@@ -108,11 +121,12 @@ function JobsIndexComponent() {
   const jobsQuery = useQuery(
     jobsQueryOptions(
       {
+        id,
         limit,
         state,
         kind,
         queue,
-        priority: priority?.map((p) => parseInt(p, 10)),
+        priority,
       },
       {
         pauseRefetches,
@@ -131,13 +145,29 @@ function JobsIndexComponent() {
       newLimitCalculated === defaultLimit ? undefined : newLimitCalculated;
     navigate({
       replace: true,
-      search: (old) => ({ ...old, limit: newLimit }),
+      search: (old) =>
+        ({ ...old, limit: newLimit }) as {
+          id?: string[];
+          kind?: string[];
+          limit?: number;
+          priority?: string[];
+          queue?: string[];
+          state: JobState;
+        },
     });
   };
   const showMore = () => {
     navigate({
       replace: true,
-      search: (old) => ({ ...old, limit: Math.min(limit + 20, maximumLimit) }),
+      search: (old) =>
+        ({ ...old, limit: Math.min(limit + 20, maximumLimit) }) as {
+          id?: string[];
+          kind?: string[];
+          limit: number;
+          priority?: string[];
+          queue?: string[];
+          state: JobState;
+        },
     });
   };
 
@@ -148,11 +178,15 @@ function JobsIndexComponent() {
         kind: undefined,
         priority: undefined,
         queue: undefined,
+        id: undefined,
       };
 
       // Only set values for filters that exist and have values
       filters.forEach((filter) => {
         switch (filter.typeId) {
+          case FilterTypeId.JOB_ID:
+            searchParams.id = filter.values.length ? filter.values : undefined;
+            break;
           case FilterTypeId.JOB_KIND:
             searchParams.kind = filter.values.length
               ? filter.values
@@ -174,7 +208,15 @@ function JobsIndexComponent() {
       // Update route search params, preserving other existing ones
       navigate({
         replace: true,
-        search: (old) => ({ ...old, ...searchParams }),
+        search: (old) =>
+          ({ ...old, ...searchParams }) as {
+            id?: string[];
+            kind?: string[];
+            limit: number;
+            priority?: string[];
+            queue?: string[];
+            state: JobState;
+          },
       });
     },
     [navigate],
@@ -183,6 +225,14 @@ function JobsIndexComponent() {
   // Convert current search params to initial filters
   const initialFilters = useMemo(() => {
     const filters: Filter[] = [];
+    if (id !== undefined) {
+      filters.push({
+        id: "id-filter",
+        prefix: "id:",
+        typeId: FilterTypeId.JOB_ID,
+        values: id.map(String),
+      });
+    }
     if (kind?.length) {
       filters.push({
         id: "kind-filter",
@@ -208,7 +258,7 @@ function JobsIndexComponent() {
       });
     }
     return filters;
-  }, [kind, priority, queue]);
+  }, [id, kind, priority, queue]);
 
   const cancelMutation = useMutation({
     mutationFn: async (jobIDs: bigint[]) => cancelJobs({ ids: jobIDs }),
@@ -219,7 +269,14 @@ function JobsIndexComponent() {
         duration: 2000,
       });
       queryClient.invalidateQueries({
-        queryKey: listJobsKey({ limit, state }),
+        queryKey: listJobsKey({
+          limit,
+          state,
+          kinds: kind,
+          queues: queue,
+          priorities: priority,
+          ids: id,
+        }),
       });
       queryClient.invalidateQueries({ queryKey: countsByStateKey() });
     },
@@ -277,12 +334,14 @@ function JobsIndexComponent() {
 
 const jobsQueryOptions = (
   {
+    id,
     limit,
     state,
     kind,
     queue,
     priority,
   }: {
+    id?: bigint[];
     kind?: string[];
     limit: number;
     priority?: number[];
@@ -298,8 +357,8 @@ const jobsQueryOptions = (
     ListJobsKey
   > = (previousData, previousQuery) => {
     if (!previousQuery) return undefined;
-    const [, previousState] = previousQuery.queryKey;
-    if (previousState !== state) return undefined;
+    const [, previousParams] = previousQuery.queryKey;
+    if (previousParams.state !== state) return undefined;
     return previousData;
   };
   return queryOptions({
@@ -309,6 +368,7 @@ const jobsQueryOptions = (
       kinds: kind,
       queues: queue,
       priorities: priority,
+      ids: id,
     }),
     queryFn: listJobs,
     placeholderData: keepPreviousDataUnlessStateChanged,
