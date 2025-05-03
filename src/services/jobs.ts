@@ -164,13 +164,11 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
   const params: Record<string, string | string[]> = {
     limit: String(limit),
   };
-  if (state) params.state = state;
+  if (ids?.length) params.ids = ids.map(String);
   if (kinds?.length) params.kinds = kinds;
-  if (queues?.length) params.queues = queues;
   if (priorities?.length) params.priorities = priorities.map(String);
-  // TODO: Add support for job IDs filter once the backing Go API is implemented
-  // if (ids?.length) params.ids = ids.map(String);
-  console.log("IDs filter not implemented yet, values: ", ids);
+  if (queues?.length) params.queues = queues;
+  if (state) params.state = state;
 
   // Convert to URLSearchParams, handling arrays correctly
   const query = new URLSearchParams();

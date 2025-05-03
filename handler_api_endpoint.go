@@ -439,13 +439,25 @@ func (*jobListEndpoint) Meta() *apiendpoint.EndpointMeta {
 }
 
 type jobListRequest struct {
-	Kinds  []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
-	Limit  *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
-	Queues []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
-	State  *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
+	IDs        []int64             `json:"-" validate:"omitempty,min=1,max=1000"`                                                                    // from ExtractRaw
+	Kinds      []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	Limit      *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
+	Priorities []int16             `json:"-" validate:"omitempty,min=0,max=10"`                                                                      // from ExtractRaw
+	Queues     []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	State      *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
 }
 
 func (req *jobListRequest) ExtractRaw(r *http.Request) error {
+	if ids := r.URL.Query()["ids"]; len(ids) > 0 {
+		req.IDs = sliceutil.Map(ids, func(id string) int64 {
+			value, err := strconv.ParseInt(id, 10, 64)
+			if err != nil {
+				return 0
+			}
+			return value
+		})
+	}
+
 	if kinds := r.URL.Query()["kinds"]; len(kinds) > 0 {
 		req.Kinds = kinds
 	}
@@ -457,6 +469,16 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 		}
 
 		req.Limit = &limit
+	}
+
+	if priorities := r.URL.Query()["priorities"]; len(priorities) > 0 {
+		req.Priorities = sliceutil.Map(priorities, func(p string) int16 {
+			value, err := strconv.ParseInt(p, 10, 16)
+			if err != nil {
+				return 0
+			}
+			return int16(value)
+		})
 	}
 
 	if state := r.URL.Query().Get("state"); state != "" {
@@ -474,8 +496,20 @@ func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*li
 	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJob], error) {
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
 
+		if len(req.IDs) > 0 {
+			params = params.IDs(req.IDs...)
+		}
+
 		if len(req.Kinds) > 0 {
 			params = params.Kinds(req.Kinds...)
+		}
+
+		if len(req.Priorities) > 0 {
+			params = params.Priorities(req.Priorities...)
+		}
+
+		if len(req.Queues) > 0 {
+			params = params.Queues(req.Queues...)
 		}
 
 		if req.State == nil {
@@ -487,10 +521,6 @@ func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*li
 			case rivertype.JobStateAvailable, rivertype.JobStateRetryable, rivertype.JobStatePending, rivertype.JobStateRunning, rivertype.JobStateScheduled:
 				params = params.States(*req.State)
 			}
-		}
-
-		if len(req.Queues) > 0 {
-			params = params.Queues(req.Queues...)
 		}
 
 		result, err := a.client.JobListTx(ctx, tx, params)

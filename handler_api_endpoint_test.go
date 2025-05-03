@@ -440,6 +440,26 @@ func TestAPIHandlerJobList(t *testing.T) {
 		require.Equal(t, job2.ID, resp.Data[1].ID)
 	})
 
+	t.Run("FilterByIDs", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, nil)
+		job2 := testfactory.Job(ctx, t, bundle.exec, nil)
+		_ = testfactory.Job(ctx, t, bundle.exec, nil)
+		_ = testfactory.Job(ctx, t, bundle.exec, nil)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			IDs:   []int64{job1.ID, job2.ID},
+			State: ptrutil.Ptr(rivertype.JobStateAvailable),
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+		require.Equal(t, job2.ID, resp.Data[1].ID)
+	})
+
 	t.Run("FilterByKind", func(t *testing.T) {
 		t.Parallel()
 
@@ -460,6 +480,27 @@ func TestAPIHandlerJobList(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 1)
 		require.Equal(t, job.ID, resp.Data[0].ID)
+	})
+
+	t.Run("FilterByPriority", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Priority: ptrutil.Ptr(1),
+		})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Priority: ptrutil.Ptr(2),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Priorities: []int16{2},
+			State:      ptrutil.Ptr(rivertype.JobStateAvailable),
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job2.ID, resp.Data[0].ID)
 	})
 
 	t.Run("FilterByQueue", func(t *testing.T) {
