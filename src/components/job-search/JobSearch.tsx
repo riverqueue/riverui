@@ -4,10 +4,15 @@ import { useCallback, useEffect, useReducer, useRef } from "react";
 
 import { fetchSuggestions as defaultFetchSuggestions } from "./api";
 import { EditableBadge } from "./EditableBadge";
-import { AVAILABLE_FILTERS, Filter, FilterType, FilterTypeId } from "./types";
+import {
+  AVAILABLE_FILTERS,
+  JobFilter,
+  FilterType,
+  JobFilterTypeID,
+} from "./types";
 
-export type { Filter, FilterType };
-export { FilterTypeId };
+export type { JobFilter as Filter, FilterType };
+export { JobFilterTypeID as FilterTypeId };
 
 export interface JobSearchProps {
   /**
@@ -22,7 +27,7 @@ export interface JobSearchProps {
    * @returns Promise resolving to an array of suggestion strings
    */
   fetchSuggestions?: (
-    filterTypeId: FilterTypeId,
+    filterTypeId: JobFilterTypeID,
     query: string,
     selectedValues: string[],
   ) => Promise<string[]>;
@@ -30,12 +35,12 @@ export interface JobSearchProps {
    * Initial filters to display
    * @default []
    */
-  initialFilters?: Filter[];
+  initialFilters?: JobFilter[];
   /**
    * Callback when filters change
    * @param filters - The updated list of filters
    */
-  onFiltersChange?: (filters: Filter[]) => void;
+  onFiltersChange?: (filters: JobFilter[]) => void;
 }
 
 // Type for actions that can be dispatched to the reducer
@@ -71,7 +76,7 @@ interface JobSearchState {
     showFilterDropdown: boolean;
     suggestions: string[];
   };
-  filters: Filter[];
+  filters: JobFilter[];
   query: string;
 }
 
@@ -138,7 +143,7 @@ const jobSearchReducer = (
       }
 
       // Add new filter and start editing
-      const newFilter: Filter = {
+      const newFilter: JobFilter = {
         id: Math.random().toString(36).substr(2, 9),
         prefix: action.payload.prefix,
         typeId: action.payload.id,
@@ -550,7 +555,7 @@ export function JobSearch({
       if (!currentFilter) return;
 
       // Disable autocomplete for Job ID filter
-      if (currentFilter.typeId === FilterTypeId.JOB_ID) {
+      if (currentFilter.typeId === JobFilterTypeID.ID) {
         dispatch({ payload: [], type: "SET_SUGGESTIONS" });
         return;
       }

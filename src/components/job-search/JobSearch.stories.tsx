@@ -16,7 +16,7 @@ const mockFetchSuggestions = async (
   // Return different suggestions based on filter type
   let suggestions: string[] = [];
   switch (filterTypeId) {
-    case FilterTypeId.JOB_KIND:
+    case FilterTypeId.KIND:
       suggestions = ["email", "sms", "push", "webhook"];
       break;
     case FilterTypeId.PRIORITY:
@@ -66,7 +66,7 @@ export const WithInitialFilters: Story = {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
       {
@@ -84,7 +84,7 @@ export const WithInitialFilters: Story = {
       {
         id: "4",
         prefix: "id:",
-        typeId: FilterTypeId.JOB_ID,
+        typeId: FilterTypeId.ID,
         values: ["123", "456"],
       },
     ],
@@ -136,7 +136,7 @@ const FilterChangeDemo = () => {
             {
               id: "1",
               prefix: "kind:",
-              typeId: FilterTypeId.JOB_KIND,
+              typeId: FilterTypeId.KIND,
               values: ["email"],
             },
           ]}
@@ -230,7 +230,7 @@ const KeyboardInteractionDemo = () => {
           {
             id: "1",
             prefix: "kind:",
-            typeId: FilterTypeId.JOB_KIND,
+            typeId: FilterTypeId.KIND,
             values: ["email"],
           },
         ]}
@@ -271,7 +271,7 @@ const MultiValueDemo = () => {
           {
             id: "1",
             prefix: "kind:",
-            typeId: FilterTypeId.JOB_KIND,
+            typeId: FilterTypeId.KIND,
             values: ["email"],
           },
           {
@@ -308,7 +308,7 @@ export const NarrowWithLongFilters: Story = {
           {
             id: "1",
             prefix: "kind:",
-            typeId: FilterTypeId.JOB_KIND,
+            typeId: FilterTypeId.KIND,
             values: [
               "very-long-job-kind-value-that-should-truncate",
               "another-super-long-kind-value-to-test-wrapping",

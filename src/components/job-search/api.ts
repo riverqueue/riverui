@@ -2,14 +2,14 @@ import type { AutocompleteFacet } from "@services/autocomplete";
 
 import { fetchAutocomplete } from "@services/autocomplete";
 
-import { FilterTypeId } from "./types";
+import { JobFilterTypeID } from "./types";
 
 export async function fetchSuggestions(
-  filterTypeId: FilterTypeId,
+  filterTypeId: JobFilterTypeID,
   query: string,
   selectedValues: string[],
 ): Promise<string[]> {
-  if (filterTypeId === FilterTypeId.PRIORITY) {
+  if (filterTypeId === JobFilterTypeID.PRIORITY) {
     // Priority is a hardcoded list of values—we just need to filter out
     // already selected values.
     return ["1", "2", "3", "4"].filter(
@@ -20,10 +20,10 @@ export async function fetchSuggestions(
   // For all other filter types, map to the correct AutocompleteFacet
   let fetchType: AutocompleteFacet | undefined;
   switch (filterTypeId) {
-    case FilterTypeId.JOB_KIND:
+    case JobFilterTypeID.KIND:
       fetchType = "job_kind";
       break;
-    case FilterTypeId.QUEUE:
+    case JobFilterTypeID.QUEUE:
       fetchType = "queue_name";
       break;
     default:

@@ -1,42 +1,42 @@
-export enum FilterTypeId {
-  JOB_ID = "id",
-  JOB_KIND = "kind",
+export enum JobFilterTypeID {
+  ID = "id",
+  KIND = "kind",
   PRIORITY = "priority",
   QUEUE = "queue",
 }
 
-export interface Filter {
+export interface JobFilter {
   id: string;
   prefix: string;
-  typeId: FilterTypeId;
+  typeId: JobFilterTypeID;
   values: string[];
 }
 
 export interface FilterType {
-  id: FilterTypeId;
+  id: JobFilterTypeID;
   label: string;
   prefix: string;
 }
 
 export const AVAILABLE_FILTERS: FilterType[] = [
   {
-    id: FilterTypeId.JOB_KIND,
-    label: "Job Kind",
+    id: JobFilterTypeID.ID,
+    label: "ID",
+    prefix: "id:",
+  },
+  {
+    id: JobFilterTypeID.KIND,
+    label: "Kind",
     prefix: "kind:",
   },
   {
-    id: FilterTypeId.QUEUE,
+    id: JobFilterTypeID.QUEUE,
     label: "Queue",
     prefix: "queue:",
   },
   {
-    id: FilterTypeId.PRIORITY,
+    id: JobFilterTypeID.PRIORITY,
     label: "Priority",
     prefix: "priority:",
-  },
-  {
-    id: FilterTypeId.JOB_ID,
-    label: "Job ID",
-    prefix: "id:",
   },
 ];

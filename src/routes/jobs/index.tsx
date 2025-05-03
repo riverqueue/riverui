@@ -184,10 +184,10 @@ function JobsIndexComponent() {
       // Only set values for filters that exist and have values
       filters.forEach((filter) => {
         switch (filter.typeId) {
-          case FilterTypeId.JOB_ID:
+          case FilterTypeId.ID:
             searchParams.id = filter.values.length ? filter.values : undefined;
             break;
-          case FilterTypeId.JOB_KIND:
+          case FilterTypeId.KIND:
             searchParams.kind = filter.values.length
               ? filter.values
               : undefined;
@@ -229,7 +229,7 @@ function JobsIndexComponent() {
       filters.push({
         id: "id-filter",
         prefix: "id:",
-        typeId: FilterTypeId.JOB_ID,
+        typeId: FilterTypeId.ID,
         values: id.map(String),
       });
     }
@@ -237,7 +237,7 @@ function JobsIndexComponent() {
       filters.push({
         id: "kind-filter",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: kind,
       });
     }

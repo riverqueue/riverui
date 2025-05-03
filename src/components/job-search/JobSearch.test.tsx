@@ -94,7 +94,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -132,7 +132,7 @@ describe("JobSearch", () => {
     expect(onFiltersChange).toHaveBeenCalledWith([
       expect.objectContaining({
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       }),
     ]);
@@ -143,7 +143,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -174,7 +174,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -201,7 +201,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -239,7 +239,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -273,7 +273,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -322,7 +322,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -344,7 +344,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -373,7 +373,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch", "stream"],
       },
     ];
@@ -432,7 +432,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -483,7 +483,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -517,7 +517,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -551,7 +551,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -616,7 +616,7 @@ describe("JobSearch", () => {
       expect(onFiltersChange).toHaveBeenCalledWith([
         expect.objectContaining({
           prefix: "kind:",
-          typeId: FilterTypeId.JOB_KIND,
+          typeId: FilterTypeId.KIND,
           values: [],
         }),
       ]);
@@ -641,7 +641,7 @@ describe("JobSearch", () => {
       expect(onFiltersChange).toHaveBeenCalledWith([
         expect.objectContaining({
           prefix: "kind:",
-          typeId: FilterTypeId.JOB_KIND,
+          typeId: FilterTypeId.KIND,
           values: ["batch"],
         }),
       ]);
@@ -670,7 +670,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -709,7 +709,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch", "stream"],
       },
     ];
@@ -745,7 +745,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch", "stream", "scheduled"],
       },
     ];
@@ -793,7 +793,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -880,7 +880,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["AITrainingBatch", "Chaos", "UtilizeNewModel"],
       },
     ];
@@ -926,7 +926,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["foo", "bar", "baz"],
       },
     ];
@@ -966,7 +966,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -996,7 +996,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: [],
       },
     ];
@@ -1045,7 +1045,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -1080,7 +1080,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["foo", "bar", "baz"],
       },
     ];
@@ -1222,7 +1222,7 @@ describe("JobSearch", () => {
       {
         id: "1",
         prefix: "kind:",
-        typeId: FilterTypeId.JOB_KIND,
+        typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
     ];
@@ -1246,7 +1246,7 @@ describe("JobSearch", () => {
       expect(onFiltersChange).toHaveBeenCalledWith([
         expect.objectContaining({
           prefix: "kind:",
-          typeId: FilterTypeId.JOB_KIND,
+          typeId: FilterTypeId.KIND,
           values: ["batch", "stream"],
         }),
       ]);
@@ -1300,7 +1300,7 @@ describe("JobSearch", () => {
     expect(onFiltersChange).toHaveBeenCalledWith([
       expect.objectContaining({
         prefix: "id:",
-        typeId: FilterTypeId.JOB_ID,
+        typeId: FilterTypeId.ID,
         values: ["123"],
       }),
     ]);
