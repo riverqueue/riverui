@@ -5,6 +5,12 @@ export enum JobFilterTypeID {
   QUEUE = "queue",
 }
 
+export interface FilterType {
+  id: JobFilterTypeID;
+  label: string;
+  prefix: string;
+}
+
 export interface JobFilter {
   id: string;
   prefix: string;
@@ -12,31 +18,25 @@ export interface JobFilter {
   values: string[];
 }
 
-export interface FilterType {
-  id: JobFilterTypeID;
-  label: string;
-  prefix: string;
-}
-
 export const AVAILABLE_FILTERS: FilterType[] = [
   {
     id: JobFilterTypeID.ID,
-    label: "ID",
+    label: "id",
     prefix: "id:",
   },
   {
     id: JobFilterTypeID.KIND,
-    label: "Kind",
+    label: "kind",
     prefix: "kind:",
   },
   {
     id: JobFilterTypeID.QUEUE,
-    label: "Queue",
+    label: "queue",
     prefix: "queue:",
   },
   {
     id: JobFilterTypeID.PRIORITY,
-    label: "Priority",
+    label: "priority",
     prefix: "priority:",
   },
 ];

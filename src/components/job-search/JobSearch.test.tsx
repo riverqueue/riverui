@@ -18,11 +18,10 @@ declare module "vitest" {
   }
 }
 
-// Helper to get the Badge root element (outer span) for a given prefix
-const getBadgeRootByPrefix = (prefix: string): HTMLElement => {
-  const prefixSpan = screen.getByText(prefix);
-  const badgeRoot = prefixSpan.parentElement as HTMLElement; // The outer <Badge> span
-  if (!badgeRoot) throw new Error(`Badge root for prefix ${prefix} not found`);
+// Helper to get the Badge root element (outer span) for a given filter typeId
+const getBadgeRootByTypeId = (typeId: string): HTMLElement => {
+  const badgeRoot = screen.getByTestId(`filter-badge-${typeId}`);
+  if (!badgeRoot) throw new Error(`Badge root for typeId ${typeId} not found`);
   return badgeRoot;
 };
 
@@ -36,7 +35,7 @@ const openFilterTypeDropdown = async () => {
   });
 };
 
-// Helper to select a filter type by its label (e.g., "Job Kind")
+// Helper to select a filter type by its label (e.g., 'kind', 'id', etc.)
 const selectFilterType = async (label: string) => {
   await openFilterTypeDropdown();
   // Use getByRole to ensure we find the button even if layout changes
@@ -101,7 +100,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // The badge root span should exist
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     expect(badgeRoot).toBeInTheDocument();
 
     // Verify the input inside the filter has the correct value
@@ -122,7 +121,7 @@ describe("JobSearch", () => {
     render(<JobSearch onFiltersChange={onFiltersChange} />);
 
     await act(async () => {
-      await selectFilterType("Job Kind");
+      await selectFilterType("kind");
     });
 
     // Verify the filter was added - find the badge with kind: prefix
@@ -156,7 +155,7 @@ describe("JobSearch", () => {
     );
 
     // Find the kind: badge root
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
 
     // Click the remove button within the badge
     const removeButton = within(badgeRoot).getByRole("button", {
@@ -181,7 +180,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Get the input element inside the badge
@@ -208,7 +207,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type to trigger suggestions
@@ -228,7 +227,7 @@ describe("JobSearch", () => {
 
     // Verify the suggestion was applied
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("batch");
     });
@@ -280,7 +279,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type a comma to add another value
@@ -311,7 +310,7 @@ describe("JobSearch", () => {
 
     // After exiting edit mode, values should be sorted
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("batch,scheduled");
     });
@@ -329,11 +328,11 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     await act(async () => {
-      await selectFilterType("Job Kind");
+      await selectFilterType("kind");
     });
 
     // Verify the existing filter is in edit mode (editable)
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     const filterInput = within(badgeRoot).getByRole("textbox");
     expect(filterInput.getAttribute("value")).toBe("batch,"); // Should have trailing comma for easy addition
     expect(document.activeElement).toBe(filterInput);
@@ -351,7 +350,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type a comma for a new value
@@ -380,7 +379,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter input directly to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     const input = within(badgeRoot).getByRole("textbox");
     await act(async () => {
       fireEvent.click(input);
@@ -409,11 +408,11 @@ describe("JobSearch", () => {
 
     // Add a new Job Kind filter
     await act(async () => {
-      await selectFilterType("Job Kind");
+      await selectFilterType("kind");
     });
 
     // Verify the filter is in edit mode and suggestions are shown
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     const input = within(badgeRoot).getByRole("textbox");
     expect(document.activeElement).toBe(input);
 
@@ -439,7 +438,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type to trigger suggestions
@@ -472,7 +471,7 @@ describe("JobSearch", () => {
 
     // Verify final value
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("batch");
     });
@@ -490,7 +489,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type a custom value not in suggestions
@@ -506,7 +505,7 @@ describe("JobSearch", () => {
 
     // Verify the custom input was saved
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("custom-kind");
     });
@@ -524,7 +523,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type multiple values with duplicates and out of order
@@ -540,7 +539,7 @@ describe("JobSearch", () => {
 
     // Verify values are sorted and deduplicated
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("batch,stream");
     });
@@ -558,7 +557,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Verify the badge with empty values is in the document
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     expect(badgeRoot).toBeInTheDocument();
 
     // Click input inside badge to enter edit mode
@@ -577,11 +576,11 @@ describe("JobSearch", () => {
 
     // Add the first filter
     await act(async () => {
-      await selectFilterType("Job Kind");
+      await selectFilterType("kind");
     });
 
     // Exit edit mode on the existing filter to mimic user finishing editing
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     const existingInput = within(badgeRoot).getByRole("textbox");
     await act(async () => {
       fireEvent.keyDown(existingInput, { key: "Enter" });
@@ -589,7 +588,7 @@ describe("JobSearch", () => {
 
     // Try to add the same filter type again
     await act(async () => {
-      await selectFilterType("Job Kind");
+      await selectFilterType("kind");
     });
 
     // Verify there's only one "kind:" badge
@@ -597,7 +596,7 @@ describe("JobSearch", () => {
     expect(kindFilters.length).toBe(1);
 
     // Verify the existing filter is in edit mode
-    const updatedBadge = getBadgeRootByPrefix("kind:");
+    const updatedBadge = getBadgeRootByTypeId("kind");
     const updatedInput = within(updatedBadge).getByRole("textbox");
     expect(document.activeElement).toBe(updatedInput);
   });
@@ -608,7 +607,7 @@ describe("JobSearch", () => {
 
     // Add a filter
     await act(async () => {
-      await selectFilterType("Job Kind");
+      await selectFilterType("kind");
     });
 
     // Verify onFiltersChange was called with the new filter
@@ -626,7 +625,7 @@ describe("JobSearch", () => {
     onFiltersChange.mockClear();
 
     // Edit the filter
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     const filterInput = within(badgeRoot).getByRole("textbox");
@@ -651,7 +650,7 @@ describe("JobSearch", () => {
     onFiltersChange.mockClear();
 
     // Remove the filter
-    const updatedBadge = getBadgeRootByPrefix("kind:");
+    const updatedBadge = getBadgeRootByTypeId("kind");
     const removeButton = within(updatedBadge).getByRole("button", {
       name: /remove filter/i,
     });
@@ -677,7 +676,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type to trigger suggestions
@@ -698,7 +697,7 @@ describe("JobSearch", () => {
 
     // Verify the suggestion was applied
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("batch");
     });
@@ -716,7 +715,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter input directly to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     const input = within(badgeRoot).getByRole("textbox");
     await act(async () => {
       fireEvent.click(input);
@@ -752,7 +751,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Simulate editing the first value (batch to bat)
@@ -778,7 +777,7 @@ describe("JobSearch", () => {
     // Verify the filter list is updated correctly, replacing the first item
     // and cursor is at the end of the updated item 'batch' (position 5)
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole(
         "textbox",
       ) as HTMLInputElement;
@@ -800,7 +799,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type to trigger suggestions
@@ -828,11 +827,11 @@ describe("JobSearch", () => {
 
     // Add a new filter
     await act(async () => {
-      await selectFilterType("Job Kind");
+      await selectFilterType("kind");
     });
 
     // Get the filter badge
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     const input = within(badgeRoot).getByRole("textbox");
     expect(document.activeElement).toBe(input);
 
@@ -887,7 +886,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Simulate editing the middle value by placing cursor after "Chaos" and removing a character
@@ -913,7 +912,7 @@ describe("JobSearch", () => {
     // Verify the filter value is correctly updated with 'Chaos' replacing 'Chao'
     // rather than being appended to the end
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       const value = updatedInput.getAttribute("value");
       expect(value).toBe("AITrainingBatch,Chaos,UtilizeNewModel");
@@ -933,7 +932,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Get the input and simulate editing
@@ -973,7 +972,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     await act(async () => {
       fireEvent.click(badgeRoot);
     });
@@ -1003,7 +1002,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type to trigger suggestions
@@ -1027,7 +1026,7 @@ describe("JobSearch", () => {
 
     // Verify the suggestion was applied
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("batch");
     });
@@ -1052,7 +1051,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Get the input and verify cursor position
@@ -1087,7 +1086,7 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Simulate editing the middle value by placing cursor after 'bar' and deleting it
@@ -1104,7 +1103,7 @@ describe("JobSearch", () => {
 
     // Verify input value is correct after deletion
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("foo,,baz");
     });
@@ -1122,7 +1121,7 @@ describe("JobSearch", () => {
 
     // Verify input value is correct after typing
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("foo,ba,baz");
     });
@@ -1145,7 +1144,7 @@ describe("JobSearch", () => {
 
     // Verify the filter value is updated correctly
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("kind:");
+      const updatedBadge = getBadgeRootByTypeId("kind");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("foo,batch,baz");
     });
@@ -1163,11 +1162,11 @@ describe("JobSearch", () => {
 
     // Add a new filter
     await act(async () => {
-      await selectFilterType("Job Kind");
+      await selectFilterType("kind");
     });
 
     // Get the filter badge
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     const input = within(badgeRoot).getByRole("textbox");
     expect(document.activeElement).toBe(input);
 
@@ -1234,7 +1233,7 @@ describe("JobSearch", () => {
     );
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("kind:");
+    const badgeRoot = getBadgeRootByTypeId("kind");
     fireEvent.click(badgeRoot);
 
     // Type a new value to trigger filter update during editing
@@ -1258,7 +1257,7 @@ describe("JobSearch", () => {
     render(<JobSearch onFiltersChange={onFiltersChange} />);
 
     await act(async () => {
-      await selectFilterType("Job ID");
+      await selectFilterType("id");
     });
 
     // Verify the filter was added - find the badge with id: prefix
@@ -1266,7 +1265,7 @@ describe("JobSearch", () => {
     expect(filterElement).toBeInTheDocument();
 
     // Click the filter to edit it
-    const badgeRoot = getBadgeRootByPrefix("id:");
+    const badgeRoot = getBadgeRootByTypeId("id");
     fireEvent.click(badgeRoot);
 
     // Type a value to ensure no suggestions appear
@@ -1291,7 +1290,7 @@ describe("JobSearch", () => {
 
     // Verify the value was saved
     await waitFor(() => {
-      const updatedBadge = getBadgeRootByPrefix("id:");
+      const updatedBadge = getBadgeRootByTypeId("id");
       const updatedInput = within(updatedBadge).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("123");
     });

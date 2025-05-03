@@ -8,6 +8,7 @@ export interface EditableBadgeProps {
   className?: string;
   color?: BadgeColor;
   content: string[];
+  dataTestId?: string;
   desiredCursorPos?: null | number;
   editing?: {
     onComplete?: () => void;
@@ -28,6 +29,7 @@ export function EditableBadge({
   className,
   color = "zinc",
   content = [],
+  dataTestId,
   desiredCursorPos = null,
   editing = {},
   isEditing = false,
@@ -148,6 +150,7 @@ export function EditableBadge({
         className,
       )}
       color={color}
+      data-testid={dataTestId}
       onClick={handleBadgeClick}
       onMouseDown={(e) => {
         // Prevent focus shift away *only* if clicking badge background while editing

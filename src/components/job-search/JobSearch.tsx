@@ -6,8 +6,8 @@ import { fetchSuggestions as defaultFetchSuggestions } from "./api";
 import { EditableBadge } from "./EditableBadge";
 import {
   AVAILABLE_FILTERS,
-  JobFilter,
   FilterType,
+  JobFilter,
   JobFilterTypeID,
 } from "./types";
 
@@ -343,7 +343,7 @@ const FilterTypeDropdown = ({
 }: {
   handleAddFilter: (filterType: FilterType) => void;
 }) => (
-  <div className="absolute top-full right-0 left-0 z-10 mt-1 overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+  <div className="absolute top-full right-0 left-0 z-10 mt-1 overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-700 dark:bg-slate-800">
     <div className="p-2">
       <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
         Click to add a filter
@@ -694,7 +694,7 @@ export function JobSearch({
     <div className={clsx("w-full", className)} ref={containerRef}>
       <div className="relative">
         {/* Search input and filters container */}
-        <div className="relative w-full rounded-md border border-gray-300 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-gray-700 dark:bg-gray-800">
+        <div className="relative w-full rounded-md border border-slate-300 bg-white focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 dark:border-slate-700 dark:bg-slate-900">
           <div className="flex w-full items-stretch">
             {/* Search Icon */}
             <div className="flex items-center pr-1 pl-3">
@@ -711,6 +711,7 @@ export function JobSearch({
                     <EditableBadge
                       color="zinc"
                       content={filter.values}
+                      dataTestId={`filter-badge-${filter.typeId}`}
                       desiredCursorPos={
                         state.editingFilter.filterId === filter.id
                           ? state.editingFilter.editingCursorPos
