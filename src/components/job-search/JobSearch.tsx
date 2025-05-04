@@ -691,11 +691,8 @@ export function JobSearch({
       const parts = newValue.split(",");
       const currentToken = parts[tokenIndex]?.trim() ?? "";
 
-      // Generate exclusion list based on *other* tokens
-      const existingTokens = parts
-        .filter((_, index) => index !== tokenIndex)
-        .map((s) => s.trim())
-        .filter(Boolean);
+      // Generate exclusion list based on *all* tokens (not just others)
+      const existingTokens = parts.map((s) => s.trim()).filter(Boolean);
 
       // Transition back to TYPING mode if the user edits the input after selection
       if (
