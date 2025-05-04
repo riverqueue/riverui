@@ -1,6 +1,14 @@
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/16/solid";
 import clsx from "clsx";
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import {
+  Dispatch,
+  KeyboardEvent,
+  useCallback,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 
 import { fetchSuggestions as defaultFetchSuggestions } from "./api";
 import { EditableBadge } from "./EditableBadge";
@@ -54,6 +62,7 @@ type JobSearchAction =
   | { payload: boolean; type: "SET_LOADING_SUGGESTIONS" }
   | { payload: boolean; type: "TOGGLE_FILTER_DROPDOWN" }
   | { payload: FilterType; type: "ADD_FILTER" }
+  | { payload: JobFilter; type: "EDIT_FILTER" }
   | { payload: number; type: "SET_HIGHLIGHTED_INDEX" }
   | { payload: string; type: "REMOVE_FILTER" }
   | { payload: string; type: "SET_QUERY" }
@@ -163,6 +172,35 @@ const jobSearchReducer = (
           suggestions: [], // Clear suggestions initially
         },
         filters: newFilters,
+      };
+    }
+
+    case "EDIT_FILTER": {
+      const filterToEdit2 = state.filters.find(
+        (f) => f.id === action.payload.id,
+      );
+      if (!filterToEdit2) return state; // Should not happen
+      const editingValue2 =
+        action.payload.values.join(",") +
+        (action.payload.values.length > 0 ? "," : "");
+      return {
+        ...state,
+        editingFilter: {
+          ...state.editingFilter,
+          editingCursorPos: null,
+          editingMode: "TYPING",
+          editingValue: editingValue2,
+          filterId: action.payload.id,
+          highlightedIndex: -1,
+          isLoadingSuggestions: true, // Start loading suggestions
+          showFilterDropdown: false,
+          suggestions: [],
+        },
+        filters: state.filters.map((filter) =>
+          filter.id === action.payload.id
+            ? { ...filter, values: action.payload.values }
+            : filter,
+        ),
       };
     }
 
@@ -402,7 +440,7 @@ const SuggestionsDropdown = ({
 
 // Utility function to handle keyboard navigation for suggestions
 const handleSuggestionKeyDown = (
-  e: React.KeyboardEvent,
+  e: KeyboardEvent,
   editingState: {
     editingValue: null | string;
     filterId: null | string;
@@ -411,7 +449,7 @@ const handleSuggestionKeyDown = (
     showFilterDropdown: boolean;
     suggestions: string[];
   },
-  dispatch: React.Dispatch<JobSearchAction>,
+  dispatch: Dispatch<JobSearchAction>,
   handleSelectSuggestion: (suggestion: string) => void,
 ) => {
   if (editingState.suggestions.length === 0) return false;
@@ -801,6 +839,178 @@ export function JobSearch({
     }
   };
 
+  // Handle navigating between filters
+  const handleNavigatePreviousFilter = useCallback(
+    (_e: CustomEvent) => {
+      if (state.editingFilter.filterId) {
+        const currentIndex = state.filters.findIndex(
+          (f) => f.id === state.editingFilter.filterId,
+        );
+        if (currentIndex > 0) {
+          const previousFilter = state.filters[currentIndex - 1];
+          // We need to be careful about the cursor position when moving between filters
+          // First, stop editing the current filter
+          dispatch({ type: "STOP_EDITING_FILTER" });
+          // Then start editing the previous filter
+          dispatch({
+            payload: previousFilter.id,
+            type: "START_EDITING_FILTER",
+          });
+
+          // Immediately set cursor position at the end of the previous filter's value
+          const value =
+            previousFilter.values.join(",") +
+            (previousFilter.values.length > 0 ? "," : "");
+          setTimeout(() => {
+            const input = document.querySelector(
+              `[data-testid="filter-badge-${previousFilter.typeId}"] input`,
+            ) as HTMLInputElement;
+            if (input) {
+              input.focus();
+              // Explicitly set the value and cursor position
+              if (input.value !== value) {
+                input.value = value;
+              }
+              const valueLength = value.length;
+              input.setSelectionRange(valueLength, valueLength);
+            }
+          }, 10); // Small delay to ensure DOM is updated
+        } else {
+          // If at the first filter, simply maintain cursor at position 0
+          // without changing the current filter state or value
+          setTimeout(() => {
+            const currentFilter = state.filters[currentIndex];
+            const input = document.querySelector(
+              `[data-testid="filter-badge-${currentFilter.typeId}"] input`,
+            ) as HTMLInputElement;
+            if (input && document.activeElement === input) {
+              // Simply ensure the cursor stays at position 0
+              input.setSelectionRange(0, 0);
+            }
+          }, 5);
+        }
+      }
+    },
+    [state.editingFilter.filterId, state.filters, dispatch],
+  );
+
+  const handleNavigateNextFilter = useCallback(
+    (_e: CustomEvent) => {
+      if (state.editingFilter.filterId) {
+        const currentIndex = state.filters.findIndex(
+          (f) => f.id === state.editingFilter.filterId,
+        );
+        if (currentIndex < state.filters.length - 1) {
+          const nextFilter = state.filters[currentIndex + 1];
+          // Similar approach to handleNavigatePreviousFilter
+          dispatch({ type: "STOP_EDITING_FILTER" });
+          dispatch({
+            payload: nextFilter.id,
+            type: "START_EDITING_FILTER",
+          });
+
+          // Set cursor position to the start of the next filter's value
+          const value =
+            nextFilter.values.join(",") +
+            (nextFilter.values.length > 0 ? "," : "");
+          setTimeout(() => {
+            const input = document.querySelector(
+              `[data-testid="filter-badge-${nextFilter.typeId}"] input`,
+            ) as HTMLInputElement;
+            if (input) {
+              input.focus();
+              // Explicitly set the value
+              if (input.value !== value) {
+                input.value = value;
+              }
+              // Set the cursor position to the start of the input - this is critical
+              input.setSelectionRange(0, 0);
+
+              // Double-check cursor position after a short delay
+              setTimeout(() => {
+                if (input && document.activeElement === input) {
+                  input.setSelectionRange(0, 0);
+                }
+              }, 5);
+            }
+          }, 10); // Small delay to ensure DOM is updated
+        } else {
+          // If at the last filter, maintain cursor at the end
+          const currentFilter = state.filters[currentIndex];
+          setTimeout(() => {
+            const input = document.querySelector(
+              `[data-testid="filter-badge-${currentFilter.typeId}"] input`,
+            ) as HTMLInputElement;
+            if (input) {
+              input.focus();
+              const value =
+                currentFilter.values.join(",") +
+                (currentFilter.values.length > 0 ? "," : "");
+              if (input.value !== value) {
+                input.value = value;
+              }
+              // Force cursor to end
+              const valueLength = input.value.length;
+              input.setSelectionRange(valueLength, valueLength);
+            }
+          }, 10); // Small delay to ensure DOM is updated
+        }
+      }
+    },
+    [state.editingFilter.filterId, state.filters, dispatch],
+  );
+
+  // Add handler for focusing the Add filter input
+  const handleFocusAddFilterInput = useCallback(() => {
+    if (inputRef.current) {
+      // First make sure we're not in edit mode
+      dispatch({ type: "STOP_EDITING_FILTER" });
+      // Then focus the Add filter input
+      inputRef.current.focus();
+    }
+  }, [dispatch]);
+
+  // Add event listeners for custom navigation events
+  useEffect(() => {
+    const container = containerRef.current;
+    if (container) {
+      container.addEventListener(
+        "navigatePreviousFilter",
+        handleNavigatePreviousFilter as EventListener,
+      );
+      container.addEventListener(
+        "navigateNextFilter",
+        handleNavigateNextFilter as EventListener,
+      );
+      container.addEventListener(
+        "focusAddFilterInput",
+        handleFocusAddFilterInput as EventListener,
+      );
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener(
+          "navigatePreviousFilter",
+          handleNavigatePreviousFilter as EventListener,
+        );
+        container.removeEventListener(
+          "navigateNextFilter",
+          handleNavigateNextFilter as EventListener,
+        );
+        container.removeEventListener(
+          "focusAddFilterInput",
+          handleFocusAddFilterInput as EventListener,
+        );
+      }
+    };
+  }, [
+    state.editingFilter.filterId,
+    state.filters,
+    handleNavigatePreviousFilter,
+    handleNavigateNextFilter,
+    handleFocusAddFilterInput,
+  ]);
+
   return (
     <div className={clsx("w-full", className)} ref={containerRef}>
       <div className="relative">
@@ -817,7 +1027,7 @@ export function JobSearch({
             {/* Filters and input */}
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 py-2">
               <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
-                {state.filters.map((filter) => (
+                {state.filters.map((filter, index) => (
                   <div className="max-w-full flex-shrink" key={filter.id}>
                     <EditableBadge
                       color="zinc"
@@ -840,6 +1050,8 @@ export function JobSearch({
                         },
                       }}
                       isEditing={state.editingFilter.filterId === filter.id}
+                      isFirstFilter={index === 0}
+                      isLastFilter={index === state.filters.length - 1}
                       onContentChange={(values) =>
                         dispatch({
                           payload: { id: filter.id, values },
@@ -893,7 +1105,28 @@ export function JobSearch({
                       setFilterTypeHighlightedIndex(0);
                     }
                   }}
-                  onKeyDown={handleFilterTypeInputKeyDown}
+                  onKeyDown={(e) => {
+                    handleFilterTypeInputKeyDown(e);
+                    // Handle left arrow navigation to the last filter
+                    if (e.key === "ArrowLeft" && state.filters.length > 0) {
+                      const input = e.target as HTMLInputElement;
+                      if (
+                        input.selectionStart === 0 &&
+                        input.selectionEnd === 0
+                      ) {
+                        e.preventDefault();
+                        // Find the last filter
+                        const lastFilter =
+                          state.filters[state.filters.length - 1];
+                        // Start editing it
+                        dispatch({
+                          payload: lastFilter.id,
+                          type: "START_EDITING_FILTER",
+                        });
+                        // Focus will be set by the useEffect in EditableBadge
+                      }
+                    }
+                  }}
                   placeholder="Add filter"
                   ref={inputRef}
                   spellCheck={false}

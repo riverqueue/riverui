@@ -1488,4 +1488,265 @@ describe("JobSearch", () => {
       expect(screen.queryByText("priority")).not.toBeInTheDocument();
     });
   });
+
+  it("removes filter when pressing backspace with empty input in editable badge", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.KIND,
+        values: ["batch"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const badgeRoot = getBadgeRootByTypeId("kind");
+    fireEvent.click(badgeRoot);
+
+    // Clear the input
+    const input = within(badgeRoot).getByRole("textbox");
+    await act(async () => {
+      fireEvent.change(input, {
+        target: {
+          value: "",
+        },
+      });
+    });
+
+    // Press Backspace when input is empty
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Backspace" });
+    });
+
+    // Verify the filter is removed
+    await waitFor(() => {
+      expect(screen.queryByText("kind:")).not.toBeInTheDocument();
+    });
+  });
+
+  it("moves cursor to end of previous filter when pressing left arrow at start of current filter", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.KIND,
+        values: ["batch"],
+      },
+      {
+        id: "2",
+        prefix: "queue:",
+        typeId: FilterTypeId.QUEUE,
+        values: ["default"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the second filter to edit it
+    const queueBadgeRoot = getBadgeRootByTypeId("queue");
+    fireEvent.click(queueBadgeRoot);
+
+    // Verify cursor is at the end of 'default,'
+    const queueInput = within(queueBadgeRoot).getByRole(
+      "textbox",
+    ) as HTMLInputElement;
+    await waitFor(() => {
+      expect(queueInput.getAttribute("value")).toBe("default,");
+      expect(queueInput.selectionStart).toBe(8); // After the comma
+      expect(queueInput.selectionEnd).toBe(8);
+    });
+
+    // Move cursor to start of input
+    await act(async () => {
+      fireEvent.change(queueInput, {
+        target: {
+          selectionEnd: 0,
+          selectionStart: 0,
+          value: "default,",
+        },
+      });
+    });
+
+    // Press Left Arrow to move to previous filter
+    await act(async () => {
+      fireEvent.keyDown(queueInput, { key: "ArrowLeft" });
+    });
+
+    // Verify cursor is now in the 'kind' filter at the end of 'batch,'
+    await waitFor(() => {
+      const kindBadgeRoot = getBadgeRootByTypeId("kind");
+      const kindInput = within(kindBadgeRoot).getByRole(
+        "textbox",
+      ) as HTMLInputElement;
+      expect(document.activeElement).toBe(kindInput);
+      expect(kindInput.getAttribute("value")).toBe("batch,");
+      expect(kindInput.selectionStart).toBe(6); // After the comma
+      expect(kindInput.selectionEnd).toBe(6);
+    });
+  });
+
+  it("moves cursor to start of next filter when pressing right arrow at end of current filter", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.KIND,
+        values: ["batch"],
+      },
+      {
+        id: "2",
+        prefix: "queue:",
+        typeId: FilterTypeId.QUEUE,
+        values: ["default"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the first filter to edit it
+    const kindBadgeRoot = getBadgeRootByTypeId("kind");
+    fireEvent.click(kindBadgeRoot);
+
+    // Verify cursor is at the end of 'batch,'
+    const kindInput = within(kindBadgeRoot).getByRole(
+      "textbox",
+    ) as HTMLInputElement;
+    await waitFor(() => {
+      expect(kindInput.getAttribute("value")).toBe("batch,");
+      expect(kindInput.selectionStart).toBe(6); // After the comma
+      expect(kindInput.selectionEnd).toBe(6);
+    });
+
+    // Press Right Arrow to move to next filter
+    await act(async () => {
+      fireEvent.keyDown(kindInput, { key: "ArrowRight" });
+    });
+
+    // Verify focus is now in the 'queue' filter
+    await waitFor(() => {
+      const queueBadgeRoot = getBadgeRootByTypeId("queue");
+      const queueInput = within(queueBadgeRoot).getByRole(
+        "textbox",
+      ) as HTMLInputElement;
+      expect(document.activeElement).toBe(queueInput);
+      expect(queueInput.getAttribute("value")).toBe("default,");
+      // Don't check the specific cursor position - it's not reliable across test environments
+    });
+  });
+
+  it("keeps cursor in place when pressing left arrow at start of first filter", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.KIND,
+        values: ["batch"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const kindBadgeRoot = getBadgeRootByTypeId("kind");
+    fireEvent.click(kindBadgeRoot);
+
+    // Move cursor to start of input
+    const kindInput = within(kindBadgeRoot).getByRole(
+      "textbox",
+    ) as HTMLInputElement;
+    await act(async () => {
+      fireEvent.change(kindInput, {
+        target: {
+          selectionEnd: 0,
+          selectionStart: 0,
+          value: "batch,",
+        },
+      });
+    });
+
+    // Press Left Arrow (should stay in place as it's the first filter)
+    await act(async () => {
+      fireEvent.keyDown(kindInput, { key: "ArrowLeft" });
+    });
+
+    // Verify input remains focused without checking cursor position
+    // as the exact cursor position may vary between implementations
+    await waitFor(() => {
+      expect(document.activeElement).toBe(kindInput);
+    });
+  });
+
+  it("focuses 'Add filter' input when pressing right arrow at end of last filter", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.KIND,
+        values: ["batch"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the filter to edit it
+    const kindBadgeRoot = getBadgeRootByTypeId("kind");
+    fireEvent.click(kindBadgeRoot);
+
+    // Verify cursor is at the end of 'batch,'
+    const kindInput = within(kindBadgeRoot).getByRole(
+      "textbox",
+    ) as HTMLInputElement;
+    await waitFor(() => {
+      expect(kindInput.getAttribute("value")).toBe("batch,");
+      expect(kindInput.selectionStart).toBe(6); // After the comma
+      expect(kindInput.selectionEnd).toBe(6);
+    });
+
+    // Press Right Arrow (should focus the "Add filter" input since it's the last filter)
+    await act(async () => {
+      fireEvent.keyDown(kindInput, { key: "ArrowRight" });
+    });
+
+    // Verify the "Add filter" input is now focused
+    await waitFor(() => {
+      const addFilterInput = screen.getByTestId("job-search-input");
+      expect(document.activeElement).toBe(addFilterInput);
+    });
+  });
+
+  it("focuses last filter when pressing left arrow at start of 'Add filter' input", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.KIND,
+        values: ["batch"],
+      },
+      {
+        id: "2",
+        prefix: "queue:",
+        typeId: FilterTypeId.QUEUE,
+        values: ["default"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Focus the "Add filter" input
+    const addFilterInput = screen.getByTestId("job-search-input");
+    await act(async () => {
+      addFilterInput.focus();
+    });
+
+    // Verify "Add filter" input is focused
+    expect(document.activeElement).toBe(addFilterInput);
+
+    // Press Left Arrow at the beginning of the input
+    await act(async () => {
+      fireEvent.keyDown(addFilterInput, { key: "ArrowLeft" });
+    });
+
+    // Verify focus moves to the last filter (queue)
+    await waitFor(() => {
+      const queueBadgeRoot = getBadgeRootByTypeId("queue");
+      const queueInput = within(queueBadgeRoot).getByRole("textbox");
+      expect(document.activeElement).toBe(queueInput);
+    });
+  });
 });

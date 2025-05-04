@@ -1,6 +1,6 @@
 import { XMarkIcon } from "@heroicons/react/16/solid";
 import clsx from "clsx";
-import React, { useEffect, useRef } from "react";
+import { type KeyboardEvent, useEffect, useRef } from "react";
 
 import { Badge, BadgeColor } from "../Badge";
 
@@ -15,13 +15,23 @@ export interface EditableBadgeProps {
     onStart?: () => void;
   };
   isEditing?: boolean;
+  /**
+   * Whether this is the first filter in the list.
+   * Used to determine whether to navigate to previous filter on left arrow key.
+   */
+  isFirstFilter?: boolean;
+  /**
+   * Whether this is the last filter in the list.
+   * Used to determine whether to navigate to add filter input on right arrow key.
+   */
+  isLastFilter?: boolean;
   onContentChange: (values: string[]) => void;
   onRawValueChange?: (newValue: string, cursorPos: null | number) => void;
   onRemove: () => void;
   prefix: string;
   rawEditValue?: string;
   suggestions?: {
-    onKeyDown?: (e: React.KeyboardEvent) => void;
+    onKeyDown?: (e: KeyboardEvent) => void;
   };
 }
 
@@ -33,6 +43,8 @@ export function EditableBadge({
   desiredCursorPos = null,
   editing = {},
   isEditing = false,
+  isFirstFilter = false,
+  isLastFilter = false,
   onRawValueChange,
   onRemove,
   prefix,
@@ -104,6 +116,49 @@ export function EditableBadge({
     if (e.key === "Enter" || e.key === "Escape") {
       e.preventDefault();
       onEditComplete?.();
+    } else if (
+      e.key === "Backspace" &&
+      (e.target as HTMLInputElement).value === ""
+    ) {
+      e.preventDefault();
+      onRemove();
+    } else if (e.key === "ArrowLeft") {
+      const input = e.target as HTMLInputElement;
+      if (input.selectionStart === 0 && input.selectionEnd === 0) {
+        if (!isFirstFilter) {
+          // Only trigger navigation if this is not the first filter
+          e.preventDefault();
+          onEditComplete?.();
+          // Dispatch custom event to notify parent to move to previous filter
+          input.dispatchEvent(
+            new CustomEvent("navigatePreviousFilter", { bubbles: true }),
+          );
+        }
+        // If this is the first filter, do nothing and let the browser handle it normally
+        // (which will keep the cursor at position 0)
+      }
+    } else if (e.key === "ArrowRight") {
+      const input = e.target as HTMLInputElement;
+      const valueLength = input.value.length;
+      if (
+        input.selectionStart === valueLength &&
+        input.selectionEnd === valueLength
+      ) {
+        e.preventDefault();
+        onEditComplete?.();
+
+        if (isLastFilter) {
+          // If this is the last filter, focus the "Add filter" input
+          input.dispatchEvent(
+            new CustomEvent("focusAddFilterInput", { bubbles: true }),
+          );
+        } else {
+          // Otherwise, navigate to the next filter
+          input.dispatchEvent(
+            new CustomEvent("navigateNextFilter", { bubbles: true }),
+          );
+        }
+      }
     }
   };
 
