@@ -414,23 +414,30 @@ const handleSuggestionKeyDown = (
   dispatch: React.Dispatch<JobSearchAction>,
   handleSelectSuggestion: (suggestion: string) => void,
 ) => {
-  if (!editingState.editingValue || editingState.suggestions.length === 0)
-    return false;
+  if (editingState.suggestions.length === 0) return false;
 
   if (e.key === "ArrowDown") {
     e.preventDefault();
+    const newIndex =
+      editingState.highlightedIndex === -1
+        ? 0
+        : (editingState.highlightedIndex + 1) % editingState.suggestions.length;
     dispatch({
-      payload:
-        (editingState.highlightedIndex + 1) % editingState.suggestions.length,
+      payload: newIndex,
       type: "SET_HIGHLIGHTED_INDEX",
     });
     return true;
   } else if (e.key === "ArrowUp") {
     e.preventDefault();
+    const newIndex =
+      editingState.highlightedIndex === -1
+        ? editingState.suggestions.length - 1
+        : (editingState.highlightedIndex -
+            1 +
+            editingState.suggestions.length) %
+          editingState.suggestions.length;
     dispatch({
-      payload:
-        (editingState.highlightedIndex - 1 + editingState.suggestions.length) %
-        editingState.suggestions.length,
+      payload: newIndex,
       type: "SET_HIGHLIGHTED_INDEX",
     });
     return true;

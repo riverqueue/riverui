@@ -1397,4 +1397,69 @@ describe("JobSearch", () => {
       expect(screen.getByText("priority")).toBeInTheDocument();
     });
   });
+
+  it("allows arrow key navigation of suggestions immediately after adding a new filter", async () => {
+    render(<JobSearch />);
+
+    // Add a new filter
+    await selectFilterType("kind");
+
+    // Verify the filter is in edit mode
+    const badgeRoot = getBadgeRootByTypeId("kind");
+    const input = within(badgeRoot).getByRole("textbox");
+    expect(document.activeElement).toBe(input);
+
+    // Verify suggestions are shown
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+        expect(screen.getByTestId("suggestions-list")).toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
+
+    // Press ArrowDown to navigate suggestions without typing anything
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    // Verify that the first suggestion is highlighted or selected
+    await waitFor(() => {
+      const suggestionsList = screen.getByTestId("suggestions-list");
+      const buttons = within(suggestionsList).getAllByRole("button");
+      expect(buttons[0]).toHaveClass("bg-gray-100", "dark:bg-gray-700");
+    });
+  });
+
+  it("allows arrow key navigation and selection of suggestions immediately after adding a new filter", async () => {
+    render(<JobSearch />);
+
+    // Add a new filter
+    await selectFilterType("kind");
+
+    // Verify the filter is in edit mode
+    const badgeRoot = getBadgeRootByTypeId("kind");
+    const input = within(badgeRoot).getByRole("textbox");
+    expect(document.activeElement).toBe(input);
+
+    // Verify suggestions are shown
+    await waitFor(
+      () => {
+        expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+        expect(screen.getByTestId("suggestions-list")).toBeInTheDocument();
+      },
+      { timeout: 2000 },
+    );
+
+    // Press ArrowDown to navigate suggestions without typing anything
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    // Press Enter to select the highlighted suggestion
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    // Verify the suggestion was applied
+    await waitFor(() => {
+      const updatedBadge = getBadgeRootByTypeId("kind");
+      const updatedInput = within(updatedBadge).getByRole("textbox");
+      expect(updatedInput.getAttribute("value")).not.toBe("");
+    });
+  });
 });
