@@ -1462,4 +1462,30 @@ describe("JobSearch", () => {
       expect(updatedInput.getAttribute("value")).not.toBe("");
     });
   });
+
+  it("clears filter type input when leaving field without selecting a suggestion", async () => {
+    render(<JobSearch />);
+    const input = screen.getByTestId("job-search-input");
+    await act(async () => {
+      input.focus();
+      await userEvent.type(input, "xyz");
+    });
+
+    // Verify suggestions appear (or not, since 'xyz' may not match)
+    await waitFor(() => {
+      expect(input.getAttribute("value")).toBe("xyz");
+    });
+
+    // Blur the input (simulate leaving the field)
+    await act(async () => {
+      fireEvent.blur(input);
+    });
+
+    // Verify input is cleared
+    await waitFor(() => {
+      expect(input.getAttribute("value")).toBe("");
+      expect(screen.queryByText("kind")).not.toBeInTheDocument();
+      expect(screen.queryByText("priority")).not.toBeInTheDocument();
+    });
+  });
 });

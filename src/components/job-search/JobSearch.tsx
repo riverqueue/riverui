@@ -770,6 +770,14 @@ export function JobSearch({
     }
   };
 
+  // Handle blur event to clear input if no selection is made
+  const handleFilterTypeInputBlur = () => {
+    setFilterTypeSuggestions([]);
+    setFilterTypeDropdownOpen(false);
+    setFilterTypeHighlightedIndex(0);
+    dispatch({ payload: "", type: "SET_QUERY" });
+  };
+
   // Handle clicking a filter type suggestion
   const handleSelectFilterTypeSuggestion = (suggestion: string) => {
     const selected = filterTypeSuggestions.find(
@@ -874,10 +882,7 @@ export function JobSearch({
                   data-1p-ignore
                   data-form-type="other"
                   data-testid="job-search-input"
-                  onBlur={() => {
-                    setFilterTypeDropdownOpen(false);
-                    setFilterTypeSuggestions([]);
-                  }}
+                  onBlur={handleFilterTypeInputBlur}
                   onChange={handleFilterTypeInputChange}
                   onFocus={() => {
                     if (!state.editingFilter.filterId) {
