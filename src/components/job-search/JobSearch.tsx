@@ -1,6 +1,6 @@
 import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/16/solid";
 import clsx from "clsx";
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef, useState } from "react";
 
 import { fetchSuggestions as defaultFetchSuggestions } from "./api";
 import { EditableBadge } from "./EditableBadge";
@@ -149,6 +149,7 @@ const jobSearchReducer = (
         typeId: action.payload.id,
         values: [],
       };
+      const newFilters = [...state.filters, newFilter];
       return {
         ...state,
         editingFilter: {
@@ -161,7 +162,7 @@ const jobSearchReducer = (
           showFilterDropdown: false,
           suggestions: [], // Clear suggestions initially
         },
-        filters: [...state.filters, newFilter],
+        filters: newFilters,
       };
     }
 
@@ -337,32 +338,6 @@ const jobSearchReducer = (
   }
 };
 
-// Component for rendering the filter type dropdown
-const FilterTypeDropdown = ({
-  handleAddFilter,
-}: {
-  handleAddFilter: (filterType: FilterType) => void;
-}) => (
-  <div className="absolute top-full right-0 left-0 z-10 mt-1 overflow-hidden rounded-md border border-gray-300 bg-white shadow-lg dark:border-gray-700 dark:bg-slate-800">
-    <div className="p-2">
-      <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-        Click to add a filter
-      </div>
-      <div className="space-y-1">
-        {AVAILABLE_FILTERS.map((filterType) => (
-          <button
-            className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-sm text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
-            key={filterType.id}
-            onClick={() => handleAddFilter(filterType)}
-          >
-            {filterType.label}
-          </button>
-        ))}
-      </div>
-    </div>
-  </div>
-);
-
 // Component for rendering the autocomplete suggestions dropdown
 const SuggestionsDropdown = ({
   editingState,
@@ -406,6 +381,7 @@ const SuggestionsDropdown = ({
                   index === editingState.highlightedIndex &&
                   "bg-gray-100 dark:bg-gray-700",
               )}
+              data-testid={`suggestion-${suggestion}`}
               key={suggestion}
               onMouseDown={(e) => {
                 e.preventDefault();
@@ -496,6 +472,13 @@ export function JobSearch({
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const [filterTypeSuggestions, setFilterTypeSuggestions] = useState<
+    FilterType[]
+  >([]);
+  const [filterTypeDropdownOpen, setFilterTypeDropdownOpen] = useState(false);
+  const [filterTypeHighlightedIndex, setFilterTypeHighlightedIndex] =
+    useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Handle clicking outside to close dropdowns
   useEffect(() => {
@@ -690,6 +673,119 @@ export function JobSearch({
     dispatch({ type: "ENTER_SUGGESTION_SELECTED_MODE" }); // Set mode to prevent immediate autocomplete
   };
 
+  // Helper: filter AVAILABLE_FILTERS by query
+  const getFilteredFilterTypes = (query: string) => {
+    const q = query.trim().toLowerCase();
+    return AVAILABLE_FILTERS.filter(
+      (f) =>
+        f.label.toLowerCase().includes(q) ||
+        f.prefix.toLowerCase().startsWith(q),
+    );
+  };
+
+  // Helper: check if query matches a filter type + ':'
+  const getFilterTypeByColonShortcut = (query: string) => {
+    const q = query.trim().toLowerCase();
+    return AVAILABLE_FILTERS.find(
+      (f) => q === f.label.toLowerCase() + ":" || q === f.prefix.toLowerCase(),
+    );
+  };
+
+  // Handle input change for filter type selection
+  const handleFilterTypeInputChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const value = e.target.value;
+    dispatch({ payload: value, type: "SET_QUERY" });
+    if (state.editingFilter.filterId) return; // Don't show filter type dropdown if editing a filter
+    if (value === "") {
+      setFilterTypeSuggestions([]);
+      setFilterTypeDropdownOpen(false);
+      setFilterTypeHighlightedIndex(0);
+      return;
+    }
+    // Colon shortcut
+    const colonMatch = getFilterTypeByColonShortcut(value);
+    if (colonMatch) {
+      dispatch({ payload: colonMatch, type: "ADD_FILTER" });
+      dispatch({ payload: "", type: "SET_QUERY" });
+      setFilterTypeSuggestions([]);
+      setFilterTypeDropdownOpen(false);
+      setFilterTypeHighlightedIndex(0);
+      return;
+    }
+    const filtered = getFilteredFilterTypes(value);
+    setFilterTypeSuggestions(filtered);
+    setFilterTypeDropdownOpen(true);
+    setFilterTypeHighlightedIndex(0);
+  };
+
+  // Handle keyboard navigation for filter type suggestions
+  const handleFilterTypeInputKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+  ) => {
+    if (!filterTypeDropdownOpen || filterTypeSuggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setFilterTypeHighlightedIndex(
+        (prev) => (prev + 1) % filterTypeSuggestions.length,
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setFilterTypeHighlightedIndex(
+        (prev) =>
+          (prev - 1 + filterTypeSuggestions.length) %
+          filterTypeSuggestions.length,
+      );
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const selected = filterTypeSuggestions[filterTypeHighlightedIndex];
+      if (selected) {
+        // Check if a filter with this typeId already exists to prevent duplicate dispatches
+        const existing = state.filters.find((f) => f.typeId === selected.id);
+        if (!existing) {
+          dispatch({ payload: selected, type: "ADD_FILTER" });
+        } else {
+          // If filter exists, start editing it
+          dispatch({ payload: existing.id, type: "START_EDITING_FILTER" });
+        }
+        dispatch({ payload: "", type: "SET_QUERY" });
+        setFilterTypeSuggestions([]);
+        setFilterTypeDropdownOpen(false);
+        setFilterTypeHighlightedIndex(0);
+      }
+    } else if (e.key === "Escape") {
+      setFilterTypeSuggestions([]);
+      setFilterTypeDropdownOpen(false);
+      setFilterTypeHighlightedIndex(0);
+      dispatch({ payload: "", type: "SET_QUERY" });
+      inputRef.current?.blur();
+    }
+  };
+
+  // Handle clicking a filter type suggestion
+  const handleSelectFilterTypeSuggestion = (suggestion: string) => {
+    const selected = filterTypeSuggestions.find(
+      (f) => f.label === suggestion || f.prefix === suggestion,
+    );
+    if (selected) {
+      // Check if a filter with this typeId already exists to prevent duplicate dispatches
+      const existing = state.filters.find((f) => f.typeId === selected.id);
+      if (!existing) {
+        dispatch({ payload: selected, type: "ADD_FILTER" });
+      } else {
+        // If filter exists, start editing it
+        dispatch({ payload: existing.id, type: "START_EDITING_FILTER" });
+      }
+      dispatch({ payload: "", type: "SET_QUERY" });
+      setFilterTypeSuggestions([]);
+      setFilterTypeDropdownOpen(false);
+      setFilterTypeHighlightedIndex(0);
+    } else {
+      console.log("No matching filter type found for suggestion:", suggestion);
+    }
+  };
+
   return (
     <div className={clsx("w-full", className)} ref={containerRef}>
       <div className="relative">
@@ -771,17 +867,23 @@ export function JobSearch({
                   data-1p-ignore
                   data-form-type="other"
                   data-testid="job-search-input"
-                  onChange={(e) =>
-                    dispatch({ payload: e.target.value, type: "SET_QUERY" })
-                  }
-                  onFocus={() =>
-                    !state.editingFilter.filterId &&
-                    dispatch({
-                      payload: true,
-                      type: "TOGGLE_FILTER_DROPDOWN",
-                    })
-                  }
+                  onBlur={() => {
+                    setFilterTypeDropdownOpen(false);
+                    setFilterTypeSuggestions([]);
+                  }}
+                  onChange={handleFilterTypeInputChange}
+                  onFocus={() => {
+                    if (!state.editingFilter.filterId) {
+                      setFilterTypeDropdownOpen(true);
+                      setFilterTypeSuggestions(
+                        getFilteredFilterTypes(state.query),
+                      );
+                      setFilterTypeHighlightedIndex(0);
+                    }
+                  }}
+                  onKeyDown={handleFilterTypeInputKeyDown}
                   placeholder="Add filter"
+                  ref={inputRef}
                   spellCheck={false}
                   type="text"
                   value={state.query}
@@ -803,16 +905,25 @@ export function JobSearch({
           </div>
         </div>
 
-        {/* Filter Type Dropdown */}
-        {state.editingFilter.showFilterDropdown && (
-          <FilterTypeDropdown
-            handleAddFilter={(filterType) =>
-              dispatch({ payload: filterType, type: "ADD_FILTER" })
-            }
-          />
-        )}
+        {/* SuggestionsDropdown for filter type selection */}
+        {filterTypeDropdownOpen &&
+          !state.editingFilter.filterId &&
+          filterTypeSuggestions.length > 0 && (
+            <SuggestionsDropdown
+              editingState={{
+                editingValue: state.query,
+                filterId: null,
+                highlightedIndex: filterTypeHighlightedIndex,
+                isLoadingSuggestions: false,
+                showFilterDropdown: filterTypeDropdownOpen,
+                suggestions: filterTypeSuggestions.map((f) => f.label),
+              }}
+              handleSelectSuggestion={handleSelectFilterTypeSuggestion}
+              setHighlightedIndex={setFilterTypeHighlightedIndex}
+            />
+          )}
 
-        {/* Autocomplete Dropdown */}
+        {/* Autocomplete Dropdown for filter values (unchanged) */}
         {state.editingFilter.editingValue !== null &&
           !state.editingFilter.isLoadingSuggestions &&
           state.editingFilter.suggestions.length > 0 && (

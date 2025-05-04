@@ -30,13 +30,13 @@ export const AVAILABLE_FILTERS: FilterType[] = [
     prefix: "kind:",
   },
   {
-    id: JobFilterTypeID.QUEUE,
-    label: "queue",
-    prefix: "queue:",
-  },
-  {
     id: JobFilterTypeID.PRIORITY,
     label: "priority",
     prefix: "priority:",
+  },
+  {
+    id: JobFilterTypeID.QUEUE,
+    label: "queue",
+    prefix: "queue:",
   },
 ];

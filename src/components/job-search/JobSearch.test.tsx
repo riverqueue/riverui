@@ -29,18 +29,24 @@ const getBadgeRootByTypeId = (typeId: string): HTMLElement => {
 const openFilterTypeDropdown = async () => {
   const searchInput = screen.getByPlaceholderText("Add filter");
   fireEvent.focus(searchInput);
-  // Ensure dropdown has rendered
+  // Wait for any filter type suggestion to appear (e.g., 'kind')
   await waitFor(() => {
-    expect(screen.getByText("Click to add a filter")).toBeInTheDocument();
+    expect(screen.getByTestId("suggestion-kind")).toBeInTheDocument();
   });
 };
 
 // Helper to select a filter type by its label (e.g., 'kind', 'id', etc.)
 const selectFilterType = async (label: string) => {
   await openFilterTypeDropdown();
-  // Use getByRole to ensure we find the button even if layout changes
-  const option = await screen.findByRole("button", { name: label });
-  fireEvent.click(option);
+  const searchInput = screen.getByTestId("job-search-input");
+  fireEvent.focus(searchInput);
+  await userEvent.type(searchInput, label);
+  // Wait for the specific filter type suggestion to appear
+  await waitFor(() => {
+    expect(screen.getByTestId(`suggestion-${label}`)).toBeInTheDocument();
+  });
+  // Click the suggestion using userEvent to better simulate user interaction
+  await userEvent.click(screen.getByText(label));
 };
 
 describe("JobSearch", () => {
@@ -88,7 +94,7 @@ describe("JobSearch", () => {
     }));
   });
 
-  it("renders with initial filters", () => {
+  it("renders with initial filters", async () => {
     const initialFilters: Filter[] = [
       {
         id: "1",
@@ -100,6 +106,9 @@ describe("JobSearch", () => {
     render(<JobSearch initialFilters={initialFilters} />);
 
     // The badge root span should exist
+    await waitFor(() =>
+      expect(screen.getByTestId("filter-badge-kind")).toBeInTheDocument(),
+    );
     const badgeRoot = getBadgeRootByTypeId("kind");
     expect(badgeRoot).toBeInTheDocument();
 
@@ -120,9 +129,7 @@ describe("JobSearch", () => {
     const onFiltersChange = vi.fn();
     render(<JobSearch onFiltersChange={onFiltersChange} />);
 
-    await act(async () => {
-      await selectFilterType("kind");
-    });
+    await selectFilterType("kind");
 
     // Verify the filter was added - find the badge with kind: prefix
     const filterElement = screen.getByText("kind:").closest("span");
@@ -327,9 +334,7 @@ describe("JobSearch", () => {
     ];
     render(<JobSearch initialFilters={initialFilters} />);
 
-    await act(async () => {
-      await selectFilterType("kind");
-    });
+    await selectFilterType("kind");
 
     // Verify the existing filter is in edit mode (editable)
     const badgeRoot = getBadgeRootByTypeId("kind");
@@ -407,9 +412,7 @@ describe("JobSearch", () => {
     render(<JobSearch />);
 
     // Add a new Job Kind filter
-    await act(async () => {
-      await selectFilterType("kind");
-    });
+    await selectFilterType("kind");
 
     // Verify the filter is in edit mode and suggestions are shown
     const badgeRoot = getBadgeRootByTypeId("kind");
@@ -575,21 +578,19 @@ describe("JobSearch", () => {
     render(<JobSearch onFiltersChange={onFiltersChange} />);
 
     // Add the first filter
-    await act(async () => {
-      await selectFilterType("kind");
-    });
+    await selectFilterType("kind");
 
     // Exit edit mode on the existing filter to mimic user finishing editing
     const badgeRoot = getBadgeRootByTypeId("kind");
     const existingInput = within(badgeRoot).getByRole("textbox");
     await act(async () => {
       fireEvent.keyDown(existingInput, { key: "Enter" });
+      // Wait for state updates to complete
+      await Promise.resolve();
     });
 
     // Try to add the same filter type again
-    await act(async () => {
-      await selectFilterType("kind");
-    });
+    await selectFilterType("kind");
 
     // Verify there's only one "kind:" badge
     const kindFilters = screen.getAllByText("kind:");
@@ -606,9 +607,7 @@ describe("JobSearch", () => {
     render(<JobSearch onFiltersChange={onFiltersChange} />);
 
     // Add a filter
-    await act(async () => {
-      await selectFilterType("kind");
-    });
+    await selectFilterType("kind");
 
     // Verify onFiltersChange was called with the new filter
     await waitFor(() => {
@@ -826,9 +825,7 @@ describe("JobSearch", () => {
     render(<JobSearch />);
 
     // Add a new filter
-    await act(async () => {
-      await selectFilterType("kind");
-    });
+    await selectFilterType("kind");
 
     // Get the filter badge
     const badgeRoot = getBadgeRootByTypeId("kind");
@@ -1161,9 +1158,7 @@ describe("JobSearch", () => {
     render(<JobSearch />);
 
     // Add a new filter
-    await act(async () => {
-      await selectFilterType("kind");
-    });
+    await selectFilterType("kind");
 
     // Get the filter badge
     const badgeRoot = getBadgeRootByTypeId("kind");
@@ -1256,9 +1251,7 @@ describe("JobSearch", () => {
     const onFiltersChange = vi.fn();
     render(<JobSearch onFiltersChange={onFiltersChange} />);
 
-    await act(async () => {
-      await selectFilterType("id");
-    });
+    await selectFilterType("id");
 
     // Verify the filter was added - find the badge with id: prefix
     const filterElement = screen.getByText("id:").closest("span");
@@ -1303,5 +1296,105 @@ describe("JobSearch", () => {
         values: ["123"],
       }),
     ]);
+  });
+
+  it("shows filter type suggestions as you type and allows keyboard selection", async () => {
+    render(<JobSearch />);
+    await waitFor(() => {
+      expect(screen.getByTestId("job-search-input")).toBeInTheDocument();
+    });
+    const input = screen.getByTestId("job-search-input");
+    // Focus input and type 'k'
+    await act(async () => {
+      input.focus();
+      await userEvent.type(input, "k");
+    });
+
+    // Verify suggestions appear and 'kind' is highlighted
+    await waitFor(() => {
+      expect(screen.getByText("kind")).toBeInTheDocument();
+    });
+
+    // Press Enter to select the highlighted suggestion
+    fireEvent.keyDown(input, { code: "Enter", key: "Enter" });
+
+    // Verify the filter is added
+    await waitFor(() => {
+      expect(screen.getByTestId("filter-badge-kind")).toBeInTheDocument();
+    });
+  });
+
+  it("filters filter type suggestions as you type", async () => {
+    render(<JobSearch />);
+    const input = screen.getByTestId("job-search-input");
+    await act(async () => {
+      input.focus();
+      await userEvent.type(input, "pri");
+    });
+
+    // Verify only 'priority' is shown, not 'kind'
+    await waitFor(() => {
+      expect(screen.getByText("priority")).toBeInTheDocument();
+      expect(screen.queryByText("kind")).not.toBeInTheDocument();
+    });
+  });
+
+  it("selects filter type with colon shortcut", async () => {
+    render(<JobSearch />);
+    const input = screen.getByTestId("job-search-input");
+    await act(async () => {
+      input.focus();
+      await userEvent.type(input, "queue:");
+    });
+
+    // Verify the filter is added immediately
+    await waitFor(() => {
+      expect(screen.getByTestId("filter-badge-queue")).toBeInTheDocument();
+    });
+  });
+
+  it("closes filter type suggestions and clears input on Escape", async () => {
+    render(<JobSearch />);
+    const input = screen.getByTestId("job-search-input");
+    await act(async () => {
+      input.focus();
+      await userEvent.type(input, "ki");
+    });
+
+    // Verify suggestions appear
+    await waitFor(() => {
+      expect(screen.getByText("kind")).toBeInTheDocument();
+    });
+
+    // Press Escape
+    fireEvent.keyDown(input, { code: "Escape", key: "Escape" });
+
+    // Verify suggestions are closed and input is cleared
+    await waitFor(() => {
+      expect(screen.queryByText("kind")).not.toBeInTheDocument();
+      expect(input.getAttribute("value")).toBe("");
+    });
+  });
+
+  it("highlights first filter type suggestion by default and cycles with arrow keys", async () => {
+    render(<JobSearch />);
+    const input = screen.getByTestId("job-search-input");
+    (input as HTMLInputElement).value = "";
+    await act(async () => {
+      input.focus();
+    });
+
+    // Verify the first suggestion is highlighted
+    await waitFor(() => {
+      expect(screen.getByText("kind")).toBeInTheDocument();
+    });
+
+    // Press ArrowDown to cycle to the next suggestion
+    fireEvent.keyDown(input, { code: "ArrowDown", key: "ArrowDown" });
+
+    // Verify the next suggestion is highlighted (assuming 'priority' is next)
+    await waitFor(() => {
+      expect(screen.getByText("priority")).toBeInTheDocument();
+    });
   });
 });

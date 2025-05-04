@@ -7,7 +7,7 @@ alwaysApply: false
 
 ## Test File Structure
 - Test files should be co-located with their components and use the `.test.tsx` extension
-- Example: [src/components/EditableBadge.test.tsx](mdc:src/components/EditableBadge.test.tsx) tests [src/components/EditableBadge.tsx](mdc:src/components/EditableBadge.tsx)
+- Example: @src/components/job-search/EditableBadge.test.tsx tests @src/components/job-search/EditableBadge.tsx
 
 ## Test Organization
 1. Group related tests using `describe` blocks
