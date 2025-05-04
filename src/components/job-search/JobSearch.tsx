@@ -297,8 +297,8 @@ const jobSearchReducer = (
         ...state,
         editingFilter: {
           ...state.editingFilter,
-          highlightedIndex: -1, // Reset highlighted index when suggestions change
-          isLoadingSuggestions: false, // Suggestions loaded
+          highlightedIndex: -1,
+          isLoadingSuggestions: false,
           suggestions: action.payload,
         },
       };
@@ -484,11 +484,60 @@ const handleSuggestionKeyDown = (
       editingState.highlightedIndex >= 0 &&
       editingState.highlightedIndex < editingState.suggestions.length
     ) {
+      // A suggestion is specifically highlighted, select it
       e.preventDefault();
       handleSelectSuggestion(
         editingState.suggestions[editingState.highlightedIndex],
       );
       return true;
+    } else if (
+      editingState.suggestions.length > 0 &&
+      editingState.editingValue !== null
+    ) {
+      // Get the token at cursor position
+      const input = e.target as HTMLInputElement;
+      const cursorPos = input.selectionStart || 0;
+      const value = editingState.editingValue;
+
+      // Find the token at cursor position
+      const tokens = value.split(",");
+      let currentIndex = 0;
+      let tokenIndex = -1;
+
+      // Determine which token the cursor is in
+      for (let i = 0; i < tokens.length; i++) {
+        const token = tokens[i];
+        currentIndex += token.length;
+
+        if (cursorPos <= currentIndex) {
+          tokenIndex = i;
+          break;
+        }
+
+        // Add 1 for the comma
+        currentIndex += 1;
+
+        if (cursorPos <= currentIndex) {
+          // Cursor is right after a comma, this is the next token
+          tokenIndex = i + 1;
+          break;
+        }
+      }
+
+      // If we didn't find it, it's the last token
+      if (tokenIndex === -1) {
+        tokenIndex = tokens.length - 1;
+      }
+
+      // Get the current token
+      const currentToken = tokens[tokenIndex] ? tokens[tokenIndex].trim() : "";
+
+      // Only auto-select if the current token has content
+      if (currentToken !== "") {
+        e.preventDefault();
+        handleSelectSuggestion(editingState.suggestions[0]);
+        return true;
+      }
     }
   }
   return false;
