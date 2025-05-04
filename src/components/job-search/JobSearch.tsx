@@ -57,6 +57,7 @@ type JobSearchAction =
       payload: { cursorPos: null | number; value: string };
       type: "SET_RAW_EDITING_VALUE";
     }
+  | { payload: { id: string; index: number }; type: "REMOVE_FILTER" }
   | { payload: { id: string; values: string[] }; type: "UPDATE_FILTER_VALUES" }
   | { payload: { index: number; value: string }; type: "SET_EDITING_VALUE" }
   | { payload: boolean; type: "SET_LOADING_SUGGESTIONS" }
@@ -64,7 +65,6 @@ type JobSearchAction =
   | { payload: FilterType; type: "ADD_FILTER" }
   | { payload: JobFilter; type: "EDIT_FILTER" }
   | { payload: number; type: "SET_HIGHLIGHTED_INDEX" }
-  | { payload: string; type: "REMOVE_FILTER" }
   | { payload: string; type: "SET_QUERY" }
   | { payload: string; type: "START_EDITING_FILTER" }
   | { payload: string[]; type: "SET_SUGGESTIONS" }
@@ -224,7 +224,56 @@ const jobSearchReducer = (
 
     case "REMOVE_FILTER": {
       // If removing the filter being edited, stop editing
-      const stopEditing = state.editingFilter.filterId === action.payload;
+      const filterBeingRemoved = action.payload.id;
+      const filterIndex = action.payload.index;
+      const stopEditing = state.editingFilter.filterId === filterBeingRemoved;
+
+      // Get the new filters array after removal
+      const newFilters = state.filters.filter(
+        (filter) => filter.id !== filterBeingRemoved,
+      );
+
+      // Determine if we should focus the previous filter
+      let focusPreviousFilter = false;
+      let previousFilterId: null | string = null;
+
+      if (stopEditing && filterIndex > 0 && newFilters.length > 0) {
+        // If removing the current filter and it's not the first one, focus the previous filter
+        focusPreviousFilter = true;
+        // Get the ID of the filter that will now be at index filterIndex-1
+        previousFilterId = newFilters[filterIndex - 1]?.id || null;
+      }
+
+      if (focusPreviousFilter && previousFilterId) {
+        // Find the previous filter
+        const previousFilter = newFilters.find(
+          (f) => f.id === previousFilterId,
+        );
+        if (previousFilter) {
+          // Create the editing value with trailing comma like START_EDITING_FILTER would do
+          const editingValue =
+            previousFilter.values.join(",") +
+            (previousFilter.values.length > 0 ? "," : "");
+
+          // Focus previous filter by starting to edit it
+          return {
+            ...state,
+            editingFilter: {
+              ...state.editingFilter,
+              editingCursorPos: editingValue.length, // Set cursor at the end
+              editingMode: "TYPING",
+              editingValue: editingValue, // Properly set the editing value
+              filterId: previousFilterId,
+              highlightedIndex: -1,
+              isLoadingSuggestions: true,
+              suggestions: [],
+            },
+            filters: newFilters,
+          };
+        }
+      }
+
+      // Original behavior - just remove the filter without focusing anywhere
       return {
         ...state,
         editingFilter: stopEditing
@@ -239,7 +288,7 @@ const jobSearchReducer = (
               suggestions: [],
             }
           : state.editingFilter,
-        filters: state.filters.filter((filter) => filter.id !== action.payload),
+        filters: newFilters,
       };
     }
 
@@ -1112,7 +1161,7 @@ export function JobSearch({
                       }
                       onRemove={() =>
                         dispatch({
-                          payload: filter.id,
+                          payload: { id: filter.id, index },
                           type: "REMOVE_FILTER",
                         })
                       }

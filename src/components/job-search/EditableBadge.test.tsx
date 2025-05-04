@@ -18,6 +18,7 @@ describe("EditableBadge", () => {
       onComplete: onEditComplete,
       onStart: onEditStart,
     },
+    index: 0,
     isEditing: false,
     onContentChange: vi.fn(), // Still needed by type, mock it
     onRawValueChange: onRawValueChange,

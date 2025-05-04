@@ -579,8 +579,10 @@ describe("JobSearch", () => {
 
     // Add the first filter
     const searchInput = screen.getByTestId("job-search-input");
-    fireEvent.focus(searchInput);
-    await userEvent.type(searchInput, "kind");
+    await act(async () => {
+      fireEvent.focus(searchInput);
+      await userEvent.type(searchInput, "kind");
+    });
 
     // Wait for the filter type dropdown to appear
     await waitFor(() => {
@@ -590,8 +592,10 @@ describe("JobSearch", () => {
     });
 
     // Click the kind button directly
-    const kindButton = screen.getByRole("button", { name: /^kind$/i });
-    fireEvent.mouseDown(kindButton);
+    await act(async () => {
+      const kindButton = screen.getByRole("button", { name: /^kind$/i });
+      fireEvent.mouseDown(kindButton);
+    });
 
     // Exit edit mode on the existing filter to mimic user finishing editing
     const badgeRoot = getBadgeRootByTypeId("kind");
@@ -601,8 +605,10 @@ describe("JobSearch", () => {
     });
 
     // Try to add the same filter type again
-    fireEvent.focus(searchInput);
-    await userEvent.type(searchInput, "kind");
+    await act(async () => {
+      fireEvent.focus(searchInput);
+      await userEvent.type(searchInput, "kind");
+    });
 
     // Wait for the kind button to appear again
     await waitFor(() => {
@@ -611,8 +617,10 @@ describe("JobSearch", () => {
     });
 
     // Click the kind button again
-    const kindButtonAgain = screen.getByRole("button", { name: /^kind$/i });
-    fireEvent.mouseDown(kindButtonAgain);
+    await act(async () => {
+      const kindButtonAgain = screen.getByRole("button", { name: /^kind$/i });
+      fireEvent.mouseDown(kindButtonAgain);
+    });
 
     // Verify there's only one "kind:" badge
     const kindFilters = screen.getAllByText("kind:");
@@ -1385,13 +1393,23 @@ describe("JobSearch", () => {
 
   it("selects filter type with colon shortcut", async () => {
     render(<JobSearch />);
+
+    // Get the input element first
     const input = screen.getByTestId("job-search-input");
+
+    // Wrap all state changes in a single act call
     await act(async () => {
-      input.focus();
-      await userEvent.type(input, "queue:");
+      // Focus the input first
+      fireEvent.focus(input);
+
+      // Use a normal fireEvent with a colon shortcut
+      fireEvent.change(input, { target: { value: "queue:" } });
+
+      // Fire a keyDown event to trigger the colon shortcut handler
+      fireEvent.keyDown(input, { key: ":" });
     });
 
-    // Verify the filter is added immediately
+    // Verify the filter was added
     await waitFor(() => {
       expect(screen.getByTestId("filter-badge-queue")).toBeInTheDocument();
     });
@@ -1411,7 +1429,9 @@ describe("JobSearch", () => {
     });
 
     // Press Escape
-    fireEvent.keyDown(input, { code: "Escape", key: "Escape" });
+    await act(async () => {
+      fireEvent.keyDown(input, { code: "Escape", key: "Escape" });
+    });
 
     // Verify suggestions are closed and input is cleared
     await waitFor(() => {
@@ -1434,7 +1454,9 @@ describe("JobSearch", () => {
     });
 
     // Press ArrowDown to cycle to the next suggestion
-    fireEvent.keyDown(input, { code: "ArrowDown", key: "ArrowDown" });
+    await act(async () => {
+      fireEvent.keyDown(input, { code: "ArrowDown", key: "ArrowDown" });
+    });
 
     // Verify the next suggestion is highlighted (assuming 'priority' is next)
     await waitFor(() => {
@@ -1463,7 +1485,9 @@ describe("JobSearch", () => {
     );
 
     // Press ArrowDown to navigate suggestions without typing anything
-    fireEvent.keyDown(input, { key: "ArrowDown" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+    });
 
     // Verify that the first suggestion is highlighted or selected
     await waitFor(() => {
@@ -1494,10 +1518,14 @@ describe("JobSearch", () => {
     );
 
     // Press ArrowDown to navigate suggestions without typing anything
-    fireEvent.keyDown(input, { key: "ArrowDown" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+    });
 
     // Press Enter to select the highlighted suggestion
-    fireEvent.keyDown(input, { key: "Enter" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
 
     // Verify the suggestion was applied
     await waitFor(() => {
@@ -1807,7 +1835,9 @@ describe("JobSearch", () => {
 
     // Click the filter to edit it
     const badgeRoot = getBadgeRootByTypeId("kind");
-    fireEvent.click(badgeRoot);
+    await act(async () => {
+      fireEvent.click(badgeRoot);
+    });
 
     // First, verify that pressing Enter without typing anything doesn't select first suggestion
     const input = within(badgeRoot).getByRole("textbox");
@@ -1818,7 +1848,9 @@ describe("JobSearch", () => {
     });
 
     // Press Enter with empty input
-    fireEvent.keyDown(input, { key: "Enter" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
 
     // Verify no suggestion was selected, edit mode should end
     await waitFor(() => {
@@ -1827,7 +1859,9 @@ describe("JobSearch", () => {
     });
 
     // Click again to restart edit mode
-    fireEvent.click(badgeRoot);
+    await act(async () => {
+      fireEvent.click(badgeRoot);
+    });
 
     // Now type to trigger suggestions
     await userEvent.type(input, "b");
@@ -1851,12 +1885,67 @@ describe("JobSearch", () => {
     });
 
     // Press Enter to select the first suggestion without any highlighting but with text typed
-    fireEvent.keyDown(input, { key: "Enter" });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
 
     // Verify the first suggestion was selected - should be "batch" based on the mock
     await waitFor(() => {
       const updatedInput = within(badgeRoot).getByRole("textbox");
       expect(updatedInput.getAttribute("value")).toBe("batch");
     });
+  });
+
+  it("focuses previous filter when deleting a filter with backspace", async () => {
+    const initialFilters: Filter[] = [
+      {
+        id: "1",
+        prefix: "kind:",
+        typeId: FilterTypeId.KIND,
+        values: ["batch"],
+      },
+      {
+        id: "2",
+        prefix: "queue:",
+        typeId: FilterTypeId.QUEUE,
+        values: ["default"],
+      },
+    ];
+    render(<JobSearch initialFilters={initialFilters} />);
+
+    // Click the second filter to edit it
+    const queueBadgeRoot = getBadgeRootByTypeId("queue");
+    fireEvent.click(queueBadgeRoot);
+
+    // Clear the input
+    const queueInput = within(queueBadgeRoot).getByRole("textbox");
+    await act(async () => {
+      fireEvent.change(queueInput, {
+        target: {
+          value: "",
+        },
+      });
+    });
+
+    // Press Backspace when input is empty to remove the filter
+    await act(async () => {
+      fireEvent.keyDown(queueInput, { key: "Backspace" });
+    });
+
+    // Verify the second filter is removed
+    expect(screen.queryByTestId("filter-badge-queue")).not.toBeInTheDocument();
+
+    // Verify focus has moved to the previous (first) filter
+    const kindBadgeRoot = getBadgeRootByTypeId("kind");
+    const kindInput = within(kindBadgeRoot).getByRole(
+      "textbox",
+    ) as HTMLInputElement;
+    expect(document.activeElement).toBe(kindInput);
+
+    // Verify the previous filter is in edit mode
+    expect(kindBadgeRoot).toHaveClass("ring-2"); // Checking for edit mode styling
+
+    // Cursor should be at the end of the value
+    expect(kindInput.selectionStart).toBe(kindInput.value.length);
   });
 });
