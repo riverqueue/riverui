@@ -1136,6 +1136,12 @@ export function JobSearch({
                       editing={{
                         onComplete: () => {
                           dispatch({ type: "STOP_EDITING_FILTER" });
+                          if (inputRef.current) {
+                            // Always focus the Add filter input after completing a filter
+                            setTimeout(() => {
+                              inputRef.current?.focus();
+                            }, 0);
+                          }
                         },
                         onStart: () => {
                           dispatch({
@@ -1144,6 +1150,11 @@ export function JobSearch({
                           });
                         },
                       }}
+                      editingMode={
+                        state.editingFilter.filterId === filter.id
+                          ? state.editingFilter.editingMode
+                          : "IDLE"
+                      }
                       isEditing={state.editingFilter.filterId === filter.id}
                       isFirstFilter={index === 0}
                       isLastFilter={index === state.filters.length - 1}

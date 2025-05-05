@@ -1948,4 +1948,57 @@ describe("JobSearch", () => {
     // Cursor should be at the end of the value
     expect(kindInput.selectionStart).toBe(kindInput.value.length);
   });
+
+  it("after selecting a suggestion with Enter, or editing a filter with no suggestions, pressing Enter again completes the filter and focuses the Add filter input (generalized)", async () => {
+    render(<JobSearch />);
+
+    // Case 1: After selecting a suggestion
+    await selectFilterType("kind");
+    const badgeRoot = getBadgeRootByTypeId("kind");
+    const input = within(badgeRoot).getByRole("textbox");
+    expect(document.activeElement).toBe(input);
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+      expect(screen.getByTestId("suggestions-list")).toBeInTheDocument();
+    });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "ArrowDown" });
+    });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    await waitFor(() => {
+      expect(document.activeElement).toBe(input);
+      expect(input.getAttribute("value")).not.toBe("");
+    });
+    await act(async () => {
+      fireEvent.keyDown(input, { key: "Enter" });
+    });
+    await waitFor(() => {
+      const addFilterInput = screen.getByTestId("job-search-input");
+      expect(document.activeElement).toBe(addFilterInput);
+    });
+
+    // Case 2: Editing a filter with no suggestions (ID)
+    await selectFilterType("id");
+    const idBadgeRoot = getBadgeRootByTypeId("id");
+    const idInput = within(idBadgeRoot).getByRole("textbox");
+    expect(document.activeElement).toBe(idInput);
+    // Type a value (no suggestions should appear)
+    await userEvent.type(idInput, "123");
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("suggestions-dropdown"),
+      ).not.toBeInTheDocument();
+    });
+    // Press Enter to complete the filter
+    await act(async () => {
+      fireEvent.keyDown(idInput, { key: "Enter" });
+    });
+    // Focus should move to Add filter input
+    await waitFor(() => {
+      const addFilterInput = screen.getByTestId("job-search-input");
+      expect(document.activeElement).toBe(addFilterInput);
+    });
+  });
 });

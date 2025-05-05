@@ -112,8 +112,12 @@ export function EditableBadge({
       return; // Parent handled it (e.g., selected suggestion)
     }
 
-    // Handle local completion keys only if parent didn't handle event
-    if (e.key === "Enter" || e.key === "Escape") {
+    // If Enter is pressed and we're in SUGGESTION_SELECTED mode, treat as filter completion
+    if (e.key === "Enter") {
+      e.preventDefault();
+      onEditComplete?.();
+      // After completing, focus will be managed by parent (JobSearch)
+    } else if (e.key === "Escape") {
       e.preventDefault();
       onEditComplete?.();
     } else if (
