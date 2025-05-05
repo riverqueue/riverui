@@ -66,7 +66,13 @@ type JobSearchAction =
   | { payload: JobFilter; type: "EDIT_FILTER" }
   | { payload: number; type: "SET_HIGHLIGHTED_INDEX" }
   | { payload: string; type: "SET_QUERY" }
-  | { payload: string; type: "START_EDITING_FILTER" }
+  | {
+      payload: {
+        filterId: string;
+        cursorPosition?: "start" | "end" | number;
+      };
+      type: "START_EDITING_FILTER";
+    }
   | { payload: string[]; type: "SET_SUGGESTIONS" }
   | { type: "ENTER_SUGGESTION_SELECTED_MODE" }
   | { type: "ENTER_TYPING_MODE" }
@@ -139,7 +145,7 @@ const jobSearchReducer = (
           ...state,
           editingFilter: {
             ...state.editingFilter,
-            editingCursorPos: null,
+            editingCursorPos: editingValue.length, // Default cursor to end
             editingMode: "TYPING",
             editingValue: editingValue,
             filterId: existing.id,
@@ -163,7 +169,7 @@ const jobSearchReducer = (
         ...state,
         editingFilter: {
           ...state.editingFilter,
-          editingCursorPos: null,
+          editingCursorPos: 0, // Start cursor at beginning for new filter
           editingMode: "TYPING",
           editingValue: "", // Start with empty value for new filter
           filterId: newFilter.id,
@@ -187,7 +193,7 @@ const jobSearchReducer = (
         ...state,
         editingFilter: {
           ...state.editingFilter,
-          editingCursorPos: null,
+          editingCursorPos: editingValue2.length, // Default cursor to end
           editingMode: "TYPING",
           editingValue: editingValue2,
           filterId: action.payload.id,
@@ -255,12 +261,12 @@ const jobSearchReducer = (
             previousFilter.values.join(",") +
             (previousFilter.values.length > 0 ? "," : "");
 
-          // Focus previous filter by starting to edit it
+          // Focus previous filter by starting to edit it (cursor at the end implicitly)
           return {
             ...state,
             editingFilter: {
               ...state.editingFilter,
-              editingCursorPos: editingValue.length, // Set cursor at the end
+              editingCursorPos: editingValue.length, // Explicitly set cursor at the end
               editingMode: "TYPING",
               editingValue: editingValue, // Properly set the editing value
               filterId: previousFilterId,
@@ -353,19 +359,36 @@ const jobSearchReducer = (
       };
 
     case "START_EDITING_FILTER": {
-      const filterToEdit = state.filters.find((f) => f.id === action.payload);
+      const filterToEdit = state.filters.find(
+        (f) => f.id === action.payload.filterId,
+      );
       if (!filterToEdit) return state; // Should not happen
       const editingValue =
         filterToEdit.values.join(",") +
         (filterToEdit.values.length > 0 ? "," : "");
+
+      let targetCursorPos: null | number = null;
+      const position = action.payload.cursorPosition;
+
+      if (position === "start") {
+        targetCursorPos = 0;
+      } else if (position === "end" || position === undefined) {
+        targetCursorPos = editingValue.length; // Default to end
+      } else if (typeof position === "number") {
+        targetCursorPos = position;
+      } else {
+        targetCursorPos = editingValue.length; // Fallback to end
+      }
+
       return {
         ...state,
         editingFilter: {
           ...state.editingFilter,
-          editingCursorPos: editingValue.length, // Set cursor to end, after the comma
+          editingCursorPos: targetCursorPos, // Use calculated cursor position
           editingMode: "TYPING",
           editingValue: editingValue,
-          filterId: action.payload,
+          filterId: action.payload.filterId,
+          highlightedIndex: -1,
           isLoadingSuggestions: true, // Start loading suggestions for the existing value
           showFilterDropdown: false,
           suggestions: [], // Clear suggestions initially
@@ -665,6 +688,16 @@ export function JobSearch({
     onFiltersChange,
   ]);
 
+  // Add handler for focusing the Add filter input
+  const handleFocusAddFilterInput = useCallback(() => {
+    if (inputRef.current) {
+      // First make sure we're not in edit mode
+      dispatch({ type: "STOP_EDITING_FILTER" });
+      // Then focus the Add filter input
+      inputRef.current.focus();
+    }
+  }, [dispatch]);
+
   // Handles raw value change from EditableBadge input
   const handleRawValueChange = useCallback(
     async (newValue: string, cursorPos: null | number) => {
@@ -887,7 +920,10 @@ export function JobSearch({
           dispatch({ payload: selected, type: "ADD_FILTER" });
         } else {
           // If filter exists, start editing it
-          dispatch({ payload: existing.id, type: "START_EDITING_FILTER" });
+          dispatch({
+            payload: { filterId: existing.id },
+            type: "START_EDITING_FILTER",
+          });
         }
         dispatch({ payload: "", type: "SET_QUERY" });
         setFilterTypeSuggestions([]);
@@ -923,7 +959,10 @@ export function JobSearch({
         dispatch({ payload: selected, type: "ADD_FILTER" });
       } else {
         // If filter exists, start editing it
-        dispatch({ payload: existing.id, type: "START_EDITING_FILTER" });
+        dispatch({
+          payload: { filterId: existing.id },
+          type: "START_EDITING_FILTER",
+        });
       }
       dispatch({ payload: "", type: "SET_QUERY" });
       setFilterTypeSuggestions([]);
@@ -943,46 +982,25 @@ export function JobSearch({
         );
         if (currentIndex > 0) {
           const previousFilter = state.filters[currentIndex - 1];
-          // We need to be careful about the cursor position when moving between filters
-          // First, stop editing the current filter
+          // Stop editing the current filter
           dispatch({ type: "STOP_EDITING_FILTER" });
-          // Then start editing the previous filter
+          // Start editing the previous filter, cursor defaults to end
           dispatch({
-            payload: previousFilter.id,
+            payload: { filterId: previousFilter.id }, // Implicitly 'end' cursor
             type: "START_EDITING_FILTER",
           });
-
-          // Immediately set cursor position at the end of the previous filter's value
-          const value =
-            previousFilter.values.join(",") +
-            (previousFilter.values.length > 0 ? "," : "");
-          setTimeout(() => {
-            const input = document.querySelector(
-              `[data-testid="filter-badge-${previousFilter.typeId}"] input`,
-            ) as HTMLInputElement;
-            if (input) {
-              input.focus();
-              // Explicitly set the value and cursor position
-              if (input.value !== value) {
-                input.value = value;
-              }
-              const valueLength = value.length;
-              input.setSelectionRange(valueLength, valueLength);
-            }
-          }, 10); // Small delay to ensure DOM is updated
+          // Remove timeout-based focus logic
         } else {
-          // If at the first filter, simply maintain cursor at position 0
-          // without changing the current filter state or value
-          setTimeout(() => {
-            const currentFilter = state.filters[currentIndex];
+          // If at the first filter, keep cursor at position 0
+          const currentFilter = state.filters[currentIndex];
+          if (currentFilter) {
             const input = document.querySelector(
               `[data-testid="filter-badge-${currentFilter.typeId}"] input`,
             ) as HTMLInputElement;
             if (input && document.activeElement === input) {
-              // Simply ensure the cursor stays at position 0
               input.setSelectionRange(0, 0);
             }
-          }, 5);
+          }
         }
       }
     },
@@ -997,73 +1015,27 @@ export function JobSearch({
         );
         if (currentIndex < state.filters.length - 1) {
           const nextFilter = state.filters[currentIndex + 1];
-          // Similar approach to handleNavigatePreviousFilter
+          // Stop editing the current filter
           dispatch({ type: "STOP_EDITING_FILTER" });
+          // Start editing the next filter, explicitly setting cursor to start
           dispatch({
-            payload: nextFilter.id,
+            payload: { filterId: nextFilter.id, cursorPosition: "start" },
             type: "START_EDITING_FILTER",
           });
-
-          // Set cursor position to the start of the next filter's value
-          const value =
-            nextFilter.values.join(",") +
-            (nextFilter.values.length > 0 ? "," : "");
-          setTimeout(() => {
-            const input = document.querySelector(
-              `[data-testid="filter-badge-${nextFilter.typeId}"] input`,
-            ) as HTMLInputElement;
-            if (input) {
-              input.focus();
-              // Explicitly set the value
-              if (input.value !== value) {
-                input.value = value;
-              }
-              // Set the cursor position to the start of the input - this is critical
-              input.setSelectionRange(0, 0);
-
-              // Double-check cursor position after a short delay
-              setTimeout(() => {
-                if (input && document.activeElement === input) {
-                  input.setSelectionRange(0, 0);
-                }
-              }, 5);
-            }
-          }, 10); // Small delay to ensure DOM is updated
+          // Remove timeout-based focus logic
         } else {
-          // If at the last filter, maintain cursor at the end
-          const currentFilter = state.filters[currentIndex];
-          setTimeout(() => {
-            const input = document.querySelector(
-              `[data-testid="filter-badge-${currentFilter.typeId}"] input`,
-            ) as HTMLInputElement;
-            if (input) {
-              input.focus();
-              const value =
-                currentFilter.values.join(",") +
-                (currentFilter.values.length > 0 ? "," : "");
-              if (input.value !== value) {
-                input.value = value;
-              }
-              // Force cursor to end
-              const valueLength = input.value.length;
-              input.setSelectionRange(valueLength, valueLength);
-            }
-          }, 10); // Small delay to ensure DOM is updated
+          // If at the last filter, focus the "Add filter" input
+          handleFocusAddFilterInput();
         }
       }
     },
-    [state.editingFilter.filterId, state.filters, dispatch],
+    [
+      state.editingFilter.filterId,
+      state.filters,
+      dispatch,
+      handleFocusAddFilterInput,
+    ],
   );
-
-  // Add handler for focusing the Add filter input
-  const handleFocusAddFilterInput = useCallback(() => {
-    if (inputRef.current) {
-      // First make sure we're not in edit mode
-      dispatch({ type: "STOP_EDITING_FILTER" });
-      // Then focus the Add filter input
-      inputRef.current.focus();
-    }
-  }, [dispatch]);
 
   // Add event listeners for custom navigation events
   useEffect(() => {
@@ -1134,18 +1106,15 @@ export function JobSearch({
                           : null
                       }
                       editing={{
-                        onComplete: () => {
+                        onComplete: (reason) => {
                           dispatch({ type: "STOP_EDITING_FILTER" });
-                          if (inputRef.current) {
-                            // Always focus the Add filter input after completing a filter
-                            setTimeout(() => {
-                              inputRef.current?.focus();
-                            }, 0);
+                          if (inputRef.current && reason === "enter") {
+                            inputRef.current.focus();
                           }
                         },
                         onStart: () => {
                           dispatch({
-                            payload: filter.id,
+                            payload: { filterId: filter.id },
                             type: "START_EDITING_FILTER",
                           });
                         },
@@ -1226,7 +1195,7 @@ export function JobSearch({
                           state.filters[state.filters.length - 1];
                         // Start editing it
                         dispatch({
-                          payload: lastFilter.id,
+                          payload: { filterId: lastFilter.id },
                           type: "START_EDITING_FILTER",
                         });
                         // Focus will be set by the useEffect in EditableBadge

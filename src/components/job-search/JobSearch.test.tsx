@@ -1597,7 +1597,7 @@ describe("JobSearch", () => {
     });
   });
 
-  it("moves cursor to end of previous filter when pressing left arrow at start of current filter", async () => {
+  it("moves cursor to end of previous filter and ensures it stays there when pressing left arrow at start of current filter", async () => {
     const initialFilters: Filter[] = [
       {
         id: "1",
@@ -1645,16 +1645,25 @@ describe("JobSearch", () => {
     });
 
     // Verify cursor is now in the 'kind' filter at the end of 'batch,'
-    await waitFor(() => {
-      const kindBadgeRoot = getBadgeRootByTypeId("kind");
-      const kindInput = within(kindBadgeRoot).getByRole(
-        "textbox",
-      ) as HTMLInputElement;
-      expect(document.activeElement).toBe(kindInput);
-      expect(kindInput.getAttribute("value")).toBe("batch,");
-      expect(kindInput.selectionStart).toBe(6); // After the comma
-      expect(kindInput.selectionEnd).toBe(6);
-    });
+    const kindBadgeRoot = getBadgeRootByTypeId("kind");
+    const kindInput = within(kindBadgeRoot).getByRole(
+      "textbox",
+    ) as HTMLInputElement;
+    await waitFor(
+      () => {
+        expect(document.activeElement).toBe(kindInput);
+        expect(kindInput.getAttribute("value")).toBe("batch,");
+        expect(kindInput.selectionStart).toBe(6); // After the comma
+        expect(kindInput.selectionEnd).toBe(6);
+      },
+      { timeout: 2000 },
+    ); // Longer timeout to catch any delayed focus shifts
+
+    // Additional wait to ensure focus doesn't jump elsewhere (like to 'Add filter' input)
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    expect(document.activeElement).toBe(kindInput); // Should still be focused
+    expect(kindInput.selectionStart).toBe(6); // Cursor should remain at the end
+    expect(kindInput.selectionEnd).toBe(6);
   });
 
   it("moves cursor to start of next filter when pressing right arrow at end of current filter", async () => {

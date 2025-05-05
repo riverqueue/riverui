@@ -11,10 +11,11 @@ export interface EditableBadgeProps {
   dataTestId?: string;
   desiredCursorPos?: null | number;
   editing?: {
-    onComplete?: () => void;
+    onComplete?: (reason: "enter" | "escape" | "blur" | "navigation") => void;
     onStart?: () => void;
   };
   isEditing?: boolean;
+  editingMode?: "IDLE" | "SUGGESTION_SELECTED" | "TYPING";
   /**
    * Whether this is the first filter in the list.
    * Used to determine whether to navigate to previous filter on left arrow key.
@@ -43,6 +44,7 @@ export function EditableBadge({
   desiredCursorPos = null,
   editing = {},
   isEditing = false,
+  editingMode,
   isFirstFilter = false,
   isLastFilter = false,
   onRawValueChange,
@@ -115,11 +117,11 @@ export function EditableBadge({
     // If Enter is pressed and we're in SUGGESTION_SELECTED mode, treat as filter completion
     if (e.key === "Enter") {
       e.preventDefault();
-      onEditComplete?.();
+      onEditComplete?.("enter");
       // After completing, focus will be managed by parent (JobSearch)
     } else if (e.key === "Escape") {
       e.preventDefault();
-      onEditComplete?.();
+      onEditComplete?.("escape");
     } else if (
       e.key === "Backspace" &&
       (e.target as HTMLInputElement).value === ""
@@ -132,7 +134,7 @@ export function EditableBadge({
         if (!isFirstFilter) {
           // Only trigger navigation if this is not the first filter
           e.preventDefault();
-          onEditComplete?.();
+          onEditComplete?.("navigation");
           // Dispatch custom event to notify parent to move to previous filter
           input.dispatchEvent(
             new CustomEvent("navigatePreviousFilter", { bubbles: true }),
@@ -149,7 +151,7 @@ export function EditableBadge({
         input.selectionEnd === valueLength
       ) {
         e.preventDefault();
-        onEditComplete?.();
+        onEditComplete?.("navigation");
 
         if (isLastFilter) {
           // If this is the last filter, focus the "Add filter" input
@@ -170,7 +172,7 @@ export function EditableBadge({
     // If blur happens while editing, complete the edit immediately
     // Note: Suggestion clicks use onMouseDown + preventDefault to avoid blur
     if (isEditing) {
-      onEditComplete?.();
+      onEditComplete?.("blur");
     }
   };
 
