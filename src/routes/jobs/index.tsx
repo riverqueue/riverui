@@ -20,7 +20,11 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  retainSearchParams,
+  stripSearchParams,
+} from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo, useState } from "react";
 import { z } from "zod";
@@ -79,7 +83,10 @@ export const Route = createFileRoute("/jobs/")({
   validateSearch: zodValidator(jobSearchSchema),
   // Strip default values from URLs and retain important params across navigation
   search: {
-    middlewares: [stripSearchParams(defaultValues)],
+    middlewares: [
+      stripSearchParams(defaultValues),
+      retainSearchParams(["id", "kind", "limit", "priority", "queue"]),
+    ],
   },
   beforeLoad: async ({ context }) => {
     // No need to check for search.state since it has a default value now
