@@ -57,6 +57,13 @@ type JobSearchAction =
       payload: { cursorPos: null | number; value: string };
       type: "SET_RAW_EDITING_VALUE";
     }
+  | {
+      payload: {
+        cursorPosition?: "end" | "start" | number;
+        filterId: string;
+      };
+      type: "START_EDITING_FILTER";
+    }
   | { payload: { id: string; index: number }; type: "REMOVE_FILTER" }
   | { payload: { id: string; values: string[] }; type: "UPDATE_FILTER_VALUES" }
   | { payload: { index: number; value: string }; type: "SET_EDITING_VALUE" }
@@ -66,13 +73,6 @@ type JobSearchAction =
   | { payload: JobFilter; type: "EDIT_FILTER" }
   | { payload: number; type: "SET_HIGHLIGHTED_INDEX" }
   | { payload: string; type: "SET_QUERY" }
-  | {
-      payload: {
-        filterId: string;
-        cursorPosition?: "start" | "end" | number;
-      };
-      type: "START_EDITING_FILTER";
-    }
   | { payload: string[]; type: "SET_SUGGESTIONS" }
   | { type: "ENTER_SUGGESTION_SELECTED_MODE" }
   | { type: "ENTER_TYPING_MODE" }
@@ -397,6 +397,7 @@ const jobSearchReducer = (
     }
 
     case "STOP_EDITING_FILTER": {
+      // Handle stopping edit mode for a filter
       if (!state.editingFilter.filterId) return state; // Not editing
       const finalizedValues = finalizeEditValue(
         state.editingFilter.editingValue,
@@ -693,10 +694,20 @@ export function JobSearch({
     if (inputRef.current) {
       // First make sure we're not in edit mode
       dispatch({ type: "STOP_EDITING_FILTER" });
+      // Update filter type suggestions for Add filter input
+      const q = state.query.trim().toLowerCase();
+      const filtered = AVAILABLE_FILTERS.filter(
+        (f) =>
+          f.label.toLowerCase().includes(q) ||
+          f.prefix.toLowerCase().startsWith(q),
+      );
+      setFilterTypeSuggestions(filtered);
+      setFilterTypeDropdownOpen(true);
+      setFilterTypeHighlightedIndex(0);
       // Then focus the Add filter input
       inputRef.current.focus();
     }
-  }, [dispatch]);
+  }, [dispatch, state.query]);
 
   // Handles raw value change from EditableBadge input
   const handleRawValueChange = useCallback(
@@ -1019,7 +1030,7 @@ export function JobSearch({
           dispatch({ type: "STOP_EDITING_FILTER" });
           // Start editing the next filter, explicitly setting cursor to start
           dispatch({
-            payload: { filterId: nextFilter.id, cursorPosition: "start" },
+            payload: { cursorPosition: "start", filterId: nextFilter.id },
             type: "START_EDITING_FILTER",
           });
           // Remove timeout-based focus logic
@@ -1107,9 +1118,21 @@ export function JobSearch({
                       }
                       editing={{
                         onComplete: (reason) => {
+                          // Stop editing current filter
                           dispatch({ type: "STOP_EDITING_FILTER" });
-                          if (inputRef.current && reason === "enter") {
-                            inputRef.current.focus();
+                          if (reason === "enter") {
+                            // Prepare and open filter type suggestions for Add filter input
+                            const q = state.query.trim().toLowerCase();
+                            const filtered = AVAILABLE_FILTERS.filter(
+                              (f) =>
+                                f.label.toLowerCase().includes(q) ||
+                                f.prefix.toLowerCase().startsWith(q),
+                            );
+                            setFilterTypeSuggestions(filtered);
+                            setFilterTypeDropdownOpen(true);
+                            setFilterTypeHighlightedIndex(0);
+                            // Focus the Add filter input
+                            inputRef.current?.focus();
                           }
                         },
                         onStart: () => {
@@ -1119,11 +1142,6 @@ export function JobSearch({
                           });
                         },
                       }}
-                      editingMode={
-                        state.editingFilter.filterId === filter.id
-                          ? state.editingFilter.editingMode
-                          : "IDLE"
-                      }
                       isEditing={state.editingFilter.filterId === filter.id}
                       isFirstFilter={index === 0}
                       isLastFilter={index === state.filters.length - 1}

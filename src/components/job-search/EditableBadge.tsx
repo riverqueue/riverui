@@ -11,11 +11,10 @@ export interface EditableBadgeProps {
   dataTestId?: string;
   desiredCursorPos?: null | number;
   editing?: {
-    onComplete?: (reason: "enter" | "escape" | "blur" | "navigation") => void;
+    onComplete?: (reason: "blur" | "enter" | "escape" | "navigation") => void;
     onStart?: () => void;
   };
   isEditing?: boolean;
-  editingMode?: "IDLE" | "SUGGESTION_SELECTED" | "TYPING";
   /**
    * Whether this is the first filter in the list.
    * Used to determine whether to navigate to previous filter on left arrow key.
@@ -44,7 +43,6 @@ export function EditableBadge({
   desiredCursorPos = null,
   editing = {},
   isEditing = false,
-  editingMode,
   isFirstFilter = false,
   isLastFilter = false,
   onRawValueChange,

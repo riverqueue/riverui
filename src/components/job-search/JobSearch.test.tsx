@@ -1987,6 +1987,11 @@ describe("JobSearch", () => {
       const addFilterInput = screen.getByTestId("job-search-input");
       expect(document.activeElement).toBe(addFilterInput);
     });
+    // Verify filter type suggestions dropdown appears when add filter input is focused
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+      expect(screen.getByTestId("suggestions-list")).toBeInTheDocument();
+    });
 
     // Case 2: Editing a filter with no suggestions (ID)
     await selectFilterType("id");
@@ -2008,6 +2013,11 @@ describe("JobSearch", () => {
     await waitFor(() => {
       const addFilterInput = screen.getByTestId("job-search-input");
       expect(document.activeElement).toBe(addFilterInput);
+    });
+    // Verify filter type suggestions dropdown appears after focusing Add filter input
+    await waitFor(() => {
+      expect(screen.getByTestId("suggestions-dropdown")).toBeInTheDocument();
+      expect(screen.getByTestId("suggestions-list")).toBeInTheDocument();
     });
   });
 });
