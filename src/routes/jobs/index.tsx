@@ -1,6 +1,7 @@
 import { Filter, FilterTypeId } from "@components/job-search/JobSearch";
 import JobList from "@components/JobList";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { defaultValues, jobSearchSchema } from "@routes/jobs/index.schema";
 import {
   cancelJobs,
   deleteJobs,
@@ -27,57 +28,10 @@ import {
 } from "@tanstack/react-router";
 import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo, useState } from "react";
-import { z } from "zod";
 
 const minimumLimit = 20;
 const defaultLimit = 20;
 const maximumLimit = 200;
-
-// Define default values
-const defaultValues = {
-  limit: defaultLimit,
-  state: JobState.Running,
-};
-
-const jobSearchSchema = z.object({
-  id: z
-    .union([z.string(), z.array(z.string().min(1))])
-    .optional()
-    .transform((v) => {
-      if (!v) return undefined;
-      const arr = Array.isArray(v) ? v : [v];
-      try {
-        return arr.map(BigInt);
-      } catch {
-        return undefined;
-      }
-    }),
-  kind: z
-    .union([z.string(), z.array(z.string().min(1))])
-    .optional()
-    .transform((v) => (Array.isArray(v) ? v : v ? [v] : undefined)),
-  limit: z
-    .number()
-    .int()
-    .min(minimumLimit)
-    .max(maximumLimit)
-    .default(defaultValues.limit),
-  priority: z
-    .union([z.string(), z.array(z.string())])
-    .optional()
-    .transform((v) => {
-      if (!v) return undefined;
-      const arr = Array.isArray(v) ? v : [v];
-      // Validate that all values are valid integers
-      if (arr.some((p) => isNaN(parseInt(p, 10)))) return undefined;
-      return arr;
-    }),
-  queue: z
-    .union([z.string(), z.array(z.string().min(1))])
-    .optional()
-    .transform((v) => (Array.isArray(v) ? v : v ? [v] : undefined)),
-  state: z.nativeEnum(JobState).default(defaultValues.state),
-});
 
 export const Route = createFileRoute("/jobs/")({
   validateSearch: zodValidator(jobSearchSchema),
@@ -95,7 +49,7 @@ export const Route = createFileRoute("/jobs/")({
   loaderDeps: ({ search: { limit, state, kind, queue, priority, id } }) => {
     return {
       kind,
-      limit: limit || minimumLimit,
+      limit: limit || defaultValues.limit,
       priority: priority?.map((p) => parseInt(p, 10)),
       queue,
       state,
@@ -156,7 +110,7 @@ function JobsIndexComponent() {
         ({ ...old, limit: newLimit }) as {
           id?: string[];
           kind?: string[];
-          limit?: number;
+          limit: number;
           priority?: string[];
           queue?: string[];
           state: JobState;
