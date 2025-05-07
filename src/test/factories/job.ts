@@ -111,6 +111,17 @@ class JobFactory extends Factory<Job, object> {
        
       It should not show as a single paragraph with no linebreaks.
     `.trim();
+
+    const riverLogs = {
+      1: "Starting job execution...",
+      2: "Retrying after first failure",
+      3: "Connection timeout occurred\nAttempting to reconnect...",
+      5: "Database connection established\nContinuing execution",
+      7: "Processing data batch 1/5\nProcessing data batch 2/5\nProcessing data batch 3/5\nError: Invalid data format",
+      8: "Attempting with modified parameters",
+      9: "Final retry attempt with fallback strategy",
+    };
+
     return this.params({
       attempt: 9,
       attemptedAt,
@@ -141,6 +152,13 @@ class JobFactory extends Factory<Job, object> {
           attempt: 10,
         }),
       ],
+      logs: riverLogs,
+      metadata: {
+        "river:log": Object.entries(riverLogs).map(([attempt, log]) => ({
+          attempt: parseInt(attempt),
+          log,
+        })),
+      },
       scheduledAt: add(erroredAt, { minutes: 15, seconds: 22.5 }),
       state: JobState.Retryable,
     });
@@ -148,11 +166,22 @@ class JobFactory extends Factory<Job, object> {
 
   running() {
     const attemptedAt = faker.date.recent({ days: 0.01 });
+    const riverLogs = {
+      1: "Job started execution\nInitializing resources...\nConnected to external service\nProcessing request",
+    };
+
     return this.params({
       attempt: 1,
       attemptedAt,
       attemptedBy: ["worker-1"],
       createdAt: sub(attemptedAt, { minutes: 31, seconds: 30 }),
+      logs: riverLogs,
+      metadata: {
+        "river:log": Object.entries(riverLogs).map(([attempt, log]) => ({
+          attempt: parseInt(attempt),
+          log,
+        })),
+      },
       scheduledAt: sub(attemptedAt, { seconds: 22.5 }),
       state: JobState.Running,
     });
@@ -200,6 +229,7 @@ export const jobFactory = JobFactory.define(({ sequence }) => {
     finalizedAt: undefined,
     id: BigInt(sequence),
     kind: "SimpleTestJob",
+    logs: {},
     maxAttempts: 25,
     metadata: {},
     priority: 1,
@@ -209,3 +239,117 @@ export const jobFactory = JobFactory.define(({ sequence }) => {
     tags: ["urgent"],
   };
 });
+
+JobFactory.prototype.completed = function () {
+  const finalizedAt = faker.date.recent({ days: 0.001 });
+  const createdAt = sub(finalizedAt, { hours: 1, seconds: 37 });
+  const scheduledAt = sub(finalizedAt, { seconds: 37 });
+  const riverLogs = {
+    1: "Job started\nProcessing complete\nResult: success",
+  };
+
+  return this.params({
+    attempt: 1,
+    attemptedAt: sub(finalizedAt, { seconds: 10 }),
+    attemptedBy: ["the-hardest-worker-1"],
+    createdAt,
+    finalizedAt,
+    logs: riverLogs,
+    metadata: {
+      "river:log": Object.entries(riverLogs).map(([attempt, log]) => ({
+        attempt: parseInt(attempt),
+        log,
+      })),
+    },
+    scheduledAt,
+    state: JobState.Completed,
+    tags: ["completed", "it's_already_done"],
+  });
+};
+
+JobFactory.prototype.retryable = function () {
+  const attemptedAt = faker.date.recent({ days: 0.01 });
+  const erroredAt = add(attemptedAt, {
+    seconds: faker.number.float({ max: 95, min: 0.01 }),
+  });
+  const multilineError = `
+    This is a long error message that spans multiple lines.
+    It is used to test the ability of the JobAttemptErrors component to display long error messages.
+     
+    It should not show as a single paragraph with no linebreaks.
+  `.trim();
+
+  const riverLogs = {
+    1: "Starting job execution...",
+    2: "Retrying after first failure",
+    3: "Connection timeout occurred\nAttempting to reconnect...",
+    5: "Database connection established\nContinuing execution",
+    7: "Processing data batch 3/5\nError: Invalid data format",
+    8: "Attempting with modified parameters",
+    9: "Final retry attempt with fallback strategy",
+  };
+
+  return this.params({
+    attempt: 9,
+    attemptedAt,
+    attemptedBy: [
+      "worker-1",
+      "worker-2",
+      "worker-3",
+      "worker-1",
+      "worker-2",
+      "worker-3",
+      "worker-1",
+      "worker-2",
+      "worker-3",
+    ],
+    createdAt: sub(attemptedAt, { minutes: 31, seconds: 30 }),
+    errors: [
+      attemptErrorFactory.build({ attempt: 1 }),
+      attemptErrorFactory.build({ attempt: 2 }),
+      attemptErrorFactory.build({ attempt: 3, error: multilineError }),
+      attemptErrorFactory.build({ attempt: 4 }),
+      attemptErrorFactory.build({ attempt: 5 }),
+      attemptErrorFactory.build({ attempt: 6 }),
+      attemptErrorFactory.build({ attempt: 7 }),
+      attemptErrorFactory.build({ attempt: 8, error: multilineError }),
+      attemptErrorFactory.build({ attempt: 9, trace: undefined }),
+      attemptErrorFactory.build({
+        at: erroredAt,
+        attempt: 10,
+      }),
+    ],
+    logs: riverLogs,
+    metadata: {
+      "river:log": Object.entries(riverLogs).map(([attempt, log]) => ({
+        attempt: parseInt(attempt),
+        log,
+      })),
+    },
+    scheduledAt: add(erroredAt, { minutes: 15, seconds: 22.5 }),
+    state: JobState.Retryable,
+  });
+};
+
+JobFactory.prototype.running = function () {
+  const attemptedAt = faker.date.recent({ days: 0.01 });
+  const riverLogs = {
+    1: "Job started execution\nInitializing resources...\nConnected to external service\nProcessing request",
+  };
+
+  return this.params({
+    attempt: 1,
+    attemptedAt,
+    attemptedBy: ["worker-1"],
+    createdAt: sub(attemptedAt, { minutes: 31, seconds: 30 }),
+    logs: riverLogs,
+    metadata: {
+      "river:log": Object.entries(riverLogs).map(([attempt, log]) => ({
+        attempt: parseInt(attempt),
+        log,
+      })),
+    },
+    scheduledAt: sub(attemptedAt, { seconds: 22.5 }),
+    state: JobState.Running,
+  });
+};

@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added a flexible search filter UI for the job list. [PR #344](https://github.com/riverqueue/riverui/pull/344).
+- Added `riverlog` middleware logs to the job detail UI via a new unified attempts list, rather than separate lists for errors, attempted by, and now logs. [PR #346](https://github.com/riverqueue/riverui/pull/346).
 
 ## [v0.9.0] - 2025-04-08
 
