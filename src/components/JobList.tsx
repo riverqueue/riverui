@@ -17,7 +17,7 @@ import {
 } from "@heroicons/react/24/outline";
 import { useSelected } from "@hooks/use-selected";
 import { useShiftSelected } from "@hooks/use-shift-selected";
-import { Job } from "@services/jobs";
+import { JobMinimal } from "@services/jobs";
 import { StatesAndCounts } from "@services/states";
 import { JobState } from "@services/types";
 import { Link } from "@tanstack/react-router";
@@ -39,7 +39,7 @@ const states: { [key in JobState]: string } = {
   [JobState.Scheduled]: "text-rose-400 bg-rose-400/10",
 };
 
-const timestampForRelativeDisplay = (job: Job): Date => {
+const timestampForRelativeDisplay = (job: JobMinimal): Date => {
   switch (job.state) {
     case JobState.Completed:
       return job.finalizedAt ? job.finalizedAt : new Date();
@@ -50,7 +50,7 @@ const timestampForRelativeDisplay = (job: Job): Date => {
   }
 };
 
-const JobTimeDisplay = ({ job }: { job: Job }): React.JSX.Element => {
+const JobTimeDisplay = ({ job }: { job: JobMinimal }): React.JSX.Element => {
   return (
     <span>
       <RelativeTimeFormatter
@@ -64,7 +64,7 @@ const JobTimeDisplay = ({ job }: { job: Job }): React.JSX.Element => {
 
 type JobListItemProps = {
   checked: boolean;
-  job: Job;
+  job: JobMinimal;
   onChangeSelect: (
     checked: boolean,
     event: React.ChangeEvent<HTMLInputElement>,
@@ -159,7 +159,7 @@ export type JobRowsProps = {
   canShowMore: boolean;
   deleteJobs: (jobIDs: bigint[]) => void;
   initialFilters?: Filter[];
-  jobs: Job[];
+  jobs: JobMinimal[];
   onFiltersChange?: (filters: Filter[]) => void;
   retryJobs: (jobIDs: bigint[]) => void;
   setJobRefetchesPaused: (value: boolean) => void;
@@ -174,7 +174,7 @@ type JobListProps = {
   canShowMore: boolean;
   deleteJobs: (jobIDs: bigint[]) => void;
   initialFilters?: Filter[];
-  jobs: Job[];
+  jobs: JobMinimal[];
   loading?: boolean;
   onFiltersChange?: (filters: Filter[]) => void;
   retryJobs: (jobIDs: bigint[]) => void;

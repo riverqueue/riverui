@@ -24,31 +24,13 @@ export type Job = {
     : JobFromAPI[Key] extends AttemptErrorFromAPI[]
       ? AttemptError[]
       : JobFromAPI[Key];
-} & {
-  logs: JobLogs;
 };
 
-// Represents a Job as received from the API. This just like Job, except with
-// string dates instead of Date objects and keys as snake_case instead of
-// camelCase.
 export type JobFromAPI = {
-  args: object;
-  attempt: number;
-  attempted_at?: string;
-  attempted_by: string[];
-  created_at: string;
   errors: AttemptErrorFromAPI[];
-  finalized_at?: string;
-  id: bigint;
-  kind: string;
-  max_attempts: number;
+  logs: JobLogs;
   metadata: KnownMetadata | object;
-  priority: number;
-  queue: string;
-  scheduled_at: string;
-  state: JobState;
-  tags: string[];
-};
+} & JobMinimalFromAPI;
 
 export type JobLogEntry = {
   attempt: number;
@@ -58,6 +40,34 @@ export type JobLogEntry = {
 // New type for better organized logs
 export type JobLogs = {
   [attempt: number]: string;
+};
+
+export type JobMinimal = {
+  [Key in keyof JobMinimalFromAPI as SnakeToCamelCase<Key>]: Key extends
+    | StringEndingWithUnderscoreAt
+    | undefined
+    ? Date
+    : JobMinimalFromAPI[Key];
+};
+
+// Represents a Job as received from the API. This just like Job, except with
+// string dates instead of Date objects and keys as snake_case instead of
+// camelCase.
+export type JobMinimalFromAPI = {
+  args: object;
+  attempt: number;
+  attempted_at?: string;
+  attempted_by: string[];
+  created_at: string;
+  finalized_at?: string;
+  id: bigint;
+  kind: string;
+  max_attempts: number;
+  priority: number;
+  queue: string;
+  scheduled_at: string;
+  state: JobState;
+  tags: string[];
 };
 
 export type JobWithKnownMetadata = {
@@ -87,24 +97,30 @@ type RiverJobLogEntry = {
   log: string;
 };
 
-export const apiJobToJob = (job: JobFromAPI): Job => ({
+export const apiJobMinimalToJobMinimal = (
+  job: JobMinimalFromAPI,
+): JobMinimal => ({
   args: job.args,
   attempt: job.attempt,
   attemptedAt: job.attempted_at ? new Date(job.attempted_at) : undefined,
   attemptedBy: job.attempted_by,
   createdAt: new Date(job.created_at),
-  errors: apiAttemptErrorsToAttemptErrors(job.errors),
   finalizedAt: job.finalized_at ? new Date(job.finalized_at) : undefined,
   id: BigInt(job.id),
   kind: job.kind,
-  logs: extractJobLogs(job.metadata),
   maxAttempts: job.max_attempts,
-  metadata: job.metadata,
   priority: job.priority,
   queue: job.queue,
   scheduledAt: new Date(job.scheduled_at),
   state: job.state,
   tags: job.tags,
+});
+
+export const apiJobToJob = (job: JobFromAPI): Job => ({
+  ...apiJobMinimalToJobMinimal(job),
+  errors: apiAttemptErrorsToAttemptErrors(job.errors),
+  logs: extractJobLogs(job.metadata),
+  metadata: job.metadata,
 });
 
 const apiAttemptErrorsToAttemptErrors = (
@@ -196,7 +212,7 @@ export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
   ];
 };
 
-export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
+export const listJobs: QueryFunction<JobMinimal[], ListJobsKey> = async ({
   queryKey,
   signal,
 }) => {
@@ -222,13 +238,13 @@ export const listJobs: QueryFunction<Job[], ListJobsKey> = async ({
     }
   });
 
-  return API.get<ListResponse<JobFromAPI>>(
+  return API.get<ListResponse<JobMinimalFromAPI>>(
     { path: "/jobs", query },
     { signal },
   ).then(
     // Map from JobFromAPI to Job:
     // TODO: there must be a cleaner way to do this given the type definitions?
-    (response) => response.data.map(apiJobToJob),
+    (response) => response.data.map(apiJobMinimalToJobMinimal),
   );
 };
 

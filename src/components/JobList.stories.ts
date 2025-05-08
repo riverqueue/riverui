@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react";
 
 import { JobState } from "@services/types";
-import { jobFactory } from "@test/factories/job";
+import { jobMinimalFactory } from "@test/factories/job";
 
 import JobList from "./JobList";
 
@@ -16,7 +16,7 @@ type Story = StoryObj<typeof JobList>;
 
 export const Running: Story = {
   args: {
-    jobs: jobFactory.running().buildList(10),
+    jobs: jobMinimalFactory.running().buildList(10),
     setJobRefetchesPaused: () => {},
     state: JobState.Running,
   },
