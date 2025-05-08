@@ -2,6 +2,7 @@ import { Providers } from "@providers";
 import { type Features, featuresKey, getFeatures } from "@services/features";
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter, RouterProvider } from "@tanstack/react-router";
+import qs from "query-string";
 
 import "./global-type-overrides";
 
@@ -24,7 +25,15 @@ const router = createRouter({
     } as Features,
     queryClient,
   },
+  parseSearch: (search) => qs.parse(search, { arrayFormat: "comma" }),
   routeTree,
+  stringifySearch: (search) => {
+    const result = qs.stringify(search, {
+      arrayFormat: "comma",
+      skipEmptyString: true,
+    });
+    return result ? `?${result}` : "";
+  },
   trailingSlash: "preserve",
 });
 

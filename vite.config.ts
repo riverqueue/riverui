@@ -24,5 +24,12 @@ export default defineConfig({
     sourcemap: true,
     target: "esnext",
   },
-  plugins: [tailwindcss(), react(), TanStackRouterVite(), tsconfigPaths()],
+  plugins: [
+    tailwindcss(),
+    react(),
+    TanStackRouterVite({
+      routeFileIgnorePattern: ".(const|schema|test).(ts|tsx)",
+    }),
+    tsconfigPaths(),
+  ],
 });

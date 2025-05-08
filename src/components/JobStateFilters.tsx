@@ -6,13 +6,13 @@ import React, { useMemo } from "react";
 
 import { Badge } from "./Badge";
 
-type JobFiltersProps = {
+type JobStateFiltersProps = {
   statesAndCounts?: StatesAndCounts;
 };
 
-export const JobFilters: (props: JobFiltersProps) => React.JSX.Element = ({
-  statesAndCounts,
-}) => {
+export const JobStateFilters: (
+  props: JobStateFiltersProps,
+) => React.JSX.Element = ({ statesAndCounts }) => {
   const filterItems = useMemo(
     () => jobStateFilterItems(statesAndCounts),
     [statesAndCounts],

@@ -36,3 +36,12 @@ CREATE TABLE river_job(
     CONSTRAINT queue_length CHECK (char_length(queue) > 0 AND char_length(queue) < 128),
     CONSTRAINT kind_length CHECK (char_length(kind) > 0 AND char_length(kind) < 128)
 );
+
+-- name: JobKindListByPrefix :many
+SELECT DISTINCT ON (kind) kind
+FROM river_job
+WHERE (@prefix = '' OR kind ILIKE @prefix || '%')
+    AND (@after = '' OR kind > @after)
+    AND (@exclude::text[] IS NULL OR kind != ALL(@exclude))
+ORDER BY kind ASC
+LIMIT @max;

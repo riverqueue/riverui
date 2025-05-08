@@ -1,0 +1,37 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Code Formatting Guidelines
+
+## Run Formatter Before Completing Tasks
+- Always run `npm run fmt` before considering any JavaScript/TypeScript task complete
+- Always run `make lint` before considernig any Go task complete.
+- This ensures code quality, consistency, and prevents lint errors from being committed
+
+## Formatting Process
+1. Make your code changes
+2. Run `npm run fmt` (for JS/TS/CSS) or `make lint` (for Go) to apply formatting and fix lint issues
+3. Review any changes made by the formatter
+4. Commit your changes only after the formatter runs successfully
+
+## Benefits
+- Consistent code style across the project
+- Catches potential issues early
+- Prevents lint errors from being committed
+- Reduces code review time spent on formatting issues
+- Ensures all code meets project standards
+
+## Common Issues Prevented
+- Inconsistent indentation
+- Missing semicolons
+- Unused imports
+- Improper type usage (like `any`)
+- React hooks usage errors
+- Unused variables
+
+## Integration with Development Workflow
+- Consider adding a pre-commit hook to automatically run the formatter
+- Use IDE extensions that format on save
+- Configure your editor to use the project's ESLint and Prettier settings

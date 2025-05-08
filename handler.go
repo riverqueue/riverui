@@ -143,6 +143,7 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	}
 
 	endpoints := []apiendpoint.EndpointInterface{
+		apiendpoint.Mount(mux, newAutocompleteListEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newFeaturesGetEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newHealthCheckGetEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newJobCancelEndpoint(apiBundle), &mountOpts),

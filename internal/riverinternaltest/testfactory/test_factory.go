@@ -43,6 +43,10 @@ func Job(ctx context.Context, tb testing.TB, exec riverdriver.Executor, opts *Jo
 func Job_Build(tb testing.TB, opts *JobOpts) *riverdriver.JobInsertFullParams {
 	tb.Helper()
 
+	if opts == nil {
+		opts = &JobOpts{}
+	}
+
 	encodedArgs := opts.EncodedArgs
 	if opts.EncodedArgs == nil {
 		encodedArgs = []byte("{}")

@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Storybook Component Stories
+
+## Story File Location
+- Story files should be colocated with their components in the same directory
+- Example: [src/components/EditableBadge.stories.tsx](mdc:src/components/EditableBadge.stories.tsx) is located next to [src/components/EditableBadge.tsx](mdc:src/components/EditableBadge.tsx)
+- Use the `.stories.tsx` extension for story files
+
+## Component Story Organization
+Components should have their stories organized as follows:
+```
+src/components/
+  ├── MyComponent/
+  │   ├── MyComponent.tsx
+  │   ├── MyComponent.stories.tsx
+  │   └── MyComponent.test.tsx
+  └── OtherComponent.tsx
+      ├── OtherComponent.stories.tsx
+      └── OtherComponent.test.tsx
+```
+
+## Story Examples
+Some examples of well-structured stories:
+- [src/components/Badge.stories.tsx](mdc:src/components/Badge.stories.tsx)
+- [src/components/JobTimeline.stories.tsx](mdc:src/components/JobTimeline.stories.tsx)
+- [src/components/QueueDetail.stories.tsx](mdc:src/components/QueueDetail.stories.tsx)
+
+## Story Configuration
+- Global configuration and decorators are defined in [.storybook/preview.tsx](mdc:.storybook/preview.tsx)
+- Stories should demonstrate different states and variations of the component
+- Include interactive examples where appropriate using Storybook controls

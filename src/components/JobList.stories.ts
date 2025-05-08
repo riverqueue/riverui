@@ -17,6 +17,7 @@ type Story = StoryObj<typeof JobList>;
 export const Running: Story = {
   args: {
     jobs: jobFactory.running().buildList(10),
+    setJobRefetchesPaused: () => {},
     state: JobState.Running,
   },
 };

@@ -5,6 +5,29 @@ import React from "react";
 import { TouchTarget } from "./Button";
 import { HeadlessLink } from "./HeadlessLink";
 
+// List of available badge colors
+export const BadgeColors = [
+  "amber",
+  "blue",
+  "cyan",
+  "emerald",
+  "fuchsia",
+  "green",
+  "indigo",
+  "light",
+  "lime",
+  "orange",
+  "pink",
+  "purple",
+  "red",
+  "rose",
+  "sky",
+  "teal",
+  "violet",
+  "yellow",
+  "zinc",
+] as const;
+
 const colors = {
   amber:
     "bg-amber-400/20 text-amber-700 group-data-hover:bg-amber-400/30 dark:bg-amber-400/10 dark:text-amber-400 dark:group-data-hover:bg-amber-400/15",

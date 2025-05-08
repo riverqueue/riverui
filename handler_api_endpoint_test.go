@@ -68,6 +68,156 @@ func testMountOpts(t *testing.T) *apiendpoint.MountOpts {
 	}
 }
 
+func runAutocompleteTests(t *testing.T, facet autocompleteFacet, setupFunc func(t *testing.T, bundle *setupEndpointTestBundle)) {
+	t.Helper()
+
+	ctx := context.Background()
+	alphaPrefix := "alpha"
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+		setupFunc(t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Facet: facet,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 4)
+		require.Equal(t, "alpha_"+facet.baseString(), *resp.Data[0])
+		require.Equal(t, "alpha_task", *resp.Data[1])
+		require.Equal(t, "beta_"+facet.baseString(), *resp.Data[2])
+		require.Equal(t, "gamma_"+facet.baseString(), *resp.Data[3])
+	})
+
+	t.Run("WithPrefix", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+		setupFunc(t, bundle)
+
+		prefix := alphaPrefix
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Facet:  facet,
+			Prefix: &prefix,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, "alpha_"+facet.baseString(), *resp.Data[0])
+		require.Equal(t, "alpha_task", *resp.Data[1])
+	})
+
+	t.Run("WithAfter", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+		setupFunc(t, bundle)
+
+		after := "alpha_" + facet.baseString()
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			After: &after,
+			Facet: facet,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 3)
+		require.Equal(t, "alpha_task", *resp.Data[0])
+		require.Equal(t, "beta_"+facet.baseString(), *resp.Data[1])
+		require.Equal(t, "gamma_"+facet.baseString(), *resp.Data[2])
+	})
+
+	t.Run("WithExclude", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+		setupFunc(t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Exclude: []string{"alpha_" + facet.baseString(), "beta_" + facet.baseString()},
+			Facet:   facet,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, "alpha_task", *resp.Data[0])
+		require.Equal(t, "gamma_"+facet.baseString(), *resp.Data[1])
+	})
+
+	t.Run("WithPrefixAndExclude", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+		setupFunc(t, bundle)
+
+		prefix := alphaPrefix
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Exclude: []string{"alpha_" + facet.baseString()},
+			Facet:   facet,
+			Prefix:  &prefix,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, "alpha_task", *resp.Data[0])
+	})
+}
+
+func (f autocompleteFacet) baseString() string {
+	switch f {
+	case autocompleteFacetJobKind:
+		return "job"
+	case autocompleteFacetQueueName:
+		return "queue"
+	default:
+		return ""
+	}
+}
+
+func TestAPIHandlerAutocompleteList(t *testing.T) {
+	t.Parallel()
+
+	t.Run("JobKind", func(t *testing.T) {
+		t.Parallel()
+
+		setupTestKinds := func(t *testing.T, bundle *setupEndpointTestBundle) {
+			t.Helper()
+			ctx := context.Background()
+			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: ptrutil.Ptr("alpha_job")})
+			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: ptrutil.Ptr("alpha_task")})
+			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: ptrutil.Ptr("beta_job")})
+			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: ptrutil.Ptr("gamma_job")})
+		}
+
+		runAutocompleteTests(t, autocompleteFacetJobKind, setupTestKinds)
+	})
+
+	t.Run("QueueName", func(t *testing.T) {
+		t.Parallel()
+
+		setupTestQueues := func(t *testing.T, bundle *setupEndpointTestBundle) {
+			t.Helper()
+			ctx := context.Background()
+			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: ptrutil.Ptr("alpha_queue")})
+			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: ptrutil.Ptr("alpha_task")})
+			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: ptrutil.Ptr("beta_queue")})
+			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: ptrutil.Ptr("gamma_queue")})
+		}
+
+		runAutocompleteTests(t, autocompleteFacetQueueName, setupTestQueues)
+	})
+
+	t.Run("InvalidFacet", func(t *testing.T) {
+		t.Parallel()
+
+		ctx := context.Background()
+
+		endpoint, _ := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+
+		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Facet: "invalid",
+		})
+		requireAPIError(t, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, queue_name", "invalid"), err)
+	})
+}
+
 func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 	// This can't be parallelized because it tries to make DB schema changes.
 	ctx := context.Background()
@@ -272,16 +422,16 @@ func TestAPIHandlerJobList(t *testing.T) {
 
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
-		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
-		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
-
-		// Defaults to filtering to running jobs; other states are excluded.
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCancelled), FinalizedAt: ptrutil.Ptr(time.Now())})
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateDiscarded), FinalizedAt: ptrutil.Ptr(time.Now())})
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStatePending)})
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateScheduled)})
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Kind:  ptrutil.Ptr("kind1"),
+			Queue: ptrutil.Ptr("queue1"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Kind:  ptrutil.Ptr("kind2"),
+			Queue: ptrutil.Ptr("queue2"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{})
 		require.NoError(t, err)
@@ -290,54 +440,130 @@ func TestAPIHandlerJobList(t *testing.T) {
 		require.Equal(t, job2.ID, resp.Data[1].ID)
 	})
 
+	t.Run("FilterByIDs", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, nil)
+		job2 := testfactory.Job(ctx, t, bundle.exec, nil)
+		_ = testfactory.Job(ctx, t, bundle.exec, nil)
+		_ = testfactory.Job(ctx, t, bundle.exec, nil)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			IDs:   []int64{job1.ID, job2.ID},
+			State: ptrutil.Ptr(rivertype.JobStateAvailable),
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+		require.Equal(t, job2.ID, resp.Data[1].ID)
+	})
+
+	t.Run("FilterByKind", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Kind:  ptrutil.Ptr("kind1"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Kind:  ptrutil.Ptr("kind2"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Kinds: []string{"kind1"},
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job.ID, resp.Data[0].ID)
+	})
+
+	t.Run("FilterByPriority", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Priority: ptrutil.Ptr(1),
+		})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Priority: ptrutil.Ptr(2),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Priorities: []int16{2},
+			State:      ptrutil.Ptr(rivertype.JobStateAvailable),
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job2.ID, resp.Data[0].ID)
+	})
+
+	t.Run("FilterByQueue", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Queue: ptrutil.Ptr("queue1"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			Queue: ptrutil.Ptr("queue2"),
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Queues: []string{"queue1"},
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job.ID, resp.Data[0].ID)
+	})
+
+	t.Run("FilterByState", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateAvailable),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+
+		state := rivertype.JobStateAvailable
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			State: &state,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job.ID, resp.Data[0].ID)
+	})
+
 	t.Run("Limit", func(t *testing.T) {
 		t.Parallel()
 
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
-		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+		})
 
-		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{Limit: ptrutil.Ptr(1)})
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Limit: ptrutil.Ptr(1),
+		})
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 1)
-		require.Equal(t, job1.ID, resp.Data[0].ID)
-	})
-
-	t.Run("FiltersFinalizedStatesAndOrdersDescending", func(t *testing.T) {
-		t.Parallel()
-
-		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
-
-		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
-		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
-
-		// Other states excluded.
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
-
-		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{State: ptrutil.Ptr(rivertype.JobStateCompleted)})
-		require.NoError(t, err)
-		require.Len(t, resp.Data, 2)
-		require.Equal(t, job2.ID, resp.Data[0].ID) // order inverted
-		require.Equal(t, job1.ID, resp.Data[1].ID)
-	})
-
-	t.Run("FiltersNonFinalizedStates", func(t *testing.T) {
-		t.Parallel()
-
-		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
-
-		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
-		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
-
-		// Other states excluded.
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateScheduled)})
-
-		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
-		require.NoError(t, err)
-		require.Len(t, resp.Data, 2)
-		require.Equal(t, job1.ID, resp.Data[0].ID)
-		require.Equal(t, job2.ID, resp.Data[1].ID)
+		require.Equal(t, job.ID, resp.Data[0].ID)
 	})
 }
 

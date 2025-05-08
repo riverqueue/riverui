@@ -56,6 +56,117 @@ type statusResponse struct {
 var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
 
 //
+// autocompleteListEndpoint
+//
+
+type autocompleteListEndpoint struct {
+	apiBundle
+	apiendpoint.Endpoint[autocompleteListRequest, listResponse[string]]
+}
+
+func newAutocompleteListEndpoint(apiBundle apiBundle) *autocompleteListEndpoint {
+	return &autocompleteListEndpoint{apiBundle: apiBundle}
+}
+
+func (*autocompleteListEndpoint) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/autocomplete",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type autocompleteFacet string
+
+const (
+	autocompleteFacetJobKind   autocompleteFacet = "job_kind"
+	autocompleteFacetQueueName autocompleteFacet = "queue_name"
+)
+
+type autocompleteListRequest struct {
+	After   *string           `json:"-"` // from ExtractRaw
+	Exclude []string          `json:"-"` // from ExtractRaw
+	Facet   autocompleteFacet `json:"-"` // from ExtractRaw
+	Prefix  *string           `json:"-"` // from ExtractRaw
+}
+
+func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
+	if after := r.URL.Query().Get("after"); after != "" {
+		req.After = &after
+	}
+
+	if exclude := r.URL.Query()["exclude"]; len(exclude) > 0 {
+		req.Exclude = exclude
+	}
+
+	if facet := r.URL.Query().Get("facet"); facet != "" {
+		req.Facet = autocompleteFacet(facet)
+	}
+
+	if prefix := r.URL.Query().Get("prefix"); prefix != "" {
+		req.Prefix = &prefix
+	}
+
+	return nil
+}
+
+func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocompleteListRequest) (*listResponse[string], error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[string], error) {
+		prefix := ""
+		if req.Prefix != nil {
+			prefix = *req.Prefix
+		}
+
+		after := ""
+		if req.After != nil {
+			after = *req.After
+		}
+
+		switch req.Facet {
+		case autocompleteFacetJobKind:
+			kinds, err := dbsqlc.New().JobKindListByPrefix(ctx, tx, &dbsqlc.JobKindListByPrefixParams{
+				After:   after,
+				Exclude: req.Exclude,
+				Max:     100,
+				Prefix:  prefix,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("error listing job kinds: %w", err)
+			}
+
+			kindPtrs := make([]*string, len(kinds))
+			for i, kind := range kinds {
+				kindCopy := kind
+				kindPtrs[i] = &kindCopy
+			}
+
+			return listResponseFrom(kindPtrs), nil
+
+		case autocompleteFacetQueueName:
+			queues, err := dbsqlc.New().QueueNameListByPrefix(ctx, tx, &dbsqlc.QueueNameListByPrefixParams{
+				After:   after,
+				Exclude: req.Exclude,
+				Max:     100,
+				Prefix:  prefix,
+			})
+			if err != nil {
+				return nil, fmt.Errorf("error listing queue names: %w", err)
+			}
+
+			queuePtrs := make([]*string, len(queues))
+			for i, queue := range queues {
+				queueCopy := queue
+				queuePtrs[i] = &queueCopy
+			}
+
+			return listResponseFrom(queuePtrs), nil
+
+		default:
+			return nil, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, queue_name", req.Facet)
+		}
+	})
+}
+
+//
 // featuresGetEndpoint
 //
 
@@ -328,11 +439,29 @@ func (*jobListEndpoint) Meta() *apiendpoint.EndpointMeta {
 }
 
 type jobListRequest struct {
-	Limit *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
-	State *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
+	IDs        []int64             `json:"-" validate:"omitempty,min=1,max=1000"`                                                                    // from ExtractRaw
+	Kinds      []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	Limit      *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
+	Priorities []int16             `json:"-" validate:"omitempty,min=0,max=10"`                                                                      // from ExtractRaw
+	Queues     []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	State      *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
 }
 
 func (req *jobListRequest) ExtractRaw(r *http.Request) error {
+	if ids := r.URL.Query()["ids"]; len(ids) > 0 {
+		req.IDs = sliceutil.Map(ids, func(id string) int64 {
+			value, err := strconv.ParseInt(id, 10, 64)
+			if err != nil {
+				return 0
+			}
+			return value
+		})
+	}
+
+	if kinds := r.URL.Query()["kinds"]; len(kinds) > 0 {
+		req.Kinds = kinds
+	}
+
 	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
 		limit, err := strconv.Atoi(limitStr)
 		if err != nil {
@@ -342,8 +471,22 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 		req.Limit = &limit
 	}
 
+	if priorities := r.URL.Query()["priorities"]; len(priorities) > 0 {
+		req.Priorities = sliceutil.Map(priorities, func(p string) int16 {
+			value, err := strconv.ParseInt(p, 10, 16)
+			if err != nil {
+				return 0
+			}
+			return int16(value)
+		})
+	}
+
 	if state := r.URL.Query().Get("state"); state != "" {
 		req.State = (*rivertype.JobState)(&state)
+	}
+
+	if queues := r.URL.Query()["queues"]; len(queues) > 0 {
+		req.Queues = queues
 	}
 
 	return nil
@@ -352,6 +495,22 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJob], error) {
 	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJob], error) {
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
+
+		if len(req.IDs) > 0 {
+			params = params.IDs(req.IDs...)
+		}
+
+		if len(req.Kinds) > 0 {
+			params = params.Kinds(req.Kinds...)
+		}
+
+		if len(req.Priorities) > 0 {
+			params = params.Priorities(req.Priorities...)
+		}
+
+		if len(req.Queues) > 0 {
+			params = params.Queues(req.Queues...)
+		}
 
 		if req.State == nil {
 			params = params.States(rivertype.JobStateRunning).OrderBy(river.JobListOrderByTime, river.SortOrderAsc)
@@ -366,7 +525,7 @@ func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*li
 
 		result, err := a.client.JobListTx(ctx, tx, params)
 		if err != nil {
-			return nil, fmt.Errorf("error listing queues: %w", err)
+			return nil, fmt.Errorf("error listing jobs: %w", err)
 		}
 
 		return listResponseFrom(sliceutil.Map(result.Jobs, riverJobToSerializableJob)), nil

@@ -1,0 +1,35 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# Project Configuration Guidelines
+
+## TypeScript Path Aliases
+- Define path aliases in [tsconfig.json](mdc:tsconfig.json) using the `paths` configuration
+- Use the `@` prefix for all path aliases
+- Current configuration uses a wildcard pattern for all src directories:
+  ```json
+  {
+    "baseUrl": "./src",
+    "paths": {
+      "@*": ["./*"]
+    }
+  }
+  ```
+
+## Vitest Configuration
+- Main configuration file: [vitest.config.ts](mdc:vitest.config.ts)
+- Use `vite-tsconfig-paths` plugin to inherit path aliases from tsconfig.json
+- Keep the configuration minimal:
+  ```typescript
+  export default defineConfig({
+    plugins: [tsconfigPaths()],
+    test: {
+      environment: "jsdom",
+      setupFiles: ["./src/test/setup.ts"],
+      globals: true,
+    },
+  });
+  ```
+- Avoid duplicating path aliases in Vitest config - let them be inherited from tsconfig.json
