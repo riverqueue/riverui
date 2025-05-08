@@ -110,6 +110,10 @@ export const apiJobToJob = (job: JobFromAPI): Job => ({
 const apiAttemptErrorsToAttemptErrors = (
   errors: AttemptErrorFromAPI[],
 ): AttemptError[] => {
+  if (!errors) {
+    return [];
+  }
+
   return errors.map((error) => ({
     at: new Date(error.at),
     attempt: error.attempt,
