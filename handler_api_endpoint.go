@@ -424,7 +424,7 @@ func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*Rive
 
 type jobListEndpoint struct {
 	apiBundle
-	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverJob]]
+	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverJobMinimal]]
 }
 
 func newJobListEndpoint(apiBundle apiBundle) *jobListEndpoint {
@@ -492,8 +492,8 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJob], error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJob], error) {
+func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJobMinimal], error) {
+	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJobMinimal], error) {
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
 
 		if len(req.IDs) > 0 {
@@ -528,7 +528,7 @@ func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*li
 			return nil, fmt.Errorf("error listing jobs: %w", err)
 		}
 
-		return listResponseFrom(sliceutil.Map(result.Jobs, riverJobToSerializableJob)), nil
+		return listResponseFrom(sliceutil.Map(result.Jobs, riverJobToSerializableJobMinimal)), nil
 	})
 }
 
@@ -1112,23 +1112,27 @@ type PartitionConfig struct {
 	ByKind bool     `json:"by_kind"`
 }
 
+type RiverJobMinimal struct {
+	ID          int64           `json:"id"`
+	Args        json.RawMessage `json:"args"`
+	Attempt     int             `json:"attempt"`
+	AttemptedAt *time.Time      `json:"attempted_at"`
+	AttemptedBy []string        `json:"attempted_by"`
+	CreatedAt   time.Time       `json:"created_at"`
+	FinalizedAt *time.Time      `json:"finalized_at"`
+	Kind        string          `json:"kind"`
+	MaxAttempts int             `json:"max_attempts"`
+	Priority    int             `json:"priority"`
+	Queue       string          `json:"queue"`
+	ScheduledAt time.Time       `json:"scheduled_at"`
+	State       string          `json:"state"`
+	Tags        []string        `json:"tags"`
+}
+
 type RiverJob struct {
-	ID          int64                    `json:"id"`
-	Args        json.RawMessage          `json:"args"`
-	Attempt     int                      `json:"attempt"`
-	AttemptedAt *time.Time               `json:"attempted_at"`
-	AttemptedBy []string                 `json:"attempted_by"`
-	CreatedAt   time.Time                `json:"created_at"`
-	Errors      []rivertype.AttemptError `json:"errors"`
-	FinalizedAt *time.Time               `json:"finalized_at"`
-	Kind        string                   `json:"kind"`
-	MaxAttempts int                      `json:"max_attempts"`
-	Metadata    json.RawMessage          `json:"metadata"`
-	Priority    int                      `json:"priority"`
-	Queue       string                   `json:"queue"`
-	ScheduledAt time.Time                `json:"scheduled_at"`
-	State       string                   `json:"state"`
-	Tags        []string                 `json:"tags"`
+	RiverJobMinimal
+	Errors   []rivertype.AttemptError `json:"errors"`
+	Metadata json.RawMessage          `json:"metadata"`
 }
 
 func internalJobToSerializableJob(internal *dbsqlc.RiverJob) *RiverJob {
@@ -1145,48 +1149,60 @@ func internalJobToSerializableJob(internal *dbsqlc.RiverJob) *RiverJob {
 		attemptedBy = []string{}
 	}
 
-	return &RiverJob{
+	minimal := RiverJobMinimal{
 		ID:          internal.ID,
 		Args:        internal.Args,
 		Attempt:     int(internal.Attempt),
 		AttemptedAt: timePtr(internal.AttemptedAt),
 		AttemptedBy: attemptedBy,
 		CreatedAt:   internal.CreatedAt.Time.UTC(),
-		Errors:      errs,
 		FinalizedAt: timePtr(internal.FinalizedAt),
 		Kind:        internal.Kind,
 		MaxAttempts: int(internal.MaxAttempts),
-		Metadata:    internal.Metadata,
 		Priority:    int(internal.Priority),
 		Queue:       internal.Queue,
 		State:       string(internal.State),
 		ScheduledAt: internal.ScheduledAt.Time.UTC(),
 		Tags:        internal.Tags,
 	}
+
+	return &RiverJob{
+		RiverJobMinimal: minimal,
+		Errors:          errs,
+		Metadata:        internal.Metadata,
+	}
 }
 
 func riverJobToSerializableJob(riverJob *rivertype.JobRow) *RiverJob {
-	attemptedBy := riverJob.AttemptedBy
-	if attemptedBy == nil {
-		attemptedBy = []string{}
-	}
 	errs := riverJob.Errors
 	if errs == nil {
 		errs = []rivertype.AttemptError{}
 	}
 
 	return &RiverJob{
+		RiverJobMinimal: *riverJobToSerializableJobMinimal(riverJob),
+
+		Errors:   errs,
+		Metadata: riverJob.Metadata,
+	}
+}
+
+func riverJobToSerializableJobMinimal(riverJob *rivertype.JobRow) *RiverJobMinimal {
+	attemptedBy := riverJob.AttemptedBy
+	if attemptedBy == nil {
+		attemptedBy = []string{}
+	}
+
+	return &RiverJobMinimal{
 		ID:          riverJob.ID,
 		Args:        riverJob.EncodedArgs,
 		Attempt:     riverJob.Attempt,
 		AttemptedAt: riverJob.AttemptedAt,
 		AttemptedBy: attemptedBy,
 		CreatedAt:   riverJob.CreatedAt,
-		Errors:      errs,
 		FinalizedAt: riverJob.FinalizedAt,
 		Kind:        riverJob.Kind,
 		MaxAttempts: riverJob.MaxAttempts,
-		Metadata:    riverJob.Metadata,
 		Priority:    riverJob.Priority,
 		Queue:       riverJob.Queue,
 		State:       string(riverJob.State),

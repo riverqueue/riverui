@@ -24,6 +24,8 @@ export type Job = {
     : JobFromAPI[Key] extends AttemptErrorFromAPI[]
       ? AttemptError[]
       : JobFromAPI[Key];
+} & {
+  logs: JobLogs;
 };
 
 // Represents a Job as received from the API. This just like Job, except with
@@ -48,6 +50,16 @@ export type JobFromAPI = {
   tags: string[];
 };
 
+export type JobLogEntry = {
+  attempt: number;
+  log: string;
+};
+
+// New type for better organized logs
+export type JobLogs = {
+  [attempt: number]: string;
+};
+
 export type JobWithKnownMetadata = {
   metadata: KnownMetadata;
 } & Omit<Job, "metadata">;
@@ -63,10 +75,16 @@ type AttemptErrorFromAPI = {
 
 type KnownMetadata = {
   deps: string[];
+  "river:log"?: RiverJobLogEntry[];
   task: string;
   workflow_id: string;
   workflow_name?: string;
   workflow_staged_at: string;
+};
+
+type RiverJobLogEntry = {
+  attempt: number;
+  log: string;
 };
 
 export const apiJobToJob = (job: JobFromAPI): Job => ({
@@ -79,6 +97,7 @@ export const apiJobToJob = (job: JobFromAPI): Job => ({
   finalizedAt: job.finalized_at ? new Date(job.finalized_at) : undefined,
   id: BigInt(job.id),
   kind: job.kind,
+  logs: extractJobLogs(job.metadata),
   maxAttempts: job.max_attempts,
   metadata: job.metadata,
   priority: job.priority,
@@ -97,6 +116,29 @@ const apiAttemptErrorsToAttemptErrors = (
     error: error.error,
     trace: error.trace,
   }));
+};
+
+// Helper function to extract river:log entries from job metadata
+const extractJobLogs = (metadata: object): JobLogs => {
+  if (
+    metadata &&
+    typeof metadata === "object" &&
+    "river:log" in metadata &&
+    Array.isArray(metadata["river:log"])
+  ) {
+    const riverLogs = metadata["river:log"] as RiverJobLogEntry[];
+
+    return riverLogs.reduce<JobLogs>((acc, entry) => {
+      const attemptLogs = acc[entry.attempt] || "";
+
+      return {
+        ...acc,
+        [entry.attempt]: attemptLogs + entry.log,
+      };
+    }, {});
+  }
+
+  return {};
 };
 
 type CancelPayload = JobIdsPayload;

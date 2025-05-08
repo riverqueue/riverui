@@ -1,6 +1,6 @@
 import { Badge } from "@components/Badge";
 import ButtonForGroup from "@components/ButtonForGroup";
-import JobAttemptErrors from "@components/JobAttemptErrors";
+import JobAttempts from "@components/JobAttempts";
 import JobTimeline from "@components/JobTimeline";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
@@ -14,7 +14,7 @@ import { Job, JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent } from "react";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -30,13 +30,6 @@ export default function JobDetail({
   retry,
 }: JobDetailProps) {
   const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
-  const [showAllAttempts, setShowAllAttempts] = useState(false);
-  const attemptsToDisplay = useMemo(() => {
-    if (showAllAttempts) {
-      return job.attemptedBy.slice().reverse();
-    }
-    return job.attemptedBy.slice(-5).reverse();
-  }, [job.attemptedBy, showAllAttempts]);
 
   let jobWithMetadata: JobWithKnownMetadata | undefined;
   if (isJobWithKnownMetadata(job)) {
@@ -184,44 +177,8 @@ export default function JobDetail({
                   </pre>
                 </dd>
               </div>
-              <div className="border-t border-slate-100 px-4 py-6 sm:col-span-1 sm:px-0 dark:border-slate-800">
-                <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
-                  Attempted By
-                </dt>
-                <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
-                  <ul role="list">
-                    {attemptsToDisplay.map((attemptedBy, i) => (
-                      <li
-                        className="font-mono"
-                        key={i}
-                        title={job.errors.at(i)?.at.toISOString()}
-                      >
-                        {attemptedBy}
-                      </li>
-                    ))}
-                  </ul>
-                  {!showAllAttempts && job.attemptedBy.length > 5 && (
-                    <button
-                      className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
-                      onClick={() => setShowAllAttempts(true)}
-                      type="button"
-                    >
-                      Show all {job.attemptedBy.length} attempts
-                    </button>
-                  )}
-                  {showAllAttempts && (
-                    <button
-                      className="mt-4 text-sm font-semibold text-indigo-600 hover:underline dark:text-slate-100"
-                      onClick={() => setShowAllAttempts(false)}
-                      type="button"
-                    >
-                      Show fewer attempts
-                    </button>
-                  )}
-                </dd>
-              </div>
 
-              <JobAttemptErrors job={job} />
+              <JobAttempts job={job} />
             </dl>
           </div>
         </div>
