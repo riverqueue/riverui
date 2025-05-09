@@ -1,5 +1,5 @@
 import { faker } from "@faker-js/faker";
-import { AttemptError, Job } from "@services/jobs";
+import { AttemptError, Job, JobMinimal } from "@services/jobs";
 import { JobState } from "@services/types";
 import { add, sub } from "date-fns";
 import { Factory } from "fishery";
@@ -26,6 +26,52 @@ export const attemptErrorFactory = AttemptErrorFactory.define(({ params }) => {
     error: "Failed yet again with some Go message",
     trace: sampleTrace,
   };
+});
+
+// Helper type to extract only JobMinimal fields from Job:
+type JobMinimalFields = Pick<Job, keyof JobMinimal>;
+
+class JobMinimalFactory extends Factory<JobMinimal, object> {
+  available() {
+    return this.params(jobFactory.available().build());
+  }
+
+  cancelled() {
+    return this.params(jobFactory.cancelled().build());
+  }
+
+  completed() {
+    return this.params(jobFactory.completed().build());
+  }
+
+  discarded() {
+    return this.params(jobFactory.discarded().build());
+  }
+
+  pending() {
+    return this.params(jobFactory.pending().build());
+  }
+
+  retryable() {
+    return this.params(jobFactory.retryable().build());
+  }
+
+  running() {
+    return this.params(jobFactory.running().build());
+  }
+
+  scheduled() {
+    return this.params(jobFactory.scheduled().build());
+  }
+
+  scheduledSnoozed() {
+    return this.params(jobFactory.scheduledSnoozed().build());
+  }
+}
+
+export const jobMinimalFactory = JobMinimalFactory.define(({ sequence }) => {
+  const job = jobFactory.build({ id: BigInt(sequence) });
+  return job as JobMinimalFields;
 });
 
 class JobFactory extends Factory<Job, object> {

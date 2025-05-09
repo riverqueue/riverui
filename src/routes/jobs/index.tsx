@@ -5,7 +5,7 @@ import { defaultValues, jobSearchSchema } from "@routes/jobs/index.schema";
 import {
   cancelJobs,
   deleteJobs,
-  Job,
+  JobMinimal,
   listJobs,
   ListJobsKey,
   listJobsKey,
@@ -312,9 +312,9 @@ const jobsQueryOptions = (
   opts?: { pauseRefetches: boolean; refetchInterval: number },
 ) => {
   const keepPreviousDataUnlessStateChanged: PlaceholderDataFunction<
-    Job[],
+    JobMinimal[],
     Error,
-    Job[],
+    JobMinimal[],
     ListJobsKey
   > = (previousData, previousQuery) => {
     if (!previousQuery) return undefined;
