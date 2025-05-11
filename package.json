@@ -84,6 +84,7 @@
     "preview": "LIVE_FS=true reflex -c .reflex.server",
     "storybook": "storybook dev -p 6006",
     "test": "vitest",
+    "test:once": "vitest run",
     "watch:frontend": "vite --open http://localhost:8080/",
     "watch:backend": "LIVE_FS=true DEV=true reflex -c .reflex.server"
   }
