@@ -1,3 +1,4 @@
+import PlaintextPanel from "@/components/PlaintextPanel";
 import {
   ArrowPathRoundedSquareIcon,
   CheckCircleIcon,
@@ -362,12 +363,11 @@ function AttemptRow({ attemptInfo }: { attemptInfo: AttemptInfo }) {
               </summary>
               <div className="mt-2 space-y-2">
                 {attemptInfo.logs.map((log, idx) => (
-                  <div
-                    className="max-h-[300px] w-full resize-y overflow-x-auto rounded-md bg-slate-300/20 px-4 py-2 font-mono text-sm whitespace-pre text-slate-900 dark:bg-slate-700/20 dark:text-slate-100"
+                  <PlaintextPanel
+                    content={log.log}
+                    copyTitle="Log Entry"
                     key={idx}
-                  >
-                    {log.log}
-                  </div>
+                  />
                 ))}
               </div>
             </details>

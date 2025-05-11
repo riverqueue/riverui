@@ -2,6 +2,7 @@ import { Badge } from "@components/Badge";
 import ButtonForGroup from "@components/ButtonForGroup";
 import JobAttempts from "@components/JobAttempts";
 import JobTimeline from "@components/JobTimeline";
+import JSONView from "@components/JSONView";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import {
@@ -162,9 +163,7 @@ export default function JobDetail({
                   Args
                 </dt>
                 <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
-                  <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
-                    {JSON.stringify(job.args, null, 2)}
-                  </pre>
+                  <JSONView copyTitle="Args" data={job.args} />
                 </dd>
               </div>
               <div className="col-span-1 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
@@ -172,9 +171,7 @@ export default function JobDetail({
                   Metadata
                 </dt>
                 <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
-                  <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
-                    {JSON.stringify(job.metadata, null, 2)}
-                  </pre>
+                  <JSONView copyTitle="Metadata" data={job.metadata} />
                 </dd>
               </div>
 

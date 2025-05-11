@@ -29,5 +29,5 @@ alwaysApply: false
 - Mock callbacks using `vi.fn()` and clear them between tests using `beforeEach(() => { vi.clearAllMocks(); })`
 
 ## Running Tests
-- Use `npm exec -- vitest --run` to run tests
+- Use `npm run test:once` to run tests with `vitest` cli, optionally with added args like specific filenames.
 - Specify a test file path to run specific tests: `npm exec -- vitest --run src/components/MyComponent.test.tsx`

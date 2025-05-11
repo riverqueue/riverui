@@ -1,5 +1,6 @@
 import { Button } from "@components/Button";
 import { Subheading } from "@components/Heading";
+import JSONView from "@components/JSONView";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import { TaskStateIcon } from "@components/TaskStateIcon";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
@@ -179,18 +180,17 @@ const SelectedJobDetails = ({
         <div className="col-span-2 border-t border-slate-100 py-4 text-sm sm:col-span-1 sm:px-0 dark:border-slate-800">
           <dt className={dtClasses}>Args</dt>
           <dd className={clsx(ddClasses, "text-base leading-6 sm:text-sm")}>
-            <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-900 dark:bg-slate-700/10 dark:text-slate-100">
-              {JSON.stringify(job.args, null, 2)}
-            </pre>
+            <JSONView copyTitle="Args" data={job.args} />
           </dd>
         </div>
         <div className="col-span-2 border-t border-slate-100 py-4 text-sm sm:col-span-1 sm:px-0 dark:border-slate-800">
           <dt className={dtClasses}>Metadata</dt>
           <dd className={clsx(ddClasses, "text-base leading-6 sm:text-sm")}>
-            {/* <dd className="mt-1 text-sm leading-6  text-slate-700 dark:text-slate-300 sm:mt-2"> */}
-            <pre className="overflow-scroll bg-slate-300/10 p-4 font-mono text-slate-800 dark:bg-slate-700/10 dark:text-slate-200">
-              {JSON.stringify(job.metadata, null, 2)}
-            </pre>
+            <JSONView
+              copyTitle="Metadata"
+              data={job.metadata}
+              defaultExpandDepth={0}
+            />
           </dd>
         </div>
       </div>
