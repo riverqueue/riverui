@@ -3,6 +3,9 @@ package main
 import (
 	"cmp"
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"testing"
@@ -61,5 +64,48 @@ func TestInitServer(t *testing.T) {
 
 		_, err = initRes.dbPool.Exec(ctx, "SELECT 1")
 		require.NoError(t, err)
+	})
+
+	t.Run("JobListHideArgsByDefault", func(t *testing.T) {
+		t.Run("default value is false", func(t *testing.T) {
+			initRes, _ := setup(t)
+			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			recorder := httptest.NewRecorder()
+			initRes.uiServer.ServeHTTP(recorder, req)
+			var resp struct {
+				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
+			}
+			err := json.Unmarshal(recorder.Body.Bytes(), &resp)
+			require.NoError(t, err)
+			require.False(t, resp.JobListHideArgsByDefault)
+		})
+
+		t.Run("set to true with true", func(t *testing.T) {
+			t.Setenv("JOB_LIST_HIDE_ARGS_BY_DEFAULT", "true")
+			initRes, _ := setup(t)
+			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			recorder := httptest.NewRecorder()
+			initRes.uiServer.ServeHTTP(recorder, req)
+			var resp struct {
+				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
+			}
+			err := json.Unmarshal(recorder.Body.Bytes(), &resp)
+			require.NoError(t, err)
+			require.True(t, resp.JobListHideArgsByDefault)
+		})
+
+		t.Run("set to true with 1", func(t *testing.T) {
+			t.Setenv("JOB_LIST_HIDE_ARGS_BY_DEFAULT", "1")
+			initRes, _ := setup(t)
+			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			recorder := httptest.NewRecorder()
+			initRes.uiServer.ServeHTTP(recorder, req)
+			var resp struct {
+				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
+			}
+			err := json.Unmarshal(recorder.Body.Bytes(), &resp)
+			require.NoError(t, err)
+			require.True(t, resp.JobListHideArgsByDefault)
+		})
 	})
 }
