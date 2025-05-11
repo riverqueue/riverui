@@ -229,7 +229,6 @@ export const NestedCollapsedHiddenKeys: Story = {
     copyTitle: "Nested Object (Hidden Keys)",
     data: nestedObject,
     defaultExpandDepth: 0,
-    hideNestedKeys: true,
   },
 };
 

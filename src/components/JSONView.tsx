@@ -1,18 +1,11 @@
-import { ToastContentSuccess } from "@/components/Toast";
+import PlaintextPanel from "@/components/PlaintextPanel";
 import {
   Disclosure,
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
-import { CheckIcon } from "@heroicons/react/16/solid";
-import {
-  ChevronDownIcon,
-  ChevronRightIcon,
-  ClipboardIcon,
-} from "@heroicons/react/24/outline";
-import { useState } from "react";
+import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import React from "react";
-import toast from "react-hot-toast";
 
 interface JSONNodeRendererProps {
   data: unknown;
@@ -24,6 +17,10 @@ interface JSONNodeRendererProps {
 }
 
 interface JSONViewProps {
+  /**
+   * Additional class names to apply to the component.
+   */
+  className?: string;
   /**
    * The title to show in the copy confirmation toast.
    * @default "JSON"
@@ -41,154 +38,32 @@ interface JSONViewProps {
  * A component that renders JSON data with collapsible sections and a copy button.
  */
 export default function JSONView({
+  className,
   copyTitle = "JSON",
   data,
   defaultExpandDepth = 1,
 }: JSONViewProps) {
-  const [isCopied, setIsCopied] = useState(false);
-
-  const copyToClipboard = () => {
-    const jsonString = JSON.stringify(data, null, 2);
-    navigator.clipboard.writeText(jsonString).then(
-      () => {
-        setIsCopied(true);
-        toast.custom((t) => (
-          <ToastContentSuccess
-            message={`${copyTitle} copied to clipboard`}
-            t={t}
-          />
-        ));
-        setTimeout(() => {
-          setIsCopied(false);
-        }, 2000);
-      },
-      (err) => {
-        console.error("Failed to copy JSON: ", err);
-      },
-    );
-  };
-
-  const styleConfig = {
-    container: {
-      base: "relative overflow-auto rounded-md bg-slate-50 dark:bg-slate-800",
-      font: { fontFamily: "var(--font-family-monospace, monospace)" },
-    },
-    content: {
-      base: "relative text-xs",
-      code: "block text-slate-800 dark:text-slate-200",
-      layout: {
-        overflowX: "auto" as const,
-        overscrollBehaviorY: "auto" as const,
-        paddingBottom: "4px",
-        paddingLeft: "24px",
-        paddingTop: "4px",
-      },
-    },
-    header: {
-      base: "flex items-center justify-end bg-slate-100 px-2 py-1 text-xs dark:bg-slate-700",
-      textAlign: { textAlign: "right" as const },
-    },
-    icon: {
-      base: "h-3 w-3",
-      check: "text-green-500",
-      chevron: "text-slate-600 dark:text-slate-400",
-      clipboard:
-        "text-slate-500 dark:text-slate-400 hover:text-brand-primary dark:hover:text-brand-primary",
-    },
-    json: {
-      button: {
-        alignItems: "baseline",
-        cursor: "pointer",
-        display: "flex",
-        padding: "2px 0",
-        position: "relative",
-      },
-      chevron: {
-        left: "-16px",
-        lineHeight: 1,
-        position: "absolute",
-        top: "0.35em",
-      },
-      item: {
-        paddingBottom: "2px",
-        paddingTop: "2px",
-        position: "relative",
-      },
-      key: "text-slate-600 dark:text-slate-400",
-      node: {
-        alignItems: "flex-start",
-        display: "flex",
-        flexDirection: "column",
-        position: "relative",
-      },
-      panel: {
-        marginLeft: "1.5em",
-        paddingTop: "2px",
-        width: "100%",
-      },
-      summary: {
-        base: "text-slate-600 dark:text-slate-400",
-        style: { fontStyle: "italic", margin: "0 4px" },
-      },
-      value: {
-        boolean: "text-red-600 dark:text-red-400",
-        default: "text-slate-800 dark:text-slate-200",
-        null: "text-red-600 dark:text-red-400",
-        number: "text-amber-600 dark:text-amber-400",
-        string: "text-green-600 dark:text-green-400",
-      },
-    },
-  };
+  const jsonContent = (
+    <>
+      <JSONNodeRenderer
+        data={data}
+        defaultExpandDepth={defaultExpandDepth}
+        depth={0}
+        isLastItemInParent={true}
+        isParentArrayItem={false}
+        propKey={null}
+      />
+    </>
+  );
 
   return (
-    <div
-      className={styleConfig.container.base}
-      data-testid="json-view"
-      style={styleConfig.container.font}
-    >
-      {/* Header with copy button */}
-      <div
-        className={styleConfig.header.base}
-        style={styleConfig.header.textAlign}
-      >
-        <button
-          className="inline-flex cursor-pointer items-center rounded p-1"
-          data-testid="json-copy-button"
-          onClick={copyToClipboard}
-          tabIndex={0}
-          title="Copy to clipboard"
-          type="button"
-        >
-          {isCopied ? (
-            <CheckIcon
-              aria-hidden="true"
-              className={`${styleConfig.icon.base} ${styleConfig.icon.check}`}
-            />
-          ) : (
-            <ClipboardIcon
-              aria-hidden="true"
-              className={`${styleConfig.icon.base} ${styleConfig.icon.clipboard}`}
-            />
-          )}
-        </button>
-      </div>
-      {/* JSON code block */}
-      <div
-        className={styleConfig.content.base}
-        style={styleConfig.content.layout}
-      >
-        <code className={styleConfig.content.code}>
-          <JSONNodeRenderer
-            data={data}
-            defaultExpandDepth={defaultExpandDepth}
-            depth={0}
-            isLastItemInParent={true}
-            isParentArrayItem={false}
-            propKey={null}
-          />
-        </code>
-      </div>
-    </div>
+    <PlaintextPanel
+      className={className}
+      codeClassName="pl-6"
+      content={jsonContent}
+      copyTitle={copyTitle}
+      rawText={JSON.stringify(data, null, 2)}
+    />
   );
 }
 
