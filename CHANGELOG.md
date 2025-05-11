@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Job args and metadata on the job detail view now use an interactive collapsible JSON view rather than pretty-printing the entire payload on screen. For large payloads this is a better UX and doesn't disrupt the page flow by default. [PR #351](https://github.com/riverqueue/riverui/pull/351).
 
+### Fixed
+
+- Corrected links on queue list page to use the TanStack Router `<Link>` component instead of raw `<a>` tags so that settings like path prefix will be respected. [PR #353](https://github.com/riverqueue/riverui/pull/353).
+
 ## [v0.9.0] - 2025-04-08
 
 ### Added
