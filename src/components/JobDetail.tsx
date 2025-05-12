@@ -69,7 +69,7 @@ export default function JobDetail({
           {/* Description list */}
           <div className="">
             <dl className="grid grid-cols-12">
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+              <div className="col-span-4 border-t border-slate-100 p-4 sm:px-0 dark:border-slate-800">
                 <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   State
                 </dt>
@@ -77,7 +77,7 @@ export default function JobDetail({
                   {capitalize(job.state)}
                 </dd>
               </div>
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+              <div className="col-span-4 border-t border-slate-100 p-4 sm:px-0 dark:border-slate-800">
                 <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Attempt
                 </dt>
@@ -85,7 +85,7 @@ export default function JobDetail({
                   {job.attempt.toString()} / {job.maxAttempts.toString()}
                 </dd>
               </div>
-              <div className="col-span-4 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+              <div className="col-span-4 border-t border-slate-100 p-4 sm:px-0 dark:border-slate-800">
                 <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Priority
                 </dt>
@@ -93,7 +93,7 @@ export default function JobDetail({
                   {job.priority.toString()}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+              <div className="col-span-6 border-t border-slate-100 p-4 sm:px-0 dark:border-slate-800">
                 <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Queue
                 </dt>
@@ -101,7 +101,7 @@ export default function JobDetail({
                   {job.queue}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+              <div className="col-span-6 border-t border-slate-100 p-4 sm:px-0 dark:border-slate-800">
                 <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Tags
                 </dt>
@@ -119,7 +119,7 @@ export default function JobDetail({
                       ))}
                 </dd>
               </div>
-              <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+              <div className="col-span-6 border-t border-slate-100 p-4 sm:px-0 dark:border-slate-800">
                 <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                   Created
                 </dt>
@@ -130,7 +130,7 @@ export default function JobDetail({
               {featureEnabledWorkflows &&
                 jobWithMetadata &&
                 jobWithMetadata.metadata.workflow_id && (
-                  <div className="col-span-6 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
+                  <div className="col-span-6 border-t border-slate-100 p-4 sm:px-0 dark:border-slate-800">
                     <dt className="text-sm leading-6 font-medium text-slate-900 dark:text-slate-100">
                       Workflow
                     </dt>
