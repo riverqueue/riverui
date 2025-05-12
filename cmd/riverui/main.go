@@ -81,15 +81,16 @@ func initServer(ctx context.Context, logger *slog.Logger, pathPrefix string) (*i
 	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
 
 	var (
-		basicAuthUsername = os.Getenv("RIVER_BASIC_AUTH_USER")
-		basicAuthPassword = os.Getenv("RIVER_BASIC_AUTH_PASS")
-		corsOrigins       = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
-		databaseURL       = os.Getenv("DATABASE_URL")
-		devMode           = envBooleanTrue(os.Getenv("DEV"))
-		host              = os.Getenv("RIVER_HOST") // may be left empty to bind to all local interfaces
-		liveFS            = envBooleanTrue(os.Getenv("LIVE_FS"))
-		otelEnabled       = envBooleanTrue(os.Getenv("OTEL_ENABLED"))
-		port              = cmp.Or(os.Getenv("PORT"), "8080")
+		basicAuthUsername        = os.Getenv("RIVER_BASIC_AUTH_USER")
+		basicAuthPassword        = os.Getenv("RIVER_BASIC_AUTH_PASS")
+		corsOrigins              = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
+		databaseURL              = os.Getenv("DATABASE_URL")
+		devMode                  = envBooleanTrue(os.Getenv("DEV"))
+		jobListHideArgsByDefault = envBooleanTrue(os.Getenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT"))
+		host                     = os.Getenv("RIVER_HOST") // may be left empty to bind to all local interfaces
+		liveFS                   = envBooleanTrue(os.Getenv("LIVE_FS"))
+		otelEnabled              = envBooleanTrue(os.Getenv("OTEL_ENABLED"))
+		port                     = cmp.Or(os.Getenv("PORT"), "8080")
 	)
 
 	if databaseURL == "" && os.Getenv("PGDATABASE") == "" {
@@ -112,12 +113,13 @@ func initServer(ctx context.Context, logger *slog.Logger, pathPrefix string) (*i
 	}
 
 	uiServer, err := riverui.NewServer(&riverui.ServerOpts{
-		Client:  client,
-		DB:      dbPool,
-		DevMode: devMode,
-		LiveFS:  liveFS,
-		Logger:  logger,
-		Prefix:  pathPrefix,
+		Client:                   client,
+		DB:                       dbPool,
+		DevMode:                  devMode,
+		JobListHideArgsByDefault: jobListHideArgsByDefault,
+		LiveFS:                   liveFS,
+		Logger:                   logger,
+		Prefix:                   pathPrefix,
 	})
 	if err != nil {
 		return nil, err

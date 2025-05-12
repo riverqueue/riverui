@@ -42,6 +42,9 @@ type ServerOpts struct {
 	DB DB
 	// DevMode is whether the server is running in development mode.
 	DevMode bool
+	// JobListHideArgsByDefault is whether to hide job arguments by default in the
+	// job list view. This is useful for users with complex encoded arguments.
+	JobListHideArgsByDefault bool
 	// LiveFS is whether to use the live filesystem for the frontend.
 	LiveFS bool
 	// Logger is the logger to use logging errors within the handler.
@@ -129,10 +132,11 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	serveIndex := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
 
 	apiBundle := apiBundle{
-		archetype: baseservice.NewArchetype(opts.Logger),
-		client:    opts.Client,
-		dbPool:    opts.DB,
-		logger:    opts.Logger,
+		archetype:                baseservice.NewArchetype(opts.Logger),
+		client:                   opts.Client,
+		dbPool:                   opts.DB,
+		jobListHideArgsByDefault: opts.JobListHideArgsByDefault,
+		logger:                   opts.Logger,
 	}
 
 	mux := http.NewServeMux()

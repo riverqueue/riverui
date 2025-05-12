@@ -59,7 +59,7 @@ const StatusStep = ({
   return (
     <li
       className={clsx(
-        "relative ms-6 pb-4 before:absolute before:top-0 before:-left-1 before:block before:h-full before:w-0.5 before:border-l before:content-['']",
+        "relative ms-6 pb-2 before:absolute before:top-0 before:-left-1 before:block before:h-full before:w-0.5 before:border-l before:content-['']",
         statusVerticalLineClasses,
         "last:before:border-transparent dark:last:before:border-transparent",
       )}

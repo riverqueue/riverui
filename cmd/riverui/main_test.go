@@ -3,6 +3,9 @@ package main
 import (
 	"cmp"
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"testing"
@@ -19,6 +22,7 @@ func TestInitServer(t *testing.T) {
 	)
 
 	t.Setenv("DEV", "true")
+	t.Setenv("DATABASE_URL", databaseURL)
 
 	type testBundle struct{}
 
@@ -32,9 +36,7 @@ func TestInitServer(t *testing.T) {
 		return initRes, &testBundle{}
 	}
 
-	t.Run("WithDatabaseURL", func(t *testing.T) {
-		t.Setenv("DATABASE_URL", databaseURL)
-
+	t.Run("WithDatabaseURL", func(t *testing.T) { //nolint:paralleltest
 		initRes, _ := setup(t)
 
 		_, err := initRes.dbPool.Exec(ctx, "SELECT 1")
@@ -42,9 +44,7 @@ func TestInitServer(t *testing.T) {
 	})
 
 	t.Run("WithPGEnvVars", func(t *testing.T) {
-		// Verify that DATABASE_URL is indeed not set to be sure we're taking
-		// the configuration branch we expect to be taking.
-		require.Empty(t, os.Getenv("DATABASE_URL"))
+		t.Setenv("DATABASE_URL", "")
 
 		parsedURL, err := url.Parse(databaseURL)
 		require.NoError(t, err)
@@ -61,5 +61,48 @@ func TestInitServer(t *testing.T) {
 
 		_, err = initRes.dbPool.Exec(ctx, "SELECT 1")
 		require.NoError(t, err)
+	})
+
+	t.Run("JobListHideArgsByDefault", func(t *testing.T) {
+		t.Run("default value is false", func(t *testing.T) {
+			initRes, _ := setup(t)
+			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			recorder := httptest.NewRecorder()
+			initRes.uiServer.ServeHTTP(recorder, req)
+			var resp struct {
+				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
+			}
+			err := json.Unmarshal(recorder.Body.Bytes(), &resp)
+			require.NoError(t, err)
+			require.False(t, resp.JobListHideArgsByDefault)
+		})
+
+		t.Run("set to true with true", func(t *testing.T) {
+			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "true")
+			initRes, _ := setup(t)
+			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			recorder := httptest.NewRecorder()
+			initRes.uiServer.ServeHTTP(recorder, req)
+			var resp struct {
+				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
+			}
+			err := json.Unmarshal(recorder.Body.Bytes(), &resp)
+			require.NoError(t, err)
+			require.True(t, resp.JobListHideArgsByDefault)
+		})
+
+		t.Run("set to true with 1", func(t *testing.T) {
+			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "1")
+			initRes, _ := setup(t)
+			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			recorder := httptest.NewRecorder()
+			initRes.uiServer.ServeHTTP(recorder, req)
+			var resp struct {
+				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
+			}
+			err := json.Unmarshal(recorder.Body.Bytes(), &resp)
+			require.NoError(t, err)
+			require.True(t, resp.JobListHideArgsByDefault)
+		})
 	})
 }

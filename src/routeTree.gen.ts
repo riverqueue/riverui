@@ -11,6 +11,7 @@
 // Import Routes
 
 import { Route as rootRoute } from "./routes/__root"
+import { Route as SettingsImport } from "./routes/settings"
 import { Route as QueuesImport } from "./routes/queues"
 import { Route as JobsImport } from "./routes/jobs"
 import { Route as IndexImport } from "./routes/index"
@@ -23,6 +24,12 @@ import { Route as JobsJobIdImport } from "./routes/jobs/$jobId"
 import { Route as AboutAboutImport } from "./routes/about/about"
 
 // Create/Update Routes
+
+const SettingsRoute = SettingsImport.update({
+  id: "/settings",
+  path: "/settings",
+  getParentRoute: () => rootRoute,
+} as any)
 
 const QueuesRoute = QueuesImport.update({
   id: "/queues",
@@ -109,6 +116,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof QueuesImport
       parentRoute: typeof rootRoute
     }
+    "/settings": {
+      id: "/settings"
+      path: "/settings"
+      fullPath: "/settings"
+      preLoaderRoute: typeof SettingsImport
+      parentRoute: typeof rootRoute
+    }
     "/about/about": {
       id: "/about/about"
       path: "/about/about"
@@ -192,6 +206,7 @@ export interface FileRoutesByFullPath {
   "/": typeof IndexRoute
   "/jobs": typeof JobsRouteWithChildren
   "/queues": typeof QueuesRouteWithChildren
+  "/settings": typeof SettingsRoute
   "/about/about": typeof AboutAboutRoute
   "/jobs/$jobId": typeof JobsJobIdRoute
   "/queues/$name": typeof QueuesNameRoute
@@ -203,6 +218,7 @@ export interface FileRoutesByFullPath {
 
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
+  "/settings": typeof SettingsRoute
   "/about/about": typeof AboutAboutRoute
   "/jobs/$jobId": typeof JobsJobIdRoute
   "/queues/$name": typeof QueuesNameRoute
@@ -217,6 +233,7 @@ export interface FileRoutesById {
   "/": typeof IndexRoute
   "/jobs": typeof JobsRouteWithChildren
   "/queues": typeof QueuesRouteWithChildren
+  "/settings": typeof SettingsRoute
   "/about/about": typeof AboutAboutRoute
   "/jobs/$jobId": typeof JobsJobIdRoute
   "/queues/$name": typeof QueuesNameRoute
@@ -232,6 +249,7 @@ export interface FileRouteTypes {
     | "/"
     | "/jobs"
     | "/queues"
+    | "/settings"
     | "/about/about"
     | "/jobs/$jobId"
     | "/queues/$name"
@@ -242,6 +260,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | "/"
+    | "/settings"
     | "/about/about"
     | "/jobs/$jobId"
     | "/queues/$name"
@@ -254,6 +273,7 @@ export interface FileRouteTypes {
     | "/"
     | "/jobs"
     | "/queues"
+    | "/settings"
     | "/about/about"
     | "/jobs/$jobId"
     | "/queues/$name"
@@ -268,6 +288,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   JobsRoute: typeof JobsRouteWithChildren
   QueuesRoute: typeof QueuesRouteWithChildren
+  SettingsRoute: typeof SettingsRoute
   AboutAboutRoute: typeof AboutAboutRoute
   WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRoute
   WorkflowsIndexRoute: typeof WorkflowsIndexRoute
@@ -277,6 +298,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   JobsRoute: JobsRouteWithChildren,
   QueuesRoute: QueuesRouteWithChildren,
+  SettingsRoute: SettingsRoute,
   AboutAboutRoute: AboutAboutRoute,
   WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRoute,
   WorkflowsIndexRoute: WorkflowsIndexRoute,
@@ -295,6 +317,7 @@ export const routeTree = rootRoute
         "/",
         "/jobs",
         "/queues",
+        "/settings",
         "/about/about",
         "/workflows/$workflowId",
         "/workflows/"
@@ -316,6 +339,9 @@ export const routeTree = rootRoute
         "/queues/$name",
         "/queues/"
       ]
+    },
+    "/settings": {
+      "filePath": "settings.tsx"
     },
     "/about/about": {
       "filePath": "about/about.tsx"

@@ -7,6 +7,7 @@ import { Filter, JobSearch } from "@components/job-search/JobSearch";
 import { JobStateFilters } from "@components/JobStateFilters";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNav from "@components/TopNav";
+import { useFeatures } from "@contexts/Features.hook";
 import { MenuButton as HeadlessMenuButton } from "@headlessui/react";
 import { ExclamationTriangleIcon } from "@heroicons/react/20/solid";
 import {
@@ -16,7 +17,9 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useSelected } from "@hooks/use-selected";
+import { useSettings } from "@hooks/use-settings";
 import { useShiftSelected } from "@hooks/use-shift-selected";
+import { type Features } from "@services/features";
 import { JobMinimal } from "@services/jobs";
 import { StatesAndCounts } from "@services/states";
 import { JobState } from "@services/types";
@@ -64,6 +67,7 @@ const JobTimeDisplay = ({ job }: { job: JobMinimal }): React.JSX.Element => {
 
 type JobListItemProps = {
   checked: boolean;
+  hideArgs: boolean;
   job: JobMinimal;
   onChangeSelect: (
     checked: boolean,
@@ -71,58 +75,69 @@ type JobListItemProps = {
   ) => void;
 };
 
-const JobListItem = ({ checked, job, onChangeSelect }: JobListItemProps) => (
-  <li className="relative flex items-stretch space-x-4 py-1.5">
-    <div className="flex items-center">
-      <CustomCheckbox
-        aria-label={`Select job ${job.id.toString()}`}
-        checked={checked}
-        name={`select_job_${job.id.toString()}`}
-        onChange={onChangeSelect}
-      />
-    </div>
-    <div className="min-w-0 flex-auto">
-      <div className="flex items-center gap-x-3">
-        <div
-          className={classNames(
-            states[job.state],
-            "flex-none rounded-full p-1",
-          )}
-        >
-          <div className="size-2 rounded-full bg-current" />
-        </div>
-        <h2 className="min-w-0 grow text-sm leading-5 font-medium">
-          <Link
-            className="flex gap-x-2 text-slate-900 dark:text-slate-200"
-            params={{ jobId: job.id }}
-            to="/jobs/$jobId"
+const JobListItem = ({
+  checked,
+  hideArgs,
+  job,
+  onChangeSelect,
+}: JobListItemProps) => {
+  const showArgs = !hideArgs;
+
+  return (
+    <li className="relative flex items-stretch space-x-4 py-1.5">
+      <div className="flex items-center">
+        <CustomCheckbox
+          aria-label={`Select job ${job.id.toString()}`}
+          checked={checked}
+          name={`select_job_${job.id.toString()}`}
+          onChange={onChangeSelect}
+        />
+      </div>
+      <div className="min-w-0 flex-auto">
+        <div className="flex items-center gap-x-3">
+          <div
+            className={classNames(
+              states[job.state],
+              "flex-none rounded-full p-1",
+            )}
           >
-            <span className="truncate">{job.kind}</span>
-          </Link>
-        </h2>
-        <div className="text-right text-sm leading-5 text-nowrap text-slate-700 dark:text-slate-100">
-          <JobTimeDisplay job={job} />
+            <div className="size-2 rounded-full bg-current" />
+          </div>
+          <h2 className="min-w-0 grow text-sm leading-5 font-medium">
+            <Link
+              className="flex gap-x-2 text-slate-900 dark:text-slate-200"
+              params={{ jobId: job.id }}
+              to="/jobs/$jobId"
+            >
+              <span className="truncate">{job.kind}</span>
+            </Link>
+          </h2>
+          <div className="text-right text-sm leading-5 text-nowrap text-slate-700 dark:text-slate-100">
+            <JobTimeDisplay job={job} />
+          </div>
+        </div>
+        <div className="mt-1.5 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
+          <div className="flex items-center gap-x-2 font-semibold">
+            <span>{job.attempt.toString()}</span>
+            <span>/</span>
+            <span>{job.maxAttempts.toString()}</span>
+          </div>
+          <svg className="size-0.5 flex-none fill-gray-400" viewBox="0 0 2 2">
+            <circle cx={1} cy={1} r={1} />
+          </svg>
+          {showArgs && (
+            <p className="grow truncate font-mono whitespace-nowrap">
+              {JSON.stringify(job.args)}
+            </p>
+          )}
+          <Badge className="flex-none font-mono text-xs" color="zinc">
+            {job.queue}
+          </Badge>
         </div>
       </div>
-      <div className="mt-1.5 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
-        <div className="flex items-center gap-x-2 font-semibold">
-          <span>{job.attempt.toString()}</span>
-          <span>/</span>
-          <span>{job.maxAttempts.toString()}</span>
-        </div>
-        <svg className="size-0.5 flex-none fill-gray-400" viewBox="0 0 2 2">
-          <circle cx={1} cy={1} r={1} />
-        </svg>
-        <p className="grow truncate font-mono whitespace-nowrap">
-          {JSON.stringify(job.args)}
-        </p>
-        <Badge className="flex-none font-mono text-xs" color="zinc">
-          {job.queue}
-        </Badge>
-      </div>
-    </div>
-  </li>
-);
+    </li>
+  );
+};
 
 type EmptySetIconProps = React.ComponentProps<"svg">;
 
@@ -158,6 +173,7 @@ export type JobRowsProps = {
   canShowFewer: boolean;
   canShowMore: boolean;
   deleteJobs: (jobIDs: bigint[]) => void;
+  hideArgs: boolean;
   initialFilters?: Filter[];
   jobs: JobMinimal[];
   onFiltersChange?: (filters: Filter[]) => void;
@@ -261,6 +277,7 @@ const JobRows = ({
   canShowFewer,
   canShowMore,
   deleteJobs,
+  hideArgs,
   initialFilters,
   jobs,
   onFiltersChange,
@@ -359,6 +376,7 @@ const JobRows = ({
             {jobs.map((job) => (
               <JobListItem
                 checked={selectedSet.has(job.id)}
+                hideArgs={hideArgs}
                 job={job}
                 key={job.id.toString()}
                 onChangeSelect={(_checked, event) => onChange(event, job.id)}
@@ -409,6 +427,15 @@ const JobList = (props: JobListProps) => {
     state,
     statesAndCounts,
   } = props;
+
+  const { features } = useFeatures() as { features: Features };
+  const { settings } = useSettings();
+
+  // Determine whether to show args based on user settings (if set) or server default
+  const hideArgs =
+    settings.showJobArgs !== undefined
+      ? !settings.showJobArgs
+      : features.jobListHideArgsByDefault;
 
   const stateFormatted = state.charAt(0).toUpperCase() + state.slice(1);
   const jobsInState = useMemo(() => {
@@ -488,6 +515,7 @@ const JobList = (props: JobListProps) => {
           canShowFewer={canShowFewer}
           canShowMore={canShowMore}
           deleteJobs={deleteJobs}
+          hideArgs={hideArgs}
           initialFilters={initialFilters}
           jobs={jobs}
           onFiltersChange={onFiltersChange}

@@ -12,15 +12,17 @@ type FeaturesFromAPI = {
   has_client_table: boolean;
   has_producer_table: boolean;
   has_workflows: boolean;
+  job_list_hide_args_by_default: boolean;
 };
 
 export const featuresKey = () => ["features"] as const;
 export type FeaturesKey = ReturnType<typeof featuresKey>;
 
-const apiFeaturesToFeatures = (features: FeaturesFromAPI): Features => ({
+export const apiFeaturesToFeatures = (features: FeaturesFromAPI): Features => ({
   hasClientTable: features.has_client_table,
   hasProducerTable: features.has_producer_table,
   hasWorkflows: features.has_workflows,
+  jobListHideArgsByDefault: features.job_list_hide_args_by_default,
 });
 
 export const getFeatures: QueryFunction<Features, FeaturesKey> = async ({

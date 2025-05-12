@@ -30,10 +30,11 @@ import (
 
 // A bundle of common utilities needed for many API endpoints.
 type apiBundle struct {
-	archetype *baseservice.Archetype
-	client    *river.Client[pgx.Tx]
-	dbPool    DB
-	logger    *slog.Logger
+	archetype                *baseservice.Archetype
+	client                   *river.Client[pgx.Tx]
+	dbPool                   DB
+	jobListHideArgsByDefault bool
+	logger                   *slog.Logger
 }
 
 // SetBundle sets all values to the same as the given bundle.
@@ -189,9 +190,10 @@ func (*featuresGetEndpoint) Meta() *apiendpoint.EndpointMeta {
 type featuresGetRequest struct{}
 
 type featuresGetResponse struct {
-	HasClientTable   bool `json:"has_client_table"`
-	HasProducerTable bool `json:"has_producer_table"`
-	HasWorkflows     bool `json:"has_workflows"`
+	HasClientTable           bool `json:"has_client_table"`
+	HasProducerTable         bool `json:"has_producer_table"`
+	HasWorkflows             bool `json:"has_workflows"`
+	JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
 }
 
 func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
@@ -219,9 +221,10 @@ func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest
 	}
 
 	return &featuresGetResponse{
-		HasClientTable:   hasClientTable,
-		HasProducerTable: hasProducerTable,
-		HasWorkflows:     indexResultsMap["river_job_workflow_list_active"] || indexResultsMap["river_job_workflow_scheduling"],
+		HasClientTable:           hasClientTable,
+		HasProducerTable:         hasProducerTable,
+		HasWorkflows:             indexResultsMap["river_job_workflow_list_active"] || indexResultsMap["river_job_workflow_scheduling"],
+		JobListHideArgsByDefault: a.jobListHideArgsByDefault,
 	}, nil
 }
 

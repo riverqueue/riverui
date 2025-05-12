@@ -42,9 +42,24 @@ $ docker pull ghcr.io/riverqueue/riverui:latest
 $ docker run -p 8080:8080 --env DATABASE_URL ghcr.io/riverqueue/riverui:latest
 ```
 
+## Configuration
+
 ### Custom path prefix
 
 The `riverui` command accepts a `-prefix` arg to set a path prefix on both the API and static assets. When executing the Docker image, this is accepted as a `PATH_PREFIX` env.
+
+### Hiding job list arguments by default
+
+The `RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT` environment variable controls whether, by default, the job list UI shows job arguments. By default job arguments are always shown. If `RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT=true` or `RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT=1` is set, job args will not be shown in the job list by default.
+
+Individual users may still override this preference using the settings screen in the UI. A user's saved preference takes precedence over any default setting.
+
+### HTTP Authentication
+
+The `riverui` supports HTTP basic authentication to protect access to the UI.
+To enable it, set the `RIVER_BASIC_AUTH_USER` and `RIVER_BASIC_AUTH_PASS` environment variables.
+
+Alternatively, if embedding River UI into another Go app, you can wrap its `http.Handler` with any custom authentication logic.
 
 ### Logging Configuration
 
@@ -54,11 +69,6 @@ The `riverui` command utilizes the `RIVER_LOG_LEVEL` environment variable to con
 * `info` (default)
 * `warn`
 * `error`
-
-### Basic HTTP Authentication
-
-The `riverui` supports basic HTTP authentication to protect access to the UI.
-To enable it, set the `RIVER_BASIC_AUTH_USER` and `RIVER_BASIC_AUTH_PASS` environment variables.
 
 ## Development
 
