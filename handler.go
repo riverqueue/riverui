@@ -1,6 +1,7 @@
 package riverui
 
 import (
+	"cmp"
 	"context"
 	"embed"
 	"encoding/json"
@@ -23,7 +24,6 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
-	"github.com/riverqueue/river/rivershared/util/valutil"
 )
 
 // DB is the interface for a pgx database connection.
@@ -97,7 +97,7 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 		return nil, err
 	}
 
-	prefix := valutil.ValOrDefault(strings.TrimSuffix(opts.Prefix, "/"), "")
+	prefix := cmp.Or(strings.TrimSuffix(opts.Prefix, "/"), "")
 
 	frontendIndex, err := fs.Sub(FrontendIndex, "dist")
 	if err != nil {
