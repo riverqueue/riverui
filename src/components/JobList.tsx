@@ -17,6 +17,7 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/outline";
 import { useSelected } from "@hooks/use-selected";
+import { useSettings } from "@hooks/use-settings";
 import { useShiftSelected } from "@hooks/use-shift-selected";
 import { type Features } from "@services/features";
 import { JobMinimal } from "@services/jobs";
@@ -428,7 +429,13 @@ const JobList = (props: JobListProps) => {
   } = props;
 
   const { features } = useFeatures() as { features: Features };
-  const hideArgs = features.jobListHideArgsByDefault;
+  const { settings } = useSettings();
+
+  // Determine whether to show args based on user settings (if set) or server default
+  const hideArgs =
+    settings.showJobArgs !== undefined
+      ? !settings.showJobArgs
+      : features.jobListHideArgsByDefault;
 
   const stateFormatted = state.charAt(0).toUpperCase() + state.slice(1);
   const jobsInState = useMemo(() => {

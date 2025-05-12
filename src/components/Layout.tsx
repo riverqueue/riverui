@@ -7,6 +7,7 @@ import {
   TransitionChild,
 } from "@headlessui/react";
 import {
+  Cog6ToothIcon,
   InboxStackIcon,
   QueueListIcon,
   RectangleGroupIcon,
@@ -131,6 +132,27 @@ const Layout = ({ children }: LayoutProps) => {
                             ))}
                           </>
                         </ul>
+                        <div className="mt-auto">
+                          <Link
+                            activeProps={{
+                              className:
+                                "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 dark:hover:text-white border-brand-primary",
+                            }}
+                            className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm leading-6 font-semibold transition-colors"
+                            inactiveProps={{
+                              className:
+                                "text-slate-600 dark:text-slate-400 dark:hover:text-white hover:text-slate-900 border-transparent dark:hover:bg-slate-800 hover:bg-slate-200",
+                            }}
+                            onClick={() => setSidebarOpen(false)}
+                            to="/settings"
+                          >
+                            <Cog6ToothIcon
+                              aria-hidden="true"
+                              className="size-6 shrink-0"
+                            />
+                            Settings
+                          </Link>
+                        </div>
                       </nav>
                     </div>
                   </div>
@@ -169,6 +191,26 @@ const Layout = ({ children }: LayoutProps) => {
                   </li>
                 ))}
               </ul>
+              <div className="mt-auto">
+                <Link
+                  activeProps={{
+                    className:
+                      "bg-slate-200 dark:bg-slate-700 text-slate-900 dark:text-slate-100 dark:hover:text-white border-brand-primary",
+                  }}
+                  className="group flex gap-x-5 border-l-4 p-5 pl-4 text-sm leading-6 font-semibold transition-colors"
+                  inactiveProps={{
+                    className:
+                      "text-slate-600 dark:text-slate-400 dark:hover:text-white hover:text-slate-900 border-transparent dark:hover:bg-slate-800 hover:bg-slate-200",
+                  }}
+                  to="/settings"
+                >
+                  <Cog6ToothIcon
+                    aria-hidden="true"
+                    className="size-6 shrink-0"
+                  />
+                  Settings
+                </Link>
+              </div>
             </nav>
           </div>
         </div>
