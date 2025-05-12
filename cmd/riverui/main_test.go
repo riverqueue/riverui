@@ -22,6 +22,7 @@ func TestInitServer(t *testing.T) {
 	)
 
 	t.Setenv("DEV", "true")
+	t.Setenv("DATABASE_URL", databaseURL)
 
 	type testBundle struct{}
 
@@ -35,9 +36,7 @@ func TestInitServer(t *testing.T) {
 		return initRes, &testBundle{}
 	}
 
-	t.Run("WithDatabaseURL", func(t *testing.T) {
-		t.Setenv("DATABASE_URL", databaseURL)
-
+	t.Run("WithDatabaseURL", func(t *testing.T) { //nolint:paralleltest
 		initRes, _ := setup(t)
 
 		_, err := initRes.dbPool.Exec(ctx, "SELECT 1")
@@ -45,9 +44,7 @@ func TestInitServer(t *testing.T) {
 	})
 
 	t.Run("WithPGEnvVars", func(t *testing.T) {
-		// Verify that DATABASE_URL is indeed not set to be sure we're taking
-		// the configuration branch we expect to be taking.
-		require.Empty(t, os.Getenv("DATABASE_URL"))
+		t.Setenv("DATABASE_URL", "")
 
 		parsedURL, err := url.Parse(databaseURL)
 		require.NoError(t, err)
