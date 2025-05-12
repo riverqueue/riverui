@@ -136,15 +136,42 @@ jobs:
           echo "Please make sure that all sqlc changes are checked in!"
           make verify
 
-  # js_build_and_test:
-  #   runs-on: ubuntu-latest
-  #   timeout-minutes: 5
+  js_build_and_test:
+    name: JS Build and Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version:
+          - "22.14.0"
+      fail-fast: false
+    timeout-minutes: 5
 
-  #   env:
-  #     NODE_ENV: test
+    env:
+      NODE_ENV: test
 
-  #   permissions:
-  #     contents: read
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+          node-version: ${{ matrix.node-version }}
+
+      - name: Install dependencies
+        run: npm install
+        shell: sh
+
+      - name: Test 🧪
+        run: npm test
+
+      - name: Build 🏗️
+        run: npm exec vite build
 
   js_lint:
     name: JS Lint
@@ -190,9 +217,6 @@ jobs:
         run: npm exec tsc
         # Check tsc compilation even if there were linting issues:
         if: always()
-
-      - name: Build 🏗️
-        run: npm exec vite build
 
   release:
     name: Release
