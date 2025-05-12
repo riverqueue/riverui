@@ -15,7 +15,6 @@ updates:
       - "docker"
     commit-message:
       prefix: "docker"
-    versioning-strategy: "auto"
     allow:
       - dependency-type: "direct"
     ignore:
