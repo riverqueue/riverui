@@ -50,7 +50,7 @@ The `riverui` command accepts a `-prefix` arg to set a path prefix on both the A
 
 ### Hiding job list arguments by default
 
-The `JOB_LIST_HIDE_ARGS_BY_DEFAULT` environment variable controls whether, by default, the job list UI shows job arguments. By default job arguments are always shown. If `JOB_LIST_HIDE_ARGS_BY_DEFAULT=true` or `JOB_LIST_HIDE_ARGS_BY_DEFAULT=1` is set, job args will not be shown in the job list by default.
+The `RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT` environment variable controls whether, by default, the job list UI shows job arguments. By default job arguments are always shown. If `RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT=true` or `RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT=1` is set, job args will not be shown in the job list by default.
 
 Individual users may still override this preference using the settings screen in the UI. A user's saved preference takes precedence over any default setting.
 

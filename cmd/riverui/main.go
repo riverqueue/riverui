@@ -86,7 +86,7 @@ func initServer(ctx context.Context, logger *slog.Logger, pathPrefix string) (*i
 		corsOrigins              = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
 		databaseURL              = os.Getenv("DATABASE_URL")
 		devMode                  = envBooleanTrue(os.Getenv("DEV"))
-		jobListHideArgsByDefault = envBooleanTrue(os.Getenv("JOB_LIST_HIDE_ARGS_BY_DEFAULT"))
+		jobListHideArgsByDefault = envBooleanTrue(os.Getenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT"))
 		host                     = os.Getenv("RIVER_HOST") // may be left empty to bind to all local interfaces
 		liveFS                   = envBooleanTrue(os.Getenv("LIVE_FS"))
 		otelEnabled              = envBooleanTrue(os.Getenv("OTEL_ENABLED"))

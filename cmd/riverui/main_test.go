@@ -81,7 +81,7 @@ func TestInitServer(t *testing.T) {
 		})
 
 		t.Run("set to true with true", func(t *testing.T) {
-			t.Setenv("JOB_LIST_HIDE_ARGS_BY_DEFAULT", "true")
+			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "true")
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
@@ -95,7 +95,7 @@ func TestInitServer(t *testing.T) {
 		})
 
 		t.Run("set to true with 1", func(t *testing.T) {
-			t.Setenv("JOB_LIST_HIDE_ARGS_BY_DEFAULT", "1")
+			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "1")
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
