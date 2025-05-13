@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.10.0] - 2025-05-13
+
 ### Added
 
 - Added a flexible search filter UI for the job list. [PR #344](https://github.com/riverqueue/riverui/pull/344).
