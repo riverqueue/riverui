@@ -1,4 +1,3 @@
-import PlaintextPanel from "@/components/PlaintextPanel";
 import {
   ArrowPathRoundedSquareIcon,
   CheckCircleIcon,
@@ -11,6 +10,8 @@ import { Job } from "@services/jobs";
 import { JobState } from "@services/types";
 import clsx from "clsx";
 import { useMemo, useState } from "react";
+
+import PlaintextPanel from "@/components/PlaintextPanel";
 
 import { DurationCompact } from "./DurationCompact";
 import RelativeTimeFormatter from "./RelativeTimeFormatter";

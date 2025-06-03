@@ -1,4 +1,3 @@
-import PlaintextPanel from "@/components/PlaintextPanel";
 import {
   Disclosure,
   DisclosureButton,
@@ -6,6 +5,8 @@ import {
 } from "@headlessui/react";
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import React from "react";
+
+import PlaintextPanel from "@/components/PlaintextPanel";
 
 interface JSONNodeRendererProps {
   data: unknown;
