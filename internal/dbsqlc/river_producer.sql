@@ -15,7 +15,12 @@ SELECT
     sqlc.embed(river_producer),
     COALESCE(
         (
-            SELECT SUM((value->>'count')::int)
+            SELECT SUM(
+                CASE
+                    WHEN jsonb_typeof(value) = 'number' THEN (value)::int
+                    ELSE (value->>'count')::int
+                END
+            )
             FROM jsonb_each(metadata->'concurrency'->'running')
         ),
         0

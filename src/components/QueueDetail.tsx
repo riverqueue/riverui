@@ -380,7 +380,7 @@ const ConcurrencySettings = ({
             ? concurrencyForm.partitionArgs
             : []
           : null,
-        by_kind: concurrencyForm.partitionByKind ? [] : null,
+        by_kind: concurrencyForm.partitionByKind ? true : null,
       };
 
       newConcurrency = {
