@@ -1,6 +1,6 @@
 import { type Producer } from "@services/producers";
 import { type ConcurrencyConfig } from "@services/queues";
-import { Meta, StoryObj } from "@storybook/react";
+import { Meta, StoryObj } from "@storybook/react-vite";
 import { producerFactory } from "@test/factories/producer";
 import { queueFactory } from "@test/factories/queue";
 
