@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { useFeatures } from "@contexts/Features.hook";
 import { useSettings } from "@hooks/use-settings";

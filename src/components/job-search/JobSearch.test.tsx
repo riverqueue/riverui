@@ -6,7 +6,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { userEvent } from "storybook/test";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Filter, FilterTypeId, JobSearch } from "./JobSearch";

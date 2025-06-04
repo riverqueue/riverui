@@ -1,7 +1,7 @@
-import type { Decorator, Preview } from "@storybook/react";
+import type { Decorator, Preview } from "@storybook/react-vite";
 
 import { withThemeByClassName } from "@storybook/addon-themes";
-import { ReactRenderer } from "@storybook/react";
+import { ReactRenderer } from "@storybook/react-vite";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -77,7 +77,7 @@ export const withThemeProvider: Decorator = (StoryFn) => (
 );
 
 // Define parameter types
-declare module "@storybook/react" {
+declare module "@storybook/react-vite" {
   interface Parameters {
     features?: Partial<Features>;
     router?: {
