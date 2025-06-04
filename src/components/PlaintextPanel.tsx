@@ -1,9 +1,10 @@
-import { ToastContentSuccess } from "@/components/Toast";
 import { CheckIcon } from "@heroicons/react/16/solid";
 import { ClipboardIcon } from "@heroicons/react/24/outline";
 import { useState } from "react";
 import React from "react";
 import toast from "react-hot-toast";
+
+import { ToastContentSuccess } from "@/components/Toast";
 
 type PlaintextPanelProps = {
   /**
