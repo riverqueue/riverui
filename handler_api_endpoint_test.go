@@ -1031,7 +1031,7 @@ func TestAPIHandlerWorkflowList(t *testing.T) {
 			State:       ptrutil.Ptr(rivertype.JobStateCancelled),
 		})
 
-		t.Run("All", func(t *testing.T) {
+		t.Run("All", func(t *testing.T) { //nolint:paralleltest
 			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{})
 			require.NoError(t, err)
 			require.Len(t, resp.Data, 2)
@@ -1053,7 +1053,7 @@ func TestAPIHandlerWorkflowList(t *testing.T) {
 			require.Equal(t, "first_wf", *resp.Data[1].Name)
 		})
 
-		t.Run("Active", func(t *testing.T) {
+		t.Run("Active", func(t *testing.T) { //nolint:paralleltest
 			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{State: "active"})
 			require.NoError(t, err)
 			require.Len(t, resp.Data, 1)
@@ -1070,7 +1070,7 @@ func TestAPIHandlerWorkflowList(t *testing.T) {
 			require.Equal(t, job1.CreatedAt.UTC(), resp.Data[0].CreatedAt)
 		})
 
-		t.Run("Inactive", func(t *testing.T) {
+		t.Run("Inactive", func(t *testing.T) { //nolint:paralleltest
 			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{State: "inactive"})
 			require.NoError(t, err)
 			require.Len(t, resp.Data, 1)

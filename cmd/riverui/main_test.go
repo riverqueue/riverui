@@ -16,6 +16,7 @@ import (
 )
 
 func TestInitServer(t *testing.T) {
+	// TODO: this should be upgradeable to our latest test patterns to be parallelizable.
 	var (
 		ctx         = context.Background()
 		databaseURL = cmp.Or(os.Getenv("TEST_DATABASE_URL"), "postgres://localhost/river_test")
@@ -64,7 +65,7 @@ func TestInitServer(t *testing.T) {
 	})
 
 	t.Run("JobListHideArgsByDefault", func(t *testing.T) {
-		t.Run("default value is false", func(t *testing.T) {
+		t.Run("default value is false", func(t *testing.T) { //nolint:paralleltest
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
