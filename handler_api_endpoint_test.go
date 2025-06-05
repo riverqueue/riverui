@@ -633,8 +633,17 @@ func TestAPIHandlerProducerList(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = bundle.tx.Exec(ctx,
+			// old format:
 			`INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES (
 			'client2', 'queue2', 3, '{"concurrency": {"running": {"abcd": {"count": 3}, "efgh": {"count": 2}}}}'
+			);`,
+		)
+		require.NoError(t, err)
+
+		_, err = bundle.tx.Exec(ctx,
+			// new format:
+			`INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES (
+			'client3', 'queue3', 3, '{"concurrency": {"running": {"abcd": 3, "efgh": 2}}}'
 			);`,
 		)
 		require.NoError(t, err)
@@ -656,7 +665,15 @@ func TestAPIHandlerProducerList(t *testing.T) {
 		require.Equal(t, 3, resp.Data[0].MaxWorkers)
 		require.Equal(t, int32(5), resp.Data[0].Running)
 
+		// Same data as queue2 producer, but with new format:
 		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue3"})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, "client3", resp.Data[0].ClientID)
+		require.Equal(t, 3, resp.Data[0].MaxWorkers)
+		require.Equal(t, int32(5), resp.Data[0].Running)
+
+		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue4"})
 		require.NoError(t, err)
 		require.Empty(t, resp.Data)
 	})
@@ -1014,7 +1031,7 @@ func TestAPIHandlerWorkflowList(t *testing.T) {
 			State:       ptrutil.Ptr(rivertype.JobStateCancelled),
 		})
 
-		t.Run("All", func(t *testing.T) {
+		t.Run("All", func(t *testing.T) { //nolint:paralleltest
 			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{})
 			require.NoError(t, err)
 			require.Len(t, resp.Data, 2)
@@ -1036,7 +1053,7 @@ func TestAPIHandlerWorkflowList(t *testing.T) {
 			require.Equal(t, "first_wf", *resp.Data[1].Name)
 		})
 
-		t.Run("Active", func(t *testing.T) {
+		t.Run("Active", func(t *testing.T) { //nolint:paralleltest
 			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{State: "active"})
 			require.NoError(t, err)
 			require.Len(t, resp.Data, 1)
@@ -1053,7 +1070,7 @@ func TestAPIHandlerWorkflowList(t *testing.T) {
 			require.Equal(t, job1.CreatedAt.UTC(), resp.Data[0].CreatedAt)
 		})
 
-		t.Run("Inactive", func(t *testing.T) {
+		t.Run("Inactive", func(t *testing.T) { //nolint:paralleltest
 			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{State: "inactive"})
 			require.NoError(t, err)
 			require.Len(t, resp.Data, 1)

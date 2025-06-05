@@ -14,7 +14,7 @@ export interface ConcurrencyConfig {
 
 export interface PartitionConfig {
   by_args: null | string[];
-  by_kind: null | string[];
+  by_kind: boolean | null;
 }
 
 export type Queue = {

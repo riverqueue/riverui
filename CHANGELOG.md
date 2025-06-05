@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Upgraded all dependencies.
+- Compatibility with River Pro v0.15.0 and River v0.23.0.
+
 ## [v0.10.0] - 2025-05-13
 
 ### Added

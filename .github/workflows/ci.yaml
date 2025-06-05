@@ -81,7 +81,7 @@ jobs:
     name: Go lint
     runs-on: ubuntu-latest
     env:
-      GOLANGCI_LINT_VERSION: v2.0.0
+      GOLANGCI_LINT_VERSION: v2.1.6
     permissions:
       contents: read
       # allow read access to pull request. Use with `only-new-issues` option.
@@ -129,7 +129,7 @@ jobs:
       - name: Setup sqlc
         uses: sqlc-dev/setup-sqlc@v4
         with:
-          sqlc-version: "1.28.0"
+          sqlc-version: "1.29.0"
 
       - name: Run sqlc diff
         run: |
