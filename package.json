@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "dependencies": {
-    "@dagrejs/dagre": "^1.1.4",
+    "@dagrejs/dagre": "^1.1.5",
     "@headlessui/react": "^2.2.4",
     "@heroicons/react": "^2.2.0",
     "@nanostores/persistent": "^1.0.0",
@@ -13,17 +13,17 @@
     "@tanstack/react-query": "^5.79.2",
     "@tanstack/react-router": "^1.120.15",
     "@tanstack/zod-adapter": "^1.120.15",
-    "@xyflow/react": "^12.6.4",
+    "@xyflow/react": "^12.8.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "nanostores": "^1.0.1",
     "next-themes": "^0.4.6",
-    "query-string": "^9.2.0",
+    "query-string": "^9.2.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-hot-toast": "^2.5.2",
     "react-time-sync": "^5.2.1",
-    "zod": "^3.25.49"
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.0.0",
