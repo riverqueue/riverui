@@ -248,7 +248,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     );
   }
 
-  const lastError: AttemptError | undefined = job.errors.at(-1);
+  const lastError: AttemptError | undefined = job.errors[job.errors.length - 1];
   const jobEndTime: Date | undefined = job.finalizedAt || lastError?.at;
 
   const errored =
