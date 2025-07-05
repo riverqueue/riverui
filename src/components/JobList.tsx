@@ -325,16 +325,19 @@ const JobRows = ({
     <div className="flex min-h-dvh flex-col">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex min-h-16 items-center space-x-4 border-b border-slate-300 py-2 sm:justify-between dark:border-slate-700">
-          {jobs.length > 0 && (
+          <div className="w-6">
             <CustomCheckbox
               aria-label={"Select all jobs"}
               checked={selectedJobs.length > 0}
-              className="grow-0"
+              className={classNames(
+                "grow-0",
+                jobs.length === 0 ? "invisible" : "",
+              )}
               indeterminate={isIndeterminate}
               name={"select_all_jobs"}
               onChange={handleSelectAll}
             />
-          )}
+          </div>
           <JobSearch
             className={classNames(selectedJobs.length === 0 ? "" : "hidden")}
             initialFilters={initialFilters}
