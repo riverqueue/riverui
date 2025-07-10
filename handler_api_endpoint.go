@@ -589,6 +589,7 @@ func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*
 
 type producerListEndpoint struct {
 	apiBundle
+	// TODO: wrong type here!
 	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverProducer]]
 }
 
