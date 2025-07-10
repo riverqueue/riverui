@@ -226,9 +226,11 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 		// This can't be parallelized because it tries to make DB schema changes.
 		endpoint, bundle := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
 
-		_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_producer;`)
+		_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_client CASCADE;`)
 		require.NoError(t, err)
-		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_client CASCADE;`)
+		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_job_sequence;`)
+		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_producer;`)
 		require.NoError(t, err)
 		_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_list_active;`)
 		require.NoError(t, err)
@@ -240,6 +242,7 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 		require.Equal(t, &featuresGetResponse{
 			HasClientTable:           false,
 			HasProducerTable:         false,
+			HasSequenceTable:         false,
 			HasWorkflows:             false,
 			JobListHideArgsByDefault: false,
 		}, resp)
@@ -251,7 +254,11 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 
 		_, err := bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_client (id SERIAL PRIMARY KEY);`)
 		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_job_sequence (id SERIAL PRIMARY KEY);`)
+		require.NoError(t, err)
 		_, err = bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_producer (id SERIAL PRIMARY KEY);`)
+		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `CREATE INDEX IF NOT EXISTS river_job_workflow_list_active ON river_job ((metadata->>'workflow_id'));`)
 		require.NoError(t, err)
 		_, err = bundle.tx.Exec(ctx, `CREATE INDEX IF NOT EXISTS river_job_workflow_list_active ON river_job ((metadata->>'workflow_id'));`)
 		require.NoError(t, err)
@@ -263,6 +270,7 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 		require.Equal(t, &featuresGetResponse{
 			HasClientTable:           true,
 			HasProducerTable:         true,
+			HasSequenceTable:         true,
 			HasWorkflows:             true,
 			JobListHideArgsByDefault: true,
 		}, resp)
