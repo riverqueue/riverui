@@ -33,7 +33,7 @@ export const getWorkflow: QueryFunction<Workflow, GetWorkflowKey> = async ({
 }) => {
   const [, workflowID] = queryKey;
   return API.get<WorkflowFromAPI>(
-    { path: `/workflows/${workflowID}` },
+    { path: `/pro/workflows/${workflowID}` },
     { signal },
   ).then(apiWorkflowToWorkflow);
 };
@@ -93,7 +93,7 @@ export const listWorkflows: QueryFunction<
   }
 
   return API.get<ListResponse<WorkflowListItemFromAPI>>(
-    { path: "/workflows", query },
+    { path: "/pro/workflows", query },
     { signal },
   ).then(
     // Map from WorkflowListItemFromAPI to WorkflowListItem:

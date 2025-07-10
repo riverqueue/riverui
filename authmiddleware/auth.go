@@ -1,19 +1,18 @@
-package main
+package authmiddleware
 
 import (
 	"crypto/subtle"
 	"net/http"
-	"strings"
 )
 
-type authMiddleware struct {
-	username string
-	password string
+type BasicAuth struct {
+	Username string
+	Password string
 }
 
-func (m *authMiddleware) Middleware(next http.Handler) http.Handler {
+func (m *BasicAuth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if isReqAuthorized(req, m.username, m.password) {
+		if isReqAuthorized(req, m.Username, m.Password) {
 			next.ServeHTTP(res, req)
 			return
 		}
@@ -26,10 +25,7 @@ func (m *authMiddleware) Middleware(next http.Handler) http.Handler {
 func isReqAuthorized(req *http.Request, username, password string) bool {
 	reqUsername, reqPassword, ok := req.BasicAuth()
 
-	isHealthCheck := strings.Contains(req.URL.Path, "/api/health-checks/")
-	isValidAuth := ok &&
+	return ok &&
 		subtle.ConstantTimeCompare([]byte(reqUsername), []byte(username)) == 1 &&
 		subtle.ConstantTimeCompare([]byte(reqPassword), []byte(password)) == 1
-
-	return isHealthCheck || isValidAuth
 }

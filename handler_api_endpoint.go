@@ -12,8 +12,6 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"riverqueue.com/riverui/internal/dbsqlc"
 	"riverqueue.com/riverui/internal/querycacher"
 	"riverqueue.com/riverui/internal/util/pgxutil"
 
@@ -21,6 +19,7 @@ import (
 	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
@@ -33,6 +32,8 @@ type apiBundle struct {
 	archetype                *baseservice.Archetype
 	client                   *river.Client[pgx.Tx]
 	dbPool                   DB
+	driver                   riverdriver.Driver[pgx.Tx]
+	exec                     riverdriver.Executor
 	jobListHideArgsByDefault bool
 	logger                   *slog.Logger
 }
@@ -124,7 +125,7 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 
 		switch req.Facet {
 		case autocompleteFacetJobKind:
-			kinds, err := dbsqlc.New().JobKindListByPrefix(ctx, tx, &dbsqlc.JobKindListByPrefixParams{
+			kinds, err := a.exec.JobKindListByPrefix(ctx, &riverdriver.JobKindListByPrefixParams{
 				After:   after,
 				Exclude: req.Exclude,
 				Max:     100,
@@ -143,7 +144,7 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 			return listResponseFrom(kindPtrs), nil
 
 		case autocompleteFacetQueueName:
-			queues, err := dbsqlc.New().QueueNameListByPrefix(ctx, tx, &dbsqlc.QueueNameListByPrefixParams{
+			queues, err := a.exec.QueueNameListByPrefix(ctx, &riverdriver.QueueNameListByPrefixParams{
 				After:   after,
 				Exclude: req.Exclude,
 				Max:     100,
@@ -190,47 +191,62 @@ func (*featuresGetEndpoint) Meta() *apiendpoint.EndpointMeta {
 type featuresGetRequest struct{}
 
 type featuresGetResponse struct {
-	HasClientTable           bool `json:"has_client_table"`
-	HasProducerTable         bool `json:"has_producer_table"`
-	HasSequenceTable         bool `json:"has_sequence_table"`
-	HasWorkflows             bool `json:"has_workflows"`
-	JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
+	Extensions               map[string]bool `json:"extensions"`
+	HasClientTable           bool            `json:"has_client_table"`
+	HasProducerTable         bool            `json:"has_producer_table"`
+	HasSequenceTable         bool            `json:"has_sequence_table"`
+	HasWorkflows             bool            `json:"has_workflows"`
+	JobListHideArgsByDefault bool            `json:"job_list_hide_args_by_default"`
 }
 
 func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
-	hasClientTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_client")
-	if err != nil {
-		return nil, err
-	}
-
-	hasProducerTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_producer")
-	if err != nil {
-		return nil, err
-	}
-
-	hasSequenceTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_job_sequence")
-	if err != nil {
-		return nil, err
-	}
-
-	indexResults, err := dbsqlc.New().IndexesExistInCurrentSchema(ctx, a.dbPool, []string{
-		"river_job_workflow_list_active",
-		"river_job_workflow_scheduling",
+	schema := a.client.Schema()
+	hasClientTable, err := a.exec.TableExists(ctx, &riverdriver.TableExistsParams{
+		Schema: schema,
+		Table:  "river_client",
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	indexResultsMap := make(map[string]bool, len(indexResults))
-	for _, indexResult := range indexResults {
-		indexResultsMap[indexResult.IndexNamesIndexName] = indexResult.Exists
+	hasProducerTable, err := a.exec.TableExists(ctx, &riverdriver.TableExistsParams{
+		Schema: schema,
+		Table:  "river_producer",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	hasSequenceTable, err := a.exec.TableExists(ctx, &riverdriver.TableExistsParams{
+		Schema: schema,
+		Table:  "river_job_sequence",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	indexResults, err := a.exec.IndexesExist(ctx, &riverdriver.IndexesExistParams{
+		IndexNames: []string{
+			"river_job_workflow_list_active",
+			"river_job_workflow_scheduling",
+		},
+		Schema: schema,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	extensions := make(map[string]bool)
+	if driverWithExtensions, hasExtensions := a.driver.(driverWithExtensions); hasExtensions {
+		extensions = driverWithExtensions.UIExtensions()
 	}
 
 	return &featuresGetResponse{
+		Extensions:               extensions,
 		HasClientTable:           hasClientTable,
 		HasProducerTable:         hasProducerTable,
 		HasSequenceTable:         hasSequenceTable,
-		HasWorkflows:             indexResultsMap["river_job_workflow_list_active"] || indexResultsMap["river_job_workflow_scheduling"],
+		HasWorkflows:             indexResults["river_job_workflow_list_active"] || indexResults["river_job_workflow_scheduling"],
 		JobListHideArgsByDefault: a.jobListHideArgsByDefault,
 	}, nil
 }
@@ -584,49 +600,6 @@ func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*
 }
 
 //
-// producerListEndpoint
-//
-
-type producerListEndpoint struct {
-	apiBundle
-	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverProducer]]
-}
-
-func newProducerListEndpoint(apiBundle apiBundle) *producerListEndpoint {
-	return &producerListEndpoint{apiBundle: apiBundle}
-}
-
-func (*producerListEndpoint) Meta() *apiendpoint.EndpointMeta {
-	return &apiendpoint.EndpointMeta{
-		Pattern:    "GET /api/producers",
-		StatusCode: http.StatusOK,
-	}
-}
-
-type producerListRequest struct {
-	QueueName string `json:"-" validate:"required"` // from ExtractRaw
-}
-
-func (req *producerListRequest) ExtractRaw(r *http.Request) error {
-	if queueName := r.URL.Query().Get("queue_name"); queueName != "" {
-		req.QueueName = queueName
-	}
-
-	return nil
-}
-
-func (a *producerListEndpoint) Execute(ctx context.Context, req *producerListRequest) (*listResponse[RiverProducer], error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverProducer], error) {
-		result, err := dbsqlc.New().ProducerListByQueue(ctx, tx, req.QueueName)
-		if err != nil {
-			return nil, fmt.Errorf("error listing producers: %w", err)
-		}
-
-		return listResponseFrom(sliceutil.Map(result, internalProducerToSerializableProducer)), nil
-	})
-}
-
-//
 // queueGetEndpoint
 //
 
@@ -665,7 +638,10 @@ func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*
 			return nil, fmt.Errorf("error getting queue: %w", err)
 		}
 
-		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, []string{req.Name})
+		countRows, err := a.exec.JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+			QueueNames: []string{req.Name},
+			Schema:     a.client.Schema(),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting queue counts: %w", err)
 		}
@@ -720,7 +696,10 @@ func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) 
 
 		queueNames := sliceutil.Map(result.Queues, func(q *rivertype.Queue) string { return q.Name })
 
-		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, queueNames)
+		countRows, err := a.exec.JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+			QueueNames: queueNames,
+			Schema:     a.client.Schema(),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting queue counts: %w", err)
 		}
@@ -873,7 +852,10 @@ func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateReque
 			return nil, fmt.Errorf("error updating queue metadata: %w", err)
 		}
 
-		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, []string{req.Name})
+		countRows, err := a.exec.JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+			QueueNames: []string{req.Name},
+			Schema:     a.client.Schema(),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting queue counts: %w", err)
 		}
@@ -891,14 +873,17 @@ type stateAndCountGetEndpoint struct {
 	apiendpoint.Endpoint[jobCancelRequest, stateAndCountGetResponse]
 
 	queryCacheSkipThreshold int // constant normally, but settable for testing
-	queryCacher             *querycacher.QueryCacher[[]*dbsqlc.JobCountByStateRow]
+	queryCacher             *querycacher.QueryCacher[map[rivertype.JobState]int]
 }
 
 func newStateAndCountGetEndpoint(apiBundle apiBundle) *stateAndCountGetEndpoint {
+	runQuery := func(ctx context.Context) (map[rivertype.JobState]int, error) {
+		return apiBundle.exec.JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: apiBundle.client.Schema()})
+	}
 	return &stateAndCountGetEndpoint{
 		apiBundle:               apiBundle,
 		queryCacheSkipThreshold: 1_000_000,
-		queryCacher:             querycacher.NewQueryCacher(apiBundle.archetype, apiBundle.dbPool, dbsqlc.New().JobCountByState),
+		queryCacher:             querycacher.NewQueryCacher(apiBundle.archetype, runQuery),
 	}
 }
 
@@ -928,10 +913,10 @@ type stateAndCountGetResponse struct {
 
 func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
 	// Counts the total number of jobs in a state and count result.
-	totalJobs := func(stateAndCountRes []*dbsqlc.JobCountByStateRow) int {
+	totalJobs := func(stateAndCountRes map[rivertype.JobState]int) int {
 		var totalJobs int
-		for _, stateAndCount := range stateAndCountRes {
-			totalJobs += int(stateAndCount.Count)
+		for _, count := range stateAndCountRes {
+			totalJobs += count
 		}
 		return totalJobs
 	}
@@ -945,158 +930,22 @@ func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCount
 	stateAndCountRes, ok := a.queryCacher.CachedRes()
 	if !ok || totalJobs(stateAndCountRes) < a.queryCacheSkipThreshold {
 		var err error
-		stateAndCountRes, err = dbsqlc.New().JobCountByState(ctx, a.dbPool)
+		stateAndCountRes, err = a.exec.JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: a.client.Schema()})
 		if err != nil {
 			return nil, fmt.Errorf("error getting states and counts: %w", err)
 		}
 	}
 
-	stateAndCountMap := sliceutil.KeyBy(stateAndCountRes, func(r *dbsqlc.JobCountByStateRow) (rivertype.JobState, int) {
-		return rivertype.JobState(r.State), int(r.Count)
-	})
-
 	return &stateAndCountGetResponse{
-		Available: stateAndCountMap[rivertype.JobStateAvailable],
-		Cancelled: stateAndCountMap[rivertype.JobStateCancelled],
-		Completed: stateAndCountMap[rivertype.JobStateCompleted],
-		Discarded: stateAndCountMap[rivertype.JobStateDiscarded],
-		Pending:   stateAndCountMap[rivertype.JobStatePending],
-		Retryable: stateAndCountMap[rivertype.JobStateRetryable],
-		Running:   stateAndCountMap[rivertype.JobStateRunning],
-		Scheduled: stateAndCountMap[rivertype.JobStateScheduled],
+		Available: stateAndCountRes[rivertype.JobStateAvailable],
+		Cancelled: stateAndCountRes[rivertype.JobStateCancelled],
+		Completed: stateAndCountRes[rivertype.JobStateCompleted],
+		Discarded: stateAndCountRes[rivertype.JobStateDiscarded],
+		Pending:   stateAndCountRes[rivertype.JobStatePending],
+		Retryable: stateAndCountRes[rivertype.JobStateRetryable],
+		Running:   stateAndCountRes[rivertype.JobStateRunning],
+		Scheduled: stateAndCountRes[rivertype.JobStateScheduled],
 	}, nil
-}
-
-//
-// workflowGetEndpoint
-//
-
-type workflowGetEndpoint struct {
-	apiBundle
-	apiendpoint.Endpoint[jobCancelRequest, workflowGetResponse]
-}
-
-func newWorkflowGetEndpoint(apiBundle apiBundle) *workflowGetEndpoint {
-	return &workflowGetEndpoint{apiBundle: apiBundle}
-}
-
-func (*workflowGetEndpoint) Meta() *apiendpoint.EndpointMeta {
-	return &apiendpoint.EndpointMeta{
-		Pattern:    "GET /api/workflows/{id}",
-		StatusCode: http.StatusOK,
-	}
-}
-
-type workflowGetRequest struct {
-	ID string `json:"-" validate:"required"` // from ExtractRaw
-}
-
-func (req *workflowGetRequest) ExtractRaw(r *http.Request) error {
-	req.ID = r.PathValue("id")
-	return nil
-}
-
-type workflowGetResponse struct {
-	Tasks []*RiverJob `json:"tasks"`
-}
-
-func (a *workflowGetEndpoint) Execute(ctx context.Context, req *workflowGetRequest) (*workflowGetResponse, error) {
-	jobs, err := dbsqlc.New().JobListWorkflow(ctx, a.dbPool, &dbsqlc.JobListWorkflowParams{
-		PaginationLimit:  1000,
-		PaginationOffset: 0,
-		WorkflowID:       req.ID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error getting workflow jobs: %w", err)
-	}
-
-	if len(jobs) < 1 {
-		return nil, NewNotFoundWorkflow(req.ID)
-	}
-
-	return &workflowGetResponse{
-		Tasks: sliceutil.Map(jobs, internalJobToSerializableJob),
-	}, nil
-}
-
-//
-// workflowListEndpoint
-//
-
-type workflowListEndpoint struct {
-	apiBundle
-	apiendpoint.Endpoint[jobCancelRequest, listResponse[workflowListItem]]
-}
-
-func newWorkflowListEndpoint(apiBundle apiBundle) *workflowListEndpoint {
-	return &workflowListEndpoint{apiBundle: apiBundle}
-}
-
-func (*workflowListEndpoint) Meta() *apiendpoint.EndpointMeta {
-	return &apiendpoint.EndpointMeta{
-		Pattern:    "GET /api/workflows",
-		StatusCode: http.StatusOK,
-	}
-}
-
-type workflowListRequest struct {
-	After *string `json:"-" validate:"omitempty"`                       // from ExtractRaw
-	Limit *int    `json:"-" validate:"omitempty,min=0,max=1000"`        // from ExtractRaw
-	State string  `json:"-" validate:"omitempty,oneof=active inactive"` // from ExtractRaw
-}
-
-func (req *workflowListRequest) ExtractRaw(r *http.Request) error {
-	if after := r.URL.Query().Get("after"); after != "" {
-		req.After = (&after)
-	}
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		limit, err := strconv.Atoi(limitStr)
-		if err != nil {
-			return apierror.NewBadRequestf("Couldn't convert `limit` to integer: %s.", err)
-		}
-
-		req.Limit = &limit
-	}
-
-	if state := r.URL.Query().Get("state"); state != "" {
-		req.State = (state)
-	}
-
-	return nil
-}
-
-func (a *workflowListEndpoint) Execute(ctx context.Context, req *workflowListRequest) (*listResponse[workflowListItem], error) {
-	switch req.State {
-	case "active":
-		workflows, err := dbsqlc.New().WorkflowListActive(ctx, a.dbPool, &dbsqlc.WorkflowListActiveParams{
-			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error listing workflows: %w", err)
-		}
-
-		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListActiveToSerializableWorkflow)), nil
-	case "inactive":
-		workflows, err := dbsqlc.New().WorkflowListInactive(ctx, a.dbPool, &dbsqlc.WorkflowListInactiveParams{
-			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error listing workflows: %w", err)
-		}
-		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListInactiveToSerializableWorkflow)), nil
-	default:
-		workflows, err := dbsqlc.New().WorkflowListAll(ctx, a.dbPool, &dbsqlc.WorkflowListAllParams{
-			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error listing workflows: %w", err)
-		}
-		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListAllToSerializableWorkflow)), nil
-	}
 }
 
 func NewNotFoundJob(jobID int64) *apierror.NotFound {
@@ -1145,44 +994,6 @@ type RiverJob struct {
 	Metadata json.RawMessage          `json:"metadata"`
 }
 
-func internalJobToSerializableJob(internal *dbsqlc.RiverJob) *RiverJob {
-	errs := make([]rivertype.AttemptError, len(internal.Errors))
-	for i, attemptErr := range internal.Errors {
-		if err := json.Unmarshal(attemptErr, &errs[i]); err != nil {
-			// ignore for now
-			fmt.Printf("error unmarshaling attempt error: %s\n", err)
-		}
-	}
-
-	attemptedBy := internal.AttemptedBy
-	if attemptedBy == nil {
-		attemptedBy = []string{}
-	}
-
-	minimal := RiverJobMinimal{
-		ID:          internal.ID,
-		Args:        internal.Args,
-		Attempt:     int(internal.Attempt),
-		AttemptedAt: timePtr(internal.AttemptedAt),
-		AttemptedBy: attemptedBy,
-		CreatedAt:   internal.CreatedAt.Time.UTC(),
-		FinalizedAt: timePtr(internal.FinalizedAt),
-		Kind:        internal.Kind,
-		MaxAttempts: int(internal.MaxAttempts),
-		Priority:    int(internal.Priority),
-		Queue:       internal.Queue,
-		State:       string(internal.State),
-		ScheduledAt: internal.ScheduledAt.Time.UTC(),
-		Tags:        internal.Tags,
-	}
-
-	return &RiverJob{
-		RiverJobMinimal: minimal,
-		Errors:          errs,
-		Metadata:        internal.Metadata,
-	}
-}
-
 func riverJobToSerializableJob(riverJob *rivertype.JobRow) *RiverJob {
 	errs := riverJob.Errors
 	if errs == nil {
@@ -1221,47 +1032,6 @@ func riverJobToSerializableJobMinimal(riverJob *rivertype.JobRow) *RiverJobMinim
 	}
 }
 
-type RiverProducer struct {
-	ID          int64              `json:"id"`
-	ClientID    string             `json:"client_id"`
-	Concurrency *ConcurrencyConfig `json:"concurrency"`
-	CreatedAt   time.Time          `json:"created_at"`
-	MaxWorkers  int                `json:"max_workers"`
-	PausedAt    *time.Time         `json:"paused_at"`
-	QueueName   string             `json:"queue_name"`
-	Running     int32              `json:"running"`
-	UpdatedAt   time.Time          `json:"updated_at"`
-}
-
-func internalProducerToSerializableProducer(internal *dbsqlc.ProducerListByQueueRow) *RiverProducer {
-	var pausedAt *time.Time
-	if internal.RiverProducer.PausedAt.Valid {
-		pausedAt = &internal.RiverProducer.PausedAt.Time
-	}
-
-	var concurrency *ConcurrencyConfig
-	if len(internal.RiverProducer.Metadata) > 0 {
-		var metadata struct {
-			Concurrency ConcurrencyConfig `json:"concurrency"`
-		}
-		if err := json.Unmarshal(internal.RiverProducer.Metadata, &metadata); err == nil {
-			concurrency = &metadata.Concurrency
-		}
-	}
-
-	return &RiverProducer{
-		ID:          internal.RiverProducer.ID,
-		ClientID:    internal.RiverProducer.ClientID,
-		Concurrency: concurrency,
-		CreatedAt:   internal.RiverProducer.CreatedAt.Time,
-		MaxWorkers:  int(internal.RiverProducer.MaxWorkers),
-		PausedAt:    pausedAt,
-		QueueName:   internal.RiverProducer.QueueName,
-		Running:     internal.Running,
-		UpdatedAt:   internal.RiverProducer.UpdatedAt.Time,
-	}
-}
-
 type RiverQueue struct {
 	CountAvailable int                `json:"count_available"`
 	CountRunning   int                `json:"count_running"`
@@ -1272,7 +1042,36 @@ type RiverQueue struct {
 	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
-func riverQueueToSerializableQueue(internal rivertype.Queue, count *dbsqlc.JobCountByQueueAndStateRow) *RiverQueue {
+func internalJobToSerializableJob(internal *rivertype.JobRow) *RiverJob {
+	attemptedBy := internal.AttemptedBy
+	if attemptedBy == nil {
+		attemptedBy = []string{}
+	}
+
+	minimal := RiverJobMinimal{
+		ID:          internal.ID,
+		Args:        internal.EncodedArgs,
+		Attempt:     int(internal.Attempt),
+		AttemptedAt: internal.AttemptedAt,
+		AttemptedBy: attemptedBy,
+		CreatedAt:   internal.CreatedAt,
+		FinalizedAt: internal.FinalizedAt,
+		Kind:        internal.Kind,
+		MaxAttempts: int(internal.MaxAttempts),
+		Priority:    int(internal.Priority),
+		Queue:       internal.Queue,
+		State:       string(internal.State),
+		ScheduledAt: internal.ScheduledAt,
+		Tags:        internal.Tags,
+	}
+
+	return &RiverJob{
+		RiverJobMinimal: minimal,
+		Errors:          internal.Errors,
+		Metadata:        internal.Metadata,
+	}
+}
+func riverQueueToSerializableQueue(internal rivertype.Queue, count *riverdriver.JobCountByQueueAndStateResult) *RiverQueue {
 	var concurrency *ConcurrencyConfig
 	if len(internal.Metadata) > 0 {
 		var metadata struct {
@@ -1294,8 +1093,8 @@ func riverQueueToSerializableQueue(internal rivertype.Queue, count *dbsqlc.JobCo
 	}
 }
 
-func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*dbsqlc.JobCountByQueueAndStateRow) *listResponse[RiverQueue] {
-	countsMap := make(map[string]*dbsqlc.JobCountByQueueAndStateRow)
+func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*riverdriver.JobCountByQueueAndStateResult) *listResponse[RiverQueue] {
+	countsMap := make(map[string]*riverdriver.JobCountByQueueAndStateResult)
 	for _, count := range counts {
 		countsMap[count.Queue] = count
 	}
@@ -1305,93 +1104,4 @@ func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*dbsq
 		queues[i] = riverQueueToSerializableQueue(*internalQueue, countsMap[internalQueue.Name])
 	}
 	return listResponseFrom(queues)
-}
-
-type workflowListItem struct {
-	CountAvailable  int       `json:"count_available"`
-	CountCancelled  int       `json:"count_cancelled"`
-	CountCompleted  int       `json:"count_completed"`
-	CountDiscarded  int       `json:"count_discarded"`
-	CountFailedDeps int       `json:"count_failed_deps"`
-	CountPending    int       `json:"count_pending"`
-	CountRetryable  int       `json:"count_retryable"`
-	CountRunning    int       `json:"count_running"`
-	CountScheduled  int       `json:"count_scheduled"`
-	CreatedAt       time.Time `json:"created_at"`
-	ID              string    `json:"id"`
-	Name            *string   `json:"name"`
-}
-
-func internalWorkflowListActiveToSerializableWorkflow(internal *dbsqlc.WorkflowListActiveRow) *workflowListItem {
-	var name *string
-	if internal.WorkflowName != "" {
-		name = &internal.WorkflowName
-	}
-
-	return &workflowListItem{
-		CountAvailable:  int(internal.CountAvailable),
-		CountCancelled:  int(internal.CountCancelled),
-		CountCompleted:  int(internal.CountCompleted),
-		CountDiscarded:  int(internal.CountDiscarded),
-		CountFailedDeps: int(internal.CountFailedDeps),
-		CountPending:    int(internal.CountPending),
-		CountRetryable:  int(internal.CountRetryable),
-		CountRunning:    int(internal.CountRunning),
-		CountScheduled:  int(internal.CountScheduled),
-		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
-		ID:              internal.WorkflowID,
-		Name:            name,
-	}
-}
-
-func internalWorkflowListAllToSerializableWorkflow(internal *dbsqlc.WorkflowListAllRow) *workflowListItem {
-	var name *string
-	if internal.WorkflowName != "" {
-		name = &internal.WorkflowName
-	}
-
-	return &workflowListItem{
-		CountAvailable:  int(internal.CountAvailable),
-		CountCancelled:  int(internal.CountCancelled),
-		CountCompleted:  int(internal.CountCompleted),
-		CountDiscarded:  int(internal.CountDiscarded),
-		CountFailedDeps: int(internal.CountFailedDeps),
-		CountPending:    int(internal.CountPending),
-		CountRetryable:  int(internal.CountRetryable),
-		CountRunning:    int(internal.CountRunning),
-		CountScheduled:  int(internal.CountScheduled),
-		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
-		ID:              internal.WorkflowID,
-		Name:            name,
-	}
-}
-
-func internalWorkflowListInactiveToSerializableWorkflow(internal *dbsqlc.WorkflowListInactiveRow) *workflowListItem {
-	var name *string
-	if internal.WorkflowName != "" {
-		name = &internal.WorkflowName
-	}
-
-	return &workflowListItem{
-		CountAvailable:  int(internal.CountAvailable),
-		CountCancelled:  int(internal.CountCancelled),
-		CountCompleted:  int(internal.CountCompleted),
-		CountDiscarded:  int(internal.CountDiscarded),
-		CountFailedDeps: int(internal.CountFailedDeps),
-		CountPending:    int(internal.CountPending),
-		CountRetryable:  int(internal.CountRetryable),
-		CountRunning:    int(internal.CountRunning),
-		CountScheduled:  int(internal.CountScheduled),
-		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
-		ID:              internal.WorkflowID,
-		Name:            name,
-	}
-}
-
-func timePtr(t pgtype.Timestamptz) *time.Time {
-	if !t.Valid {
-		return nil
-	}
-	utc := t.Time.UTC()
-	return &utc
 }
