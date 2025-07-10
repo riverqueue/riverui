@@ -34,6 +34,14 @@ type DB interface {
 	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
 }
 
+// driverHook defines an interface that River drivers can implement to register
+// additional API endpoints in the River UI. This allows Pro drivers to extend
+// the UI with Pro-specific functionality without riverui taking a direct
+// dependency on Pro packages.
+type driverHook interface {
+	RegisterUIEndpoints(mux *http.ServeMux, archetype *baseservice.Archetype, logger *slog.Logger, mountOpts *apiendpoint.MountOpts) []apiendpoint.EndpointInterface
+}
+
 // ServerOpts are the options for creating a new Server.
 type ServerOpts struct {
 	// Client is the River client to use for API requests.
@@ -106,10 +114,10 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 
 	if opts.LiveFS {
 		if opts.DevMode {
-			fmt.Println("Using live filesystem at ./public")
+			opts.Logger.Info("Using live filesystem at ./public")
 			frontendIndex = os.DirFS("./public")
 		} else {
-			fmt.Println("Using live filesystem at ./dist")
+			opts.Logger.Info("Using live filesystem at ./dist")
 			frontendIndex = os.DirFS("./dist")
 		}
 	}
@@ -164,6 +172,11 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newWorkflowGetEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newWorkflowListEndpoint(apiBundle), &mountOpts),
+	}
+
+	if driverHook, ok := opts.Client.Driver().(driverHook); ok {
+		additionalEndpoints := driverHook.RegisterUIEndpoints(mux, apiBundle.archetype, opts.Logger, &mountOpts)
+		endpoints = append(endpoints, additionalEndpoints...)
 	}
 
 	var services []startstop.Service
