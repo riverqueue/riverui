@@ -192,6 +192,7 @@ type featuresGetRequest struct{}
 type featuresGetResponse struct {
 	HasClientTable           bool `json:"has_client_table"`
 	HasProducerTable         bool `json:"has_producer_table"`
+	HasSequenceTable         bool `json:"has_sequence_table"`
 	HasWorkflows             bool `json:"has_workflows"`
 	JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
 }
@@ -203,6 +204,11 @@ func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest
 	}
 
 	hasProducerTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_producer")
+	if err != nil {
+		return nil, err
+	}
+
+	hasSequenceTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_job_sequence")
 	if err != nil {
 		return nil, err
 	}
@@ -223,6 +229,7 @@ func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest
 	return &featuresGetResponse{
 		HasClientTable:           hasClientTable,
 		HasProducerTable:         hasProducerTable,
+		HasSequenceTable:         hasSequenceTable,
 		HasWorkflows:             indexResultsMap["river_job_workflow_list_active"] || indexResultsMap["river_job_workflow_scheduling"],
 		JobListHideArgsByDefault: a.jobListHideArgsByDefault,
 	}, nil
