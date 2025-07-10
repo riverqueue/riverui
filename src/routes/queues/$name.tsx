@@ -27,7 +27,7 @@ export const Route = createFileRoute("/queues/$name")({
         queryKey: listProducersKey(name),
         queryFn: listProducers,
         signal: abortController.signal,
-        enabled: features.hasProducerTable,
+        enabled: features.hasProducerTable && features.producerQueries,
       },
       queueQueryOptions: {
         queryKey: getQueueKey(name),
@@ -78,7 +78,9 @@ function QueueComponent() {
 
   const loading =
     queueQuery.isLoading ||
-    (features.hasProducerTable && producersQuery.isLoading);
+    (features.hasProducerTable &&
+      features.producerQueries &&
+      producersQuery.isLoading);
 
   const invalidateQueue = () => {
     return queryClient.invalidateQueries({

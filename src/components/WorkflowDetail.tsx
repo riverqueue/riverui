@@ -5,6 +5,7 @@ import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import { TaskStateIcon } from "@components/TaskStateIcon";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import WorkflowDiagram from "@components/WorkflowDiagram";
+import { useFeatures } from "@contexts/Features.hook";
 import { EllipsisHorizontalIcon } from "@heroicons/react/20/solid";
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
@@ -13,22 +14,71 @@ import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
 import clsx from "clsx";
 import { useMemo } from "react";
+import WorkflowListEmptyState from "./WorkflowListEmptyState";
 
 type JobsByTask = {
   [key: string]: JobWithKnownMetadata;
 };
 
 type WorkflowDetailProps = {
+  loading: boolean;
   selectedJobId: bigint | undefined;
   setSelectedJobId: (jobId: bigint | undefined) => void;
-  workflow: Workflow;
+  workflow: Workflow | undefined;
 };
 
+// const WorkflowList = ({
+//   loading,
+//   showingAll,
+//   workflowItems,
+// }: WorkflowListProps) => {
+//   return (
+//     <div className="size-full">
+//       <TopNav>
+//         <header className="flex flex-1 items-center">
+//           <h1 className="hidden text-base leading-6 font-semibold text-slate-900 sm:block dark:text-slate-100">
+//             Workflows
+//           </h1>
+
+//           <WorkflowFilters className="flex" />
+//         </header>
+//       </TopNav>
+
+//       <div className="mx-auto px-4 sm:px-6 lg:px-8">
+//         <div className="-mx-4 mt-8 sm:-mx-0">
+//           {loading ? (
+//             <div>Loading...</div>
+//           ) : workflowItems.length > 0 ? (
+//             <WorkflowTable workflowItems={workflowItems} />
+//           ) : (
+//             <WorkflowListEmptyState showingAll={showingAll} />
+//           )}
+//         </div>
+//       </div>
+//     </div>
+//   );
+// };
+
 export default function WorkflowDetail({
+  loading,
   selectedJobId,
   setSelectedJobId,
   workflow,
 }: WorkflowDetailProps) {
+  const { features } = useFeatures();
+
+  if (!features.workflowQueries) {
+    return (
+      <div>
+        <WorkflowListEmptyState showingAll={false} />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <h4>loading…</h4>;
+  }
+
   const { tasks } = workflow;
   const selectedJob = useMemo(
     () => tasks.find((task) => task.id === selectedJobId),
