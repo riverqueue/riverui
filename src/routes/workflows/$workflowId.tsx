@@ -19,9 +19,14 @@ export const Route = createFileRoute("/workflows/$workflowId")({
   parseParams: ({ workflowId }) => ({ workflowId }),
   stringifyParams: ({ workflowId }) => ({ workflowId }),
 
-  beforeLoad: ({ abortController, params: { workflowId } }) => {
+  beforeLoad: ({
+    abortController,
+    context: { features },
+    params: { workflowId },
+  }) => {
     return {
       queryOptions: {
+        enabled: features.workflowQueries,
         queryKey: getWorkflowKey(workflowId),
         queryFn: getWorkflow,
         refetchInterval: 1000,
@@ -31,6 +36,7 @@ export const Route = createFileRoute("/workflows/$workflowId")({
   },
 
   loader: async ({ context: { queryClient, queryOptions } }) => {
+    if (!queryOptions.enabled) return;
     await queryClient.ensureQueryData(queryOptions);
   },
 
@@ -54,10 +60,6 @@ function WorkflowComponent() {
 
   const workflowQuery = useQuery(queryOptions);
 
-  if (workflowQuery.isLoading || !workflowQuery.data) {
-    return <h4>loading…</h4>;
-  }
-
   const { data: workflow } = workflowQuery;
   const setSelectedJobId = (jobId: bigint | undefined) => {
     navigate({
@@ -68,6 +70,7 @@ function WorkflowComponent() {
 
   return (
     <WorkflowDetail
+      loading={workflowQuery.isLoading}
       selectedJobId={selectedJobId}
       setSelectedJobId={setSelectedJobId}
       workflow={workflow}

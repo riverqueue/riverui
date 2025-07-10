@@ -5,6 +5,7 @@ import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import { TaskStateIcon } from "@components/TaskStateIcon";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import WorkflowDiagram from "@components/WorkflowDiagram";
+import { useFeatures } from "@contexts/Features.hook";
 import { EllipsisHorizontalIcon } from "@heroicons/react/20/solid";
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
@@ -13,22 +14,39 @@ import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
 import clsx from "clsx";
 import { useMemo } from "react";
+import WorkflowListEmptyState from "./WorkflowListEmptyState";
 
 type JobsByTask = {
   [key: string]: JobWithKnownMetadata;
 };
 
 type WorkflowDetailProps = {
+  loading: boolean;
   selectedJobId: bigint | undefined;
   setSelectedJobId: (jobId: bigint | undefined) => void;
-  workflow: Workflow;
+  workflow: Workflow | undefined;
 };
 
 export default function WorkflowDetail({
+  loading,
   selectedJobId,
   setSelectedJobId,
   workflow,
 }: WorkflowDetailProps) {
+  const { features } = useFeatures();
+
+  if (!features.workflowQueries) {
+    return (
+      <div>
+        <WorkflowListEmptyState showingAll={false} />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <h4>loading…</h4>;
+  }
+
   const { tasks } = workflow;
   const selectedJob = useMemo(
     () => tasks.find((task) => task.id === selectedJobId),

@@ -1,18 +1,18 @@
-package main
+package authmiddleware
 
 import (
 	"crypto/subtle"
 	"net/http"
 )
 
-type authMiddleware struct {
-	username string
-	password string
+type BasicAuth struct {
+	Username string
+	Password string
 }
 
-func (m *authMiddleware) Middleware(next http.Handler) http.Handler {
+func (m *BasicAuth) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
-		if isReqAuthorized(req, m.username, m.password) {
+		if isReqAuthorized(req, m.Username, m.Password) {
 			next.ServeHTTP(res, req)
 			return
 		}
