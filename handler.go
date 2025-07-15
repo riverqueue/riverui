@@ -42,6 +42,10 @@ type driverHook interface {
 	RegisterUIEndpoints(mux *http.ServeMux, archetype *baseservice.Archetype, logger *slog.Logger, mountOpts *apiendpoint.MountOpts) []apiendpoint.EndpointInterface
 }
 
+type driverWithExtensions interface {
+	UIExtensions() map[string]bool
+}
+
 // ServerOpts are the options for creating a new Server.
 type ServerOpts struct {
 	// Client is the River client to use for API requests.
@@ -114,11 +118,11 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 
 	if opts.LiveFS {
 		if opts.DevMode {
-			opts.Logger.Info("Using live filesystem at ./public")
-			frontendIndex = os.DirFS("./public")
+			opts.Logger.Info("Using live filesystem at ../../public")
+			frontendIndex = os.DirFS("../../public")
 		} else {
-			opts.Logger.Info("Using live filesystem at ./dist")
-			frontendIndex = os.DirFS("./dist")
+			opts.Logger.Info("Using live filesystem at ../../dist")
+			frontendIndex = os.DirFS("../../dist")
 		}
 	}
 
@@ -143,6 +147,8 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 		archetype:                baseservice.NewArchetype(opts.Logger),
 		client:                   opts.Client,
 		dbPool:                   opts.DB,
+		driver:                   opts.Client.Driver(),
+		exec:                     opts.Client.Driver().GetExecutor(),
 		jobListHideArgsByDefault: opts.JobListHideArgsByDefault,
 		logger:                   opts.Logger,
 	}
@@ -163,20 +169,15 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 		apiendpoint.Mount(mux, newJobGetEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newJobListEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newJobRetryEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newProducerListEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newQueueGetEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newQueueListEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newQueuePauseEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newQueueResumeEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newQueueUpdateEndpoint(apiBundle), &mountOpts),
 		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newWorkflowGetEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newWorkflowListEndpoint(apiBundle), &mountOpts),
 	}
 
 	if driverHook, ok := opts.Client.Driver().(driverHook); ok {
-		// TODO: need to inject schema into this, or make it a param to all queries
-		// to support multiple schemas / installs in a single UI instance.
 		additionalEndpoints := driverHook.RegisterUIEndpoints(mux, apiBundle.archetype, opts.Logger, &mountOpts)
 		endpoints = append(endpoints, additionalEndpoints...)
 	}

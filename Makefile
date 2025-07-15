@@ -21,14 +21,6 @@ dist:
 build: dist
 	CGO_ENABLED=0 go build
 
-.PHONY: generate
-generate:
-generate: generate/sqlc
-
-.PHONY: generate/sqlc
-generate/sqlc:
-	cd internal/dbsqlc && sqlc generate
-
 .PHONY: lint
 lint:
 	cd . && golangci-lint run --fix
@@ -39,11 +31,3 @@ test:
 
 preview: build
 	npm run preview
-
-.PHONY: verify
-verify:
-verify: verify/sqlc
-
-.PHONY: verify/sqlc
-verify/sqlc:
-	cd internal/dbsqlc && sqlc diff

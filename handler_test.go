@@ -94,9 +94,6 @@ func TestNewHandlerIntegration(t *testing.T) {
 	// Test data
 	//
 
-	_, err := tx.Exec(ctx, producerSchema) // producer table for related endpoints
-	require.NoError(t, err)
-
 	job := testfactory.Job(ctx, t, exec, &testfactory.JobOpts{})
 
 	queue := testfactory.Queue(ctx, t, exec, nil)
