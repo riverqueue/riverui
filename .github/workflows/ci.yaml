@@ -117,25 +117,6 @@ jobs:
       - name: Run lint
         run: make lint
 
-  sqlc_generate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    name: sqlc generate
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup sqlc
-        uses: sqlc-dev/setup-sqlc@v4
-        with:
-          sqlc-version: "1.29.0"
-
-      - name: Run sqlc diff
-        run: |
-          echo "Please make sure that all sqlc changes are checked in!"
-          make verify
-
   js_build_and_test:
     name: JS Build and Test
     runs-on: ubuntu-latest

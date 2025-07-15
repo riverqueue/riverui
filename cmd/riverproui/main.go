@@ -15,12 +15,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
-	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/authmiddleware"
 
 	"github.com/riverqueue/apiframe/apimiddleware"
-	"github.com/riverqueue/river"
-	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+
+	"riverqueue.com/riverpro"
+	"riverqueue.com/riverpro/driver/riverpropgxv5"
+	"riverqueue.com/riverui"
+	"riverqueue.com/riverui/authmiddleware"
 )
 
 func main() {
@@ -108,13 +109,13 @@ func initServer(ctx context.Context, logger *slog.Logger, pathPrefix string) (*i
 		return nil, fmt.Errorf("error connecting to db: %w", err)
 	}
 
-	client, err := river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
+	proClient, err := riverpro.NewClient(riverpropgxv5.New(dbPool), &riverpro.Config{})
 	if err != nil {
 		return nil, err
 	}
 
 	uiServer, err := riverui.NewServer(&riverui.ServerOpts{
-		Client:                   client,
+		Client:                   proClient.Client,
 		DB:                       dbPool,
 		DevMode:                  devMode,
 		JobListHideArgsByDefault: jobListHideArgsByDefault,
