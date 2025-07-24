@@ -25,7 +25,7 @@ import (
 func main() {
 	ctx := context.Background()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	logger := slog.New(getLogHandler(&slog.HandlerOptions{
 		Level: getLogLevel(),
 	}))
 
@@ -48,6 +48,16 @@ func main() {
 // Translates either a "1" or "true" from env to a Go boolean.
 func envBooleanTrue(val string) bool {
 	return val == "1" || val == "true"
+}
+
+func getLogHandler(opts *slog.HandlerOptions) slog.Handler {
+	logFormat := strings.ToLower(os.Getenv("RIVER_LOG_FORMAT"))
+	switch logFormat {
+	case "json":
+		return slog.NewJSONHandler(os.Stdout, opts)
+	default:
+		return slog.NewTextHandler(os.Stdout, opts)
+	}
 }
 
 func getLogLevel() slog.Level {
