@@ -43,7 +43,7 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 	endpoint := initFunc(apibundle.APIBundle{
 		Archetype: riversharedtest.BaseServiceArchetype(t),
 		Client:    client,
-		DBPool:    tx,
+		DB:        tx,
 		Driver:    driver,
 		Logger:    logger,
 	})

@@ -138,7 +138,7 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	bundle := apibundle.APIBundle{
 		Archetype:                baseservice.NewArchetype(opts.Logger),
 		Client:                   opts.Client,
-		DBPool:                   opts.DB,
+		DB:                       opts.DB,
 		Driver:                   opts.Client.Driver(),
 		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
 		Logger:                   opts.Logger,
