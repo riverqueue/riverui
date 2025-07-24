@@ -70,6 +70,8 @@ The `riverui` command utilizes the `RIVER_LOG_LEVEL` environment variable to con
 * `warn`
 * `error`
 
+By default logs are written with the [`slog.TextHandler`](https://pkg.go.dev/log/slog#TextHandler) `key=value` format. For JSON output with [`slog.JSONHandler`](https://pkg.go.dev/log/slog#JSONHandler), set `RIVER_LOG_FORMAT=json`.
+
 ## Development
 
 See [developing River UI](./development.md).
