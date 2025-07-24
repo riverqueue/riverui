@@ -8,7 +8,6 @@ declare global {
   }
 
   interface Window {
-    __riverUiAssetUrl: ((string) => string) | undefined;
-    __riverUiBasePath: (() => string) | undefined;
+    // Add custom window properties here if needed
   }
 }
