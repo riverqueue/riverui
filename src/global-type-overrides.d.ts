@@ -6,8 +6,4 @@ declare global {
   interface BigInt {
     toJSON(): string;
   }
-
-  interface Window {
-    // Add custom window properties here if needed
-  }
 }
