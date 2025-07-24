@@ -108,7 +108,7 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 
 		switch req.Facet {
 		case autocompleteFacetJobKind:
-			kinds, err := a.Exec.JobKindListByPrefix(ctx, &riverdriver.JobKindListByPrefixParams{
+			kinds, err := a.Driver.UnwrapExecutor(tx).JobKindListByPrefix(ctx, &riverdriver.JobKindListByPrefixParams{
 				After:   after,
 				Exclude: req.Exclude,
 				Max:     100,
@@ -127,7 +127,7 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 			return listResponseFrom(kindPtrs), nil
 
 		case autocompleteFacetQueueName:
-			queues, err := a.Exec.QueueNameListByPrefix(ctx, &riverdriver.QueueNameListByPrefixParams{
+			queues, err := a.Driver.UnwrapExecutor(tx).QueueNameListByPrefix(ctx, &riverdriver.QueueNameListByPrefixParams{
 				After:   after,
 				Exclude: req.Exclude,
 				Max:     100,
@@ -183,55 +183,57 @@ type featuresGetResponse struct {
 }
 
 func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
-	schema := a.Client.Schema()
-	hasClientTable, err := a.Exec.TableExists(ctx, &riverdriver.TableExistsParams{
-		Schema: schema,
-		Table:  "river_client",
+	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*featuresGetResponse, error) {
+		schema := a.Client.Schema()
+		hasClientTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
+			Schema: schema,
+			Table:  "river_client",
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		hasProducerTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
+			Schema: schema,
+			Table:  "river_producer",
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		hasSequenceTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
+			Schema: schema,
+			Table:  "river_job_sequence",
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		indexResults, err := a.Driver.UnwrapExecutor(tx).IndexesExist(ctx, &riverdriver.IndexesExistParams{
+			IndexNames: []string{
+				"river_job_workflow_list_active",
+				"river_job_workflow_scheduling",
+			},
+			Schema: schema,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		extensions := make(map[string]bool)
+		if driverWithExtensions, hasExtensions := a.Driver.(driverWithExtensions); hasExtensions {
+			extensions = driverWithExtensions.UIExtensions()
+		}
+
+		return &featuresGetResponse{
+			Extensions:               extensions,
+			HasClientTable:           hasClientTable,
+			HasProducerTable:         hasProducerTable,
+			HasSequenceTable:         hasSequenceTable,
+			HasWorkflows:             indexResults["river_job_workflow_list_active"] || indexResults["river_job_workflow_scheduling"],
+			JobListHideArgsByDefault: a.JobListHideArgsByDefault,
+		}, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	hasProducerTable, err := a.Exec.TableExists(ctx, &riverdriver.TableExistsParams{
-		Schema: schema,
-		Table:  "river_producer",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	hasSequenceTable, err := a.Exec.TableExists(ctx, &riverdriver.TableExistsParams{
-		Schema: schema,
-		Table:  "river_job_sequence",
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	indexResults, err := a.Exec.IndexesExist(ctx, &riverdriver.IndexesExistParams{
-		IndexNames: []string{
-			"river_job_workflow_list_active",
-			"river_job_workflow_scheduling",
-		},
-		Schema: schema,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	extensions := make(map[string]bool)
-	if driverWithExtensions, hasExtensions := a.Driver.(driverWithExtensions); hasExtensions {
-		extensions = driverWithExtensions.UIExtensions()
-	}
-
-	return &featuresGetResponse{
-		Extensions:               extensions,
-		HasClientTable:           hasClientTable,
-		HasProducerTable:         hasProducerTable,
-		HasSequenceTable:         hasSequenceTable,
-		HasWorkflows:             indexResults["river_job_workflow_list_active"] || indexResults["river_job_workflow_scheduling"],
-		JobListHideArgsByDefault: a.JobListHideArgsByDefault,
-	}, nil
 }
 
 //
@@ -622,7 +624,7 @@ func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*
 			return nil, fmt.Errorf("error getting queue: %w", err)
 		}
 
-		countRows, err := a.Exec.JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+		countRows, err := a.Driver.UnwrapExecutor(tx).JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
 			QueueNames: []string{req.Name},
 			Schema:     a.Client.Schema(),
 		})
@@ -680,7 +682,7 @@ func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) 
 
 		queueNames := sliceutil.Map(result.Queues, func(q *rivertype.Queue) string { return q.Name })
 
-		countRows, err := a.Exec.JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+		countRows, err := a.Driver.UnwrapExecutor(tx).JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
 			QueueNames: queueNames,
 			Schema:     a.Client.Schema(),
 		})
@@ -838,7 +840,7 @@ func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateReque
 			return nil, fmt.Errorf("error updating queue metadata: %w", err)
 		}
 
-		countRows, err := a.Exec.JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+		countRows, err := a.Driver.UnwrapExecutor(tx).JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
 			QueueNames: []string{req.Name},
 			Schema:     a.Client.Schema(),
 		})
@@ -864,7 +866,9 @@ type stateAndCountGetEndpoint struct {
 
 func newStateAndCountGetEndpoint(bundle apibundle.APIBundle) *stateAndCountGetEndpoint {
 	runQuery := func(ctx context.Context) (map[rivertype.JobState]int, error) {
-		return bundle.Exec.JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: bundle.Client.Schema()})
+		return pgxutil.WithTxV(ctx, bundle.DBPool, func(ctx context.Context, tx pgx.Tx) (map[rivertype.JobState]int, error) {
+			return bundle.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: bundle.Client.Schema()})
+		})
 	}
 	return &stateAndCountGetEndpoint{
 		APIBundle:               bundle,
@@ -916,7 +920,9 @@ func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCount
 	stateAndCountRes, ok := a.queryCacher.CachedRes()
 	if !ok || totalJobs(stateAndCountRes) < a.queryCacheSkipThreshold {
 		var err error
-		stateAndCountRes, err = a.Exec.JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: a.Client.Schema()})
+		stateAndCountRes, err = pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (map[rivertype.JobState]int, error) {
+			return a.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: a.Client.Schema()})
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting states and counts: %w", err)
 		}
