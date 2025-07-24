@@ -16,7 +16,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
+	"riverqueue.com/riverui/internal/apibundle"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apimiddleware"
@@ -25,14 +25,6 @@ import (
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
 )
-
-// DB is the interface for a pgx database connection.
-type DB interface {
-	Begin(ctx context.Context) (pgx.Tx, error)
-	Exec(ctx context.Context, query string, args ...interface{}) (pgconn.CommandTag, error)
-	Query(ctx context.Context, query string, args ...interface{}) (pgx.Rows, error)
-	QueryRow(ctx context.Context, query string, args ...interface{}) pgx.Row
-}
 
 // driverHook defines an interface that River drivers can implement to register
 // additional API endpoints in the River UI. This allows Pro drivers to extend
@@ -51,7 +43,7 @@ type ServerOpts struct {
 	// Client is the River client to use for API requests.
 	Client *river.Client[pgx.Tx]
 	// DB is the database to use for API requests.
-	DB DB
+	DB apibundle.DB
 	// DevMode is whether the server is running in development mode.
 	DevMode bool
 	// JobListHideArgsByDefault is whether to hide job arguments by default in the
@@ -143,14 +135,15 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	fileServer := http.FileServer(httpFS)
 	serveIndex := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
 
-	apiBundle := apiBundle{
-		archetype:                baseservice.NewArchetype(opts.Logger),
-		client:                   opts.Client,
-		dbPool:                   opts.DB,
-		driver:                   opts.Client.Driver(),
-		exec:                     opts.Client.Driver().GetExecutor(),
-		jobListHideArgsByDefault: opts.JobListHideArgsByDefault,
-		logger:                   opts.Logger,
+	bundle := apibundle.APIBundle{
+		Archetype: baseservice.NewArchetype(opts.Logger),
+		Client:    opts.Client,
+		DBPool:    opts.DB,
+		Driver:    opts.Client.Driver(),
+		// TODO: this does not work for insert-only clients/drivers used in tests.
+		Exec:                     opts.Client.Driver().GetExecutor(),
+		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
+		Logger:                   opts.Logger,
 	}
 
 	mux := http.NewServeMux()
@@ -161,24 +154,24 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	}
 
 	endpoints := []apiendpoint.EndpointInterface{
-		apiendpoint.Mount(mux, newAutocompleteListEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newFeaturesGetEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newHealthCheckGetEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobCancelEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobDeleteEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobGetEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobListEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobRetryEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueueGetEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueueListEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueuePauseEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueueResumeEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueueUpdateEndpoint(apiBundle), &mountOpts),
-		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(apiBundle), &mountOpts),
+		apiendpoint.Mount(mux, newAutocompleteListEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newFeaturesGetEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newHealthCheckGetEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobCancelEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobDeleteEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobGetEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobListEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newJobRetryEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueueGetEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueueListEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueuePauseEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueueResumeEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newQueueUpdateEndpoint(bundle), &mountOpts),
+		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(bundle), &mountOpts),
 	}
 
 	if driverHook, ok := opts.Client.Driver().(driverHook); ok {
-		additionalEndpoints := driverHook.RegisterUIEndpoints(mux, apiBundle.archetype, opts.Logger, &mountOpts)
+		additionalEndpoints := driverHook.RegisterUIEndpoints(mux, bundle.Archetype, opts.Logger, &mountOpts)
 		endpoints = append(endpoints, additionalEndpoints...)
 	}
 

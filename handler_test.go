@@ -169,7 +169,7 @@ func TestMountStaticFiles(t *testing.T) {
 	require.Contains(t, recorder.Body.String(), "User-Agent")
 }
 
-// Mock driver that implements driverHook for testing
+// Mock driver that implements driverHook for testing.
 type mockDriverWithHook struct {
 	riverdriver.Driver[pgx.Tx]
 	hookCalled bool
