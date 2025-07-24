@@ -38,10 +38,6 @@
     <script type="module" src="http://localhost:5173/src/main.tsx"></script>
     <script type="module" src="http://localhost:5173/@vite/client"></script>
     {{- else }} {{ $js := index .Manifest "src/main.tsx" "file" }} {{ $css := index .Manifest "src/main.tsx" "css" }}
-    <script>
-      window.__riverUiBasePath = () => "{{ .Base }}";
-      window.__riverUiAssetUrl = (path) => `{{ .Base }}/${path}`;
-    </script>
     <link rel="stylesheet" href="{{ .Base }}/{{ index $css 0}}" />
     <script type="module" src="{{ .Base }}/{{ $js }}"></script>
     {{- end }}
