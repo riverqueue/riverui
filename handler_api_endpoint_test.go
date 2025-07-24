@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
+	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 
@@ -30,7 +31,7 @@ type setupEndpointTestBundle struct {
 	tx     pgx.Tx
 }
 
-func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(apiBundle apiBundle) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
+func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(bundle apibundle.APIBundle) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
 	t.Helper()
 
 	var (
@@ -39,13 +40,13 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 		tx             = riverinternaltest.TestTx(ctx, t)
 	)
 
-	endpoint := initFunc(apiBundle{
-		archetype: riversharedtest.BaseServiceArchetype(t),
-		client:    client,
-		dbPool:    tx,
-		driver:    driver,
-		exec:      driver.UnwrapExecutor(tx),
-		logger:    logger,
+	endpoint := initFunc(apibundle.APIBundle{
+		Archetype: riversharedtest.BaseServiceArchetype(t),
+		Client:    client,
+		DBPool:    tx,
+		Driver:    driver,
+		Exec:      driver.UnwrapExecutor(tx),
+		Logger:    logger,
 	})
 
 	if service, ok := any(endpoint).(startstop.Service); ok {
@@ -265,7 +266,7 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 		_, err = bundle.tx.Exec(ctx, `CREATE INDEX IF NOT EXISTS river_job_workflow_list_active ON river_job ((metadata->>'workflow_id'));`)
 		require.NoError(t, err)
 
-		endpoint.jobListHideArgsByDefault = true
+		endpoint.JobListHideArgsByDefault = true
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})
 		require.NoError(t, err)
@@ -284,8 +285,8 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 
 		endpoint, _ := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
 
-		endpoint.driver = &driverCustomExtensions[pgx.Tx]{
-			Driver: endpoint.driver,
+		endpoint.Driver = &driverCustomExtensions[pgx.Tx]{
+			Driver: endpoint.Driver,
 			extensions: map[string]bool{
 				"test_1": true,
 				"test_2": false,
