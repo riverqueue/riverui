@@ -45,7 +45,6 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 		Client:    client,
 		DBPool:    tx,
 		Driver:    driver,
-		Exec:      driver.UnwrapExecutor(tx),
 		Logger:    logger,
 	})
 

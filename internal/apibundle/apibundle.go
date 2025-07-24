@@ -26,7 +26,6 @@ type APIBundle struct {
 	Client                   *river.Client[pgx.Tx]
 	DBPool                   DB
 	Driver                   riverdriver.Driver[pgx.Tx]
-	Exec                     riverdriver.Executor
 	JobListHideArgsByDefault bool
 	Logger                   *slog.Logger
 }
