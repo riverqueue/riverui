@@ -136,12 +136,10 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	serveIndex := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
 
 	bundle := apibundle.APIBundle{
-		Archetype: baseservice.NewArchetype(opts.Logger),
-		Client:    opts.Client,
-		DBPool:    opts.DB,
-		Driver:    opts.Client.Driver(),
-		// TODO: this does not work for insert-only clients/drivers used in tests.
-		Exec:                     opts.Client.Driver().GetExecutor(),
+		Archetype:                baseservice.NewArchetype(opts.Logger),
+		Client:                   opts.Client,
+		DBPool:                   opts.DB,
+		Driver:                   opts.Client.Driver(),
 		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
 		Logger:                   opts.Logger,
 	}

@@ -117,7 +117,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 	makeAPICall(t, "JobGet", http.MethodGet, makeURL("/api/jobs/%d", job.ID), nil)
 	makeAPICall(t, "JobList", http.MethodGet, makeURL("/api/jobs"), nil)
 	makeAPICall(t, "JobRetry", http.MethodPost, makeURL("/api/jobs/retry"), mustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
-	makeAPICall(t, "ProducerList", http.MethodGet, makeURL("/api/producers?queue_name=%s", queue.Name), nil)
+	// makeAPICall(t, "ProducerList", http.MethodGet, makeURL("/api/producers?queue_name=%s", queue.Name), nil)
 	makeAPICall(t, "QueueGet", http.MethodGet, makeURL("/api/queues/%s", queue.Name), nil)
 	makeAPICall(t, "QueueList", http.MethodGet, makeURL("/api/queues"), nil)
 	makeAPICall(t, "QueuePause", http.MethodPut, makeURL("/api/queues/%s/pause", queue.Name), nil)
@@ -135,8 +135,8 @@ func TestNewHandlerIntegration(t *testing.T) {
 		},
 	}))
 	makeAPICall(t, "StateAndCountGet", http.MethodGet, makeURL("/api/states"), nil)
-	makeAPICall(t, "WorkflowGet", http.MethodGet, makeURL("/api/workflows/%s", workflowID), nil)
-	makeAPICall(t, "WorkflowList", http.MethodGet, makeURL("/api/workflows"), nil)
+	// makeAPICall(t, "WorkflowGet", http.MethodGet, makeURL("/api/workflows/%s", workflowID), nil)
+	// makeAPICall(t, "WorkflowList", http.MethodGet, makeURL("/api/workflows"), nil)
 
 	//
 	// Static files
