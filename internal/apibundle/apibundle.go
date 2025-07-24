@@ -24,7 +24,7 @@ type DB interface {
 type APIBundle struct {
 	Archetype                *baseservice.Archetype
 	Client                   *river.Client[pgx.Tx]
-	DBPool                   DB
+	DB                       DB
 	Driver                   riverdriver.Driver[pgx.Tx]
 	JobListHideArgsByDefault bool
 	Logger                   *slog.Logger

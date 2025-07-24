@@ -95,7 +95,7 @@ func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocompleteListRequest) (*listResponse[string], error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[string], error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*listResponse[string], error) {
 		prefix := ""
 		if req.Prefix != nil {
 			prefix = *req.Prefix
@@ -183,7 +183,7 @@ type featuresGetResponse struct {
 }
 
 func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*featuresGetResponse, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*featuresGetResponse, error) {
 		schema := a.Client.Schema()
 		hasClientTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
 			Schema: schema,
@@ -275,7 +275,7 @@ func (req *healthCheckGetRequest) ExtractRaw(r *http.Request) error {
 func (a *healthCheckGetEndpoint) Execute(ctx context.Context, req *healthCheckGetRequest) (*statusResponse, error) {
 	switch req.Name {
 	case healthCheckNameComplete:
-		if _, err := a.DBPool.Exec(ctx, "SELECT 1"); err != nil {
+		if _, err := a.DB.Exec(ctx, "SELECT 1"); err != nil {
 			return nil, apierror.WithInternalError(
 				apierror.NewServiceUnavailable("Unable to query database. Check logs for details."),
 				err,
@@ -317,7 +317,7 @@ type jobCancelRequest struct {
 }
 
 func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		updatedJobs := make(map[int64]*rivertype.JobRow)
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
@@ -361,7 +361,7 @@ type jobDeleteRequest struct {
 }
 
 func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
 			_, err := a.Client.JobDeleteTx(ctx, tx, jobID)
@@ -418,7 +418,7 @@ func (req *jobGetRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*RiverJob, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*RiverJob, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*RiverJob, error) {
 		job, err := a.Client.JobGetTx(ctx, tx, req.JobID)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -505,7 +505,7 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJobMinimal], error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJobMinimal], error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJobMinimal], error) {
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
 
 		if len(req.IDs) > 0 {
@@ -569,7 +569,7 @@ type jobRetryRequest struct {
 }
 
 func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
 			_, err := a.Client.JobRetryTx(ctx, tx, jobID)
@@ -615,7 +615,7 @@ func (req *queueGetRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*RiverQueue, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
 		queue, err := a.Client.QueueGetTx(ctx, tx, req.Name)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -674,7 +674,7 @@ func (req *queueListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) (*listResponse[RiverQueue], error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverQueue], error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverQueue], error) {
 		result, err := a.Client.QueueListTx(ctx, tx, river.NewQueueListParams().First(ptrutil.ValOrDefault(req.Limit, 100)))
 		if err != nil {
 			return nil, fmt.Errorf("error listing queues: %w", err)
@@ -724,7 +724,7 @@ func (req *queuePauseRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queuePauseEndpoint) Execute(ctx context.Context, req *queuePauseRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		err := a.Client.QueuePauseTx(ctx, tx, req.Name, nil)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -767,7 +767,7 @@ func (req *queueResumeRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
 		err := a.Client.QueueResumeTx(ctx, tx, req.Name, nil)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -807,7 +807,7 @@ func (req *queueUpdateRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateRequest) (*RiverQueue, error) {
-	return pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
+	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
 		// Construct metadata based on concurrency field
 		var metadata json.RawMessage
 		if req.Concurrency.Set {
@@ -866,7 +866,7 @@ type stateAndCountGetEndpoint struct {
 
 func newStateAndCountGetEndpoint(bundle apibundle.APIBundle) *stateAndCountGetEndpoint {
 	runQuery := func(ctx context.Context) (map[rivertype.JobState]int, error) {
-		return pgxutil.WithTxV(ctx, bundle.DBPool, func(ctx context.Context, tx pgx.Tx) (map[rivertype.JobState]int, error) {
+		return pgxutil.WithTxV(ctx, bundle.DB, func(ctx context.Context, tx pgx.Tx) (map[rivertype.JobState]int, error) {
 			return bundle.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: bundle.Client.Schema()})
 		})
 	}
@@ -920,7 +920,7 @@ func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCount
 	stateAndCountRes, ok := a.queryCacher.CachedRes()
 	if !ok || totalJobs(stateAndCountRes) < a.queryCacheSkipThreshold {
 		var err error
-		stateAndCountRes, err = pgxutil.WithTxV(ctx, a.DBPool, func(ctx context.Context, tx pgx.Tx) (map[rivertype.JobState]int, error) {
+		stateAndCountRes, err = pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (map[rivertype.JobState]int, error) {
 			return a.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: a.Client.Schema()})
 		})
 		if err != nil {
