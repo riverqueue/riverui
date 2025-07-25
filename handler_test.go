@@ -5,17 +5,23 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 
+	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apitype"
+	"github.com/riverqueue/river/riverdriver"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 )
 
@@ -87,9 +93,6 @@ func TestNewHandlerIntegration(t *testing.T) {
 	//
 	// Test data
 	//
-
-	_, err := tx.Exec(ctx, producerSchema) // producer table for related endpoints
-	require.NoError(t, err)
 
 	job := testfactory.Job(ctx, t, exec, &testfactory.JobOpts{})
 
@@ -164,4 +167,54 @@ func TestMountStaticFiles(t *testing.T) {
 
 	require.Equal(t, "text/plain; charset=utf-8", recorder.Header().Get("Content-Type"))
 	require.Contains(t, recorder.Body.String(), "User-Agent")
+}
+
+// Mock driver that implements driverHook for testing
+type mockDriverWithHook struct {
+	riverdriver.Driver[pgx.Tx]
+	hookCalled bool
+	endpoints  []apiendpoint.EndpointInterface
+}
+
+func (m *mockDriverWithHook) RegisterUIEndpoints(mux *http.ServeMux, archetype *baseservice.Archetype, logger *slog.Logger, mountOpts *apiendpoint.MountOpts) []apiendpoint.EndpointInterface {
+	m.hookCalled = true
+	return m.endpoints
+}
+
+func TestDriverHookIntegration(t *testing.T) {
+	t.Parallel()
+
+	logger := riverinternaltest.Logger(t)
+
+	t.Run("DriverImplementsHook", func(t *testing.T) {
+		t.Parallel()
+
+		// Create a mock driver that implements driverHook
+		mockDriver := &mockDriverWithHook{
+			Driver:     riverpgxv5.New(nil),
+			hookCalled: false,
+			endpoints:  []apiendpoint.EndpointInterface{},
+		}
+
+		// Test the type assertion logic that would be used in NewServer
+		// We can't easily test NewServer directly with our mock since it expects
+		// a real client, but we can test the core logic
+		var driver interface{} = mockDriver
+		if hook, ok := driver.(driverHook); ok {
+			hook.RegisterUIEndpoints(nil, nil, logger, nil)
+			require.True(t, mockDriver.hookCalled, "driverHook.RegisterUIEndpoints should have been called")
+		}
+	})
+
+	t.Run("DriverDoesNotImplementHook", func(t *testing.T) {
+		t.Parallel()
+
+		// Use a regular client without the hook
+		client, _ := insertOnlyClient(t, logger)
+
+		// Test that regular drivers don't implement driverHook
+		driver := client.Driver()
+		_, implementsHook := driver.(driverHook)
+		require.False(t, implementsHook, "Regular drivers should not implement driverHook")
+	})
 }

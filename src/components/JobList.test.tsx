@@ -38,6 +38,8 @@ describe("JobList", () => {
       hasProducerTable: false,
       hasWorkflows: false,
       jobListHideArgsByDefault: false,
+      producerQueries: false,
+      workflowQueries: false,
     };
 
     // Mock settings with no override
@@ -73,6 +75,8 @@ describe("JobList", () => {
       hasProducerTable: false,
       hasWorkflows: false,
       jobListHideArgsByDefault: true,
+      producerQueries: false,
+      workflowQueries: false,
     };
 
     // Mock settings with no override
@@ -110,6 +114,8 @@ describe("JobList", () => {
       hasProducerTable: false,
       hasWorkflows: false,
       jobListHideArgsByDefault: true, // Server default is to hide
+      producerQueries: false,
+      workflowQueries: false,
     };
 
     // Mock settings with override to show args
@@ -146,6 +152,8 @@ describe("JobList", () => {
       hasProducerTable: false,
       hasWorkflows: false,
       jobListHideArgsByDefault: false, // Server default is to show
+      producerQueries: false,
+      workflowQueries: false,
     };
 
     // Mock settings with override to hide args
