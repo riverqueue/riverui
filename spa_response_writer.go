@@ -96,6 +96,7 @@ func serveIndexHTML(devMode bool, manifest map[string]interface{}, pathPrefix st
 
 type spaResponseWriter struct {
 	http.ResponseWriter
+
 	got404 bool
 }
 

@@ -31,21 +31,23 @@ type setupEndpointTestBundle struct {
 	tx     pgx.Tx
 }
 
-func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(bundle apibundle.APIBundle) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
+func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(bundle apibundle.APIBundle[pgx.Tx]) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
 	t.Helper()
 
 	var (
 		logger         = riverinternaltest.Logger(t)
 		client, driver = insertOnlyClient(t, logger)
 		tx             = riverinternaltest.TestTx(ctx, t)
+		exec           = driver.UnwrapExecutor(tx)
 	)
 
-	endpoint := initFunc(apibundle.APIBundle{
-		Archetype: riversharedtest.BaseServiceArchetype(t),
-		Client:    client,
-		DB:        tx,
-		Driver:    driver,
-		Logger:    logger,
+	endpoint := initFunc(apibundle.APIBundle[pgx.Tx]{
+		Archetype:  riversharedtest.BaseServiceArchetype(t),
+		Client:     client,
+		DB:         exec,
+		Driver:     driver,
+		Extensions: map[string]bool{},
+		Logger:     logger,
 	})
 
 	if service, ok := any(endpoint).(startstop.Service); ok {
@@ -55,7 +57,7 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 
 	return endpoint, &setupEndpointTestBundle{
 		client: client,
-		exec:   driver.UnwrapExecutor(tx),
+		exec:   exec,
 		logger: logger,
 		tx:     tx,
 	}
@@ -219,8 +221,9 @@ func TestAPIHandlerAutocompleteList(t *testing.T) {
 	})
 }
 
-func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
-	// This can't be parallelized because it tries to make DB schema changes.
+func TestAPIHandlerFeaturesGet(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("SuccessWithEverythingFalse", func(t *testing.T) { //nolint:paralleltest
@@ -283,28 +286,15 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 		t.Parallel()
 
 		endpoint, _ := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
-
-		endpoint.Driver = &driverCustomExtensions[pgx.Tx]{
-			Driver: endpoint.Driver,
-			extensions: map[string]bool{
-				"test_1": true,
-				"test_2": false,
-			},
+		endpoint.Extensions = map[string]bool{
+			"test_1": true,
+			"test_2": false,
 		}
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})
 		require.NoError(t, err)
 		require.Equal(t, map[string]bool{"test_1": true, "test_2": false}, resp.Extensions)
 	})
-}
-
-type driverCustomExtensions[TTx any] struct {
-	riverdriver.Driver[TTx]
-	extensions map[string]bool
-}
-
-func (d *driverCustomExtensions[TTx]) UIExtensions() map[string]bool {
-	return d.extensions
 }
 
 func TestAPIHandlerHealthCheckGet(t *testing.T) {

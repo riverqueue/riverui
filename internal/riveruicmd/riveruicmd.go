@@ -1,4 +1,4 @@
-package main
+package riveruicmd
 
 import (
 	"cmp"
@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -15,27 +16,41 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
+	"riverqueue.com/riverui"
+	"riverqueue.com/riverui/internal/apibundle"
+	"riverqueue.com/riverui/internal/authmiddleware"
 
 	"github.com/riverqueue/apiframe/apimiddleware"
-
-	"riverqueue.com/riverpro"
-	"riverqueue.com/riverpro/driver/riverpropgxv5"
-	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/authmiddleware"
 )
 
-func main() {
+type BundleOpts struct {
+	JobListHideArgsByDefault bool
+}
+
+func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient, *BundleOpts) apibundle.EndpointBundle) {
 	ctx := context.Background()
 
-	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+	logger := slog.New(getLogHandler(&slog.HandlerOptions{
 		Level: getLogLevel(),
 	}))
 
 	var pathPrefix string
 	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
+
+	var healthCheckName string
+	flag.StringVar(&healthCheckName, "healthcheck", "", "the name of the health checks: minimal or complete")
+
 	flag.Parse()
 
-	initRes, err := initServer(ctx, logger, pathPrefix)
+	if healthCheckName != "" {
+		if err := checkHealth(ctx, pathPrefix, healthCheckName); err != nil {
+			logger.ErrorContext(ctx, "Error checking for server health", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	initRes, err := initServer(ctx, logger, pathPrefix, createClient, createBundle)
 	if err != nil {
 		logger.ErrorContext(ctx, "Error initializing server", slog.String("error", err.Error()))
 		os.Exit(1)
@@ -47,9 +62,46 @@ func main() {
 	}
 }
 
+func checkHealth(ctx context.Context, pathPrefix string, healthCheckName string) error {
+	host := cmp.Or(os.Getenv("RIVER_HOST"), "localhost")
+	port := cmp.Or(os.Getenv("PORT"), "8080")
+	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
+	hostname := net.JoinHostPort(host, port)
+	url := fmt.Sprintf("http://%s%s/api/health-checks/%s", hostname, pathPrefix, healthCheckName)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("error constructing request to health endpoint: %w", err)
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("error requesting health endpoint: %w", err)
+	}
+
+	err = response.Body.Close()
+	if err != nil {
+		return fmt.Errorf("error closing health endpoint response body: %w", err)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("health endpoint returned status code %d instead of 200", response.StatusCode)
+	}
+	return nil
+}
+
 // Translates either a "1" or "true" from env to a Go boolean.
 func envBooleanTrue(val string) bool {
 	return val == "1" || val == "true"
+}
+
+func getLogHandler(opts *slog.HandlerOptions) slog.Handler {
+	logFormat := strings.ToLower(os.Getenv("RIVER_LOG_FORMAT"))
+	switch logFormat {
+	case "json":
+		return slog.NewJSONHandler(os.Stdout, opts)
+	default:
+		return slog.NewTextHandler(os.Stdout, opts)
+	}
 }
 
 func getLogLevel() slog.Level {
@@ -76,10 +128,11 @@ type initServerResult struct {
 	uiServer   *riverui.Server // River UI server
 }
 
-func initServer(ctx context.Context, logger *slog.Logger, pathPrefix string) (*initServerResult, error) {
+func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundler func(TClient, *BundleOpts) apibundle.EndpointBundle) (*initServerResult, error) {
 	if !strings.HasPrefix(pathPrefix, "/") || pathPrefix == "" {
 		return nil, fmt.Errorf("invalid path prefix: %s", pathPrefix)
 	}
+
 	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
 
 	var (
@@ -109,19 +162,20 @@ func initServer(ctx context.Context, logger *slog.Logger, pathPrefix string) (*i
 		return nil, fmt.Errorf("error connecting to db: %w", err)
 	}
 
-	proClient, err := riverpro.NewClient(riverpropgxv5.New(dbPool), &riverpro.Config{})
+	client, err := createClient(dbPool)
 	if err != nil {
 		return nil, err
 	}
 
-	uiServer, err := riverui.NewServer(&riverui.ServerOpts{
-		Client:                   proClient.Client,
-		DB:                       dbPool,
-		DevMode:                  devMode,
+	bundler := createBundler(client, &BundleOpts{
 		JobListHideArgsByDefault: jobListHideArgsByDefault,
-		LiveFS:                   liveFS,
-		Logger:                   logger,
-		Prefix:                   pathPrefix,
+	})
+
+	uiServer, err := riverui.NewServer(bundler, &riverui.ServerOpts{
+		DevMode: devMode,
+		LiveFS:  liveFS,
+		Logger:  logger,
+		Prefix:  pathPrefix,
 	})
 	if err != nil {
 		return nil, err
@@ -166,7 +220,8 @@ func startAndListen(ctx context.Context, logger *slog.Logger, initRes *initServe
 
 	logger.InfoContext(ctx, "Starting server", slog.String("addr", initRes.httpServer.Addr))
 
-	if err := initRes.httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	err := initRes.httpServer.ListenAndServe()
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 
