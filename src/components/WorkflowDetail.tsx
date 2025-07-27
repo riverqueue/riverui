@@ -14,6 +14,7 @@ import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
 import clsx from "clsx";
 import { useMemo } from "react";
+
 import WorkflowListEmptyState from "./WorkflowListEmptyState";
 
 type JobsByTask = {
@@ -24,7 +25,7 @@ type WorkflowDetailProps = {
   loading: boolean;
   selectedJobId: bigint | undefined;
   setSelectedJobId: (jobId: bigint | undefined) => void;
-  workflow: Workflow | undefined;
+  workflow: undefined | Workflow;
 };
 
 export default function WorkflowDetail({
@@ -34,6 +35,22 @@ export default function WorkflowDetail({
   workflow,
 }: WorkflowDetailProps) {
   const { features } = useFeatures();
+
+  // Move all hooks to the top, before any conditional returns
+  const selectedJob = useMemo(
+    () => workflow?.tasks?.find((task) => task.id === selectedJobId),
+    [workflow?.tasks, selectedJobId],
+  );
+
+  const firstTask = workflow?.tasks?.[0];
+  // TODO: this is being repeated in WorkflowDiagram, dedupe
+  const jobsByTask: JobsByTask = useMemo(() => {
+    if (!workflow?.tasks) return {};
+    return workflow.tasks.reduce((acc: JobsByTask, job) => {
+      acc[job.metadata.task] = job;
+      return acc;
+    }, {});
+  }, [workflow?.tasks]);
 
   if (!features.workflowQueries) {
     return (
@@ -47,17 +64,16 @@ export default function WorkflowDetail({
     return <h4>loading…</h4>;
   }
 
+  if (!workflow?.tasks) {
+    return <h4>No workflow data available</h4>;
+  }
+
   const { tasks } = workflow;
-  const selectedJob = useMemo(
-    () => tasks.find((task) => task.id === selectedJobId),
-    [tasks, selectedJobId],
-  );
-  const firstTask = tasks[0];
-  // TODO: this is being repeated in WorkflowDiagram, dedupe
-  const jobsByTask: JobsByTask = tasks.reduce((acc: JobsByTask, job) => {
-    acc[job.metadata.task] = job;
-    return acc;
-  }, {});
+
+  // Ensure firstTask exists before rendering
+  if (!firstTask) {
+    return <h4>No tasks available</h4>;
+  }
 
   return (
     <>
