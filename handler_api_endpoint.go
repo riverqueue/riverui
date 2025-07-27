@@ -10,10 +10,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/jackc/pgx/v5"
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/querycacher"
-	"riverqueue.com/riverui/internal/util/pgxutil"
+	"riverqueue.com/riverui/internal/util/dbutil"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
@@ -44,16 +43,16 @@ var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
 // autocompleteListEndpoint
 //
 
-type autocompleteListEndpoint struct {
-	apibundle.APIBundle
+type autocompleteListEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[autocompleteListRequest, listResponse[string]]
 }
 
-func newAutocompleteListEndpoint(bundle apibundle.APIBundle) *autocompleteListEndpoint {
-	return &autocompleteListEndpoint{APIBundle: bundle}
+func newAutocompleteListEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *autocompleteListEndpoint[TTx] {
+	return &autocompleteListEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*autocompleteListEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*autocompleteListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/autocomplete",
 		StatusCode: http.StatusOK,
@@ -94,8 +93,8 @@ func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocompleteListRequest) (*listResponse[string], error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*listResponse[string], error) {
+func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autocompleteListRequest) (*listResponse[string], error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*listResponse[string], error) {
 		prefix := ""
 		if req.Prefix != nil {
 			prefix = *req.Prefix
@@ -155,16 +154,16 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 // featuresGetEndpoint
 //
 
-type featuresGetEndpoint struct {
-	apibundle.APIBundle
+type featuresGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[featuresGetRequest, featuresGetResponse]
 }
 
-func newFeaturesGetEndpoint(bundle apibundle.APIBundle) *featuresGetEndpoint {
-	return &featuresGetEndpoint{APIBundle: bundle}
+func newFeaturesGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *featuresGetEndpoint[TTx] {
+	return &featuresGetEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*featuresGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*featuresGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/features",
 		StatusCode: http.StatusOK,
@@ -182,8 +181,8 @@ type featuresGetResponse struct {
 	JobListHideArgsByDefault bool            `json:"job_list_hide_args_by_default"`
 }
 
-func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*featuresGetResponse, error) {
+func (a *featuresGetEndpoint[TTx]) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*featuresGetResponse, error) {
 		schema := a.Client.Schema()
 		hasClientTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
 			Schema: schema,
@@ -220,13 +219,8 @@ func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest
 			return nil, err
 		}
 
-		extensions := make(map[string]bool)
-		if driverWithExtensions, hasExtensions := a.Driver.(driverWithExtensions); hasExtensions {
-			extensions = driverWithExtensions.UIExtensions()
-		}
-
 		return &featuresGetResponse{
-			Extensions:               extensions,
+			Extensions:               a.Extensions,
 			HasClientTable:           hasClientTable,
 			HasProducerTable:         hasProducerTable,
 			HasSequenceTable:         hasSequenceTable,
@@ -240,16 +234,16 @@ func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest
 // healthCheckGetEndpoint
 //
 
-type healthCheckGetEndpoint struct {
-	apibundle.APIBundle
+type healthCheckGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[healthCheckGetRequest, statusResponse]
 }
 
-func newHealthCheckGetEndpoint(bundle apibundle.APIBundle) *healthCheckGetEndpoint {
-	return &healthCheckGetEndpoint{APIBundle: bundle}
+func newHealthCheckGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *healthCheckGetEndpoint[TTx] {
+	return &healthCheckGetEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*healthCheckGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*healthCheckGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/health-checks/{name}",
 		StatusCode: http.StatusOK,
@@ -272,10 +266,10 @@ func (req *healthCheckGetRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *healthCheckGetEndpoint) Execute(ctx context.Context, req *healthCheckGetRequest) (*statusResponse, error) {
+func (a *healthCheckGetEndpoint[TTx]) Execute(ctx context.Context, req *healthCheckGetRequest) (*statusResponse, error) {
 	switch req.Name {
 	case healthCheckNameComplete:
-		if _, err := a.DB.Exec(ctx, "SELECT 1"); err != nil {
+		if err := a.DB.Exec(ctx, "SELECT 1"); err != nil {
 			return nil, apierror.WithInternalError(
 				apierror.NewServiceUnavailable("Unable to query database. Check logs for details."),
 				err,
@@ -296,16 +290,16 @@ func (a *healthCheckGetEndpoint) Execute(ctx context.Context, req *healthCheckGe
 // jobCancelEndpoint
 //
 
-type jobCancelEndpoint struct {
-	apibundle.APIBundle
+type jobCancelEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
-func newJobCancelEndpoint(bundle apibundle.APIBundle) *jobCancelEndpoint {
-	return &jobCancelEndpoint{APIBundle: bundle}
+func newJobCancelEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobCancelEndpoint[TTx] {
+	return &jobCancelEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobCancelEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobCancelEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/cancel",
 		StatusCode: http.StatusOK,
@@ -316,8 +310,8 @@ type jobCancelRequest struct {
 	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
 }
 
-func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+func (a *jobCancelEndpoint[TTx]) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
 		updatedJobs := make(map[int64]*rivertype.JobRow)
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
@@ -340,16 +334,16 @@ func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) 
 // jobDeleteEndpoint
 //
 
-type jobDeleteEndpoint struct {
-	apibundle.APIBundle
+type jobDeleteEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobDeleteRequest, statusResponse]
 }
 
-func newJobDeleteEndpoint(bundle apibundle.APIBundle) *jobDeleteEndpoint {
-	return &jobDeleteEndpoint{APIBundle: bundle}
+func newJobDeleteEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobDeleteEndpoint[TTx] {
+	return &jobDeleteEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobDeleteEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobDeleteEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/delete",
 		StatusCode: http.StatusOK,
@@ -360,8 +354,8 @@ type jobDeleteRequest struct {
 	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
 }
 
-func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+func (a *jobDeleteEndpoint[TTx]) Execute(ctx context.Context, req *jobDeleteRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
 			_, err := a.Client.JobDeleteTx(ctx, tx, jobID)
@@ -384,16 +378,16 @@ func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) 
 // jobGetEndpoint
 //
 
-type jobGetEndpoint struct {
-	apibundle.APIBundle
+type jobGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobGetRequest, RiverJob]
 }
 
-func newJobGetEndpoint(bundle apibundle.APIBundle) *jobGetEndpoint {
-	return &jobGetEndpoint{APIBundle: bundle}
+func newJobGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobGetEndpoint[TTx] {
+	return &jobGetEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/jobs/{job_id}",
 		StatusCode: http.StatusOK,
@@ -417,8 +411,8 @@ func (req *jobGetRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*RiverJob, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*RiverJob, error) {
+func (a *jobGetEndpoint[TTx]) Execute(ctx context.Context, req *jobGetRequest) (*RiverJob, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*RiverJob, error) {
 		job, err := a.Client.JobGetTx(ctx, tx, req.JobID)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -434,16 +428,16 @@ func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*Rive
 // jobListEndpoint
 //
 
-type jobListEndpoint struct {
-	apibundle.APIBundle
+type jobListEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverJobMinimal]]
 }
 
-func newJobListEndpoint(bundle apibundle.APIBundle) *jobListEndpoint {
-	return &jobListEndpoint{APIBundle: bundle}
+func newJobListEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobListEndpoint[TTx] {
+	return &jobListEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobListEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/jobs",
 		StatusCode: http.StatusOK,
@@ -504,8 +498,8 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJobMinimal], error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJobMinimal], error) {
+func (a *jobListEndpoint[TTx]) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJobMinimal], error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*listResponse[RiverJobMinimal], error) {
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
 
 		if len(req.IDs) > 0 {
@@ -548,16 +542,16 @@ func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*li
 // jobRetryEndpoint
 //
 
-type jobRetryEndpoint struct {
-	apibundle.APIBundle
+type jobRetryEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobRetryRequest, statusResponse]
 }
 
-func newJobRetryEndpoint(bundle apibundle.APIBundle) *jobRetryEndpoint {
-	return &jobRetryEndpoint{APIBundle: bundle}
+func newJobRetryEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobRetryEndpoint[TTx] {
+	return &jobRetryEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobRetryEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobRetryEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/retry",
 		StatusCode: http.StatusOK,
@@ -568,8 +562,8 @@ type jobRetryRequest struct {
 	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
 }
 
-func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+func (a *jobRetryEndpoint[TTx]) Execute(ctx context.Context, req *jobRetryRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
 			_, err := a.Client.JobRetryTx(ctx, tx, jobID)
@@ -589,16 +583,16 @@ func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*
 // queueGetEndpoint
 //
 
-type queueGetEndpoint struct {
-	apibundle.APIBundle
+type queueGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, RiverQueue]
 }
 
-func newQueueGetEndpoint(bundle apibundle.APIBundle) *queueGetEndpoint {
-	return &queueGetEndpoint{APIBundle: bundle}
+func newQueueGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queueGetEndpoint[TTx] {
+	return &queueGetEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queueGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queueGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/queues/{name}",
 		StatusCode: http.StatusOK,
@@ -614,8 +608,8 @@ func (req *queueGetRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*RiverQueue, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
+func (a *queueGetEndpoint[TTx]) Execute(ctx context.Context, req *queueGetRequest) (*RiverQueue, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*RiverQueue, error) {
 		queue, err := a.Client.QueueGetTx(ctx, tx, req.Name)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -640,16 +634,16 @@ func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*
 // queueListEndpoint
 //
 
-type queueListEndpoint struct {
-	apibundle.APIBundle
+type queueListEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverQueue]]
 }
 
-func newQueueListEndpoint(bundle apibundle.APIBundle) *queueListEndpoint {
-	return &queueListEndpoint{APIBundle: bundle}
+func newQueueListEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queueListEndpoint[TTx] {
+	return &queueListEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queueListEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queueListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/queues",
 		StatusCode: http.StatusOK,
@@ -673,8 +667,8 @@ func (req *queueListRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) (*listResponse[RiverQueue], error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverQueue], error) {
+func (a *queueListEndpoint[TTx]) Execute(ctx context.Context, req *queueListRequest) (*listResponse[RiverQueue], error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*listResponse[RiverQueue], error) {
 		result, err := a.Client.QueueListTx(ctx, tx, river.NewQueueListParams().First(ptrutil.ValOrDefault(req.Limit, 100)))
 		if err != nil {
 			return nil, fmt.Errorf("error listing queues: %w", err)
@@ -698,16 +692,16 @@ func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) 
 // queuePauseEndpoint
 //
 
-type queuePauseEndpoint struct {
-	apibundle.APIBundle
+type queuePauseEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
-func newQueuePauseEndpoint(bundle apibundle.APIBundle) *queuePauseEndpoint {
-	return &queuePauseEndpoint{APIBundle: bundle}
+func newQueuePauseEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queuePauseEndpoint[TTx] {
+	return &queuePauseEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queuePauseEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queuePauseEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "PUT /api/queues/{name}/pause",
 		StatusCode: http.StatusOK,
@@ -723,8 +717,8 @@ func (req *queuePauseRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queuePauseEndpoint) Execute(ctx context.Context, req *queuePauseRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+func (a *queuePauseEndpoint[TTx]) Execute(ctx context.Context, req *queuePauseRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
 		err := a.Client.QueuePauseTx(ctx, tx, req.Name, nil)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -741,16 +735,16 @@ func (a *queuePauseEndpoint) Execute(ctx context.Context, req *queuePauseRequest
 // queueResumeEndpoint
 //
 
-type queueResumeEndpoint struct {
-	apibundle.APIBundle
+type queueResumeEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
-func newQueueResumeEndpoint(bundle apibundle.APIBundle) *queueResumeEndpoint {
-	return &queueResumeEndpoint{APIBundle: bundle}
+func newQueueResumeEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queueResumeEndpoint[TTx] {
+	return &queueResumeEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queueResumeEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queueResumeEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "PUT /api/queues/{name}/resume",
 		StatusCode: http.StatusOK,
@@ -766,8 +760,8 @@ func (req *queueResumeRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+func (a *queueResumeEndpoint[TTx]) Execute(ctx context.Context, req *queueResumeRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
 		err := a.Client.QueueResumeTx(ctx, tx, req.Name, nil)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -780,16 +774,16 @@ func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeReque
 	})
 }
 
-type queueUpdateEndpoint struct {
-	apibundle.APIBundle
+type queueUpdateEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[queueUpdateRequest, RiverQueue]
 }
 
-func newQueueUpdateEndpoint(bundle apibundle.APIBundle) *queueUpdateEndpoint {
-	return &queueUpdateEndpoint{APIBundle: bundle}
+func newQueueUpdateEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queueUpdateEndpoint[TTx] {
+	return &queueUpdateEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queueUpdateEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queueUpdateEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "PATCH /api/queues/{name}",
 		StatusCode: http.StatusOK,
@@ -806,8 +800,8 @@ func (req *queueUpdateRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateRequest) (*RiverQueue, error) {
-	return pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
+func (a *queueUpdateEndpoint[TTx]) Execute(ctx context.Context, req *queueUpdateRequest) (*RiverQueue, error) {
+	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*RiverQueue, error) {
 		// Construct metadata based on concurrency field
 		var metadata json.RawMessage
 		if req.Concurrency.Set {
@@ -856,35 +850,35 @@ func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateReque
 // stateAndCountGetEndpoint
 //
 
-type stateAndCountGetEndpoint struct {
-	apibundle.APIBundle
+type stateAndCountGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, stateAndCountGetResponse]
 
 	queryCacheSkipThreshold int // constant normally, but settable for testing
 	queryCacher             *querycacher.QueryCacher[map[rivertype.JobState]int]
 }
 
-func newStateAndCountGetEndpoint(bundle apibundle.APIBundle) *stateAndCountGetEndpoint {
+func newStateAndCountGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *stateAndCountGetEndpoint[TTx] {
 	runQuery := func(ctx context.Context) (map[rivertype.JobState]int, error) {
-		return pgxutil.WithTxV(ctx, bundle.DB, func(ctx context.Context, tx pgx.Tx) (map[rivertype.JobState]int, error) {
+		return dbutil.WithTxV(ctx, bundle.Driver, bundle.DB, func(ctx context.Context, tx TTx) (map[rivertype.JobState]int, error) {
 			return bundle.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: bundle.Client.Schema()})
 		})
 	}
-	return &stateAndCountGetEndpoint{
+	return &stateAndCountGetEndpoint[TTx]{
 		APIBundle:               bundle,
 		queryCacheSkipThreshold: 1_000_000,
 		queryCacher:             querycacher.NewQueryCacher(bundle.Archetype, runQuery),
 	}
 }
 
-func (*stateAndCountGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*stateAndCountGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/states",
 		StatusCode: http.StatusOK,
 	}
 }
 
-func (a *stateAndCountGetEndpoint) SubServices() []startstop.Service {
+func (a *stateAndCountGetEndpoint[TTx]) SubServices() []startstop.Service {
 	return []startstop.Service{a.queryCacher}
 }
 
@@ -901,7 +895,7 @@ type stateAndCountGetResponse struct {
 	Scheduled int `json:"scheduled"`
 }
 
-func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
+func (a *stateAndCountGetEndpoint[TTx]) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
 	// Counts the total number of jobs in a state and count result.
 	totalJobs := func(stateAndCountRes map[rivertype.JobState]int) int {
 		var totalJobs int
@@ -920,7 +914,7 @@ func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCount
 	stateAndCountRes, ok := a.queryCacher.CachedRes()
 	if !ok || totalJobs(stateAndCountRes) < a.queryCacheSkipThreshold {
 		var err error
-		stateAndCountRes, err = pgxutil.WithTxV(ctx, a.DB, func(ctx context.Context, tx pgx.Tx) (map[rivertype.JobState]int, error) {
+		stateAndCountRes, err = dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (map[rivertype.JobState]int, error) {
 			return a.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: a.Client.Schema()})
 		})
 		if err != nil {
@@ -1034,35 +1028,6 @@ type RiverQueue struct {
 	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
-func internalJobToSerializableJob(internal *rivertype.JobRow) *RiverJob {
-	attemptedBy := internal.AttemptedBy
-	if attemptedBy == nil {
-		attemptedBy = []string{}
-	}
-
-	minimal := RiverJobMinimal{
-		ID:          internal.ID,
-		Args:        internal.EncodedArgs,
-		Attempt:     int(internal.Attempt),
-		AttemptedAt: internal.AttemptedAt,
-		AttemptedBy: attemptedBy,
-		CreatedAt:   internal.CreatedAt,
-		FinalizedAt: internal.FinalizedAt,
-		Kind:        internal.Kind,
-		MaxAttempts: int(internal.MaxAttempts),
-		Priority:    int(internal.Priority),
-		Queue:       internal.Queue,
-		State:       string(internal.State),
-		ScheduledAt: internal.ScheduledAt,
-		Tags:        internal.Tags,
-	}
-
-	return &RiverJob{
-		RiverJobMinimal: minimal,
-		Errors:          internal.Errors,
-		Metadata:        internal.Metadata,
-	}
-}
 func riverQueueToSerializableQueue(internal rivertype.Queue, count *riverdriver.JobCountByQueueAndStateResult) *RiverQueue {
 	var concurrency *ConcurrencyConfig
 	if len(internal.Metadata) > 0 {

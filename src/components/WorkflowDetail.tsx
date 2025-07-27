@@ -14,6 +14,7 @@ import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
 import clsx from "clsx";
 import { useMemo } from "react";
+
 import WorkflowListEmptyState from "./WorkflowListEmptyState";
 
 type JobsByTask = {
@@ -24,7 +25,7 @@ type WorkflowDetailProps = {
   loading: boolean;
   selectedJobId: bigint | undefined;
   setSelectedJobId: (jobId: bigint | undefined) => void;
-  workflow: Workflow | undefined;
+  workflow: undefined | Workflow;
 };
 
 // const WorkflowList = ({

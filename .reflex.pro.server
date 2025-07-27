@@ -1,1 +1,1 @@
--r '\.(go)$' -R 'node_modules' -G '\*\_test.go' -s -- go run -C cmd/riverproui -race .
+-r '\.(go)$' -R 'node_modules' -G '\*\_test.go' -s -- sh -c "export RIVER_UI_PROJECT_ROOT=$(git rev-parse --show-toplevel) && go run -C riverproui/cmd/riverproui -race ."

@@ -13,57 +13,101 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
 	"riverqueue.com/riverui/internal/apibundle"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apimiddleware"
 	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
 )
 
-// driverHook defines an interface that River drivers can implement to register
-// additional API endpoints in the River UI. This allows Pro drivers to extend
-// the UI with Pro-specific functionality without riverui taking a direct
-// dependency on Pro packages.
-type driverHook interface {
-	RegisterUIEndpoints(mux *http.ServeMux, archetype *baseservice.Archetype, logger *slog.Logger, mountOpts *apiendpoint.MountOpts) []apiendpoint.EndpointInterface
+type endpointsExtensions interface {
+	Extensions() map[string]bool
 }
 
-type driverWithExtensions interface {
-	UIExtensions() map[string]bool
+type EndpointsOpts[TTx any] struct {
+	Client                   *river.Client[TTx]
+	JobListHideArgsByDefault bool
+	// Tx is an optional transaction to wrap all database operations. It's mainly
+	// used for testing.
+	Tx *TTx
+}
+
+type endpoints[TTx any] struct {
+	opts *EndpointsOpts[TTx]
+}
+
+func NewEndpoints[TTx any](opts *EndpointsOpts[TTx]) apibundle.EndpointBundle {
+	return &endpoints[TTx]{
+		opts: opts,
+	}
+}
+
+func (e *endpoints[TTx]) Validate() error {
+	if e.opts.Client == nil {
+		return errors.New("client is required")
+	}
+	return nil
+}
+
+func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts, extensions map[string]bool) []apiendpoint.EndpointInterface {
+	driver := e.opts.Client.Driver()
+	var executor riverdriver.Executor
+	if e.opts.Tx == nil {
+		executor = driver.GetExecutor()
+	} else {
+		executor = driver.UnwrapExecutor(*e.opts.Tx)
+	}
+	bundle := apibundle.APIBundle[TTx]{
+		Archetype:                archetype,
+		Client:                   e.opts.Client,
+		DB:                       executor,
+		Driver:                   driver,
+		Extensions:               extensions,
+		JobListHideArgsByDefault: e.opts.JobListHideArgsByDefault,
+		Logger:                   logger,
+	}
+
+	return []apiendpoint.EndpointInterface{
+		apiendpoint.Mount(mux, newAutocompleteListEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newFeaturesGetEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newHealthCheckGetEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newJobCancelEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newJobDeleteEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newJobGetEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newJobListEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newJobRetryEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newQueueGetEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newQueueListEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newQueuePauseEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newQueueResumeEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newQueueUpdateEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(bundle), mountOpts),
+	}
 }
 
 // ServerOpts are the options for creating a new Server.
 type ServerOpts struct {
-	// Client is the River client to use for API requests.
-	Client *river.Client[pgx.Tx]
-	// DB is the database to use for API requests.
-	DB apibundle.DB
 	// DevMode is whether the server is running in development mode.
 	DevMode bool
-	// JobListHideArgsByDefault is whether to hide job arguments by default in the
-	// job list view. This is useful for users with complex encoded arguments.
-	JobListHideArgsByDefault bool
 	// LiveFS is whether to use the live filesystem for the frontend.
 	LiveFS bool
 	// Logger is the logger to use logging errors within the handler.
 	Logger *slog.Logger
 	// Prefix is the path prefix to use for the API and UI HTTP requests.
 	Prefix string
+
+	// projectRoot is an optional path to the project root used for testing.
+	projectRoot string
 }
 
 func (opts *ServerOpts) validate() error {
-	if opts.Client == nil {
-		return errors.New("client is required")
-	}
-	if opts.DB == nil {
-		return errors.New("db is required")
-	}
 	if opts.Logger == nil {
 		return errors.New("logger is required")
 	}
@@ -93,7 +137,14 @@ type Server struct {
 }
 
 // NewServer creates a new Server that serves the River UI and API.
-func NewServer(opts *ServerOpts) (*Server, error) {
+func NewServer(bundle apibundle.EndpointBundle, opts *ServerOpts) (*Server, error) {
+	if bundle == nil {
+		return nil, errors.New("endpoints is required")
+	}
+	if err := bundle.Validate(); err != nil {
+		return nil, err
+	}
+
 	if opts == nil {
 		return nil, errors.New("opts is required")
 	}
@@ -109,22 +160,34 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	}
 
 	if opts.LiveFS {
+		projectRoot := cmp.Or(opts.projectRoot, os.Getenv("RIVER_UI_PROJECT_ROOT"))
+		if projectRoot == "" {
+			return nil, errors.New("RIVER_UI_PROJECT_ROOT must be set when running with LiveFS")
+		}
 		if opts.DevMode {
-			opts.Logger.Info("Using live filesystem at ../../public")
-			frontendIndex = os.DirFS("../../public")
+			publicDir := filepath.Join(projectRoot, "public")
+			opts.Logger.Info("Using live filesystem at " + publicDir)
+			frontendIndex = os.DirFS(publicDir)
 		} else {
-			opts.Logger.Info("Using live filesystem at ../../dist")
-			frontendIndex = os.DirFS("../../dist")
+			distDir := filepath.Join(projectRoot, "dist")
+			opts.Logger.Info("Using live filesystem at " + distDir)
+			frontendIndex = os.DirFS(distDir)
 		}
 	}
 
+	var f fs.File
+
 	if !opts.DevMode {
-		if _, err := frontendIndex.Open(".vite/manifest.json"); err != nil {
+		var err error
+		if f, err = frontendIndex.Open(".vite/manifest.json"); err != nil {
 			return nil, errors.New("manifest.json not found")
 		}
-		if _, err := frontendIndex.Open("index.html"); err != nil {
+		defer f.Close()
+
+		if f, err = frontendIndex.Open("index.html"); err != nil {
 			return nil, errors.New("index.html not found")
 		}
+		defer f.Close()
 	}
 	manifest, err := readManifest(frontendIndex, opts.DevMode)
 	if err != nil {
@@ -135,15 +198,6 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 	fileServer := http.FileServer(httpFS)
 	serveIndex := serveIndexHTML(opts.DevMode, manifest, prefix, httpFS)
 
-	bundle := apibundle.APIBundle{
-		Archetype:                baseservice.NewArchetype(opts.Logger),
-		Client:                   opts.Client,
-		DB:                       opts.DB,
-		Driver:                   opts.Client.Driver(),
-		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
-		Logger:                   opts.Logger,
-	}
-
 	mux := http.NewServeMux()
 
 	mountOpts := apiendpoint.MountOpts{
@@ -151,27 +205,12 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 		Validator: apitype.NewValidator(),
 	}
 
-	endpoints := []apiendpoint.EndpointInterface{
-		apiendpoint.Mount(mux, newAutocompleteListEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newFeaturesGetEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newHealthCheckGetEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobCancelEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobDeleteEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobGetEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobListEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newJobRetryEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueueGetEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueueListEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueuePauseEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueueResumeEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newQueueUpdateEndpoint(bundle), &mountOpts),
-		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(bundle), &mountOpts),
+	extensions := map[string]bool{}
+	if withExtensions, ok := bundle.(endpointsExtensions); ok {
+		extensions = withExtensions.Extensions()
 	}
 
-	if driverHook, ok := opts.Client.Driver().(driverHook); ok {
-		additionalEndpoints := driverHook.RegisterUIEndpoints(mux, bundle.Archetype, opts.Logger, &mountOpts)
-		endpoints = append(endpoints, additionalEndpoints...)
-	}
+	endpoints := bundle.MountEndpoints(baseservice.NewArchetype(opts.Logger), opts.Logger, mux, &mountOpts, extensions)
 
 	var services []startstop.Service
 
