@@ -13,6 +13,7 @@ linters:
 
     # disabled because they're annoying/bad
     - cyclop # screams into the void at "cyclomatic complexity"
+    - funcorder # very particular about where unexported functions can go, lots of churn.
     - funlen # screams when functions are more than 60 lines long; what are we even doing here guys
     - interfacebloat # we do in fact want >10 methods on the Adapter interface or wherever we see fit.
     - gocognit # yells that "cognitive complexity" is too high; why
@@ -22,10 +23,12 @@ linters:
     - maintidx # ANOTHER ANOTHER "cyclomatic complexity" lint (see also "cyclop" and "gocyclo")
     - mnd # detects "magic numbers", which it defines as any number; annoying
     - nestif # yells when if blocks are nested; what planet do these people come from?
+    - noinlineerr # disallows `if err := ...`; because why miss an opportunity to leak variables out of scope?
     - ireturn # bans returning interfaces; questionable as is, but also buggy as hell; very, very annoying
     - lll # restricts maximum line length; annoying
     - nlreturn # requires a blank line before returns; annoying
     - wsl # a bunch of style/whitespace stuff; annoying
+    - wsl_v5 # a second version of the first annoying wsl; how nice
 
   settings:
     depguard:
