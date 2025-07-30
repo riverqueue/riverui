@@ -24,16 +24,23 @@ const workflowSearchSchema = z.object({
 
 export const Route = createFileRoute("/workflows/")({
   validateSearch: workflowSearchSchema,
+  beforeLoad: ({ context: { features }, search: { limit, state } }) => {
+    return {
+      workflowsQueryOptions: workflowsQueryOptions({
+        enabled: features.workflowQueries,
+        limit: limit || defaultLimit,
+        state,
+      }),
+    };
+  },
   loaderDeps: ({ search: { limit, state } }) => {
     return { limit: limit || defaultLimit, state };
   },
-  loader: async ({ context, deps: { limit, state } }) => {
-    const { queryClient } = context;
+  loader: async ({ context: { queryClient, workflowsQueryOptions } }) => {
+    if (!workflowsQueryOptions.enabled) return [];
     // TODO: how to pass abortController.signal into ensureQueryData or queryOptions?
     // signal: abortController.signal,
-    return await queryClient.ensureQueryData({
-      ...workflowsQueryOptions({ limit, state }),
-    });
+    return await queryClient.ensureQueryData(workflowsQueryOptions);
   },
   component: WorkflowsIndexComponent,
 });
@@ -41,10 +48,12 @@ export const Route = createFileRoute("/workflows/")({
 function WorkflowsIndexComponent() {
   const refreshSettings = useRefreshSetting();
   const refetchInterval = refreshSettings.intervalMs;
+  const { workflowsQueryOptions } = Route.useRouteContext();
   const loaderDeps = Route.useLoaderDeps();
-  const workflowsQuery = useQuery(
-    workflowsQueryOptions(loaderDeps, { refetchInterval }),
-  );
+  const workflowsQuery = useQuery({
+    ...workflowsQueryOptions,
+    refetchInterval,
+  });
 
   return (
     <WorkflowList
@@ -55,19 +64,18 @@ function WorkflowsIndexComponent() {
   );
 }
 
-const workflowsQueryOptions = (
-  {
-    limit,
-    state,
-  }: {
-    limit: number;
-    state?: WorkflowState;
-  },
-  opts?: { refetchInterval: number },
-) => {
+const workflowsQueryOptions = ({
+  enabled,
+  limit,
+  state,
+}: {
+  enabled: boolean;
+  limit: number;
+  state?: WorkflowState;
+}) => {
   return queryOptions({
+    enabled,
     queryKey: listWorkflowsKey({ limit, state }),
     queryFn: listWorkflows,
-    refetchInterval: opts?.refetchInterval,
   });
 };

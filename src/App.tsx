@@ -22,6 +22,8 @@ const router = createRouter({
       hasClientTable: false,
       hasProducerTable: false,
       hasWorkflows: false,
+      producerQueries: false,
+      workflowQueries: false,
     } as Features,
     queryClient,
   },
