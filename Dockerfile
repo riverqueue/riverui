@@ -21,11 +21,13 @@ COPY *.go internal docs/README.md LICENSE ./
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY public/ public/
+COPY riverproui/ riverproui/
 COPY --from=build-ui /app/dist ./dist
 
-RUN go build -o /bin/riverui ./cmd/riverui
+ARG BINARY=riverui
+RUN go build -o /bin/$BINARY ./cmd/$BINARY
 
 FROM alpine:3.22.0
 ENV PATH_PREFIX="/"
-COPY --from=build-go /bin/riverui /bin/riverui
-CMD ["/bin/sh", "-c", "/bin/riverui -prefix=$PATH_PREFIX"]
+COPY --from=build-go /bin/$BINARY /bin/$BINARY
+CMD ["/bin/sh", "-c", "/bin/$BINARY -prefix=$PATH_PREFIX"]

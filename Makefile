@@ -32,6 +32,7 @@ lint:
 .PHONY: test
 test:
 	cd . && go test ./...
+	cd ./riverproui && go test ./...
 
 .PHONY: tidy
 tidy:: ## Run `go mod tidy` for all submodules

@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -82,10 +81,9 @@ func TestProHandlerIntegration(t *testing.T) {
 		logger := riverinternaltest.Logger(t)
 		opts := &riverui.ServerOpts{
 			DevMode: true,
-			LiveFS:  true,
+			LiveFS:  false, // Disable LiveFS to avoid needing projectRoot
 			Logger:  logger,
 		}
-		reflect.ValueOf(opts).Elem().FieldByName("projectRoot").SetString("..")
 		server, err := riverui.NewServer(bundle, opts)
 		require.NoError(t, err)
 		return server
@@ -99,9 +97,9 @@ func TestProHandlerIntegration(t *testing.T) {
 		workflowID := uuid.New()
 		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
 
-		makeAPICall(t, "ProducerList", http.MethodGet, fmt.Sprintf("/api/producers?queue_name=%s", queue.Name), nil)
-		makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/workflows/%s", workflowID), nil)
-		makeAPICall(t, "WorkflowList", http.MethodGet, "/api/workflows", nil)
+		makeAPICall(t, "ProducerList", http.MethodGet, fmt.Sprintf("/api/pro/producers?queue_name=%s", queue.Name), nil)
+		makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/pro/workflows/%s", workflowID), nil)
+		makeAPICall(t, "WorkflowList", http.MethodGet, "/api/pro/workflows", nil)
 	}
 
 	handlertest.RunIntegrationTest(t, createClient, createBundle, createHandler, testRunner)
