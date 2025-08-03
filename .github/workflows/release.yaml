@@ -26,18 +26,19 @@ jobs:
       r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
       r2-endpoint-url: ${{ secrets.R2_ENDPOINT_URL }}
       r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-  release_riverproui:
-    uses: ./.github/workflows/package-and-release.yaml
-    if: startsWith(github.ref, 'refs/tags/riverproui/v')
-    with:
-      after-version: v0.4.0
-      module-base: riverqueue.com/riverui/riverproui
-      module-dir: ./riverproui
-      storage-bucket: ${{ vars.RELEASE_STORAGE_BUCKET }}
-      version-tag: ${{ github.ref_name}}
-    permissions:
-      contents: read
-    secrets:
-      r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-      r2-endpoint-url: ${{ secrets.R2_ENDPOINT_URL }}
-      r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+  # TODO: Need to ensure the proxy will properly authenticate these.
+  # release_riverproui:
+  #   uses: ./.github/workflows/package-and-release.yaml
+  #   if: startsWith(github.ref, 'refs/tags/riverproui/v')
+  #   with:
+  #     after-version: v0.4.0
+  #     module-base: riverqueue.com/riverui/riverproui
+  #     module-dir: ./riverproui
+  #     storage-bucket: ${{ vars.RELEASE_STORAGE_BUCKET }}
+  #     version-tag: ${{ github.ref_name}}
+  #   permissions:
+  #     contents: read
+  #   secrets:
+  #     r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+  #     r2-endpoint-url: ${{ secrets.R2_ENDPOINT_URL }}
+  #     r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
