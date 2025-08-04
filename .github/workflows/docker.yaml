@@ -113,11 +113,12 @@ jobs:
   build-riverproui:
     name: "Build image: riverproui"
     runs-on: ubuntu-latest
-    outputs:
-      tags: ${{ steps.meta-pro.outputs.tags }}
-      digest: ${{ steps.build.outputs.digest }}
+    strategy:
+      matrix:
+        docker_platform:
+          - linux/amd64
+          - linux/arm64
     permissions:
-      attestations: write
       contents: read
       id-token: write
     env:
@@ -129,12 +130,21 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - name: Login to ECR
-        uses: docker/login-action@v3
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          registry: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com
-          username: ${{ secrets.ECR_CACHE_AWS_ACCESS_KEY_ID }}
-          password: ${{ secrets.ECR_CACHE_AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.ECR_CACHE_ROLE_ARN }}
+          aws-region: ${{ env.ECR_CACHE_AWS_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.ECR_CACHE_AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com
+
+      - name: Prepare
+        run: |
+          platform=${{ matrix.docker_platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
       - name: Set TAG
         run: echo "TAG=${{ inputs.ref || github.ref_name }}" >> $GITHUB_ENV
@@ -153,23 +163,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Docker meta for Pro
-        id: meta-pro
-        uses: docker/metadata-action@v5
-        with:
-          images: riverqueue.com/riverproui
-          labels: |
-            org.opencontainers.image.source=https://github.com/riverqueue/riverui
-            org.opencontainers.image.description="River UI Pro is a web-based user interface for River, with pro features."
-            org.opencontainers.image.licenses=MPL-2.0
-          # TODO: type=ref are temporary for testing
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-
       - name: Build and export to OCI
         id: build
         uses: docker/build-push-action@v6
@@ -177,26 +170,19 @@ jobs:
           context: .
           file: Dockerfile.pro
           pull: true
-          platforms: linux/amd64,linux/arm64
-          labels: ${{ steps.meta-pro.outputs.labels }}
-          cache-from: type=registry,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache
-          cache-to: type=registry,mode=max,image-manifest=true,oci-mediatypes=true,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache
-          outputs: type=oci,dest=/tmp/oci,tar=false
+          platforms: ${{ matrix.docker_platform }}
+          cache-from: type=registry,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
+          cache-to: type=registry,mode=max,image-manifest=true,oci-mediatypes=true,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
+          outputs: type=oci,dest=/tmp/oci-${{ env.PLATFORM_PAIR }},tar=false,oci-mediatypes=true
+          provenance: false
           secrets: |
             "riverpro_credential=${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}"
-
-      - name: Generate artifact attestation
-        uses: actions/attest-build-provenance@v1
-        with:
-          push-to-registry: false
-          subject-digest: ${{ steps.build.outputs.digest }}
-          subject-name: riverqueue.com/riverproui
 
       - name: Upload OCI artifact
         uses: actions/upload-artifact@v4
         with:
-          name: pro-oci
-          path: /tmp/oci
+          name: pro-oci-${{ env.PLATFORM_PAIR }}
+          path: /tmp/oci-${{ env.PLATFORM_PAIR }}
           retention-days: 1
 
   merge-riverui:
@@ -252,11 +238,74 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
+  merge-riverproui:
+    name: "Merge manifests: riverproui"
+    runs-on: ubuntu-latest
+    needs:
+      - build-riverproui
+    outputs:
+      tags: ${{ steps.meta-pro.outputs.tags }}
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download OCI artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/oci-parts
+          pattern: pro-oci-*
+
+      - name: Docker meta for Pro
+        id: meta-pro
+        uses: docker/metadata-action@v5
+        with:
+          images: riverqueue.com/riverproui
+          labels: |
+            org.opencontainers.image.source=https://github.com/riverqueue/riverui
+            org.opencontainers.image.description="River UI Pro is a web-based user interface for River, with pro features."
+            org.opencontainers.image.licenses=MPL-2.0
+          # TODO: type=ref are temporary for testing
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Merge OCI layouts
+        id: merge
+        run: |
+          mkdir -p /tmp/oci/blobs/sha256
+          for platform in linux-amd64 linux-arm64; do
+            cp -r /tmp/oci-parts/pro-oci-$platform/blobs/sha256/* /tmp/oci/blobs/sha256/ || true
+            cp /tmp/oci-parts/pro-oci-$platform/oci-layout /tmp/oci/ || true
+          done
+          jq -s '.[0] as $first | $first * {manifests: ($first.manifests + .[1].manifests)}' \
+            /tmp/oci-parts/pro-oci-linux-amd64/index.json /tmp/oci-parts/pro-oci-linux-arm64/index.json > /tmp/oci/index.json
+          digest=$(sha256sum /tmp/oci/index.json | cut -d' ' -f1)
+          echo "digest=sha256:$digest" >> $GITHUB_OUTPUT
+
+      - name: Generate artifact attestation
+        uses: actions/attest-build-provenance@v1
+        with:
+          push-to-registry: false
+          subject-digest: ${{ steps.merge.outputs.digest }}
+          subject-name: riverqueue.com/riverproui
+
+      - name: Upload OCI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pro-oci
+          path: /tmp/oci
+          retention-days: 1
+
   publish-riverproui:
     name: "Publish Docker image: riverproui"
     runs-on: ubuntu-latest
     needs:
-      - build-riverproui
+      - merge-riverproui
 
     steps:
       - name: Checkout
@@ -269,12 +318,6 @@ jobs:
         with:
           name: pro-oci
           path: /tmp/oci
-
-      - name: DEBUG OCI Directory Structure
-        run: ls -R /tmp/oci || echo "Directory not found"
-
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Install AWS CLI
         uses: unfor19/install-aws-cli-action@v1
@@ -294,7 +337,7 @@ jobs:
         # if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
-          REPO_NAME: riverqueue.com/riverproui
+          REPO_NAME: riverproui
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
           aws s3 cp /tmp/oci/blobs/sha256/ s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/blobs/sha256/ --recursive --endpoint-url $ENDPOINT_URL
@@ -304,7 +347,7 @@ jobs:
         # if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
-          REPO_NAME: riverqueue.com/riverproui
+          REPO_NAME: riverproui
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
           MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
@@ -315,11 +358,11 @@ jobs:
         # if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
-          REPO_NAME: riverqueue.com/riverproui
+          REPO_NAME: riverproui
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
-          # Extract tags from the build job output (newline-separated)
-          echo '${{ needs.build-riverproui.outputs.tags }}' > tags.txt
+          # Extract tags from the merge job output (newline-separated)
+          echo '${{ needs.merge-riverproui.outputs.tags }}' > tags.txt
           while IFS= read -r TAG; do
             if [ -n "$TAG" ]; then
               SHORT_TAG="${TAG#riverqueue.com/riverproui:}"
