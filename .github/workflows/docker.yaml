@@ -288,11 +288,19 @@ jobs:
           echo "digest=sha256:$digest" >> $GITHUB_OUTPUT
 
       - name: Generate artifact attestation
+        id: attest
         uses: actions/attest-build-provenance@v1
         with:
           push-to-registry: false
           subject-digest: ${{ steps.merge.outputs.digest }}
           subject-name: riverqueue.com/riverproui
+
+      - name: Upload attestation bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: pro-attestation-bundle
+          path: ${{ steps.attest.outputs.bundle-path }}
+          retention-days: 1
 
       - name: Upload OCI artifact
         uses: actions/upload-artifact@v4
@@ -306,6 +314,8 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - merge-riverproui
+    env:
+      REPO_NAME: riverproui
 
     steps:
       - name: Checkout
@@ -332,40 +342,55 @@ jobs:
           aws configure set aws_secret_access_key ${{ secrets.R2_SECRET_ACCESS_KEY }}
           aws configure set default.region auto
 
+      - name: Download attestation bundle
+        uses: actions/download-artifact@v4
+        with:
+          name: pro-attestation-bundle
+          path: /tmp/attestation
+
       - name: Sync blobs to R2
         # TODO: temporary for testing
         # if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
-          REPO_NAME: riverproui
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
-          aws s3 cp /tmp/oci/blobs/sha256/ s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/blobs/sha256/ --recursive --endpoint-url $ENDPOINT_URL
+          for file in /tmp/oci/blobs/sha256/*; do
+            digest=$(basename "$file")
+            aws s3 cp "$file" s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/blobs/$digest --endpoint-url $ENDPOINT_URL
+          done
 
       - name: Upload manifest by digest
         # TODO: temporary for testing
         # if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
-          REPO_NAME: riverproui
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
           MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
           aws s3 cp /tmp/oci/index.json s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/sha256:$MANIFEST_DIGEST --content-type "application/vnd.docker.distribution.manifest.list.v2+json" --endpoint-url $ENDPOINT_URL
 
-      - name: Upload tagged manifests
+      - name: Upload tagged manifests as symlinks
         # TODO: temporary for testing
         # if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
         env:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
-          REPO_NAME: riverproui
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
-          # Extract tags from the merge job output (newline-separated)
+          MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
           echo '${{ needs.merge-riverproui.outputs.tags }}' > tags.txt
           while IFS= read -r TAG; do
             if [ -n "$TAG" ]; then
               SHORT_TAG="${TAG#riverqueue.com/riverproui:}"
-              aws s3 cp /tmp/oci/index.json s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/$SHORT_TAG --content-type "application/vnd.docker.distribution.manifest.list.v2+json" --endpoint-url $ENDPOINT_URL
+              echo -n "" | aws s3 cp - s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/$SHORT_TAG --endpoint-url $ENDPOINT_URL --metadata "X-Serverless-Registry-Symlink=sha256:$MANIFEST_DIGEST" --content-type "application/octet-stream"
             fi
           done < tags.txt
+
+      - name: Upload referrers (attestation)
+        env:
+          DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
+          ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
+        run: |
+          MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
+          ATTESTATION_FILE=$(ls /tmp/attestation/* | head -1)
+          aws s3 cp $ATTESTATION_FILE s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/referrers/sha256:$MANIFEST_DIGEST --content-type "application/vnd.oci.image.index.v1+json" --endpoint-url $ENDPOINT_URL
