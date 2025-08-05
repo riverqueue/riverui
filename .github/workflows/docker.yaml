@@ -16,13 +16,15 @@ on:
         required: true
 
 env:
-  IMAGE_NAME: ${{ github.repository }}
-  REGISTRY: ghcr.io
+  ECR_REGION: us-east-2
 
 jobs:
   build-riverui:
     name: "Build image: riverui"
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ${{ github.repository }}
+      REGISTRY: ghcr.io
     strategy:
       matrix:
         docker_platform:
@@ -65,7 +67,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           labels: |
             org.opencontainers.image.source=https://github.com/riverqueue/riverui
             org.opencontainers.image.description="River UI is a web-based user interface for River, a fast and reliable background job system."
@@ -94,7 +96,7 @@ jobs:
         with:
           push-to-registry: true
           subject-digest: ${{ steps.build.outputs.digest }}
-          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME}}
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
 
       - name: Export digest
         run: |
@@ -113,6 +115,9 @@ jobs:
   build-riverproui:
     name: "Build image: riverproui"
     runs-on: ubuntu-latest
+    env:
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}
+      ECR_ROLE_ARN: ${{ secrets.ECR_CACHE_ROLE_ARN }}
     strategy:
       matrix:
         docker_platform:
@@ -121,8 +126,6 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    env:
-      ECR_CACHE_AWS_REGION: "us-east-2"
 
     steps:
       - name: Checkout
@@ -133,13 +136,13 @@ jobs:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.ECR_CACHE_ROLE_ARN }}
-          aws-region: ${{ env.ECR_CACHE_AWS_REGION }}
+          role-to-assume: ${{ env.ECR_ROLE_ARN }}
+          aws-region: ${{ env.ECR_REGION }}
           role-session-name: GitHubActions
 
       - name: Login to Amazon ECR
         run: |
-          aws ecr get-login-password --region ${{ env.ECR_CACHE_AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com
+          aws ecr get-login-password --region ${{ env.ECR_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com
 
       - name: Prepare
         run: |
@@ -163,7 +166,24 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and export to OCI
+      - name: Docker meta for Pro
+        id: meta-pro
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui
+          labels: |
+            org.opencontainers.image.source=https://github.com/riverqueue/riverui
+            org.opencontainers.image.description="River UI Pro is a web-based user interface for River, with pro features."
+            org.opencontainers.image.licenses=MPL-2.0
+          # TODO: type=ref are temporary for testing
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+
+      - name: Build and push to ECR
         id: build
         uses: docker/build-push-action@v6
         with:
@@ -171,23 +191,34 @@ jobs:
           file: Dockerfile.pro
           pull: true
           platforms: ${{ matrix.docker_platform }}
-          cache-from: type=registry,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
-          cache-to: type=registry,mode=max,image-manifest=true,oci-mediatypes=false,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
-          outputs: type=oci,dest=/tmp/oci-${{ env.PLATFORM_PAIR }},tar=false,oci-mediatypes=false
-          provenance: false
+          provenance: true
+          labels: ${{ steps.meta-pro.outputs.labels }}
+          cache-from: type=registry,ref=${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
+          cache-to: type=registry,mode=max,ref=${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
+          outputs: type=image,name=${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui,push-by-digest=true,push=true
           secrets: |
             "riverpro_credential=${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}"
 
-      - name: Upload OCI artifact
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
         uses: actions/upload-artifact@v4
         with:
-          name: pro-oci-${{ env.PLATFORM_PAIR }}
-          path: /tmp/oci-${{ env.PLATFORM_PAIR }}
+          name: pro-digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
           retention-days: 1
 
   merge-riverui:
     name: "Merge manifests: riverui"
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: ${{ github.repository }}
+      REGISTRY: ghcr.io
     needs:
       - build-riverui
     permissions:
@@ -241,27 +272,51 @@ jobs:
   merge-riverproui:
     name: "Merge manifests: riverproui"
     runs-on: ubuntu-latest
+    env:
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}
+      ECR_ROLE_ARN: ${{ secrets.ECR_CACHE_ROLE_ARN }}
     needs:
       - build-riverproui
     outputs:
       tags: ${{ steps.meta-pro.outputs.tags }}
+      digest: ${{ steps.create.outputs.digest }}
     permissions:
       attestations: write
       contents: read
       id-token: write
 
     steps:
-      - name: Download OCI artifacts
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ECR_ROLE_ARN }}
+          aws-region: ${{ env.ECR_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ env.ECR_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com
+
+      - name: Download digests
         uses: actions/download-artifact@v4
         with:
-          path: /tmp/oci-parts
-          pattern: pro-oci-*
+          path: /tmp/digests
+          pattern: pro-digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Docker meta for Pro
         id: meta-pro
         uses: docker/metadata-action@v5
         with:
-          images: riverqueue.com/riverproui
+          images: ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui
           labels: |
             org.opencontainers.image.source=https://github.com/riverqueue/riverui
             org.opencontainers.image.description="River UI Pro is a web-based user interface for River, with pro features."
@@ -274,25 +329,25 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
-      - name: Merge OCI layouts
-        id: merge
+      - name: Create manifest list and push to ECR
+        working-directory: /tmp/digests
+        id: create
         run: |
-          mkdir -p /tmp/oci/blobs/sha256
-          for platform in linux-amd64 linux-arm64; do
-            cp -r /tmp/oci-parts/pro-oci-$platform/blobs/sha256/* /tmp/oci/blobs/sha256/ || true
-            cp /tmp/oci-parts/pro-oci-$platform/oci-layout /tmp/oci/ || true
-          done
-          jq -s '.[0] as $first | $first * {manifests: ($first.manifests + .[1].manifests)} | .mediaType = "application/vnd.docker.distribution.manifest.list.v2+json"' \
-            /tmp/oci-parts/pro-oci-linux-amd64/index.json /tmp/oci-parts/pro-oci-linux-arm64/index.json > /tmp/oci/index.json
-          digest=$(sha256sum /tmp/oci/index.json | cut -d' ' -f1)
-          echo "digest=sha256:$digest" >> $GITHUB_OUTPUT
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui@sha256:%s ' *)
+          # Get final digest
+          FIRST_TAG=$(jq -r '.tags | .[0]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          MANIFEST=$(docker buildx imagetools inspect --raw $FIRST_TAG)
+          DIGEST=$(printf %s "$MANIFEST" | sha256sum | awk '{print $1}')
+          echo "digest=sha256:$DIGEST" >> $GITHUB_OUTPUT
 
       - name: Generate artifact attestation
         id: attest
         uses: actions/attest-build-provenance@v1
         with:
           push-to-registry: false
-          subject-digest: ${{ steps.merge.outputs.digest }}
+          subject-digest: ${{ steps.create.outputs.digest }}
           subject-name: riverqueue.com/riverproui
 
       - name: Upload attestation bundle
@@ -302,20 +357,17 @@ jobs:
           path: ${{ steps.attest.outputs.bundle-path }}
           retention-days: 1
 
-      - name: Upload OCI artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: pro-oci
-          path: /tmp/oci
-          retention-days: 1
-
   publish-riverproui:
     name: "Publish Docker image: riverproui"
     runs-on: ubuntu-latest
+    env:
+      ECR_ACCOUNT_ID: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}
+      ECR_ROLE_ARN: ${{ secrets.ECR_CACHE_ROLE_ARN }}
+      REPO_NAME: riverproui
     needs:
       - merge-riverproui
-    env:
-      REPO_NAME: riverproui
+    permissions:
+      id-token: write
 
     steps:
       - name: Checkout
@@ -323,11 +375,21 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
-      - name: Download OCI artifact
-        uses: actions/download-artifact@v4
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          name: pro-oci
-          path: /tmp/oci
+          role-to-assume: ${{ env.ECR_ROLE_ARN }}
+          aws-region: ${{ env.ECR_REGION }}
+          role-session-name: GitHubActions
+
+      - name: Install skopeo
+        run: sudo apt-get update && sudo apt-get install -y skopeo jq
+
+      - name: Fetch image from ECR to local OCI dir
+        run: |
+          PASSWORD=$(aws ecr get-login-password --region ${{ env.ECR_REGION }})
+          skopeo login ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com -u AWS -p $PASSWORD
+          skopeo copy --multi-arch all docker://${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui@${{ needs.merge-riverproui.outputs.digest }} oci:/tmp/oci
 
       - name: Install AWS CLI
         uses: unfor19/install-aws-cli-action@v1
@@ -336,17 +398,29 @@ jobs:
           verbose: false
           arch: amd64
 
-      - name: Configure AWS CLI
-        run: |
-          aws configure set aws_access_key_id ${{ secrets.R2_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          aws configure set default.region auto
-
       - name: Download attestation bundle
         uses: actions/download-artifact@v4
         with:
           name: pro-attestation-bundle
           path: /tmp/attestation
+
+      - name: Fetch image from ECR to local OCI dir
+        run: |
+          PASSWORD=$(aws ecr get-login-password --region ${{ env.ECR_REGION }})
+          skopeo login ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com -u AWS -p $PASSWORD
+          skopeo copy --multi-arch all docker://${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui@${{ needs.merge-riverproui.outputs.digest }} oci:/tmp/oci
+
+      - name: Set R2 Credentials
+        # The cleanest way I could find to remove remants of the
+        # aws-actions/configure-aws-credentials@v4 action and also set up
+        # R2-specific values which can't work with the network requests that
+        # action makes to try to validate creds.
+        run: |
+          echo "AWS_DEFAULT_REGION=us-east-2" >> $GITHUB_ENV
+          echo "AWS_REGION=us-east-2" >> $GITHUB_ENV
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.R2_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.R2_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_SESSION_TOKEN=" >> $GITHUB_ENV
 
       - name: Sync blobs to R2
         # TODO: temporary for testing
@@ -355,10 +429,7 @@ jobs:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
-          for file in /tmp/oci/blobs/sha256/*; do
-            digest=$(basename "$file")
-            aws s3 cp "$file" s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/blobs/$digest --endpoint-url $ENDPOINT_URL
-          done
+          aws s3 cp /tmp/oci/blobs/sha256/ s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/blobs/sha256/ --endpoint-url $ENDPOINT_URL --region auto --recursive
 
       - name: Upload manifest by digest
         # TODO: temporary for testing
@@ -368,7 +439,7 @@ jobs:
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
           MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
-          aws s3 cp /tmp/oci/index.json s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/sha256:$MANIFEST_DIGEST --content-type "application/vnd.docker.distribution.manifest.list.v2+json" --endpoint-url $ENDPOINT_URL
+          aws s3 cp /tmp/oci/index.json s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/sha256:$MANIFEST_DIGEST --endpoint-url $ENDPOINT_URL --region auto --content-type "application/vnd.docker.distribution.manifest.list.v2+json"
 
       - name: Upload tagged manifests as symlinks
         # TODO: temporary for testing
@@ -382,7 +453,7 @@ jobs:
           while IFS= read -r TAG; do
             if [ -n "$TAG" ]; then
               SHORT_TAG="${TAG#riverqueue.com/riverproui:}"
-              echo -n "" | aws s3 cp - s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/$SHORT_TAG --endpoint-url $ENDPOINT_URL --metadata "X-Serverless-Registry-Symlink=sha256:$MANIFEST_DIGEST" --content-type "application/octet-stream"
+              echo -n "" | aws s3 cp - s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/$SHORT_TAG --endpoint-url $ENDPOINT_URL --region auto --metadata "X-Serverless-Registry-Symlink=sha256:$MANIFEST_DIGEST" --content-type "application/octet-stream"
             fi
           done < tags.txt
 
@@ -393,4 +464,4 @@ jobs:
         run: |
           MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
           ATTESTATION_FILE=$(ls /tmp/attestation/* | head -1)
-          aws s3 cp $ATTESTATION_FILE s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/referrers/sha256:$MANIFEST_DIGEST --content-type "application/vnd.oci.image.index.v1+json" --endpoint-url $ENDPOINT_URL
+          aws s3 cp $ATTESTATION_FILE s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/referrers/sha256:$MANIFEST_DIGEST --endpoint-url $ENDPOINT_URL --region auto --content-type "application/vnd.oci.image.index.v1+json"
