@@ -172,8 +172,8 @@ jobs:
           pull: true
           platforms: ${{ matrix.docker_platform }}
           cache-from: type=registry,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
-          cache-to: type=registry,mode=max,image-manifest=true,oci-mediatypes=true,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
-          outputs: type=oci,dest=/tmp/oci-${{ env.PLATFORM_PAIR }},tar=false,oci-mediatypes=true
+          cache-to: type=registry,mode=max,image-manifest=true,oci-mediatypes=false,ref=${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_CACHE_AWS_REGION }}.amazonaws.com/riverqueue/riverproui:cache-${{ env.PLATFORM_PAIR }}
+          outputs: type=oci,dest=/tmp/oci-${{ env.PLATFORM_PAIR }},tar=false,oci-mediatypes=false
           provenance: false
           secrets: |
             "riverpro_credential=${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}"
@@ -282,7 +282,7 @@ jobs:
             cp -r /tmp/oci-parts/pro-oci-$platform/blobs/sha256/* /tmp/oci/blobs/sha256/ || true
             cp /tmp/oci-parts/pro-oci-$platform/oci-layout /tmp/oci/ || true
           done
-          jq -s '.[0] as $first | $first * {manifests: ($first.manifests + .[1].manifests)}' \
+          jq -s '.[0] as $first | $first * {manifests: ($first.manifests + .[1].manifests)} | .mediaType = "application/vnd.docker.distribution.manifest.list.v2+json"' \
             /tmp/oci-parts/pro-oci-linux-amd64/index.json /tmp/oci-parts/pro-oci-linux-arm64/index.json > /tmp/oci/index.json
           digest=$(sha256sum /tmp/oci/index.json | cut -d' ' -f1)
           echo "digest=sha256:$digest" >> $GITHUB_OUTPUT
