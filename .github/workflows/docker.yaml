@@ -450,9 +450,10 @@ jobs:
         run: |
           MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
           echo '${{ needs.merge-riverproui.outputs.tags }}' > tags.txt
+          ECR_IMAGE="${ECR_ACCOUNT_ID}.dkr.ecr.${ECR_REGION}.amazonaws.com/riverqueue/${REPO_NAME}"
           while IFS= read -r TAG; do
             if [ -n "$TAG" ]; then
-              SHORT_TAG="${TAG#riverqueue.com/riverproui:}"
+              SHORT_TAG="${TAG#${ECR_IMAGE}:}"
               echo -n "" | aws s3 cp - s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/$SHORT_TAG --endpoint-url $ENDPOINT_URL --region auto --metadata "X-Serverless-Registry-Symlink=sha256:$MANIFEST_DIGEST" --content-type "application/octet-stream"
             fi
           done < tags.txt
