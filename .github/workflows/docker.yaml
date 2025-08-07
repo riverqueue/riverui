@@ -278,7 +278,7 @@ jobs:
     needs:
       - build-riverproui
     outputs:
-      tags: ${{ steps.meta-pro.outputs.tags }}
+      tags: ${{ steps.export-tags.outputs.tags }}
       digest: ${{ steps.create.outputs.digest }}
     permissions:
       attestations: write
@@ -329,6 +329,16 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
 
+      - name: Export tags for downstream jobs
+        id: export-tags
+        run: |
+          echo "Computed tags from DOCKER_METADATA_OUTPUT_JSON:"
+          jq -r '.tags | join("\n")' <<< "$DOCKER_METADATA_OUTPUT_JSON" || true
+          TAGS=$(jq -r '.tags | join("\n")' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Create manifest list and push to ECR
         working-directory: /tmp/digests
         id: create
@@ -364,6 +374,7 @@ jobs:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}
       ECR_ROLE_ARN: ${{ secrets.ECR_CACHE_ROLE_ARN }}
       REPO_NAME: riverproui
+      TEMP_TAG: temp-${{ github.sha }}
     needs:
       - merge-riverproui
     permissions:
@@ -385,19 +396,6 @@ jobs:
       - name: Install skopeo
         run: sudo apt-get update && sudo apt-get install -y skopeo jq
 
-      - name: Fetch image from ECR to local OCI dir
-        run: |
-          PASSWORD=$(aws ecr get-login-password --region ${{ env.ECR_REGION }})
-          skopeo login ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com -u AWS -p $PASSWORD
-          skopeo copy --multi-arch all docker://${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui@${{ needs.merge-riverproui.outputs.digest }} oci:/tmp/oci
-
-      - name: Install AWS CLI
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 2
-          verbose: false
-          arch: amd64
-
       - name: Download attestation bundle
         uses: actions/download-artifact@v4
         with:
@@ -409,6 +407,21 @@ jobs:
           PASSWORD=$(aws ecr get-login-password --region ${{ env.ECR_REGION }})
           skopeo login ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com -u AWS -p $PASSWORD
           skopeo copy --multi-arch all docker://${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui@${{ needs.merge-riverproui.outputs.digest }} oci:/tmp/oci
+
+      - name: Login to Amazon ECR for Docker
+        run: |
+          PASSWORD=$(aws ecr get-login-password --region ${{ env.ECR_REGION }})
+          docker login --username AWS --password $PASSWORD ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com
+
+      - name: Add temporary tag to ECR manifest
+        run: |
+          docker buildx imagetools create \
+            -t ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui:$TEMP_TAG \
+            ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui@${{ needs.merge-riverproui.outputs.digest }}
+
+      - name: Fetch transformed manifest by tag from ECR
+        run: |
+          skopeo inspect --raw docker://${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui:$TEMP_TAG > /tmp/docker-manifest.json
 
       - name: Set R2 Credentials
         # The cleanest way I could find to remove remants of the
@@ -438,8 +451,8 @@ jobs:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
-          MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
-          aws s3 cp /tmp/oci/index.json s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/sha256:$MANIFEST_DIGEST --endpoint-url $ENDPOINT_URL --region auto --content-type "application/vnd.docker.distribution.manifest.list.v2+json"
+          MANIFEST_DIGEST=$(sha256sum /tmp/docker-manifest.json | awk '{print $1}')
+          aws s3 cp /tmp/docker-manifest.json s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/sha256:$MANIFEST_DIGEST --endpoint-url $ENDPOINT_URL --region auto --content-type "application/vnd.docker.distribution.manifest.list.v2+json"
 
       - name: Upload tagged manifests as symlinks
         # TODO: temporary for testing
@@ -448,13 +461,22 @@ jobs:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
-          MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
-          echo '${{ needs.merge-riverproui.outputs.tags }}' > tags.txt
+          MANIFEST_DIGEST=$(sha256sum /tmp/docker-manifest.json | awk '{print $1}')
+          echo "Raw tags output from needs.merge-riverproui.outputs.tags:"
+          echo "${{ needs.merge-riverproui.outputs.tags }}"
+          echo "${{ needs.merge-riverproui.outputs.tags }}" > tags.txt
+          echo "Contents of tags.txt (with line numbers):"
+          nl -ba tags.txt || cat tags.txt
           ECR_IMAGE="${ECR_ACCOUNT_ID}.dkr.ecr.${ECR_REGION}.amazonaws.com/riverqueue/${REPO_NAME}"
+          echo "Expected ECR image prefix: $ECR_IMAGE:"
           while IFS= read -r TAG; do
+            echo "Read line: '$TAG'"
             if [ -n "$TAG" ]; then
               SHORT_TAG="${TAG#${ECR_IMAGE}:}"
-              echo -n "" | aws s3 cp - s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/$SHORT_TAG --endpoint-url $ENDPOINT_URL --region auto --metadata "X-Serverless-Registry-Symlink=sha256:$MANIFEST_DIGEST" --content-type "application/octet-stream"
+              echo "Processing tag: $TAG -> $SHORT_TAG"
+              aws s3 cp /dev/null s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/manifests/$SHORT_TAG --endpoint-url $ENDPOINT_URL --region auto --content-type "application/octet-stream" --metadata "X-Serverless-Registry-Symlink=sha256:$MANIFEST_DIGEST"
+            else
+              echo "Skipping empty line"
             fi
           done < tags.txt
 
@@ -463,6 +485,7 @@ jobs:
           DOCKER_RELEASE_STORAGE_BUCKET: ${{ vars.DOCKER_RELEASE_STORAGE_BUCKET }}
           ENDPOINT_URL: ${{ secrets.R2_DOCKER_RELEASES_ENDPOINT_URL }}
         run: |
-          MANIFEST_DIGEST=$(sha256sum /tmp/oci/index.json | awk '{print $1}')
+          # Use the digest from the modified Docker manifest (not the original OCI index)
+          MANIFEST_DIGEST=$(sha256sum /tmp/docker-manifest.json | awk '{print $1}')
           ATTESTATION_FILE=$(ls /tmp/attestation/* | head -1)
           aws s3 cp $ATTESTATION_FILE s3://$DOCKER_RELEASE_STORAGE_BUCKET/$REPO_NAME/referrers/sha256:$MANIFEST_DIGEST --endpoint-url $ENDPOINT_URL --region auto --content-type "application/vnd.oci.image.index.v1+json"
