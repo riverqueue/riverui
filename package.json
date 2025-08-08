@@ -73,7 +73,8 @@
   "scripts": {
     "build": "tsc && vite build",
     "build-storybook": "storybook build",
-    "dev": "concurrently --kill-others \"npm:watch:*\"",
+    "dev": "concurrently --kill-others \"npm:watch:frontend\" \"npm:watch:backend\"",
+    "dev:pro": "concurrently --kill-others \"npm:watch:frontend\" \"npm:watch:backend:pro\"",
     "fmt": "eslint --cache --fix --report-unused-disable-directives --max-warnings 0 . && prettier --cache --log-level error --write .",
     "lint": "eslint --cache --report-unused-disable-directives --max-warnings 0 . && prettier --cache --log-level error --check .",
     "preview": "LIVE_FS=true reflex -c .reflex.server",
@@ -81,6 +82,7 @@
     "test": "vitest",
     "test:once": "vitest run",
     "watch:frontend": "vite --open http://localhost:8080/",
-    "watch:backend": "LIVE_FS=true DEV=true reflex -c .reflex.server"
+    "watch:backend": "LIVE_FS=true DEV=true reflex -c .reflex.server",
+    "watch:backend:pro": "LIVE_FS=true DEV=true reflex -c .reflex.pro.server"
   }
 }

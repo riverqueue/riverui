@@ -4,6 +4,7 @@
 /packager/packager
 .tool-versions
 /riverui
+/riverproui/riverproui
 
 # Logs
 logs

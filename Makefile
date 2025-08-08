@@ -3,6 +3,10 @@ clean:
 	@rm -rf dist
 	@go clean -i
 
+# Find each Go submodule from the top-level directory. Go commands only
+# consider the current module, so they must run separately for every module.
+submodules := $(shell find . -name 'go\.mod' -exec dirname {} \;)
+
 .PHONY: dev
 dev: fake_assets
 	npm run dev
@@ -21,14 +25,6 @@ dist:
 build: dist
 	CGO_ENABLED=0 go build
 
-.PHONY: generate
-generate:
-generate: generate/sqlc
-
-.PHONY: generate/sqlc
-generate/sqlc:
-	cd internal/dbsqlc && sqlc generate
-
 .PHONY: lint
 lint:
 	cd . && golangci-lint run --fix
@@ -36,14 +32,14 @@ lint:
 .PHONY: test
 test:
 	cd . && go test ./...
+	cd ./riverproui && go test ./...
+
+.PHONY: tidy
+tidy:: ## Run `go mod tidy` for all submodules
+define tidy-target
+    tidy:: ; cd $1 && go mod tidy
+endef
+$(foreach mod,$(submodules),$(eval $(call tidy-target,$(mod))))
 
 preview: build
 	npm run preview
-
-.PHONY: verify
-verify:
-verify: verify/sqlc
-
-.PHONY: verify/sqlc
-verify/sqlc:
-	cd internal/dbsqlc && sqlc diff

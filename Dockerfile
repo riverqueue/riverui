@@ -5,7 +5,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install
 ENV NODE_ENV=production
-COPY . .
+COPY vite.config.ts tsconfig.json tsconfig.node.json tsr.config.json ./
+COPY public ./public
+COPY src ./src
 
 RUN npx vite build
 
