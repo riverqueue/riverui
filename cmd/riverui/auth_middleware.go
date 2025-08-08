@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/subtle"
 	"net/http"
+	"strings"
 )
 
 type authMiddleware struct {
@@ -25,7 +26,10 @@ func (m *authMiddleware) Middleware(next http.Handler) http.Handler {
 func isReqAuthorized(req *http.Request, username, password string) bool {
 	reqUsername, reqPassword, ok := req.BasicAuth()
 
-	return ok &&
+	isHealthCheck := strings.Contains(req.URL.Path, "/api/health-checks/")
+	isValidAuth := ok &&
 		subtle.ConstantTimeCompare([]byte(reqUsername), []byte(username)) == 1 &&
 		subtle.ConstantTimeCompare([]byte(reqPassword), []byte(password)) == 1
+
+	return isHealthCheck || isValidAuth
 }
