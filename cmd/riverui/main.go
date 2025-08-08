@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -31,7 +32,19 @@ func main() {
 
 	var pathPrefix string
 	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
+
+	var healthCheckName string
+	flag.StringVar(&healthCheckName, "healthcheck", "", "the name of the health checks: minimal or complete")
+
 	flag.Parse()
+
+	if healthCheckName != "" {
+		if err := checkHealth(ctx, pathPrefix, healthCheckName); err != nil {
+			logger.ErrorContext(ctx, "Error checking for server health", slog.String("error", err.Error()))
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 
 	initRes, err := initServer(ctx, logger, pathPrefix)
 	if err != nil {
@@ -178,5 +191,32 @@ func startAndListen(ctx context.Context, logger *slog.Logger, initRes *initServe
 		return err
 	}
 
+	return nil
+}
+
+func checkHealth(ctx context.Context, pathPrefix string, healthCheckName string) error {
+	host := cmp.Or(os.Getenv("RIVER_HOST"), "localhost")
+	port := cmp.Or(os.Getenv("PORT"), "8080")
+	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
+	hostname := net.JoinHostPort(host, port)
+	url := fmt.Sprintf("http://%s%s/api/health-checks/%s", hostname, pathPrefix, healthCheckName)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("error constructing request to health endpoint: %w", err)
+	}
+	response, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("error requesting health endpoint: %w", err)
+	}
+
+	err = response.Body.Close()
+	if err != nil {
+		return fmt.Errorf("error closing health endpoint response body: %w", err)
+	}
+
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("health endpoint returned status code %d instead of 200", response.StatusCode)
+	}
 	return nil
 }
