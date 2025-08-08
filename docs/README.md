@@ -42,6 +42,57 @@ $ docker pull ghcr.io/riverqueue/riverui:latest
 $ docker run -p 8080:8080 --env DATABASE_URL ghcr.io/riverqueue/riverui:latest
 ```
 
+## Health Checks
+River UI exposes two types of health checks:
+1. `minimal`: Will succeed if the server can return a response regardless of the database connection.
+2. `complete`: Will succeed if the database connection is working.
+
+For production deployments, it is recommended to use the `complete` health check.
+
+### How to use
+#### HTTP Endpoint
+Useful when running on Kubernetes or behind load balancer that can hit the HTTP endpoint.
+
+The URL would be `{prefix}/api/health-checks/{name}`
+
+- `{prefix}` is the path prefix set in the environment variable `PATH_PREFIX` or `-prefix` flag
+- `{name}` is the health check name. Can be `minimal` or `complete`.}`
+
+**Example:** When setting `PATH_PREFIX=/my-prefix` and wanting to include the database connection in the health check the path would be
+`/my-prefix/api/health-checks/complete`
+
+#### CLI Flag
+Useful when running under something like AWS ECS where it cannot query the HTTP endpoint natively.
+
+The CLI flag will query the HTTP endpoint internally and return the result.
+
+This keeps the image small since we don't rely on an http client like `curl`
+
+**Example:** When using a prefix like `/my-prefix` and wanting to include the database connection in the health check the command would be
+`riverui -prefix=/my-prefix -healthcheck=complete`
+
+When setting this command in ECS tasks for healtechecks it would something like this:
+```json
+{
+  "containerDefinitions": [
+    {
+      "name": "riverui",
+      "image": "ghcr.io/riverqueue/riverui:latest",
+      "essential": true,
+      "healthCheck": {
+        "command": [
+          "CMD",
+          "/bin/riverui",
+          "-prefix=/my-prefix",
+          "-healthcheck=complete"
+        ]
+      }
+    }
+  ]
+}
+```
+
+
 ## Configuration
 
 ### Custom path prefix
