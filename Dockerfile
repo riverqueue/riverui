@@ -23,7 +23,7 @@ COPY internal/ internal/
 COPY public/ public/
 COPY --from=build-ui /app/dist ./dist
 
-RUN go build -o /bin/riverui ./cmd/riverui
+RUN go build -trimpath -ldflags="-w -s -buildid=" -o /bin/riverui ./cmd/riverui
 
 FROM alpine:3.22.1
 ENV PATH_PREFIX="/"

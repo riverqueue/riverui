@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Go binary now built without debug symbols for a ~35% reduction in output size. [PR #391](https://github.com/riverqueue/riverui/pull/391).
+
 ## [v0.11.0] - 2025-06-05
 
 ### Changed
