@@ -7,7 +7,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=postgres
     healthcheck:
-      test: [ "CMD", "pg_isready" ,"-d", "river_dev", "-U", "postgres" ]
+      test: ["CMD", "pg_isready", "-d", "river_dev", "-U", "postgres"]
       timeout: 20s
       retries: 10
       start_period: 3s
