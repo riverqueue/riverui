@@ -1,0 +1,2 @@
+CREATE DATABASE river_dev;
+CREATE DATABASE river_test;

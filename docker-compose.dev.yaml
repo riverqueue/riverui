@@ -1,19 +1,18 @@
-name: riverui_dev
+name: riverui-dev
+
 services:
   postgres:
     image: "postgres:16-alpine"
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=river_dev
       - POSTGRES_HOST_AUTH_METHOD=trust
     healthcheck:
-      test: [ "CMD", "pg_isready" ,"-d", "river_dev", "-U", "user" ]
+      test: [ "CMD", "pg_isready" ,"-d", "river_dev", "-U", "postgres" ]
       timeout: 20s
       retries: 10
       start_period: 3s
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - ./scripts/docker-compose-dev/postgres/init:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
   migrate:
@@ -22,7 +21,7 @@ services:
       postgres:
         condition: "service_healthy"
     entrypoint: "/bin/sh"
-    # cache the go binaries so they don't always download
+    # cache the go binaries so they don't redownload
     volumes:
       - gopath:/go
     command:
@@ -30,7 +29,9 @@ services:
       - |
         echo "downloading river binary"
         go install github.com/riverqueue/river/cmd/river@latest
+        echo "migrating river_dev database"
         river migrate-up --database-url "postgres://postgres:postgres@postgres/river_dev"
+        echo "migrating river_test database"
+        river migrate-up --database-url "postgres://postgres:postgres@postgres/river_test"
 volumes:
-  postgres:
   gopath:
