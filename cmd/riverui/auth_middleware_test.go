@@ -35,8 +35,7 @@ func TestAuthMiddleware(t *testing.T) {
 		return initRes.httpServer.Handler
 	}
 
-	t.Run("Unauthorized", func(t *testing.T) {
-		t.Parallel()
+	t.Run("Unauthorized", func(t *testing.T) { //nolint:paralleltest
 		handler := setup(t, "/")
 		req := httptest.NewRequest(http.MethodGet, "/api/jobs", nil)
 		recorder := httptest.NewRecorder()
@@ -46,8 +45,7 @@ func TestAuthMiddleware(t *testing.T) {
 		require.Equal(t, http.StatusUnauthorized, recorder.Code)
 	})
 
-	t.Run("Authorized", func(t *testing.T) {
-		t.Parallel()
+	t.Run("Authorized", func(t *testing.T) { //nolint:paralleltest
 		handler := setup(t, "/")
 		req := httptest.NewRequest(http.MethodGet, "/api/jobs", nil)
 		req.SetBasicAuth(basicAuthUser, basicAuthPassword)
@@ -59,8 +57,7 @@ func TestAuthMiddleware(t *testing.T) {
 		require.Equal(t, http.StatusOK, recorder.Code)
 	})
 
-	t.Run("Healthcheck exemption", func(t *testing.T) {
-		t.Parallel()
+	t.Run("Healthcheck exemption", func(t *testing.T) { //nolint:paralleltest
 		handler := setup(t, "/")
 		req := httptest.NewRequest(http.MethodGet, "/api/health-checks/complete", nil)
 		recorder := httptest.NewRecorder()
@@ -70,8 +67,7 @@ func TestAuthMiddleware(t *testing.T) {
 		require.Equal(t, http.StatusOK, recorder.Code)
 	})
 
-	t.Run("Healthcheck exemption with prefix", func(t *testing.T) {
-		t.Parallel()
+	t.Run("Healthcheck exemption with prefix", func(t *testing.T) { //nolint:paralleltest
 		handler := setup(t, "/test-prefix")
 		req := httptest.NewRequest(http.MethodGet, "/test-prefix/api/health-checks/complete", nil)
 		recorder := httptest.NewRecorder()
