@@ -1,0 +1,36 @@
+name: riverui_dev
+services:
+  postgres:
+    image: "postgres:16-alpine"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=river_dev
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    healthcheck:
+      test: [ "CMD", "pg_isready" ,"-d", "river_dev", "-U", "user" ]
+      timeout: 20s
+      retries: 10
+      start_period: 3s
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  migrate:
+    image: "golang:1.24-alpine"
+    depends_on:
+      postgres:
+        condition: "service_healthy"
+    entrypoint: "/bin/sh"
+    # cache the go binaries so they don't always download
+    volumes:
+      - gopath:/go
+    command:
+      - -c
+      - |
+        echo "downloading river binary"
+        go install github.com/riverqueue/river/cmd/river@latest
+        river migrate-up --database-url "postgres://postgres:postgres@postgres/river_dev"
+volumes:
+  postgres:
+  gopath:

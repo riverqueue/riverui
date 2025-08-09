@@ -34,6 +34,13 @@ make dev
 
 By default the Go backend starts at http://localhost:8080 and the Vite React frontend starts at http://localhost:5173.
 
+## (Optional) Run the database via Docker Compose
+This option allows to skip migrating your local postgres database.
+It still assumes that port 5432 is free to use.
+```sh
+docker compose up
+```
+
 ## Migrate database
 
 ```sh
