@@ -5,7 +5,7 @@ services:
     image: "postgres:16-alpine"
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_HOST_AUTH_METHOD=trust
+      - POSTGRES_PASSWORD=postgres
     healthcheck:
       test: [ "CMD", "pg_isready" ,"-d", "river_dev", "-U", "postgres" ]
       timeout: 20s
