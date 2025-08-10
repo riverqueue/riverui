@@ -48,10 +48,10 @@ If you decided to use postgres in docker compose, you can skip database migratio
 The database would be accessible through localhost
 ```sh
 # start/restart
-make db/up
+make docker-db/up
 
 # stop
-make db/down
+make docker-db/down
 ```
 
 ## Run tests

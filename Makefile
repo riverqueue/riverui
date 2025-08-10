@@ -48,11 +48,11 @@ verify: verify/sqlc
 verify/sqlc:
 	cd internal/dbsqlc && sqlc diff
 
-.PHONY: db/up
-db/up:
+.PHONY: docker-db/up
+docker-db/up:
 	docker compose -f docker-compose.dev.yaml down
 	docker compose -f docker-compose.dev.yaml up
 
-.PHONY: db/down
-db/down:
+.PHONY: docker-db/down
+docker-db/down:
 	docker compose -f docker-compose.dev.yaml down
