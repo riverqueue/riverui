@@ -1,79 +1,91 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/riverqueue/river/rivershared/riversharedtest"
+	"github.com/riverqueue/apiframe/apimiddleware"
 )
 
 func TestAuthMiddleware(t *testing.T) {
-	var (
-		ctx               = context.Background()
-		databaseURL       = cmp.Or(os.Getenv("TEST_DATABASE_URL"), "postgres://localhost/river_test")
-		basicAuthUser     = "test_auth_user"
+	t.Parallel()
+
+	const (
 		basicAuthPassword = "test_auth_pass"
+		basicAuthUsername = "test_auth_user"
 	)
 
-	t.Setenv("DEV", "true")
-	t.Setenv("DATABASE_URL", databaseURL)
-	t.Setenv("RIVER_BASIC_AUTH_USER", basicAuthUser)
-	t.Setenv("RIVER_BASIC_AUTH_PASS", basicAuthPassword)
+	ctx := context.Background()
 
-	setup := func(t *testing.T, prefix string) http.Handler {
-		t.Helper()
-		initRes, err := initServer(ctx, riversharedtest.Logger(t), prefix)
-		require.NoError(t, err)
-		t.Cleanup(initRes.dbPool.Close)
-
-		return initRes.httpServer.Handler
+	type testBundle struct {
+		handler http.Handler
 	}
 
-	t.Run("Unauthorized", func(t *testing.T) { //nolint:paralleltest
-		handler := setup(t, "/")
-		req := httptest.NewRequest(http.MethodGet, "/api/jobs", nil)
+	setup := func(t *testing.T) (*authMiddleware, *testBundle) {
+		t.Helper()
+
+		authMiddleware := &authMiddleware{username: basicAuthUsername, password: basicAuthPassword}
+
+		return authMiddleware, &testBundle{
+			handler: apimiddleware.NewMiddlewareStack(
+				authMiddleware,
+			).Mount(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusOK)
+			})),
+		}
+	}
+
+	t.Run("Unauthorized", func(t *testing.T) {
+		t.Parallel()
+
+		_, bundle := setup(t)
+
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/jobs", nil)
+
 		recorder := httptest.NewRecorder()
-
-		handler.ServeHTTP(recorder, req)
-
+		bundle.handler.ServeHTTP(recorder, req)
 		require.Equal(t, http.StatusUnauthorized, recorder.Code)
 	})
 
 	t.Run("Authorized", func(t *testing.T) { //nolint:paralleltest
-		handler := setup(t, "/")
-		req := httptest.NewRequest(http.MethodGet, "/api/jobs", nil)
-		req.SetBasicAuth(basicAuthUser, basicAuthPassword)
+		t.Parallel()
+
+		_, bundle := setup(t)
+
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/jobs", nil)
+		req.SetBasicAuth(basicAuthUsername, basicAuthPassword)
 
 		recorder := httptest.NewRecorder()
-
-		handler.ServeHTTP(recorder, req)
-
+		bundle.handler.ServeHTTP(recorder, req)
 		require.Equal(t, http.StatusOK, recorder.Code)
 	})
 
-	t.Run("Healthcheck exemption", func(t *testing.T) { //nolint:paralleltest
-		handler := setup(t, "/")
-		req := httptest.NewRequest(http.MethodGet, "/api/health-checks/complete", nil)
+	t.Run("HealthCheckExemption", func(t *testing.T) { //nolint:paralleltest
+		t.Parallel()
+
+		_, bundle := setup(t)
+
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/health-checks/complete", nil)
+
 		recorder := httptest.NewRecorder()
-
-		handler.ServeHTTP(recorder, req)
-
+		bundle.handler.ServeHTTP(recorder, req)
 		require.Equal(t, http.StatusOK, recorder.Code)
 	})
 
-	t.Run("Healthcheck exemption with prefix", func(t *testing.T) { //nolint:paralleltest
-		handler := setup(t, "/test-prefix")
-		req := httptest.NewRequest(http.MethodGet, "/test-prefix/api/health-checks/complete", nil)
+	t.Run("HealthCheckExemptionWithPrefix", func(t *testing.T) { //nolint:paralleltest
+		t.Parallel()
+
+		middleware, bundle := setup(t)
+		middleware.pathPrefix = "/test-prefix"
+
+		req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/test-prefix/api/health-checks/complete", nil)
+
 		recorder := httptest.NewRecorder()
-
-		handler.ServeHTTP(recorder, req)
-
+		bundle.handler.ServeHTTP(recorder, req)
 		require.Equal(t, http.StatusOK, recorder.Code)
 	})
 }
