@@ -44,7 +44,8 @@ $ river migrate-up --database-url postgres://localhost/river_dev
 
 ## Postgres with Docker Compose 
 Using Docker compose, you can skip the database migration steps for testing and development.
-The database will bind to localhost:5432.
+
+The database will be bound to `localhost:5432`.
 ```sh
 # start/restart
 make docker-db/up
