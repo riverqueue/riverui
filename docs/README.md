@@ -42,6 +42,9 @@ $ docker pull ghcr.io/riverqueue/riverui:latest
 $ docker run -p 8080:8080 --env DATABASE_URL ghcr.io/riverqueue/riverui:latest
 ```
 
+## Health Checks
+See [health checks](health_checks.md).
+
 ## Configuration
 
 ### Custom path prefix
