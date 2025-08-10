@@ -65,7 +65,7 @@ func TestInitServer(t *testing.T) {
 	})
 
 	t.Run("JobListHideArgsByDefault", func(t *testing.T) {
-		t.Run("default value is false", func(t *testing.T) { //nolint:paralleltest
+		t.Run("DefaultValueIsFalse", func(t *testing.T) { //nolint:paralleltest
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
@@ -78,7 +78,7 @@ func TestInitServer(t *testing.T) {
 			require.False(t, resp.JobListHideArgsByDefault)
 		})
 
-		t.Run("set to true with true", func(t *testing.T) {
+		t.Run("TrueWithEnvVarConfigurationOfTrue", func(t *testing.T) {
 			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "true")
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
@@ -92,7 +92,7 @@ func TestInitServer(t *testing.T) {
 			require.True(t, resp.JobListHideArgsByDefault)
 		})
 
-		t.Run("set to true with 1", func(t *testing.T) {
+		t.Run("TrueWithEnvVarConfigurationOf1", func(t *testing.T) {
 			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "1")
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
