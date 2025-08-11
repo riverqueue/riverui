@@ -42,6 +42,18 @@ $ go install github.com/riverqueue/river/cmd/river
 $ river migrate-up --database-url postgres://localhost/river_dev
 ```
 
+## Postgres with Docker Compose 
+Using Docker compose, you can skip the database migration steps for testing and development.
+
+The database will be bound to `localhost:5432`.
+```sh
+# start/restart
+make docker-db/up
+
+# stop
+make docker-db/down
+```
+
 ## Run tests
 
 Raise test database:
