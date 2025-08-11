@@ -120,6 +120,8 @@ jobs:
     env:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}
       ECR_ROLE_ARN: ${{ secrets.ECR_CACHE_ROLE_ARN }}
+      TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+      SHA_TAG: ${{ format('sha-{0}', github.sha) }}
     strategy:
       matrix:
         docker_platform:
@@ -143,23 +145,12 @@ jobs:
           role-session-name: GitHubActions
 
       - name: Login to Amazon ECR
-        run: |
-          aws ecr get-login-password --region ${{ env.ECR_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Prepare
         run: |
           platform=${{ matrix.docker_platform }}
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
-          echo "ARCH=${platform#linux/}" >> $GITHUB_ENV
-          ECR_REGISTRY="${ECR_ACCOUNT_ID}.dkr.ecr.${ECR_REGION}.amazonaws.com"
-          echo "ECR_REGISTRY=${ECR_REGISTRY}" >> $GITHUB_ENV
-          echo "ECR_IMAGE=${ECR_REGISTRY}/riverqueue/riverproui" >> $GITHUB_ENV
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "TAG=pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          else
-            echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
-          fi
-          echo "SHA_TAG=sha-${{ github.sha }}" >> $GITHUB_ENV
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -167,25 +158,45 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build & push (${{ env.ARCH }})
-        env:
-          RIVERPRO_GO_MOD_CREDENTIAL: ${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}
+      - name: Docker meta for Pro
+        id: meta-pro
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ format('{0}.dkr.ecr.{1}.amazonaws.com/riverqueue/riverproui', env.ECR_ACCOUNT_ID, env.ECR_REGION) }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/riverqueue/riverui
+            org.opencontainers.image.description=River UI Pro is a web-based user interface for River, with pro features.
+            org.opencontainers.image.licenses=commercial
+
+      - name: Build & push (by digest)
+        id: build-pro
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.pro
+          pull: true
+          platforms: ${{ matrix.docker_platform }}
+          provenance: true
+          labels: ${{ steps.meta-pro.outputs.labels }}
+          cache-from: ${{ format('type=registry,ref={0}.dkr.ecr.{1}.amazonaws.com/riverqueue/riverproui:cache', env.ECR_ACCOUNT_ID, env.ECR_REGION) }}
+          cache-to: ${{ format('type=registry,ref={0}.dkr.ecr.{1}.amazonaws.com/riverqueue/riverproui:cache,mode=max', env.ECR_ACCOUNT_ID, env.ECR_REGION) }}
+          outputs: ${{ format('type=image,name={0}.dkr.ecr.{1}.amazonaws.com/riverqueue/riverproui,push-by-digest=true,name-canonical=true,push=true', env.ECR_ACCOUNT_ID, env.ECR_REGION) }}
+          secrets: |
+            "riverpro_credential=${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}"
+
+      - name: Export digest
         run: |
-          set -euo pipefail
-          echo "Building ${{ matrix.docker_platform }} -> $ECR_IMAGE:$TAG-${ARCH} and $ECR_IMAGE:$SHA_TAG-${ARCH}"
-          docker buildx build \
-            --platform "${{ matrix.docker_platform }}" \
-            --provenance=true \
-            --attest=type=provenance,mode=max \
-            --pull \
-            --push \
-            --tag "$ECR_IMAGE:$TAG-${ARCH}" \
-            --tag "$ECR_IMAGE:$SHA_TAG-${ARCH}" \
-            --cache-from "type=registry,ref=$ECR_IMAGE:cache" \
-            --cache-to "type=registry,ref=$ECR_IMAGE:cache,mode=max" \
-            --secret id=riverpro_credential,env=RIVERPRO_GO_MOD_CREDENTIAL \
-            --file Dockerfile.pro \
-            .
+          mkdir -p /tmp/digests
+          digest="${{ steps.build-pro.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: pro-digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
 
   merge-riverui:
     name: "Merge manifests: riverui"
@@ -243,8 +254,8 @@ jobs:
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
 
-  assemble-riverproui:
-    name: "Assemble manifests: riverproui"
+  merge-riverproui:
+    name: "Merge manifests: riverproui"
     runs-on: ubuntu-latest
     needs:
       - build-riverproui
@@ -255,6 +266,8 @@ jobs:
     env:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}
       ECR_ROLE_ARN: ${{ secrets.ECR_CACHE_ROLE_ARN }}
+      TAG: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.ref_name }}
+      SHA_TAG: ${{ format('sha-{0}', github.sha) }}
     steps:
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -263,47 +276,43 @@ jobs:
           aws-region: ${{ env.ECR_REGION }}
           role-session-name: GitHubActions
 
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: pro-digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Login to Amazon ECR
-        run: |
-          aws ecr get-login-password --region ${{ env.ECR_REGION }} | docker login --username AWS --password-stdin ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com
+        uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Prepare
+      - name: Prepare ECR vars
         run: |
-          ECR_REGISTRY="${ECR_ACCOUNT_ID}.dkr.ecr.${ECR_REGION}.amazonaws.com"
-          echo "ECR_REGISTRY=${ECR_REGISTRY}" >> $GITHUB_ENV
-          echo "ECR_IMAGE=${ECR_REGISTRY}/riverqueue/riverproui" >> $GITHUB_ENV
-
-      - name: Compute TAGs
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "TAG=pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          else
-            echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
-          fi
-          echo "SHA_TAG=sha-${{ github.sha }}" >> $GITHUB_ENV
+          ECR_IMAGE="${ECR_ACCOUNT_ID}.dkr.ecr.${ECR_REGION}.amazonaws.com/riverqueue/riverproui"
+          echo "ECR_IMAGE=${ECR_IMAGE}" >> $GITHUB_ENV
 
       - name: Create & push manifest list ($TAG and $SHA_TAG)
+        working-directory: /tmp/digests
         run: |
           set -euo pipefail
-          # Use imagetools to assemble multi-arch from per-arch tags. This is resilient
-          # even if per-arch tags are indexes. No need to annotate arch explicitly.
           docker buildx imagetools create \
             -t "$ECR_IMAGE:$TAG" \
-            "$ECR_IMAGE:$TAG-amd64" \
-            "$ECR_IMAGE:$TAG-arm64"
+            $(printf "$ECR_IMAGE@sha256:%s " *)
           docker buildx imagetools create \
             -t "$ECR_IMAGE:$SHA_TAG" \
-            "$ECR_IMAGE:$SHA_TAG-amd64" \
-            "$ECR_IMAGE:$SHA_TAG-arm64"
+            $(printf "$ECR_IMAGE@sha256:%s " *)
 
       - name: Tag latest on release tags only
         if: startsWith(github.ref, 'refs/tags/v')
+        working-directory: /tmp/digests
         run: |
           set -euo pipefail
           docker buildx imagetools create \
             -t "$ECR_IMAGE:latest" \
-            "$ECR_IMAGE:$TAG-amd64" \
-            "$ECR_IMAGE:$TAG-arm64"
+            $(printf "$ECR_IMAGE@sha256:%s " *)
 
       - name: Compute manifest digest for attestation
         id: manifest-digest
@@ -326,55 +335,53 @@ jobs:
           name: pro-attestation-manifest
           path: /tmp/docker-manifest.json
 
-  # prefetch-riverproui-through-live-registry:
-  #   # IMPORTANT: Prefetch only for release semver tags and PRs used for manual testing
-  #   # TODO(bgentry): Remove PR prefetch on PRs before merging to main; keep only v* tags
-  #   name: "Prefetch riverproui via live registry"
-  #   runs-on: ubuntu-latest
-  #   needs:
-  #     - assemble-riverproui
-  #     - publish-oci-variant-riverproui
-  #   if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
-  #   permissions:
-  #     contents: read
-  #   env:
-  #     REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
-  #     ECR_REPO_RIVERPROUI: riverqueue/riverproui
-  #   steps:
-  #     - name: Install tooling
-  #       run: |
-  #         sudo apt-get update
-  #         sudo apt-get install -y jq
+  prefetch-riverproui-through-live-registry:
+    # IMPORTANT: Prefetch only for release semver tags and PRs used for manual testing
+    # TODO(bgentry): Remove PR prefetch on PRs before merging to main; keep only v* tags
+    name: "Prefetch riverproui via live registry"
+    runs-on: ubuntu-latest
+    needs:
+      - merge-riverproui
+    if: github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: read
+    env:
+      REGISTRY_HOST: ${{ secrets.REGISTRY_HOST }}
+      ECR_REPO_RIVERPROUI: riverqueue/riverproui
+    steps:
+      - name: Install tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y jq
 
-  #     - name: Compute TAG
-  #       run: |
-  #         if [ "${{ github.event_name }}" = "pull_request" ]; then
-  #           echo "TAG=pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-  #         else
-  #           echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
-  #         fi
-  #         echo "RUN_KEY=${{ github.run_id }}-${{ github.run_attempt }}" >> $GITHUB_ENV
+      - name: Compute TAG
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "TAG=pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          else
+            echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          fi
+          echo "RUN_KEY=${{ github.run_id }}-${{ github.run_attempt }}" >> $GITHUB_ENV
 
-  #     - name: Prefetch tag via public /v2 (with retries)
-  #       env:
-  #         RIVERPRO_GO_MOD_CREDENTIAL: ${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}
-  #       run: |
-  #         set -euo pipefail
-  #         ./scripts/prefetch-registry.sh \
-  #           --registry-host "$REGISTRY_HOST" \
-  #           --repo "$ECR_REPO_RIVERPROUI" \
-  #           --tag "$TAG" \
-  #           --run-key "$RUN_KEY" \
-  #           --auth-basic "river:${RIVERPRO_GO_MOD_CREDENTIAL}"
+      - name: Prefetch tag via public /v2 (with retries)
+        env:
+          RIVERPRO_GO_MOD_CREDENTIAL: ${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}
+        run: |
+          set -euo pipefail
+          printf 'river:%s\n' "$RIVERPRO_GO_MOD_CREDENTIAL" | ./scripts/prefetch-registry.sh \
+            --registry-host "$REGISTRY_HOST" \
+            --repo "$ECR_REPO_RIVERPROUI" \
+            --tag "$TAG" \
+            --run-key "$RUN_KEY"
 
-  #     - name: Upload prefetch artifacts
-  #       uses: actions/upload-artifact@v4
-  #       with:
-  #         name: riverproui-${{ env.TAG }}-prefetch-artifacts
-  #         path: |
-  #           index_*
-  #           mf.*
-  #           ref.*
+      - name: Upload prefetch artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: riverproui-${{ env.TAG }}-prefetch-artifacts
+          path: |
+            index_*
+            mf.*
+            ref.*
 
   # verify-riverproui-from-live-registry:
   #   name: "Verify riverproui from live registry"

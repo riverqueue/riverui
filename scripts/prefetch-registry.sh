@@ -12,11 +12,11 @@ Usage: prefetch-registry.sh \
   --registry-host <host> \
   --repo <namespace/name> \
   --tag <tag> \
-  [--run-key <nonce>] \
-  [--auth-basic "user:pass"]
+  [--run-key <nonce>]
 
 Notes:
   - --run-key is appended as nocache=<run-key> to bust any caches while warming.
+  - Assumes Basic auth credentials (user:password) are provided via stdin.
 USAGE
 }
 
@@ -24,7 +24,6 @@ REGISTRY_HOST=""
 REPO=""
 TAG=""
 RUN_KEY=""
-AUTH_BASIC=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -32,7 +31,6 @@ while [[ $# -gt 0 ]]; do
     --repo)          REPO="$2"; shift 2 ;;
     --tag)           TAG="$2"; shift 2 ;;
     --run-key)       RUN_KEY="$2"; shift 2 ;;
-    --auth-basic)    AUTH_BASIC="$2"; shift 2 ;;
     -h|--help)       usage; exit 0 ;;
     *) echo "Unknown arg: $1" >&2; usage; exit 2 ;;
   esac
@@ -47,12 +45,10 @@ fi
 API="https://${REGISTRY_HOST}/v2/${REPO}"
 NOCACHE="nocache=${RUN_KEY:-}"
 
-if [[ -n "$AUTH_BASIC" ]]; then
-  b64=$(printf '%s' "$AUTH_BASIC" | base64 | tr -d '\n')
-  AUTH_HEADER=( -H "Authorization: Basic ${b64}" )
-else
-  AUTH_HEADER=()
-fi
+# Read auth from STDIN (single line: user:password)
+{ set +x; } 2>/dev/null
+IFS= read -r AUTH_USERPASS
+{ set -x; } 2>/dev/null
 
 echo "Prefetching ${REPO}:${TAG} via ${API}"
 
@@ -63,10 +59,13 @@ prefetch_once() {
     'application/vnd.oci.image.index.v1+json'
   do
     echo "Prefetch tag as $MT"
-    curl -fsS "${AUTH_HEADER[@]}" \
-      -H "Accept: $MT" \
-      "$API/manifests/$TAG?${NOCACHE}" \
-      -o "index.$(echo "$MT" | sed 's/[^a-z0-9]/_/g')" || true
+    { set +x; } 2>/dev/null
+    if [[ -n "$AUTH_USERPASS" ]]; then
+      curl -fsS --user "$AUTH_USERPASS" -H "Accept: $MT" -o "index.$(echo "$MT" | sed 's/[^a-z0-9]/_/g')" "$API/manifests/$TAG?${NOCACHE}" || true
+    else
+      curl -fsS -H "Accept: $MT" -o "index.$(echo "$MT" | sed 's/[^a-z0-9]/_/g')" "$API/manifests/$TAG?${NOCACHE}" || true
+    fi
+    { set -x; } 2>/dev/null
   done
 
   docker_idx="index_application_vnd_docker_distribution_manifest_list_v2_json"
@@ -85,23 +84,31 @@ prefetch_once() {
       [[ -n "$D" ]] || continue
       echo "Prefetch image manifest $D ($MT)"
       MF="mf.$(echo "$D" | tr ':' '_')"
-      curl -fsS "${AUTH_HEADER[@]}" -H "Accept: $MT" "$API/manifests/$D?${NOCACHE}" -o "$MF"
+      { set +x; } 2>/dev/null
+      curl -fsS -H "Accept: $MT" -o "$MF" "$API/manifests/$D?${NOCACHE}"
+      { set -x; } 2>/dev/null
 
       # Fetch config + layers
       jq -r '.config.digest, (.layers[]? | .digest)' "$MF" | while read -r BD; do
         [[ -n "$BD" ]] || continue
         echo "Prefetch blob $BD"
-        curl -fsS "${AUTH_HEADER[@]}" "$API/blobs/$BD?${NOCACHE}" -o /dev/null
+        { set +x; } 2>/dev/null
+        curl -fsS -o /dev/null "$API/blobs/$BD?${NOCACHE}"
+        { set -x; } 2>/dev/null
       done
 
       # 3) Referrers for this subject
       echo "Prefetch referrers for $D"
       REF_JSON="ref.$(echo "$D" | tr ':' '_')"
-      curl -fsS "${AUTH_HEADER[@]}" "$API/referrers/$D?${NOCACHE}" -o "$REF_JSON" || true
+      { set +x; } 2>/dev/null
+      curl -fsS -o "$REF_JSON" "$API/referrers/$D?${NOCACHE}" || true
+      { set -x; } 2>/dev/null
       jq -r '.manifests[]? | "\(.mediaType) \(.digest)"' "$REF_JSON" | while read -r RMT RD; do
         [[ -n "$RD" ]] || continue
         echo "Prefetch referrer $RD ($RMT)"
-        curl -fsS "${AUTH_HEADER[@]}" -H "Accept: $RMT" "$API/manifests/$RD?${NOCACHE}" -o /dev/null || true
+        { set +x; } 2>/dev/null
+        curl -fsS -H "Accept: $RMT" -o /dev/null "$API/manifests/$RD?${NOCACHE}" || true
+        { set -x; } 2>/dev/null
       done
     done
   }
@@ -129,5 +136,3 @@ if [[ ! -s index_application_vnd_docker_distribution_manifest_list_v2_json && ! 
 fi
 
 echo "Prefetch complete"
-
-
