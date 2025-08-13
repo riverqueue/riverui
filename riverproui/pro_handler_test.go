@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"reflect"
 	"testing"
 
 	"github.com/google/uuid"
@@ -72,21 +71,18 @@ func TestProHandlerIntegration(t *testing.T) {
 	}
 
 	createBundle := func(client *riverpro.Client[pgx.Tx], tx pgx.Tx) apibundle.EndpointBundle {
-		return NewEndpoints(&EndpointsOpts[pgx.Tx]{
-			Client: client,
-			Tx:     &tx,
-		})
+		return NewEndpoints(client, &EndpointsOpts[pgx.Tx]{Tx: &tx})
 	}
 
 	createHandler := func(t *testing.T, bundle apibundle.EndpointBundle) http.Handler {
 		logger := riverinternaltest.Logger(t)
 		opts := &riverui.ServerOpts{
-			DevMode: true,
-			LiveFS:  true,
-			Logger:  logger,
+			DevMode:   true,
+			Endpoints: bundle,
+			LiveFS:    false, // Disable LiveFS to avoid needing projectRoot
+			Logger:    logger,
 		}
-		reflect.ValueOf(opts).Elem().FieldByName("projectRoot").SetString("..")
-		server, err := riverui.NewServer(bundle, opts)
+		server, err := riverui.NewServer(opts)
 		require.NoError(t, err)
 		return server
 	}

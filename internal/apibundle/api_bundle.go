@@ -21,7 +21,12 @@ type APIBundle[TTx any] struct {
 	Logger                   *slog.Logger
 }
 
+type EndpointBundleOpts struct {
+	JobListHideArgsByDefault bool
+}
+
 type EndpointBundle interface {
+	Configure(bundleOpts *EndpointBundleOpts)
 	MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts, extensions map[string]bool) []apiendpoint.EndpointInterface
 	Validate() error
 }

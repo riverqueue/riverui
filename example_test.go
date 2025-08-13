@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"riverqueue.com/riverui"
 
@@ -52,12 +51,11 @@ func ExampleNewServer() {
 
 	// Create the River UI server. This server implements http.Handler and can be
 	// mounted in an HTTP mux
-	server, err := riverui.NewServer(riverui.NewEndpoints(&riverui.EndpointsOpts[pgx.Tx]{
-		Client: client,
-	}), &riverui.ServerOpts{
-		DevMode: true, // Use the live filesystem—don't use this outside tests
-		Logger:  logger,
-		Prefix:  "/riverui", // Mount the UI under /riverui path
+	server, err := riverui.NewServer(&riverui.ServerOpts{
+		DevMode:   true, // Use the live filesystem—don't use this outside tests
+		Endpoints: riverui.NewEndpoints(client, nil),
+		Logger:    logger,
+		Prefix:    "/riverui", // Mount the UI under /riverui path
 	})
 	if err != nil {
 		panic(err)

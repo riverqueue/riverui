@@ -25,9 +25,8 @@ func TestNewHandlerIntegration(t *testing.T) {
 	createClient := insertOnlyClient
 
 	createBundle := func(client *river.Client[pgx.Tx], tx pgx.Tx) apibundle.EndpointBundle {
-		return NewEndpoints(&EndpointsOpts[pgx.Tx]{
-			Client: client,
-			Tx:     &tx,
+		return NewEndpoints(client, &EndpointsOpts[pgx.Tx]{
+			Tx: &tx,
 		})
 	}
 
@@ -35,8 +34,9 @@ func TestNewHandlerIntegration(t *testing.T) {
 		t.Helper()
 
 		logger := riverinternaltest.Logger(t)
-		server, err := NewServer(bundle, &ServerOpts{
+		server, err := NewServer(&ServerOpts{
 			DevMode:     true,
+			Endpoints:   bundle,
 			LiveFS:      true,
 			Logger:      logger,
 			projectRoot: "./",

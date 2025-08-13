@@ -27,7 +27,7 @@ type BundleOpts struct {
 	JobListHideArgsByDefault bool
 }
 
-func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient, *BundleOpts) apibundle.EndpointBundle) {
+func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) apibundle.EndpointBundle) {
 	ctx := context.Background()
 
 	logger := slog.New(getLogHandler(&slog.HandlerOptions{
@@ -128,7 +128,7 @@ type initServerResult struct {
 	uiServer   *riverui.Server // River UI server
 }
 
-func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundler func(TClient, *BundleOpts) apibundle.EndpointBundle) (*initServerResult, error) {
+func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundler func(TClient) apibundle.EndpointBundle) (*initServerResult, error) {
 	if !strings.HasPrefix(pathPrefix, "/") || pathPrefix == "" {
 		return nil, fmt.Errorf("invalid path prefix: %s", pathPrefix)
 	}
@@ -167,15 +167,13 @@ func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefi
 		return nil, err
 	}
 
-	bundler := createBundler(client, &BundleOpts{
+	uiServer, err := riverui.NewServer(&riverui.ServerOpts{
+		DevMode:                  devMode,
+		Endpoints:                createBundler(client),
 		JobListHideArgsByDefault: jobListHideArgsByDefault,
-	})
-
-	uiServer, err := riverui.NewServer(bundler, &riverui.ServerOpts{
-		DevMode: devMode,
-		LiveFS:  liveFS,
-		Logger:  logger,
-		Prefix:  pathPrefix,
+		LiveFS:                   liveFS,
+		Logger:                   logger,
+		Prefix:                   pathPrefix,
 	})
 	if err != nil {
 		return nil, err

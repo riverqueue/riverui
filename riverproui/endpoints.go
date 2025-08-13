@@ -15,33 +15,40 @@ import (
 )
 
 type EndpointsOpts[TTx any] struct {
-	Client                   *riverpro.Client[TTx]
-	JobListHideArgsByDefault bool
 	// Tx is an optional transaction to wrap all database operations. It's mainly
 	// used for testing.
 	Tx *TTx
 }
 
-func NewEndpoints[TTx any](opts *EndpointsOpts[TTx]) apibundle.EndpointBundle {
-	ossEndpoints := riverui.NewEndpoints(&riverui.EndpointsOpts[TTx]{
-		Client:                   opts.Client.Client,
-		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
-		Tx:                       opts.Tx,
+func NewEndpoints[TTx any](client *riverpro.Client[TTx], opts *EndpointsOpts[TTx]) apibundle.EndpointBundle {
+	if opts == nil {
+		opts = &EndpointsOpts[TTx]{}
+	}
+	ossEndpoints := riverui.NewEndpoints(client.Client, &riverui.EndpointsOpts[TTx]{
+		Tx: opts.Tx,
 	})
 
 	return &endpoints[TTx]{
-		opts:         opts,
+		client:       client,
+		proOpts:      opts,
 		ossEndpoints: ossEndpoints,
 	}
 }
 
 type endpoints[TTx any] struct {
-	opts         *EndpointsOpts[TTx]
+	bundleOpts   *apibundle.EndpointBundleOpts
+	client       *riverpro.Client[TTx]
+	proOpts      *EndpointsOpts[TTx]
 	ossEndpoints apibundle.EndpointBundle
 }
 
+func (e *endpoints[TTx]) Configure(bundleOpts *apibundle.EndpointBundleOpts) {
+	e.bundleOpts = bundleOpts
+	e.ossEndpoints.Configure(bundleOpts)
+}
+
 func (e *endpoints[TTx]) Validate() error {
-	if e.opts.Client == nil {
+	if e.client == nil {
 		return errors.New("client is required")
 	}
 	if err := e.ossEndpoints.Validate(); err != nil {
@@ -51,28 +58,28 @@ func (e *endpoints[TTx]) Validate() error {
 }
 
 func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts, extensions map[string]bool) []apiendpoint.EndpointInterface {
-	ossDriver := e.opts.Client.Driver()
+	ossDriver := e.client.Driver()
 	driver, ok := ossDriver.(prodriver.ProDriver[TTx])
 	if !ok {
 		panic("riverpro.Client is not configured with a ProDriver")
 	}
 
 	var executor prodriver.ProExecutor
-	if e.opts.Tx == nil {
+	if e.proOpts.Tx == nil {
 		executor = driver.GetProExecutor()
 	} else {
-		executor = driver.UnwrapProExecutor(*e.opts.Tx)
+		executor = driver.UnwrapProExecutor(*e.proOpts.Tx)
 	}
 	bundle := prohandler.ProAPIBundle[TTx]{
 		APIBundle: apibundle.APIBundle[TTx]{
 			Archetype:                archetype,
-			Client:                   e.opts.Client.Client,
+			Client:                   e.client.Client,
 			DB:                       executor,
 			Driver:                   driver,
-			JobListHideArgsByDefault: e.opts.JobListHideArgsByDefault,
+			JobListHideArgsByDefault: e.bundleOpts.JobListHideArgsByDefault,
 			Logger:                   logger,
 		},
-		Client: e.opts.Client,
+		Client: e.client,
 		DB:     executor,
 	}
 

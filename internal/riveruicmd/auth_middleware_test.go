@@ -38,11 +38,8 @@ func TestAuthMiddleware(t *testing.T) {
 			func(dbPool *pgxpool.Pool) (*river.Client[pgx.Tx], error) {
 				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
 			},
-			func(client *river.Client[pgx.Tx], opts *BundleOpts) apibundle.EndpointBundle {
-				return riverui.NewEndpoints(&riverui.EndpointsOpts[pgx.Tx]{
-					Client:                   client,
-					JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
-				})
+			func(client *river.Client[pgx.Tx]) apibundle.EndpointBundle {
+				return riverui.NewEndpoints(client, nil)
 			},
 		)
 		require.NoError(t, err)

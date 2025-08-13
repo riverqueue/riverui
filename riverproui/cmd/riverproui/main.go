@@ -15,11 +15,8 @@ func main() {
 		func(dbPool *pgxpool.Pool) (*riverpro.Client[pgx.Tx], error) {
 			return riverpro.NewClient(riverpropgxv5.New(dbPool), &riverpro.Config{})
 		},
-		func(client *riverpro.Client[pgx.Tx], opts *riveruicmd.BundleOpts) apibundle.EndpointBundle {
-			return riverproui.NewEndpoints(&riverproui.EndpointsOpts[pgx.Tx]{
-				Client:                   client,
-				JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
-			})
+		func(client *riverpro.Client[pgx.Tx]) apibundle.EndpointBundle {
+			return riverproui.NewEndpoints(client, nil)
 		},
 	)
 }

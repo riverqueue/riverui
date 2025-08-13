@@ -32,32 +32,40 @@ type endpointsExtensions interface {
 }
 
 type EndpointsOpts[TTx any] struct {
-	Client                   *river.Client[TTx]
-	JobListHideArgsByDefault bool
 	// Tx is an optional transaction to wrap all database operations. It's mainly
 	// used for testing.
 	Tx *TTx
 }
 
 type endpoints[TTx any] struct {
-	opts *EndpointsOpts[TTx]
+	bundleOpts *apibundle.EndpointBundleOpts
+	client     *river.Client[TTx]
+	opts       *EndpointsOpts[TTx]
 }
 
-func NewEndpoints[TTx any](opts *EndpointsOpts[TTx]) apibundle.EndpointBundle {
+func NewEndpoints[TTx any](client *river.Client[TTx], opts *EndpointsOpts[TTx]) apibundle.EndpointBundle {
+	if opts == nil {
+		opts = &EndpointsOpts[TTx]{}
+	}
 	return &endpoints[TTx]{
-		opts: opts,
+		client: client,
+		opts:   opts,
 	}
 }
 
+func (e *endpoints[TTx]) Configure(bundleOpts *apibundle.EndpointBundleOpts) {
+	e.bundleOpts = bundleOpts
+}
+
 func (e *endpoints[TTx]) Validate() error {
-	if e.opts.Client == nil {
+	if e.client == nil {
 		return errors.New("client is required")
 	}
 	return nil
 }
 
 func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts, extensions map[string]bool) []apiendpoint.EndpointInterface {
-	driver := e.opts.Client.Driver()
+	driver := e.client.Driver()
 	var executor riverdriver.Executor
 	if e.opts.Tx == nil {
 		executor = driver.GetExecutor()
@@ -66,11 +74,11 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 	}
 	bundle := apibundle.APIBundle[TTx]{
 		Archetype:                archetype,
-		Client:                   e.opts.Client,
+		Client:                   e.client,
 		DB:                       executor,
 		Driver:                   driver,
 		Extensions:               extensions,
-		JobListHideArgsByDefault: e.opts.JobListHideArgsByDefault,
+		JobListHideArgsByDefault: e.bundleOpts.JobListHideArgsByDefault,
 		Logger:                   logger,
 	}
 
@@ -95,7 +103,9 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 // ServerOpts are the options for creating a new Server.
 type ServerOpts struct {
 	// DevMode is whether the server is running in development mode.
-	DevMode bool
+	DevMode                  bool
+	Endpoints                apibundle.EndpointBundle
+	JobListHideArgsByDefault bool
 	// LiveFS is whether to use the live filesystem for the frontend.
 	LiveFS bool
 	// Logger is the logger to use logging errors within the handler.
@@ -137,11 +147,11 @@ type Server struct {
 }
 
 // NewServer creates a new Server that serves the River UI and API.
-func NewServer(bundle apibundle.EndpointBundle, opts *ServerOpts) (*Server, error) {
-	if bundle == nil {
+func NewServer(opts *ServerOpts) (*Server, error) {
+	if opts.Endpoints == nil {
 		return nil, errors.New("endpoints is required")
 	}
-	if err := bundle.Validate(); err != nil {
+	if err := opts.Endpoints.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -151,6 +161,10 @@ func NewServer(bundle apibundle.EndpointBundle, opts *ServerOpts) (*Server, erro
 	if err := opts.validate(); err != nil {
 		return nil, err
 	}
+
+	opts.Endpoints.Configure(&apibundle.EndpointBundleOpts{
+		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
+	})
 
 	prefix := cmp.Or(strings.TrimSuffix(opts.Prefix, "/"), "")
 
@@ -206,11 +220,11 @@ func NewServer(bundle apibundle.EndpointBundle, opts *ServerOpts) (*Server, erro
 	}
 
 	extensions := map[string]bool{}
-	if withExtensions, ok := bundle.(endpointsExtensions); ok {
+	if withExtensions, ok := opts.Endpoints.(endpointsExtensions); ok {
 		extensions = withExtensions.Extensions()
 	}
 
-	endpoints := bundle.MountEndpoints(baseservice.NewArchetype(opts.Logger), opts.Logger, mux, &mountOpts, extensions)
+	endpoints := opts.Endpoints.MountEndpoints(baseservice.NewArchetype(opts.Logger), opts.Logger, mux, &mountOpts, extensions)
 
 	var services []startstop.Service
 
