@@ -270,7 +270,13 @@ jobs:
       SHA_TAG: ${{ format('sha-{0}', github.sha) }}
     outputs:
       manifest_digest: ${{ steps.manifest_digest.outputs.digest }}
+      tag: ${{ steps.compute_tag.outputs.tag }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: true
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -297,28 +303,76 @@ jobs:
           pattern: pro-digests-*
           merge-multiple: true
 
+      - name: Compute TAG
+        id: compute_tag
+        run: |
+          if [[ "${{ github.ref }}" =~ ^refs/tags/riverproui/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            TAG="${GITHUB_REF_NAME#riverproui/}"
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            TAG="pr-${{ github.event.pull_request.number }}"
+          else
+            TAG="${{ github.ref_name }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "TAG=$TAG" >> $GITHUB_ENV
+
       - name: Prepare ECR vars
         run: |
           ECR_IMAGE="${ECR_ACCOUNT_ID}.dkr.ecr.${ECR_REGION}.amazonaws.com/riverqueue/riverproui"
           echo "ECR_IMAGE=${ECR_IMAGE}" >> $GITHUB_ENV
 
-      - name: Create & push manifest list ($TAG and $SHA_TAG)
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.ECR_IMAGE }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,pattern=sha-{{sha}}
+            type=semver,pattern=v{{version}},match=riverproui/(v.*)
+
+      - name: Create manifest list and push immutable tags
         working-directory: /tmp/digests
         run: |
           docker buildx imagetools create \
-            -t "$ECR_IMAGE:$TAG" \
-            $(printf "$ECR_IMAGE@sha256:%s " *)
-          docker buildx imagetools create \
-            -t "$ECR_IMAGE:$SHA_TAG" \
+            --annotation "index:org.opencontainers.image.source=https://github.com/riverqueue/riverui" \
+            --annotation "index:org.opencontainers.image.description=River UI Pro is a web-based user interface for River, with pro features." \
+            --annotation "index:org.opencontainers.image.licenses=commercial" \
+            `echo "${{ steps.meta.outputs.tags }}" | xargs -n1 echo -t` \
             $(printf "$ECR_IMAGE@sha256:%s " *)
 
-      - name: Tag latest on release tags only
-        if: startsWith(github.ref, 'refs/tags/v')
+      - name: Tag mutable on release if latest in series
+        if: startsWith(github.ref, 'refs/tags/riverproui/v')
         working-directory: /tmp/digests
         run: |
-          docker buildx imagetools create \
-            -t "$ECR_IMAGE:latest" \
-            $(printf "$ECR_IMAGE@sha256:%s " *)
+          STRIPPED_VERSION="${{ github.ref_name }}"
+          STRIPPED_VERSION="${STRIPPED_VERSION#riverproui/}"
+          MAJOR="${STRIPPED_VERSION#v}"
+          MAJOR="${MAJOR%%.*}"
+          MINOR_PATCH="${STRIPPED_VERSION#v${MAJOR}.}"
+          MINOR="${MINOR_PATCH%%.*}"
+          declare -a mutable_tags=()
+          GLOBAL_LATEST=$(git tag --list 'riverproui/v*' --sort=-v:refname | grep -E '^riverproui/v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+          if [ "$GLOBAL_LATEST" = "${{ github.ref_name }}" ]; then
+            mutable_tags+=("latest")
+          fi
+          LATEST_IN_MAJOR=$(git tag --list "riverproui/v${MAJOR}.*" --sort=-v:refname | head -n1)
+          if [ "$LATEST_IN_MAJOR" = "${{ github.ref_name }}" ]; then
+            mutable_tags+=("v${MAJOR}")
+          fi
+          LATEST_IN_MINOR=$(git tag --list "riverproui/v${MAJOR}.${MINOR}.*" --sort=-v:refname | head -n1)
+          if [ "$LATEST_IN_MINOR" = "${{ github.ref_name }}" ]; then
+            mutable_tags+=("v${MAJOR}.${MINOR}")
+          fi
+          for tag in "${mutable_tags[@]}"; do
+            docker buildx imagetools create \
+              --annotation "index:org.opencontainers.image.source=https://github.com/riverqueue/riverui" \
+              --annotation "index:org.opencontainers.image.description=River UI Pro is a web-based user interface for River, with pro features." \
+              --annotation "index:org.opencontainers.image.licenses=commercial" \
+              -t "$ECR_IMAGE:$tag" \
+              $(printf "$ECR_IMAGE@sha256:%s " *)
+          done
 
       - name: Install crane
         uses: imjasonh/setup-crane@v0.4
@@ -377,23 +431,52 @@ jobs:
     needs:
       - merge-riverproui
     env:
+      IMAGE_NAME: riverqueue.com/riverproui
       MANIFEST_DIGEST: ${{ needs.merge-riverproui.outputs.manifest_digest }}
+      TAG: ${{ needs.merge-riverproui.outputs.tag }}
     # TODO(bgentry): Uncomment once done testing
-    # if: startsWith(github.ref, 'refs/tags/v')
+    # if: startsWith(github.ref, 'refs/tags/riverproui/v')
     permissions:
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-tags: true
 
-      - name: Compute TAG
+      - name: Force refresh mutable tags
+        if: startsWith(github.ref, 'refs/tags/riverproui/v')
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "TAG=pr-${{ github.event.pull_request.number }}" >> $GITHUB_ENV
-          else
-            echo "TAG=${{ github.ref_name }}" >> $GITHUB_ENV
+          STRIPPED_VERSION="${{ github.ref_name }}"
+          STRIPPED_VERSION="${STRIPPED_VERSION#riverproui/}"
+          MAJOR="${STRIPPED_VERSION#v}"
+          MAJOR="${MAJOR%%.*}"
+          MINOR_PATCH="${STRIPPED_VERSION#v${MAJOR}.}"
+          MINOR="${MINOR_PATCH%%.*}"
+          declare -a mutable_tags=()
+          GLOBAL_LATEST=$(git tag --list 'riverproui/v*' --sort=-v:refname | grep -E '^riverproui/v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1)
+          if [ "$GLOBAL_LATEST" = "riverproui/${STRIPPED_VERSION}" ]; then
+            mutable_tags+=("latest")
           fi
-          echo "IMAGE_NAME=riverqueue.com/riverproui" >> $GITHUB_ENV
+          LATEST_IN_MAJOR=$(git tag --list "riverproui/v${MAJOR}.*" --sort=-v:refname | head -n1)
+          if [ "$LATEST_IN_MAJOR" = "riverproui/${STRIPPED_VERSION}" ]; then
+            mutable_tags+=("v${MAJOR}")
+          fi
+          LATEST_IN_MINOR=$(git tag --list "riverproui/v${MAJOR}.${MINOR}.*" --sort=-v:refname | head -n1)
+          if [ "$LATEST_IN_MINOR" = "riverproui/${STRIPPED_VERSION}" ]; then
+            mutable_tags+=("v${MAJOR}.${MINOR}")
+          fi
+          for tag in "${mutable_tags[@]}"; do
+            echo "Force refreshing mutable tag: $tag"
+            curl -f -u river:"${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}" \
+              -H "X-Force-Fetch-From-Upstream: ${{ secrets.FORCE_FETCH_SECRET }}" \
+              -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
+              "https://riverqueue.com/v2/riverproui/manifests/${tag}" -o /dev/null
+            curl -f -u river:"${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}" \
+              -H "X-Force-Fetch-From-Upstream: ${{ secrets.FORCE_FETCH_SECRET }}" \
+              -H "Accept: application/vnd.oci.image.index.v1+json" \
+              "https://riverqueue.com/v2/riverproui/manifests/${tag}" -o /dev/null
+          done
 
       - name: Login to live registry
         uses: docker/login-action@v3
