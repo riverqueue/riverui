@@ -163,7 +163,7 @@ func initServer(ctx context.Context, logger *slog.Logger, pathPrefix string) (*i
 		apimiddleware.MiddlewareFunc(logHandler),
 	)
 	if basicAuthUsername != "" && basicAuthPassword != "" {
-		middlewareStack.Use(&authMiddleware{username: basicAuthUsername, password: basicAuthPassword})
+		middlewareStack.Use(&authMiddleware{username: basicAuthUsername, password: basicAuthPassword, pathPrefix: pathPrefix})
 	}
 
 	return &initServerResult{
