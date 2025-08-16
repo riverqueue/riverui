@@ -26,7 +26,6 @@ import {
   retainSearchParams,
   stripSearchParams,
 } from "@tanstack/react-router";
-import { zodValidator } from "@tanstack/zod-adapter";
 import { useCallback, useMemo, useState } from "react";
 
 const minimumLimit = 20;
@@ -34,7 +33,7 @@ const defaultLimit = 20;
 const maximumLimit = 200;
 
 export const Route = createFileRoute("/jobs/")({
-  validateSearch: zodValidator(jobSearchSchema),
+  validateSearch: jobSearchSchema,
   // Strip default values from URLs and retain important params across navigation
   search: {
     middlewares: [
