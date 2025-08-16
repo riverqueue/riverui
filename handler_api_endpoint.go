@@ -12,7 +12,6 @@ import (
 
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/querycacher"
-	"riverqueue.com/riverui/internal/util/dbutil"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
@@ -20,6 +19,7 @@ import (
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/startstop"
+	"github.com/riverqueue/river/rivershared/util/dbutil"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
@@ -94,7 +94,9 @@ func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autocompleteListRequest) (*listResponse[string], error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*listResponse[string], error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*listResponse[string], error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		prefix := ""
 		if req.Prefix != nil {
 			prefix = *req.Prefix
@@ -182,7 +184,9 @@ type featuresGetResponse struct {
 }
 
 func (a *featuresGetEndpoint[TTx]) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*featuresGetResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*featuresGetResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		schema := a.Client.Schema()
 		hasClientTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
 			Schema: schema,
@@ -311,7 +315,9 @@ type jobCancelRequest struct {
 }
 
 func (a *jobCancelEndpoint[TTx]) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		updatedJobs := make(map[int64]*rivertype.JobRow)
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
@@ -355,7 +361,9 @@ type jobDeleteRequest struct {
 }
 
 func (a *jobDeleteEndpoint[TTx]) Execute(ctx context.Context, req *jobDeleteRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
 			_, err := a.Client.JobDeleteTx(ctx, tx, jobID)
@@ -412,7 +420,9 @@ func (req *jobGetRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *jobGetEndpoint[TTx]) Execute(ctx context.Context, req *jobGetRequest) (*RiverJob, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*RiverJob, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*RiverJob, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		job, err := a.Client.JobGetTx(ctx, tx, req.JobID)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -499,7 +509,9 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *jobListEndpoint[TTx]) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJobMinimal], error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*listResponse[RiverJobMinimal], error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*listResponse[RiverJobMinimal], error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
 
 		if len(req.IDs) > 0 {
@@ -563,7 +575,9 @@ type jobRetryRequest struct {
 }
 
 func (a *jobRetryEndpoint[TTx]) Execute(ctx context.Context, req *jobRetryRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
 			_, err := a.Client.JobRetryTx(ctx, tx, jobID)
@@ -609,7 +623,9 @@ func (req *queueGetRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueGetEndpoint[TTx]) Execute(ctx context.Context, req *queueGetRequest) (*RiverQueue, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*RiverQueue, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*RiverQueue, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		queue, err := a.Client.QueueGetTx(ctx, tx, req.Name)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -668,7 +684,9 @@ func (req *queueListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueListEndpoint[TTx]) Execute(ctx context.Context, req *queueListRequest) (*listResponse[RiverQueue], error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*listResponse[RiverQueue], error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*listResponse[RiverQueue], error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		result, err := a.Client.QueueListTx(ctx, tx, river.NewQueueListParams().First(ptrutil.ValOrDefault(req.Limit, 100)))
 		if err != nil {
 			return nil, fmt.Errorf("error listing queues: %w", err)
@@ -718,7 +736,9 @@ func (req *queuePauseRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queuePauseEndpoint[TTx]) Execute(ctx context.Context, req *queuePauseRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		err := a.Client.QueuePauseTx(ctx, tx, req.Name, nil)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -761,7 +781,9 @@ func (req *queueResumeRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueResumeEndpoint[TTx]) Execute(ctx context.Context, req *queueResumeRequest) (*statusResponse, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		err := a.Client.QueueResumeTx(ctx, tx, req.Name, nil)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
@@ -801,7 +823,9 @@ func (req *queueUpdateRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueUpdateEndpoint[TTx]) Execute(ctx context.Context, req *queueUpdateRequest) (*RiverQueue, error) {
-	return dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (*RiverQueue, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*RiverQueue, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		// Construct metadata based on concurrency field
 		var metadata json.RawMessage
 		if req.Concurrency.Set {
@@ -860,7 +884,9 @@ type stateAndCountGetEndpoint[TTx any] struct {
 
 func newStateAndCountGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *stateAndCountGetEndpoint[TTx] {
 	runQuery := func(ctx context.Context) (map[rivertype.JobState]int, error) {
-		return dbutil.WithTxV(ctx, bundle.Driver, bundle.DB, func(ctx context.Context, tx TTx) (map[rivertype.JobState]int, error) {
+		return dbutil.WithTxV(ctx, bundle.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (map[rivertype.JobState]int, error) {
+			tx := bundle.Driver.UnwrapTx(execTx)
+
 			return bundle.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: bundle.Client.Schema()})
 		})
 	}
@@ -914,7 +940,9 @@ func (a *stateAndCountGetEndpoint[TTx]) Execute(ctx context.Context, _ *stateAnd
 	stateAndCountRes, ok := a.queryCacher.CachedRes()
 	if !ok || totalJobs(stateAndCountRes) < a.queryCacheSkipThreshold {
 		var err error
-		stateAndCountRes, err = dbutil.WithTxV(ctx, a.Driver, a.DB, func(ctx context.Context, tx TTx) (map[rivertype.JobState]int, error) {
+		stateAndCountRes, err = dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (map[rivertype.JobState]int, error) {
+			tx := a.Driver.UnwrapTx(execTx)
+
 			return a.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: a.Client.Schema()})
 		})
 		if err != nil {

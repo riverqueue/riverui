@@ -7,11 +7,11 @@ toolchain go1.24.1
 require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/riverqueue/apiframe v0.0.0-20250408034821-b206bbbd0fb4
-	github.com/riverqueue/river v0.23.2-0.20250724035158-e771d8dbe258
-	github.com/riverqueue/river/riverdriver v0.23.2-0.20250724035158-e771d8dbe258
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.23.2-0.20250724035158-e771d8dbe258
-	github.com/riverqueue/river/rivershared v0.23.2-0.20250724035158-e771d8dbe258
-	github.com/riverqueue/river/rivertype v0.23.2-0.20250724035158-e771d8dbe258
+	github.com/riverqueue/river v0.23.2-0.20250814074605-de60166d37e9
+	github.com/riverqueue/river/riverdriver v0.23.2-0.20250814074605-de60166d37e9
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.23.2-0.20250814074605-de60166d37e9
+	github.com/riverqueue/river/rivershared v0.23.2-0.20250814074605-de60166d37e9
+	github.com/riverqueue/river/rivertype v0.23.2-0.20250814074605-de60166d37e9
 	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.7.0
 	github.com/stretchr/testify v1.10.0
@@ -41,6 +41,6 @@ require (
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.16.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.27.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
