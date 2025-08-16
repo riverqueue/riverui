@@ -14,9 +14,9 @@ describe("parser", () => {
     it("parses simple filters", () => {
       const result = parseFiltersFromText("kind:batch queue:priority");
       expect(result).toHaveLength(2);
-      expect(result[0].prefix).toBe("kind:");
+      expect(result[0].match).toBe("kind:");
       expect(result[0].values).toEqual(["batch"]);
-      expect(result[1].prefix).toBe("queue:");
+      expect(result[1].match).toBe("queue:");
       expect(result[1].values).toEqual(["priority"]);
     });
 
@@ -46,7 +46,7 @@ describe("parser", () => {
     it("ignores invalid expressions", () => {
       const result = parseFiltersFromText("invalid kind:batch");
       expect(result).toHaveLength(1);
-      expect(result[0].prefix).toBe("kind:");
+      expect(result[0].match).toBe("kind:");
     });
   });
 
@@ -55,13 +55,13 @@ describe("parser", () => {
       const filters = [
         {
           id: "1",
-          prefix: "kind:",
+          match: "kind:",
           typeId: JobFilterTypeID.KIND,
           values: ["batch", "stream"],
         },
         {
           id: "2",
-          prefix: "queue:",
+          match: "queue:",
           typeId: JobFilterTypeID.QUEUE,
           values: ["priority"],
         },
@@ -74,13 +74,13 @@ describe("parser", () => {
       const filters = [
         {
           id: "1",
-          prefix: "kind:",
+          match: "kind:",
           typeId: JobFilterTypeID.KIND,
           values: [],
         },
         {
           id: "2",
-          prefix: "queue:",
+          match: "queue:",
           typeId: JobFilterTypeID.QUEUE,
           values: ["priority"],
         },

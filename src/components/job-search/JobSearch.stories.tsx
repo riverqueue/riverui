@@ -65,25 +65,25 @@ export const WithInitialFilters: Story = {
     initialFilters: [
       {
         id: "1",
-        prefix: "kind:",
+        match: "kind:",
         typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
       {
         id: "2",
-        prefix: "queue:",
+        match: "queue:",
         typeId: FilterTypeId.QUEUE,
         values: ["default"],
       },
       {
         id: "3",
-        prefix: "priority:",
+        match: "priority:",
         typeId: FilterTypeId.PRIORITY,
         values: ["1"],
       },
       {
         id: "4",
-        prefix: "id:",
+        match: "id:",
         typeId: FilterTypeId.ID,
         values: ["123", "456"],
       },

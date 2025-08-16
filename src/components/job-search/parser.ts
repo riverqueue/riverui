@@ -46,7 +46,7 @@ export function analyzeAutocompleteContext(
     .substring(0, colonIndex)
     .toLowerCase();
   const filterType = AVAILABLE_FILTERS.find(
-    (f) => f.label === filterTypeStr || f.prefix === `${filterTypeStr}:`,
+    (f) => f.label === filterTypeStr || f.match === `${filterTypeStr}:`,
   );
 
   if (!filterType) {
@@ -157,7 +157,7 @@ export function parseFiltersFromText(text: string): JobFilter[] {
 
     // Find the matching filter type
     const filterType = AVAILABLE_FILTERS.find(
-      (f) => f.label === filterTypeStr || f.prefix === `${filterTypeStr}:`,
+      (f) => f.label === filterTypeStr || f.match === `${filterTypeStr}:`,
     );
 
     if (!filterType) {
@@ -180,7 +180,7 @@ export function parseFiltersFromText(text: string): JobFilter[] {
       // Create new filter
       filters.push({
         id: Math.random().toString(36).substr(2, 9),
-        prefix: filterType.prefix,
+        match: filterType.match,
         typeId: filterType.id,
         values: Array.from(new Set(values)).sort(),
       });
@@ -197,7 +197,7 @@ export function serializeFiltersToText(filters: JobFilter[]): string {
   return filters
     .filter((filter) => filter.values.length > 0)
     .map((filter) => {
-      const typeLabel = filter.prefix.replace(":", "");
+      const typeLabel = filter.match.replace(":", "");
       const valuesStr = filter.values.join(",");
       return `${typeLabel}:${valuesStr}`;
     })
