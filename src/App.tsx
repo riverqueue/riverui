@@ -13,10 +13,20 @@ import { routeTree } from "./routeTree.gen";
 
 const queryClient = new QueryClient();
 
+function getBasePath(): string {
+  try {
+    const configText =
+      document.querySelector("script#config__json")?.textContent || "{}";
+    const pageConfig = JSON.parse(configText);
+    return pageConfig.base || "/";
+  } catch {
+    return "/";
+  }
+}
+
 // Create a new router instance
 const router = createRouter({
-  basepath:
-    window && window.__riverUiBasePath ? window.__riverUiBasePath() : "/",
+  basepath: getBasePath(),
   context: {
     features: {
       hasClientTable: false,

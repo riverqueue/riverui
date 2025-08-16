@@ -6,9 +6,4 @@ declare global {
   interface BigInt {
     toJSON(): string;
   }
-
-  interface Window {
-    __riverUiAssetUrl: ((string) => string) | undefined;
-    __riverUiBasePath: (() => string) | undefined;
-  }
 }

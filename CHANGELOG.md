@@ -36,6 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - For job kind and queue name searching, match input against substrings instead of only prefixes. Particularly for long names, this is far more convenient. [PR #398](https://github.com/riverqueue/riverui/pull/398).
 
+### Fixed
+
+- Remove `__riverUiBasePath` and `__riverUiAssetUrl` global functions to eliminate Content Security Policy issues. The application now uses the existing JSON configuration approach consistently for all path resolution. [PR #382](https://github.com/riverqueue/riverui/pull/382).
+
 ## [v0.11.0] - 2025-06-05
 
 ### Changed
