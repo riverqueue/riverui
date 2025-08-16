@@ -70,7 +70,7 @@ type autocompleteListRequest struct {
 	After   *string           `json:"-"` // from ExtractRaw
 	Exclude []string          `json:"-"` // from ExtractRaw
 	Facet   autocompleteFacet `json:"-"` // from ExtractRaw
-	Prefix  *string           `json:"-"` // from ExtractRaw
+	Match   *string           `json:"-"` // from ExtractRaw
 }
 
 func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
@@ -86,8 +86,8 @@ func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
 		req.Facet = autocompleteFacet(facet)
 	}
 
-	if prefix := r.URL.Query().Get("prefix"); prefix != "" {
-		req.Prefix = &prefix
+	if match := r.URL.Query().Get("match"); match != "" {
+		req.Match = &match
 	}
 
 	return nil
@@ -97,9 +97,9 @@ func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autoco
 	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*listResponse[string], error) {
 		tx := a.Driver.UnwrapTx(execTx)
 
-		prefix := ""
-		if req.Prefix != nil {
-			prefix = *req.Prefix
+		match := ""
+		if req.Match != nil {
+			match = *req.Match
 		}
 
 		after := ""
@@ -109,11 +109,11 @@ func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autoco
 
 		switch req.Facet {
 		case autocompleteFacetJobKind:
-			kinds, err := a.Driver.UnwrapExecutor(tx).JobKindListByPrefix(ctx, &riverdriver.JobKindListByPrefixParams{
+			kinds, err := a.Driver.UnwrapExecutor(tx).JobKindList(ctx, &riverdriver.JobKindListParams{
 				After:   after,
 				Exclude: req.Exclude,
+				Match:   match,
 				Max:     100,
-				Prefix:  prefix,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("error listing job kinds: %w", err)
@@ -128,11 +128,11 @@ func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autoco
 			return listResponseFrom(kindPtrs), nil
 
 		case autocompleteFacetQueueName:
-			queues, err := a.Driver.UnwrapExecutor(tx).QueueNameListByPrefix(ctx, &riverdriver.QueueNameListByPrefixParams{
+			queues, err := a.Driver.UnwrapExecutor(tx).QueueNameList(ctx, &riverdriver.QueueNameListParams{
 				After:   after,
 				Exclude: req.Exclude,
+				Match:   match,
 				Max:     100,
-				Prefix:  prefix,
 			})
 			if err != nil {
 				return nil, fmt.Errorf("error listing queue names: %w", err)

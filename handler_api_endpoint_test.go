@@ -102,8 +102,8 @@ func runAutocompleteTests(t *testing.T, facet autocompleteFacet, setupFunc func(
 
 		prefix := alphaPrefix
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
-			Facet:  facet,
-			Prefix: &prefix,
+			Facet: facet,
+			Match: &prefix,
 		})
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 2)
@@ -155,7 +155,7 @@ func runAutocompleteTests(t *testing.T, facet autocompleteFacet, setupFunc func(
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
 			Exclude: []string{"alpha_" + facet.baseString()},
 			Facet:   facet,
-			Prefix:  &prefix,
+			Match:   &prefix,
 		})
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 1)

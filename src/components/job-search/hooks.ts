@@ -241,7 +241,7 @@ export function useSuggestions({
         const suggestions = AVAILABLE_FILTERS.filter(
           (f) =>
             f.label.toLowerCase().includes(query.toLowerCase()) ||
-            f.prefix.toLowerCase().startsWith(query.toLowerCase()),
+            f.match.toLowerCase().startsWith(query.toLowerCase()),
         ).map((f) => f.label);
 
         setSuggestionsState((prev) => ({
