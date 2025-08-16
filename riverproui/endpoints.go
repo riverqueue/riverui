@@ -5,13 +5,15 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/riverqueue/apiframe/apiendpoint"
-	"github.com/riverqueue/river/rivershared/baseservice"
-	"riverqueue.com/riverpro"
-	prodriver "riverqueue.com/riverpro/driver"
 	"riverqueue.com/riverui"
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/riverproui/internal/prohandler"
+
+	"github.com/riverqueue/apiframe/apiendpoint"
+	"github.com/riverqueue/river/rivershared/baseservice"
+
+	"riverqueue.com/riverpro"
+	prodriver "riverqueue.com/riverpro/driver"
 )
 
 type EndpointsOpts[TTx any] struct {

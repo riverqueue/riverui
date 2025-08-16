@@ -11,17 +11,17 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
+	"riverqueue.com/riverui"
+	"riverqueue.com/riverui/internal/apibundle"
+	"riverqueue.com/riverui/internal/handlertest"
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
 
 	"riverqueue.com/riverpro"
 	"riverqueue.com/riverpro/driver/riverpropgxv5"
-	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/internal/apibundle"
-	"riverqueue.com/riverui/internal/handlertest"
-	"riverqueue.com/riverui/internal/riverinternaltest"
-	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 )
 
 type noOpArgs struct {
@@ -93,7 +93,7 @@ func TestProHandlerIntegration(t *testing.T) {
 		workflowID := uuid.New()
 		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
 
-		makeAPICall(t, "ProducerList", http.MethodGet, fmt.Sprintf("/api/pro/producers?queue_name=%s", queue.Name), nil)
+		makeAPICall(t, "ProducerList", http.MethodGet, "/api/pro/producers?queue_name="+queue.Name, nil)
 		makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/pro/workflows/%s", workflowID), nil)
 		makeAPICall(t, "WorkflowList", http.MethodGet, "/api/pro/workflows", nil)
 	}
