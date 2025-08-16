@@ -34,14 +34,29 @@ docker-db/up:
 docker-db/down:
 	docker compose -f docker-compose.dev.yaml down
 
+# Definitions of following tasks look ugly, but they're done this way because to
+# produce the best/most comprehensible output by far (e.g. compared to a shell
+# loop).
 .PHONY: lint
-lint:
-	cd . && golangci-lint run --fix
+lint:: ## Run linter (golangci-lint) for all submodules
+define lint-target
+    lint:: ; cd $1 && golangci-lint run --fix
+endef
+$(foreach mod,$(submodules),$(eval $(call lint-target,$(mod))))
 
 .PHONY: test
-test:
-	cd . && go test ./...
-	cd ./riverproui && go test ./...
+test:: ## Run test suite for all submodules
+define test-target
+    test:: ; cd $1 && go test ./... -timeout 2m
+endef
+$(foreach mod,$(submodules),$(eval $(call test-target,$(mod))))
+
+.PHONY: test/race
+test/race:: ## Run test suite for all submodules with race detector
+define test-race-target
+    test/race:: ; cd $1 && go test ./... -race -timeout 2m
+endef
+$(foreach mod,$(submodules),$(eval $(call test-race-target,$(mod))))
 
 .PHONY: tidy
 tidy:: ## Run `go mod tidy` for all submodules

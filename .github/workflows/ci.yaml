@@ -84,11 +84,7 @@ jobs:
         run: make fake_assets
 
       - name: Test
-        run: go test  -race ./... -timeout 2m
-
-      - name: Test River Pro UI
-        working-directory: ./riverproui
-        run: go test ./... -race -timeout 2m
+        run: make test/race
 
   golangci:
     name: Go lint
