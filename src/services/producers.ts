@@ -50,7 +50,7 @@ export const listProducers: QueryFunction<
   const query = new URLSearchParams({ queue_name: queueName });
 
   return API.get<ListResponse<ProducerFromAPI>>(
-    { path: "/producers", query },
+    { path: "/pro/producers", query },
     { signal },
   ).then((response) => response.data.map(apiProducerToProducer));
 };

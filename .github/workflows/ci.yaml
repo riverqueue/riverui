@@ -51,13 +51,20 @@ jobs:
         run: go version
 
       - name: Install dependencies
-        run: |
-          echo "::group::go get"
-          go get -t ./...
-          echo "::endgroup::"
+        run: go mod download
 
-      - name: Install River CLI
-        run: go install github.com/riverqueue/river/cmd/river@latest
+      - name: Install River Pro UI dependencies
+        env:
+          GONOSUMDB: riverqueue.com/riverpro
+          GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
+        working-directory: ./riverproui
+        run: go mod download
+
+      - name: Install River Pro CLI
+        env:
+          GONOSUMDB: riverqueue.com/riverpro
+          GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
+        run: go install riverqueue.com/riverpro/cmd/riverpro@latest
 
       - name: Create test DB
         run: createdb river_test
@@ -67,7 +74,9 @@ jobs:
           PGPASSWORD: postgres
 
       - name: Migrate test DB
-        run: river migrate-up --database-url "$TEST_DATABASE_URL"
+        run: |
+          riverpro migrate-up --database-url "$TEST_DATABASE_URL" --line main
+          riverpro migrate-up --database-url "$TEST_DATABASE_URL" --line pro
 
       # ensure that there is a file in `dist` to prevent a lint error about
       # it during CI when there is nothing there:
@@ -75,13 +84,14 @@ jobs:
         run: make fake_assets
 
       - name: Test
-        run: go test  -race ./... -timeout 2m
+        run: make test/race
 
   golangci:
     name: Go lint
     runs-on: ubuntu-latest
     env:
-      GOLANGCI_LINT_VERSION: v2.1.6
+      GOLANGCI_LINT_VERSION: v2.2.1
+      GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
     permissions:
       contents: read
       # allow read access to pull request. Use with `only-new-issues` option.
@@ -116,25 +126,6 @@ jobs:
 
       - name: Run lint
         run: make lint
-
-  sqlc_generate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    name: sqlc generate
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup sqlc
-        uses: sqlc-dev/setup-sqlc@v4
-        with:
-          sqlc-version: "1.29.0"
-
-      - name: Run sqlc diff
-        run: |
-          echo "Please make sure that all sqlc changes are checked in!"
-          make verify
 
   js_build_and_test:
     name: JS Build and Test

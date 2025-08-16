@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
+	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 
@@ -31,20 +31,23 @@ type setupEndpointTestBundle struct {
 	tx     pgx.Tx
 }
 
-func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(apiBundle apiBundle) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
+func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(bundle apibundle.APIBundle[pgx.Tx]) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
 	t.Helper()
 
 	var (
 		logger         = riverinternaltest.Logger(t)
 		client, driver = insertOnlyClient(t, logger)
 		tx             = riverinternaltest.TestTx(ctx, t)
+		exec           = driver.UnwrapExecutor(tx)
 	)
 
-	endpoint := initFunc(apiBundle{
-		archetype: riversharedtest.BaseServiceArchetype(t),
-		client:    client,
-		dbPool:    tx,
-		logger:    logger,
+	endpoint := initFunc(apibundle.APIBundle[pgx.Tx]{
+		Archetype:  riversharedtest.BaseServiceArchetype(t),
+		Client:     client,
+		DB:         exec,
+		Driver:     driver,
+		Extensions: map[string]bool{},
+		Logger:     logger,
 	})
 
 	if service, ok := any(endpoint).(startstop.Service); ok {
@@ -54,7 +57,7 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 
 	return endpoint, &setupEndpointTestBundle{
 		client: client,
-		exec:   driver.UnwrapExecutor(tx),
+		exec:   exec,
 		logger: logger,
 		tx:     tx,
 	}
@@ -218,17 +221,20 @@ func TestAPIHandlerAutocompleteList(t *testing.T) {
 	})
 }
 
-func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
-	// This can't be parallelized because it tries to make DB schema changes.
+func TestAPIHandlerFeaturesGet(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("SuccessWithEverythingFalse", func(t *testing.T) { //nolint:paralleltest
 		// This can't be parallelized because it tries to make DB schema changes.
 		endpoint, bundle := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
 
-		_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_producer;`)
+		_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_client CASCADE;`)
 		require.NoError(t, err)
-		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_client CASCADE;`)
+		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_job_sequence;`)
+		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_producer;`)
 		require.NoError(t, err)
 		_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_list_active;`)
 		require.NoError(t, err)
@@ -238,8 +244,10 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})
 		require.NoError(t, err)
 		require.Equal(t, &featuresGetResponse{
+			Extensions:               map[string]bool{},
 			HasClientTable:           false,
 			HasProducerTable:         false,
+			HasSequenceTable:         false,
 			HasWorkflows:             false,
 			JobListHideArgsByDefault: false,
 		}, resp)
@@ -251,21 +259,41 @@ func TestAPIHandlerFeaturesGet(t *testing.T) { //nolint:paralleltest
 
 		_, err := bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_client (id SERIAL PRIMARY KEY);`)
 		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_job_sequence (id SERIAL PRIMARY KEY);`)
+		require.NoError(t, err)
 		_, err = bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_producer (id SERIAL PRIMARY KEY);`)
 		require.NoError(t, err)
 		_, err = bundle.tx.Exec(ctx, `CREATE INDEX IF NOT EXISTS river_job_workflow_list_active ON river_job ((metadata->>'workflow_id'));`)
 		require.NoError(t, err)
+		_, err = bundle.tx.Exec(ctx, `CREATE INDEX IF NOT EXISTS river_job_workflow_list_active ON river_job ((metadata->>'workflow_id'));`)
+		require.NoError(t, err)
 
-		endpoint.jobListHideArgsByDefault = true
+		endpoint.JobListHideArgsByDefault = true
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})
 		require.NoError(t, err)
 		require.Equal(t, &featuresGetResponse{
+			Extensions:               map[string]bool{},
 			HasClientTable:           true,
 			HasProducerTable:         true,
+			HasSequenceTable:         true,
 			HasWorkflows:             true,
 			JobListHideArgsByDefault: true,
 		}, resp)
+	})
+
+	t.Run("SuccessWithExtensions", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, _ := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
+		endpoint.Extensions = map[string]bool{
+			"test_1": true,
+			"test_2": false,
+		}
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})
+		require.NoError(t, err)
+		require.Equal(t, map[string]bool{"test_1": true, "test_2": false}, resp.Extensions)
 	})
 }
 
@@ -613,72 +641,6 @@ func TestAPIHandlerJobRetry(t *testing.T) {
 	})
 }
 
-func TestAPIHandlerProducerList(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-
-	t.Run("Success", func(t *testing.T) {
-		t.Parallel()
-
-		endpoint, bundle := setupEndpoint(ctx, t, newProducerListEndpoint)
-
-		_, err := bundle.tx.Exec(ctx, producerSchema)
-		require.NoError(t, err)
-
-		_, err = bundle.tx.Exec(ctx, `INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES ('client1', 'queue1', 1, '{}');`)
-		require.NoError(t, err)
-
-		_, err = bundle.tx.Exec(ctx, `INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES ('client2', 'queue1', 2, '{}');`)
-		require.NoError(t, err)
-
-		_, err = bundle.tx.Exec(ctx,
-			// old format:
-			`INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES (
-			'client2', 'queue2', 3, '{"concurrency": {"running": {"abcd": {"count": 3}, "efgh": {"count": 2}}}}'
-			);`,
-		)
-		require.NoError(t, err)
-
-		_, err = bundle.tx.Exec(ctx,
-			// new format:
-			`INSERT INTO river_producer (client_id, queue_name, max_workers, metadata) VALUES (
-			'client3', 'queue3', 3, '{"concurrency": {"running": {"abcd": 3, "efgh": 2}}}'
-			);`,
-		)
-		require.NoError(t, err)
-
-		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue1"})
-		require.NoError(t, err)
-		require.Len(t, resp.Data, 2)
-		require.Equal(t, "client1", resp.Data[0].ClientID)
-		require.Equal(t, 1, resp.Data[0].MaxWorkers)
-		require.Equal(t, int32(0), resp.Data[0].Running)
-		require.Equal(t, "client2", resp.Data[1].ClientID)
-		require.Equal(t, 2, resp.Data[1].MaxWorkers)
-		require.Equal(t, int32(0), resp.Data[1].Running)
-
-		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue2"})
-		require.NoError(t, err)
-		require.Len(t, resp.Data, 1)
-		require.Equal(t, "client2", resp.Data[0].ClientID)
-		require.Equal(t, 3, resp.Data[0].MaxWorkers)
-		require.Equal(t, int32(5), resp.Data[0].Running)
-
-		// Same data as queue2 producer, but with new format:
-		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue3"})
-		require.NoError(t, err)
-		require.Len(t, resp.Data, 1)
-		require.Equal(t, "client3", resp.Data[0].ClientID)
-		require.Equal(t, 3, resp.Data[0].MaxWorkers)
-		require.Equal(t, int32(5), resp.Data[0].Running)
-
-		resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &producerListRequest{QueueName: "queue4"})
-		require.NoError(t, err)
-		require.Empty(t, resp.Data)
-	})
-}
-
 func TestAPIHandlerQueueGet(t *testing.T) {
 	t.Parallel()
 
@@ -970,135 +932,5 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 		require.Equal(t, &stateAndCountGetResponse{
 			Available: queryCacheSkipThreshold - 1,
 		}, resp)
-	})
-}
-
-func TestAPIHandlerWorkflowGet(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-
-	t.Run("Success", func(t *testing.T) {
-		t.Parallel()
-
-		endpoint, bundle := setupEndpoint(ctx, t, newWorkflowGetEndpoint)
-
-		workflowID := uuid.New()
-		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
-		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
-
-		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowGetRequest{ID: workflowID.String()})
-		require.NoError(t, err)
-		require.Len(t, resp.Tasks, 2)
-		require.Equal(t, job1.ID, resp.Tasks[0].ID)
-		require.Equal(t, job2.ID, resp.Tasks[1].ID)
-	})
-
-	t.Run("NotFound", func(t *testing.T) {
-		t.Parallel()
-
-		endpoint, _ := setupEndpoint(ctx, t, newWorkflowGetEndpoint)
-
-		workflowID := uuid.New()
-
-		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowGetRequest{ID: workflowID.String()})
-		requireAPIError(t, NewNotFoundWorkflow(workflowID.String()), err)
-	})
-}
-
-func TestAPIHandlerWorkflowList(t *testing.T) {
-	t.Parallel()
-
-	ctx := context.Background()
-
-	t.Run("Success", func(t *testing.T) {
-		t.Parallel()
-
-		endpoint, bundle := setupEndpoint(ctx, t, newWorkflowListEndpoint)
-
-		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Metadata: []byte(`{"workflow_id":"1", "workflow_name":"first_wf", "task":"a"}`),
-			State:    ptrutil.Ptr(rivertype.JobStatePending),
-		})
-		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			FinalizedAt: ptrutil.Ptr(time.Now()),
-			Metadata:    []byte(`{"workflow_id":"2", "task":"b"}`),
-			State:       ptrutil.Ptr(rivertype.JobStateCompleted),
-		})
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			FinalizedAt: ptrutil.Ptr(time.Now()),
-			Metadata:    []byte(`{"workflow_id":"2", "task":"c", "workflow_deps_failed_at":"2024-01-01T00:00:00Z"}`),
-			State:       ptrutil.Ptr(rivertype.JobStateCancelled),
-		})
-
-		t.Run("All", func(t *testing.T) { //nolint:paralleltest
-			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{})
-			require.NoError(t, err)
-			require.Len(t, resp.Data, 2)
-			require.Equal(t, 1, resp.Data[0].CountCancelled)
-			require.Equal(t, 1, resp.Data[0].CountCompleted)
-			t.Logf("resp0: %+v", resp.Data[0])
-			require.Equal(t, 1, resp.Data[0].CountFailedDeps)
-			require.Nil(t, resp.Data[0].Name)
-
-			require.Equal(t, 0, resp.Data[1].CountAvailable)
-			require.Equal(t, 0, resp.Data[1].CountCancelled)
-			require.Equal(t, 0, resp.Data[1].CountCompleted)
-			require.Equal(t, 0, resp.Data[1].CountDiscarded)
-			require.Equal(t, 0, resp.Data[1].CountFailedDeps)
-			require.Equal(t, 1, resp.Data[1].CountPending)
-			require.Equal(t, 0, resp.Data[1].CountRetryable)
-			require.Equal(t, 0, resp.Data[1].CountRunning)
-			require.Equal(t, 0, resp.Data[1].CountScheduled)
-			require.Equal(t, "first_wf", *resp.Data[1].Name)
-		})
-
-		t.Run("Active", func(t *testing.T) { //nolint:paralleltest
-			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{State: "active"})
-			require.NoError(t, err)
-			require.Len(t, resp.Data, 1)
-			require.Equal(t, 0, resp.Data[0].CountAvailable)
-			require.Equal(t, 0, resp.Data[0].CountCancelled)
-			require.Equal(t, 0, resp.Data[0].CountCompleted)
-			require.Equal(t, 0, resp.Data[0].CountDiscarded)
-			require.Equal(t, 0, resp.Data[0].CountFailedDeps)
-			require.Equal(t, 1, resp.Data[0].CountPending)
-			require.Equal(t, 0, resp.Data[0].CountRetryable)
-			require.Equal(t, 0, resp.Data[0].CountRunning)
-			require.Equal(t, 0, resp.Data[0].CountScheduled)
-			require.Equal(t, "first_wf", *resp.Data[0].Name)
-			require.Equal(t, job1.CreatedAt.UTC(), resp.Data[0].CreatedAt)
-		})
-
-		t.Run("Inactive", func(t *testing.T) { //nolint:paralleltest
-			resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{State: "inactive"})
-			require.NoError(t, err)
-			require.Len(t, resp.Data, 1)
-			require.Equal(t, 1, resp.Data[0].CountCompleted)
-			require.Equal(t, 1, resp.Data[0].CountFailedDeps)
-			require.Nil(t, resp.Data[0].Name)
-			require.Equal(t, job2.CreatedAt.UTC(), resp.Data[0].CreatedAt)
-		})
-	})
-
-	t.Run("Limit", func(t *testing.T) {
-		t.Parallel()
-
-		endpoint, bundle := setupEndpoint(ctx, t, newWorkflowListEndpoint)
-
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Metadata: []byte(`{"workflow_id":"1", "workflow_name":"first_wf", "task":"a"}`),
-			State:    ptrutil.Ptr(rivertype.JobStatePending),
-		})
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Metadata:    []byte(`{"workflow_id":"2", "task":"b"}`),
-			ScheduledAt: ptrutil.Ptr(time.Now().Add(time.Hour)),
-			State:       ptrutil.Ptr(rivertype.JobStateScheduled),
-		})
-
-		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{Limit: ptrutil.Ptr(1)})
-		require.NoError(t, err)
-		require.Len(t, resp.Data, 1)
-		require.Equal(t, "2", resp.Data[0].ID) // DESC order means last one gets returned
 	})
 }

@@ -81,7 +81,6 @@ func TestTx(ctx context.Context, tb testing.TB) pgx.Tx {
 
 	tb.Cleanup(func() {
 		err := tx.Rollback(ctx)
-
 		if err == nil {
 			return
 		}

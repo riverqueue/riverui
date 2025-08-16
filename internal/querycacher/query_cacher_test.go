@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"riverqueue.com/riverui/internal/dbsqlc"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/startstoptest"
+	"github.com/riverqueue/river/rivertype"
 )
 
 func TestQueryCacher(t *testing.T) {
@@ -25,14 +25,17 @@ func TestQueryCacher(t *testing.T) {
 		exec riverdriver.ExecutorTx
 	}
 
-	setup := func(ctx context.Context, t *testing.T) (*QueryCacher[[]*dbsqlc.JobCountByStateRow], *testBundle) {
+	setup := func(ctx context.Context, t *testing.T) (*QueryCacher[map[rivertype.JobState]int], *testBundle) {
 		t.Helper()
 
 		var (
-			archetype   = riversharedtest.BaseServiceArchetype(t)
-			driver      = riverpgxv5.New(nil)
-			tx          = riverinternaltest.TestTx(ctx, t)
-			queryCacher = NewQueryCacher(archetype, tx, dbsqlc.New().JobCountByState)
+			archetype = riversharedtest.BaseServiceArchetype(t)
+			driver    = riverpgxv5.New(nil)
+			tx        = riverinternaltest.TestTx(ctx, t)
+			runQuery  = func(ctx context.Context) (map[rivertype.JobState]int, error) {
+				return driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: ""})
+			}
+			queryCacher = NewQueryCacher(archetype, runQuery)
 		)
 
 		return queryCacher, &testBundle{
@@ -40,7 +43,7 @@ func TestQueryCacher(t *testing.T) {
 		}
 	}
 
-	start := func(ctx context.Context, t *testing.T, queryCacher *QueryCacher[[]*dbsqlc.JobCountByStateRow]) {
+	start := func(ctx context.Context, t *testing.T, queryCacher *QueryCacher[map[rivertype.JobState]int]) {
 		t.Helper()
 
 		require.NoError(t, queryCacher.Start(ctx))
@@ -68,8 +71,15 @@ func TestQueryCacher(t *testing.T) {
 
 		res, ok := queryCacher.CachedRes()
 		require.True(t, ok)
-		require.Equal(t, []*dbsqlc.JobCountByStateRow{
-			{State: dbsqlc.RiverJobStateAvailable, Count: 1},
+		require.Equal(t, map[rivertype.JobState]int{
+			rivertype.JobStateAvailable: 1,
+			rivertype.JobStateCancelled: 0,
+			rivertype.JobStateCompleted: 0,
+			rivertype.JobStateDiscarded: 0,
+			rivertype.JobStatePending:   0,
+			rivertype.JobStateRetryable: 0,
+			rivertype.JobStateRunning:   0,
+			rivertype.JobStateScheduled: 0,
 		}, res)
 	})
 
@@ -92,8 +102,15 @@ func TestQueryCacher(t *testing.T) {
 
 		res, ok := queryCacher.CachedRes()
 		require.True(t, ok)
-		require.Equal(t, []*dbsqlc.JobCountByStateRow{
-			{State: dbsqlc.RiverJobStateAvailable, Count: 1},
+		require.Equal(t, map[rivertype.JobState]int{
+			rivertype.JobStateAvailable: 1,
+			rivertype.JobStateCancelled: 0,
+			rivertype.JobStateCompleted: 0,
+			rivertype.JobStateDiscarded: 0,
+			rivertype.JobStatePending:   0,
+			rivertype.JobStateRetryable: 0,
+			rivertype.JobStateRunning:   0,
+			rivertype.JobStateScheduled: 0,
 		}, res)
 	})
 
@@ -118,8 +135,8 @@ func TestSimplifyArchetypeLogName(t *testing.T) {
 	require.Equal(t, "Simple[[]*int]", simplifyArchetypeLogName("Simple[[]*int]"))
 
 	// More realistic examples.
-	require.Equal(t, "QueryCacher[dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]"))
-	require.Equal(t, "QueryCacher[*dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[*riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]"))
-	require.Equal(t, "QueryCacher[[]dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[[]riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]"))
-	require.Equal(t, "QueryCacher[[]*dbsqlc.JobCountByStateRow]", simplifyArchetypeLogName("QueryCacher[[]*riverqueue.com/riverui/internal/dbsqlc.JobCountByStateRow]"))
+	require.Equal(t, "QueryCacher[map[rivertype.JobState]int]", simplifyArchetypeLogName("QueryCacher[map[rivertype.JobState]int]"))
+	require.Equal(t, "QueryCacher[*map[rivertype.JobState]int]", simplifyArchetypeLogName("QueryCacher[*map[rivertype.JobState]int]"))
+	require.Equal(t, "QueryCacher[[]map[rivertype.JobState]int]", simplifyArchetypeLogName("QueryCacher[[]map[rivertype.JobState]int]"))
+	require.Equal(t, "QueryCacher[[]*map[rivertype.JobState]int]", simplifyArchetypeLogName("QueryCacher[[]*map[rivertype.JobState]int]"))
 }

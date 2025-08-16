@@ -67,7 +67,7 @@ const QueueDetail = ({
               resumeQueue={resumeQueue}
             />
 
-            {features.hasProducerTable ? (
+            {features.hasProducerTable && features.producerQueries ? (
               <>
                 <ConcurrencySettings
                   producers={producers}
@@ -135,10 +135,15 @@ const QueueStatusCard = ({
 }: QueueStatusCardProps) => {
   const totalRunning = useMemo(
     () =>
-      features.hasProducerTable
+      features.hasProducerTable && features.producerQueries
         ? producers?.reduce((acc, producer) => acc + producer.running, 0)
         : queue?.countRunning,
-    [features.hasProducerTable, producers, queue?.countRunning],
+    [
+      features.hasProducerTable,
+      features.producerQueries,
+      producers,
+      queue?.countRunning,
+    ],
   );
 
   return (

@@ -5,6 +5,7 @@ import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import { TaskStateIcon } from "@components/TaskStateIcon";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import WorkflowDiagram from "@components/WorkflowDiagram";
+import { useFeatures } from "@contexts/Features.hook";
 import { EllipsisHorizontalIcon } from "@heroicons/react/20/solid";
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
@@ -14,32 +15,65 @@ import { capitalize } from "@utils/string";
 import clsx from "clsx";
 import { useMemo } from "react";
 
+import WorkflowListEmptyState from "./WorkflowListEmptyState";
+
 type JobsByTask = {
   [key: string]: JobWithKnownMetadata;
 };
 
 type WorkflowDetailProps = {
+  loading: boolean;
   selectedJobId: bigint | undefined;
   setSelectedJobId: (jobId: bigint | undefined) => void;
-  workflow: Workflow;
+  workflow: undefined | Workflow;
 };
 
 export default function WorkflowDetail({
+  loading,
   selectedJobId,
   setSelectedJobId,
   workflow,
 }: WorkflowDetailProps) {
-  const { tasks } = workflow;
+  const { features } = useFeatures();
+
+  // Move all hooks to the top, before any conditional returns
   const selectedJob = useMemo(
-    () => tasks.find((task) => task.id === selectedJobId),
-    [tasks, selectedJobId],
+    () => workflow?.tasks?.find((task) => task.id === selectedJobId),
+    [workflow?.tasks, selectedJobId],
   );
-  const firstTask = tasks[0];
+
+  const firstTask = workflow?.tasks?.[0];
   // TODO: this is being repeated in WorkflowDiagram, dedupe
-  const jobsByTask: JobsByTask = tasks.reduce((acc: JobsByTask, job) => {
-    acc[job.metadata.task] = job;
-    return acc;
-  }, {});
+  const jobsByTask: JobsByTask = useMemo(() => {
+    if (!workflow?.tasks) return {};
+    return workflow.tasks.reduce((acc: JobsByTask, job) => {
+      acc[job.metadata.task] = job;
+      return acc;
+    }, {});
+  }, [workflow?.tasks]);
+
+  if (!features.workflowQueries) {
+    return (
+      <div>
+        <WorkflowListEmptyState showingAll={false} />
+      </div>
+    );
+  }
+
+  if (loading) {
+    return <h4>loading…</h4>;
+  }
+
+  if (!workflow?.tasks) {
+    return <h4>No workflow data available</h4>;
+  }
+
+  const { tasks } = workflow;
+
+  // Ensure firstTask exists before rendering
+  if (!firstTask) {
+    return <h4>No tasks available</h4>;
+  }
 
   return (
     <>

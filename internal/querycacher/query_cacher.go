@@ -7,8 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"riverqueue.com/riverui/internal/dbsqlc"
-
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
 )
@@ -24,21 +22,19 @@ type QueryCacher[TRes any] struct {
 
 	cachedRes        TRes
 	cachedResSet     bool
-	db               dbsqlc.DBTX
 	mu               sync.RWMutex
-	runQuery         func(ctx context.Context, dbtx dbsqlc.DBTX) (TRes, error)
+	runQuery         func(ctx context.Context) (TRes, error)
 	runQueryTestChan chan struct{} // closed when query is run; for testing
 	tickPeriod       time.Duration // constant normally, but settable for testing
 }
 
-func NewQueryCacher[TRes any](archetype *baseservice.Archetype, db dbsqlc.DBTX, runQuery func(ctx context.Context, db dbsqlc.DBTX) (TRes, error)) *QueryCacher[TRes] {
+func NewQueryCacher[TRes any](archetype *baseservice.Archetype, runQuery func(ctx context.Context) (TRes, error)) *QueryCacher[TRes] {
 	// +/- 1s random variance to ticker interval. Makes sure that given multiple
 	// query caches running simultaneously, they all start and are scheduled a
 	// little differently to make a thundering herd problem less likely.
 	randomTickVariance := time.Duration(rand.Float64()*float64(2*time.Second)) - 1*time.Second
 
 	queryCacher := baseservice.Init(archetype, &QueryCacher[TRes]{
-		db:         db,
 		runQuery:   runQuery,
 		tickPeriod: 10*time.Second + randomTickVariance,
 	})
@@ -74,7 +70,7 @@ func (s *QueryCacher[TRes]) RunQuery(ctx context.Context) (TRes, error) {
 
 	start := time.Now()
 
-	res, err := s.runQuery(ctx, s.db)
+	res, err := s.runQuery(ctx)
 	if err != nil {
 		var emptyRes TRes
 		return emptyRes, err

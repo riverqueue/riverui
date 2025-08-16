@@ -52,11 +52,10 @@ func ExampleNewServer() {
 	// Create the River UI server. This server implements http.Handler and can be
 	// mounted in an HTTP mux
 	server, err := riverui.NewServer(&riverui.ServerOpts{
-		Client:  client,
-		DevMode: true, // Use the live filesystem—don't use this outside tests
-		DB:      dbPool,
-		Logger:  logger,
-		Prefix:  "/riverui", // Mount the UI under /riverui path
+		DevMode:   true, // Use the live filesystem—don't use this outside tests
+		Endpoints: riverui.NewEndpoints(client, nil),
+		Logger:    logger,
+		Prefix:    "/riverui", // Mount the UI under /riverui path
 	})
 	if err != nil {
 		panic(err)

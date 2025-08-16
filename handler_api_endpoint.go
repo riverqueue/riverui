@@ -5,42 +5,25 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net/http"
 	"slices"
 	"strconv"
 	"time"
 
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"riverqueue.com/riverui/internal/dbsqlc"
+	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/querycacher"
-	"riverqueue.com/riverui/internal/util/pgxutil"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
-	"github.com/riverqueue/river/rivershared/baseservice"
+	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/startstop"
+	"github.com/riverqueue/river/rivershared/util/dbutil"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
 )
-
-// A bundle of common utilities needed for many API endpoints.
-type apiBundle struct {
-	archetype                *baseservice.Archetype
-	client                   *river.Client[pgx.Tx]
-	dbPool                   DB
-	jobListHideArgsByDefault bool
-	logger                   *slog.Logger
-}
-
-// SetBundle sets all values to the same as the given bundle.
-func (a *apiBundle) SetBundle(bundle *apiBundle) {
-	*a = *bundle
-}
 
 type listResponse[T any] struct {
 	Data []*T `json:"data"`
@@ -60,16 +43,16 @@ var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
 // autocompleteListEndpoint
 //
 
-type autocompleteListEndpoint struct {
-	apiBundle
+type autocompleteListEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[autocompleteListRequest, listResponse[string]]
 }
 
-func newAutocompleteListEndpoint(apiBundle apiBundle) *autocompleteListEndpoint {
-	return &autocompleteListEndpoint{apiBundle: apiBundle}
+func newAutocompleteListEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *autocompleteListEndpoint[TTx] {
+	return &autocompleteListEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*autocompleteListEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*autocompleteListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/autocomplete",
 		StatusCode: http.StatusOK,
@@ -110,8 +93,10 @@ func (req *autocompleteListRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocompleteListRequest) (*listResponse[string], error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[string], error) {
+func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autocompleteListRequest) (*listResponse[string], error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*listResponse[string], error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		prefix := ""
 		if req.Prefix != nil {
 			prefix = *req.Prefix
@@ -124,7 +109,7 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 
 		switch req.Facet {
 		case autocompleteFacetJobKind:
-			kinds, err := dbsqlc.New().JobKindListByPrefix(ctx, tx, &dbsqlc.JobKindListByPrefixParams{
+			kinds, err := a.Driver.UnwrapExecutor(tx).JobKindListByPrefix(ctx, &riverdriver.JobKindListByPrefixParams{
 				After:   after,
 				Exclude: req.Exclude,
 				Max:     100,
@@ -143,7 +128,7 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 			return listResponseFrom(kindPtrs), nil
 
 		case autocompleteFacetQueueName:
-			queues, err := dbsqlc.New().QueueNameListByPrefix(ctx, tx, &dbsqlc.QueueNameListByPrefixParams{
+			queues, err := a.Driver.UnwrapExecutor(tx).QueueNameListByPrefix(ctx, &riverdriver.QueueNameListByPrefixParams{
 				After:   after,
 				Exclude: req.Exclude,
 				Max:     100,
@@ -171,16 +156,16 @@ func (a *autocompleteListEndpoint) Execute(ctx context.Context, req *autocomplet
 // featuresGetEndpoint
 //
 
-type featuresGetEndpoint struct {
-	apiBundle
+type featuresGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[featuresGetRequest, featuresGetResponse]
 }
 
-func newFeaturesGetEndpoint(apiBundle apiBundle) *featuresGetEndpoint {
-	return &featuresGetEndpoint{apiBundle: apiBundle}
+func newFeaturesGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *featuresGetEndpoint[TTx] {
+	return &featuresGetEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*featuresGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*featuresGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/features",
 		StatusCode: http.StatusOK,
@@ -190,58 +175,79 @@ func (*featuresGetEndpoint) Meta() *apiendpoint.EndpointMeta {
 type featuresGetRequest struct{}
 
 type featuresGetResponse struct {
-	HasClientTable           bool `json:"has_client_table"`
-	HasProducerTable         bool `json:"has_producer_table"`
-	HasWorkflows             bool `json:"has_workflows"`
-	JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
+	Extensions               map[string]bool `json:"extensions"`
+	HasClientTable           bool            `json:"has_client_table"`
+	HasProducerTable         bool            `json:"has_producer_table"`
+	HasSequenceTable         bool            `json:"has_sequence_table"`
+	HasWorkflows             bool            `json:"has_workflows"`
+	JobListHideArgsByDefault bool            `json:"job_list_hide_args_by_default"`
 }
 
-func (a *featuresGetEndpoint) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
-	hasClientTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_client")
-	if err != nil {
-		return nil, err
-	}
+func (a *featuresGetEndpoint[TTx]) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*featuresGetResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
 
-	hasProducerTable, err := dbsqlc.New().TableExistsInCurrentSchema(ctx, a.dbPool, "river_producer")
-	if err != nil {
-		return nil, err
-	}
+		schema := a.Client.Schema()
+		hasClientTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
+			Schema: schema,
+			Table:  "river_client",
+		})
+		if err != nil {
+			return nil, err
+		}
 
-	indexResults, err := dbsqlc.New().IndexesExistInCurrentSchema(ctx, a.dbPool, []string{
-		"river_job_workflow_list_active",
-		"river_job_workflow_scheduling",
+		hasProducerTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
+			Schema: schema,
+			Table:  "river_producer",
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		hasSequenceTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
+			Schema: schema,
+			Table:  "river_job_sequence",
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		indexResults, err := a.Driver.UnwrapExecutor(tx).IndexesExist(ctx, &riverdriver.IndexesExistParams{
+			IndexNames: []string{
+				"river_job_workflow_list_active",
+				"river_job_workflow_scheduling",
+			},
+			Schema: schema,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		return &featuresGetResponse{
+			Extensions:               a.Extensions,
+			HasClientTable:           hasClientTable,
+			HasProducerTable:         hasProducerTable,
+			HasSequenceTable:         hasSequenceTable,
+			HasWorkflows:             indexResults["river_job_workflow_list_active"] || indexResults["river_job_workflow_scheduling"],
+			JobListHideArgsByDefault: a.JobListHideArgsByDefault,
+		}, nil
 	})
-	if err != nil {
-		return nil, err
-	}
-
-	indexResultsMap := make(map[string]bool, len(indexResults))
-	for _, indexResult := range indexResults {
-		indexResultsMap[indexResult.IndexNamesIndexName] = indexResult.Exists
-	}
-
-	return &featuresGetResponse{
-		HasClientTable:           hasClientTable,
-		HasProducerTable:         hasProducerTable,
-		HasWorkflows:             indexResultsMap["river_job_workflow_list_active"] || indexResultsMap["river_job_workflow_scheduling"],
-		JobListHideArgsByDefault: a.jobListHideArgsByDefault,
-	}, nil
 }
 
 //
 // healthCheckGetEndpoint
 //
 
-type healthCheckGetEndpoint struct {
-	apiBundle
+type healthCheckGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[healthCheckGetRequest, statusResponse]
 }
 
-func newHealthCheckGetEndpoint(apiBundle apiBundle) *healthCheckGetEndpoint {
-	return &healthCheckGetEndpoint{apiBundle: apiBundle}
+func newHealthCheckGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *healthCheckGetEndpoint[TTx] {
+	return &healthCheckGetEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*healthCheckGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*healthCheckGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/health-checks/{name}",
 		StatusCode: http.StatusOK,
@@ -264,10 +270,10 @@ func (req *healthCheckGetRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *healthCheckGetEndpoint) Execute(ctx context.Context, req *healthCheckGetRequest) (*statusResponse, error) {
+func (a *healthCheckGetEndpoint[TTx]) Execute(ctx context.Context, req *healthCheckGetRequest) (*statusResponse, error) {
 	switch req.Name {
 	case healthCheckNameComplete:
-		if _, err := a.dbPool.Exec(ctx, "SELECT 1"); err != nil {
+		if err := a.DB.Exec(ctx, "SELECT 1"); err != nil {
 			return nil, apierror.WithInternalError(
 				apierror.NewServiceUnavailable("Unable to query database. Check logs for details."),
 				err,
@@ -288,16 +294,16 @@ func (a *healthCheckGetEndpoint) Execute(ctx context.Context, req *healthCheckGe
 // jobCancelEndpoint
 //
 
-type jobCancelEndpoint struct {
-	apiBundle
+type jobCancelEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
-func newJobCancelEndpoint(apiBundle apiBundle) *jobCancelEndpoint {
-	return &jobCancelEndpoint{apiBundle: apiBundle}
+func newJobCancelEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobCancelEndpoint[TTx] {
+	return &jobCancelEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobCancelEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobCancelEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/cancel",
 		StatusCode: http.StatusOK,
@@ -308,12 +314,14 @@ type jobCancelRequest struct {
 	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
 }
 
-func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+func (a *jobCancelEndpoint[TTx]) Execute(ctx context.Context, req *jobCancelRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		updatedJobs := make(map[int64]*rivertype.JobRow)
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
-			job, err := a.client.JobCancelTx(ctx, tx, jobID)
+			job, err := a.Client.JobCancelTx(ctx, tx, jobID)
 			if err != nil {
 				if errors.Is(err, river.ErrNotFound) {
 					return nil, NewNotFoundJob(jobID)
@@ -332,16 +340,16 @@ func (a *jobCancelEndpoint) Execute(ctx context.Context, req *jobCancelRequest) 
 // jobDeleteEndpoint
 //
 
-type jobDeleteEndpoint struct {
-	apiBundle
+type jobDeleteEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobDeleteRequest, statusResponse]
 }
 
-func newJobDeleteEndpoint(apiBundle apiBundle) *jobDeleteEndpoint {
-	return &jobDeleteEndpoint{apiBundle: apiBundle}
+func newJobDeleteEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobDeleteEndpoint[TTx] {
+	return &jobDeleteEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobDeleteEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobDeleteEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/delete",
 		StatusCode: http.StatusOK,
@@ -352,11 +360,13 @@ type jobDeleteRequest struct {
 	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
 }
 
-func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+func (a *jobDeleteEndpoint[TTx]) Execute(ctx context.Context, req *jobDeleteRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
-			_, err := a.client.JobDeleteTx(ctx, tx, jobID)
+			_, err := a.Client.JobDeleteTx(ctx, tx, jobID)
 			if err != nil {
 				if errors.Is(err, rivertype.ErrJobRunning) {
 					return nil, apierror.NewBadRequestf("Job %d is running and can't be deleted until it finishes.", jobID)
@@ -376,16 +386,16 @@ func (a *jobDeleteEndpoint) Execute(ctx context.Context, req *jobDeleteRequest) 
 // jobGetEndpoint
 //
 
-type jobGetEndpoint struct {
-	apiBundle
+type jobGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobGetRequest, RiverJob]
 }
 
-func newJobGetEndpoint(apiBundle apiBundle) *jobGetEndpoint {
-	return &jobGetEndpoint{apiBundle: apiBundle}
+func newJobGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobGetEndpoint[TTx] {
+	return &jobGetEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/jobs/{job_id}",
 		StatusCode: http.StatusOK,
@@ -403,14 +413,17 @@ func (req *jobGetRequest) ExtractRaw(r *http.Request) error {
 	if err != nil {
 		return apierror.NewBadRequestf("Couldn't convert job ID to int64: %s.", err)
 	}
+
 	req.JobID = jobID
 
 	return nil
 }
 
-func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*RiverJob, error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverJob, error) {
-		job, err := a.client.JobGetTx(ctx, tx, req.JobID)
+func (a *jobGetEndpoint[TTx]) Execute(ctx context.Context, req *jobGetRequest) (*RiverJob, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*RiverJob, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
+		job, err := a.Client.JobGetTx(ctx, tx, req.JobID)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
 				return nil, NewNotFoundJob(req.JobID)
@@ -425,16 +438,16 @@ func (a *jobGetEndpoint) Execute(ctx context.Context, req *jobGetRequest) (*Rive
 // jobListEndpoint
 //
 
-type jobListEndpoint struct {
-	apiBundle
+type jobListEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverJobMinimal]]
 }
 
-func newJobListEndpoint(apiBundle apiBundle) *jobListEndpoint {
-	return &jobListEndpoint{apiBundle: apiBundle}
+func newJobListEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobListEndpoint[TTx] {
+	return &jobListEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobListEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/jobs",
 		StatusCode: http.StatusOK,
@@ -495,8 +508,10 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJobMinimal], error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverJobMinimal], error) {
+func (a *jobListEndpoint[TTx]) Execute(ctx context.Context, req *jobListRequest) (*listResponse[RiverJobMinimal], error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*listResponse[RiverJobMinimal], error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		params := river.NewJobListParams().First(ptrutil.ValOrDefault(req.Limit, 20))
 
 		if len(req.IDs) > 0 {
@@ -526,7 +541,7 @@ func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*li
 			}
 		}
 
-		result, err := a.client.JobListTx(ctx, tx, params)
+		result, err := a.Client.JobListTx(ctx, tx, params)
 		if err != nil {
 			return nil, fmt.Errorf("error listing jobs: %w", err)
 		}
@@ -539,16 +554,16 @@ func (a *jobListEndpoint) Execute(ctx context.Context, req *jobListRequest) (*li
 // jobRetryEndpoint
 //
 
-type jobRetryEndpoint struct {
-	apiBundle
+type jobRetryEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobRetryRequest, statusResponse]
 }
 
-func newJobRetryEndpoint(apiBundle apiBundle) *jobRetryEndpoint {
-	return &jobRetryEndpoint{apiBundle: apiBundle}
+func newJobRetryEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *jobRetryEndpoint[TTx] {
+	return &jobRetryEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*jobRetryEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*jobRetryEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "POST /api/jobs/retry",
 		StatusCode: http.StatusOK,
@@ -559,11 +574,13 @@ type jobRetryRequest struct {
 	JobIDs []int64String `json:"ids" validate:"required,min=1,max=1000"`
 }
 
-func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
+func (a *jobRetryEndpoint[TTx]) Execute(ctx context.Context, req *jobRetryRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		for _, jobID := range req.JobIDs {
 			jobID := int64(jobID)
-			_, err := a.client.JobRetryTx(ctx, tx, jobID)
+			_, err := a.Client.JobRetryTx(ctx, tx, jobID)
 			if err != nil {
 				if errors.Is(err, river.ErrNotFound) {
 					return nil, NewNotFoundJob(jobID)
@@ -577,62 +594,19 @@ func (a *jobRetryEndpoint) Execute(ctx context.Context, req *jobRetryRequest) (*
 }
 
 //
-// producerListEndpoint
-//
-
-type producerListEndpoint struct {
-	apiBundle
-	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverProducer]]
-}
-
-func newProducerListEndpoint(apiBundle apiBundle) *producerListEndpoint {
-	return &producerListEndpoint{apiBundle: apiBundle}
-}
-
-func (*producerListEndpoint) Meta() *apiendpoint.EndpointMeta {
-	return &apiendpoint.EndpointMeta{
-		Pattern:    "GET /api/producers",
-		StatusCode: http.StatusOK,
-	}
-}
-
-type producerListRequest struct {
-	QueueName string `json:"-" validate:"required"` // from ExtractRaw
-}
-
-func (req *producerListRequest) ExtractRaw(r *http.Request) error {
-	if queueName := r.URL.Query().Get("queue_name"); queueName != "" {
-		req.QueueName = queueName
-	}
-
-	return nil
-}
-
-func (a *producerListEndpoint) Execute(ctx context.Context, req *producerListRequest) (*listResponse[RiverProducer], error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverProducer], error) {
-		result, err := dbsqlc.New().ProducerListByQueue(ctx, tx, req.QueueName)
-		if err != nil {
-			return nil, fmt.Errorf("error listing producers: %w", err)
-		}
-
-		return listResponseFrom(sliceutil.Map(result, internalProducerToSerializableProducer)), nil
-	})
-}
-
-//
 // queueGetEndpoint
 //
 
-type queueGetEndpoint struct {
-	apiBundle
+type queueGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, RiverQueue]
 }
 
-func newQueueGetEndpoint(apiBundle apiBundle) *queueGetEndpoint {
-	return &queueGetEndpoint{apiBundle: apiBundle}
+func newQueueGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queueGetEndpoint[TTx] {
+	return &queueGetEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queueGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queueGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/queues/{name}",
 		StatusCode: http.StatusOK,
@@ -648,9 +622,11 @@ func (req *queueGetRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*RiverQueue, error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
-		queue, err := a.client.QueueGetTx(ctx, tx, req.Name)
+func (a *queueGetEndpoint[TTx]) Execute(ctx context.Context, req *queueGetRequest) (*RiverQueue, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*RiverQueue, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
+		queue, err := a.Client.QueueGetTx(ctx, tx, req.Name)
 		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
 				return nil, NewNotFoundQueue(req.Name)
@@ -658,7 +634,10 @@ func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*
 			return nil, fmt.Errorf("error getting queue: %w", err)
 		}
 
-		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, []string{req.Name})
+		countRows, err := a.Driver.UnwrapExecutor(tx).JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+			QueueNames: []string{req.Name},
+			Schema:     a.Client.Schema(),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting queue counts: %w", err)
 		}
@@ -671,16 +650,16 @@ func (a *queueGetEndpoint) Execute(ctx context.Context, req *queueGetRequest) (*
 // queueListEndpoint
 //
 
-type queueListEndpoint struct {
-	apiBundle
+type queueListEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, listResponse[RiverQueue]]
 }
 
-func newQueueListEndpoint(apiBundle apiBundle) *queueListEndpoint {
-	return &queueListEndpoint{apiBundle: apiBundle}
+func newQueueListEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queueListEndpoint[TTx] {
+	return &queueListEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queueListEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queueListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/queues",
 		StatusCode: http.StatusOK,
@@ -704,16 +683,21 @@ func (req *queueListRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) (*listResponse[RiverQueue], error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*listResponse[RiverQueue], error) {
-		result, err := a.client.QueueListTx(ctx, tx, river.NewQueueListParams().First(ptrutil.ValOrDefault(req.Limit, 100)))
+func (a *queueListEndpoint[TTx]) Execute(ctx context.Context, req *queueListRequest) (*listResponse[RiverQueue], error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*listResponse[RiverQueue], error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
+		result, err := a.Client.QueueListTx(ctx, tx, river.NewQueueListParams().First(ptrutil.ValOrDefault(req.Limit, 100)))
 		if err != nil {
 			return nil, fmt.Errorf("error listing queues: %w", err)
 		}
 
 		queueNames := sliceutil.Map(result.Queues, func(q *rivertype.Queue) string { return q.Name })
 
-		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, queueNames)
+		countRows, err := a.Driver.UnwrapExecutor(tx).JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+			QueueNames: queueNames,
+			Schema:     a.Client.Schema(),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting queue counts: %w", err)
 		}
@@ -726,16 +710,16 @@ func (a *queueListEndpoint) Execute(ctx context.Context, req *queueListRequest) 
 // queuePauseEndpoint
 //
 
-type queuePauseEndpoint struct {
-	apiBundle
+type queuePauseEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
-func newQueuePauseEndpoint(apiBundle apiBundle) *queuePauseEndpoint {
-	return &queuePauseEndpoint{apiBundle: apiBundle}
+func newQueuePauseEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queuePauseEndpoint[TTx] {
+	return &queuePauseEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queuePauseEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queuePauseEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "PUT /api/queues/{name}/pause",
 		StatusCode: http.StatusOK,
@@ -751,9 +735,12 @@ func (req *queuePauseRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queuePauseEndpoint) Execute(ctx context.Context, req *queuePauseRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
-		if err := a.client.QueuePauseTx(ctx, tx, req.Name, nil); err != nil {
+func (a *queuePauseEndpoint[TTx]) Execute(ctx context.Context, req *queuePauseRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
+		err := a.Client.QueuePauseTx(ctx, tx, req.Name, nil)
+		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
 				return nil, NewNotFoundQueue(req.Name)
 			}
@@ -768,16 +755,16 @@ func (a *queuePauseEndpoint) Execute(ctx context.Context, req *queuePauseRequest
 // queueResumeEndpoint
 //
 
-type queueResumeEndpoint struct {
-	apiBundle
+type queueResumeEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, statusResponse]
 }
 
-func newQueueResumeEndpoint(apiBundle apiBundle) *queueResumeEndpoint {
-	return &queueResumeEndpoint{apiBundle: apiBundle}
+func newQueueResumeEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queueResumeEndpoint[TTx] {
+	return &queueResumeEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queueResumeEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queueResumeEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "PUT /api/queues/{name}/resume",
 		StatusCode: http.StatusOK,
@@ -793,9 +780,12 @@ func (req *queueResumeRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeRequest) (*statusResponse, error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*statusResponse, error) {
-		if err := a.client.QueueResumeTx(ctx, tx, req.Name, nil); err != nil {
+func (a *queueResumeEndpoint[TTx]) Execute(ctx context.Context, req *queueResumeRequest) (*statusResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*statusResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
+		err := a.Client.QueueResumeTx(ctx, tx, req.Name, nil)
+		if err != nil {
 			if errors.Is(err, river.ErrNotFound) {
 				return nil, NewNotFoundQueue(req.Name)
 			}
@@ -806,16 +796,16 @@ func (a *queueResumeEndpoint) Execute(ctx context.Context, req *queueResumeReque
 	})
 }
 
-type queueUpdateEndpoint struct {
-	apiBundle
+type queueUpdateEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[queueUpdateRequest, RiverQueue]
 }
 
-func newQueueUpdateEndpoint(apiBundle apiBundle) *queueUpdateEndpoint {
-	return &queueUpdateEndpoint{apiBundle: apiBundle}
+func newQueueUpdateEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *queueUpdateEndpoint[TTx] {
+	return &queueUpdateEndpoint[TTx]{APIBundle: bundle}
 }
 
-func (*queueUpdateEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*queueUpdateEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "PATCH /api/queues/{name}",
 		StatusCode: http.StatusOK,
@@ -832,8 +822,10 @@ func (req *queueUpdateRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateRequest) (*RiverQueue, error) {
-	return pgxutil.WithTxV(ctx, a.dbPool, func(ctx context.Context, tx pgx.Tx) (*RiverQueue, error) {
+func (a *queueUpdateEndpoint[TTx]) Execute(ctx context.Context, req *queueUpdateRequest) (*RiverQueue, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*RiverQueue, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
 		// Construct metadata based on concurrency field
 		var metadata json.RawMessage
 		if req.Concurrency.Set {
@@ -856,7 +848,7 @@ func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateReque
 			}
 		}
 
-		queue, err := a.client.QueueUpdateTx(ctx, tx, req.Name, &river.QueueUpdateParams{
+		queue, err := a.Client.QueueUpdateTx(ctx, tx, req.Name, &river.QueueUpdateParams{
 			Metadata: metadata,
 		})
 		if err != nil {
@@ -866,7 +858,10 @@ func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateReque
 			return nil, fmt.Errorf("error updating queue metadata: %w", err)
 		}
 
-		countRows, err := dbsqlc.New().JobCountByQueueAndState(ctx, a.dbPool, []string{req.Name})
+		countRows, err := a.Driver.UnwrapExecutor(tx).JobCountByQueueAndState(ctx, &riverdriver.JobCountByQueueAndStateParams{
+			QueueNames: []string{req.Name},
+			Schema:     a.Client.Schema(),
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting queue counts: %w", err)
 		}
@@ -879,30 +874,37 @@ func (a *queueUpdateEndpoint) Execute(ctx context.Context, req *queueUpdateReque
 // stateAndCountGetEndpoint
 //
 
-type stateAndCountGetEndpoint struct {
-	apiBundle
+type stateAndCountGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, stateAndCountGetResponse]
 
 	queryCacheSkipThreshold int // constant normally, but settable for testing
-	queryCacher             *querycacher.QueryCacher[[]*dbsqlc.JobCountByStateRow]
+	queryCacher             *querycacher.QueryCacher[map[rivertype.JobState]int]
 }
 
-func newStateAndCountGetEndpoint(apiBundle apiBundle) *stateAndCountGetEndpoint {
-	return &stateAndCountGetEndpoint{
-		apiBundle:               apiBundle,
+func newStateAndCountGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *stateAndCountGetEndpoint[TTx] {
+	runQuery := func(ctx context.Context) (map[rivertype.JobState]int, error) {
+		return dbutil.WithTxV(ctx, bundle.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (map[rivertype.JobState]int, error) {
+			tx := bundle.Driver.UnwrapTx(execTx)
+
+			return bundle.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: bundle.Client.Schema()})
+		})
+	}
+	return &stateAndCountGetEndpoint[TTx]{
+		APIBundle:               bundle,
 		queryCacheSkipThreshold: 1_000_000,
-		queryCacher:             querycacher.NewQueryCacher(apiBundle.archetype, apiBundle.dbPool, dbsqlc.New().JobCountByState),
+		queryCacher:             querycacher.NewQueryCacher(bundle.Archetype, runQuery),
 	}
 }
 
-func (*stateAndCountGetEndpoint) Meta() *apiendpoint.EndpointMeta {
+func (*stateAndCountGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{
 		Pattern:    "GET /api/states",
 		StatusCode: http.StatusOK,
 	}
 }
 
-func (a *stateAndCountGetEndpoint) SubServices() []startstop.Service {
+func (a *stateAndCountGetEndpoint[TTx]) SubServices() []startstop.Service {
 	return []startstop.Service{a.queryCacher}
 }
 
@@ -919,12 +921,12 @@ type stateAndCountGetResponse struct {
 	Scheduled int `json:"scheduled"`
 }
 
-func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
+func (a *stateAndCountGetEndpoint[TTx]) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
 	// Counts the total number of jobs in a state and count result.
-	totalJobs := func(stateAndCountRes []*dbsqlc.JobCountByStateRow) int {
+	totalJobs := func(stateAndCountRes map[rivertype.JobState]int) int {
 		var totalJobs int
-		for _, stateAndCount := range stateAndCountRes {
-			totalJobs += int(stateAndCount.Count)
+		for _, count := range stateAndCountRes {
+			totalJobs += count
 		}
 		return totalJobs
 	}
@@ -938,158 +940,26 @@ func (a *stateAndCountGetEndpoint) Execute(ctx context.Context, _ *stateAndCount
 	stateAndCountRes, ok := a.queryCacher.CachedRes()
 	if !ok || totalJobs(stateAndCountRes) < a.queryCacheSkipThreshold {
 		var err error
-		stateAndCountRes, err = dbsqlc.New().JobCountByState(ctx, a.dbPool)
+		stateAndCountRes, err = dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (map[rivertype.JobState]int, error) {
+			tx := a.Driver.UnwrapTx(execTx)
+
+			return a.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: a.Client.Schema()})
+		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting states and counts: %w", err)
 		}
 	}
 
-	stateAndCountMap := sliceutil.KeyBy(stateAndCountRes, func(r *dbsqlc.JobCountByStateRow) (rivertype.JobState, int) {
-		return rivertype.JobState(r.State), int(r.Count)
-	})
-
 	return &stateAndCountGetResponse{
-		Available: stateAndCountMap[rivertype.JobStateAvailable],
-		Cancelled: stateAndCountMap[rivertype.JobStateCancelled],
-		Completed: stateAndCountMap[rivertype.JobStateCompleted],
-		Discarded: stateAndCountMap[rivertype.JobStateDiscarded],
-		Pending:   stateAndCountMap[rivertype.JobStatePending],
-		Retryable: stateAndCountMap[rivertype.JobStateRetryable],
-		Running:   stateAndCountMap[rivertype.JobStateRunning],
-		Scheduled: stateAndCountMap[rivertype.JobStateScheduled],
+		Available: stateAndCountRes[rivertype.JobStateAvailable],
+		Cancelled: stateAndCountRes[rivertype.JobStateCancelled],
+		Completed: stateAndCountRes[rivertype.JobStateCompleted],
+		Discarded: stateAndCountRes[rivertype.JobStateDiscarded],
+		Pending:   stateAndCountRes[rivertype.JobStatePending],
+		Retryable: stateAndCountRes[rivertype.JobStateRetryable],
+		Running:   stateAndCountRes[rivertype.JobStateRunning],
+		Scheduled: stateAndCountRes[rivertype.JobStateScheduled],
 	}, nil
-}
-
-//
-// workflowGetEndpoint
-//
-
-type workflowGetEndpoint struct {
-	apiBundle
-	apiendpoint.Endpoint[jobCancelRequest, workflowGetResponse]
-}
-
-func newWorkflowGetEndpoint(apiBundle apiBundle) *workflowGetEndpoint {
-	return &workflowGetEndpoint{apiBundle: apiBundle}
-}
-
-func (*workflowGetEndpoint) Meta() *apiendpoint.EndpointMeta {
-	return &apiendpoint.EndpointMeta{
-		Pattern:    "GET /api/workflows/{id}",
-		StatusCode: http.StatusOK,
-	}
-}
-
-type workflowGetRequest struct {
-	ID string `json:"-" validate:"required"` // from ExtractRaw
-}
-
-func (req *workflowGetRequest) ExtractRaw(r *http.Request) error {
-	req.ID = r.PathValue("id")
-	return nil
-}
-
-type workflowGetResponse struct {
-	Tasks []*RiverJob `json:"tasks"`
-}
-
-func (a *workflowGetEndpoint) Execute(ctx context.Context, req *workflowGetRequest) (*workflowGetResponse, error) {
-	jobs, err := dbsqlc.New().JobListWorkflow(ctx, a.dbPool, &dbsqlc.JobListWorkflowParams{
-		PaginationLimit:  1000,
-		PaginationOffset: 0,
-		WorkflowID:       req.ID,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error getting workflow jobs: %w", err)
-	}
-
-	if len(jobs) < 1 {
-		return nil, NewNotFoundWorkflow(req.ID)
-	}
-
-	return &workflowGetResponse{
-		Tasks: sliceutil.Map(jobs, internalJobToSerializableJob),
-	}, nil
-}
-
-//
-// workflowListEndpoint
-//
-
-type workflowListEndpoint struct {
-	apiBundle
-	apiendpoint.Endpoint[jobCancelRequest, listResponse[workflowListItem]]
-}
-
-func newWorkflowListEndpoint(apiBundle apiBundle) *workflowListEndpoint {
-	return &workflowListEndpoint{apiBundle: apiBundle}
-}
-
-func (*workflowListEndpoint) Meta() *apiendpoint.EndpointMeta {
-	return &apiendpoint.EndpointMeta{
-		Pattern:    "GET /api/workflows",
-		StatusCode: http.StatusOK,
-	}
-}
-
-type workflowListRequest struct {
-	After *string `json:"-" validate:"omitempty"`                       // from ExtractRaw
-	Limit *int    `json:"-" validate:"omitempty,min=0,max=1000"`        // from ExtractRaw
-	State string  `json:"-" validate:"omitempty,oneof=active inactive"` // from ExtractRaw
-}
-
-func (req *workflowListRequest) ExtractRaw(r *http.Request) error {
-	if after := r.URL.Query().Get("after"); after != "" {
-		req.After = (&after)
-	}
-
-	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
-		limit, err := strconv.Atoi(limitStr)
-		if err != nil {
-			return apierror.NewBadRequestf("Couldn't convert `limit` to integer: %s.", err)
-		}
-
-		req.Limit = &limit
-	}
-
-	if state := r.URL.Query().Get("state"); state != "" {
-		req.State = (state)
-	}
-
-	return nil
-}
-
-func (a *workflowListEndpoint) Execute(ctx context.Context, req *workflowListRequest) (*listResponse[workflowListItem], error) {
-	switch req.State {
-	case "active":
-		workflows, err := dbsqlc.New().WorkflowListActive(ctx, a.dbPool, &dbsqlc.WorkflowListActiveParams{
-			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error listing workflows: %w", err)
-		}
-
-		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListActiveToSerializableWorkflow)), nil
-	case "inactive":
-		workflows, err := dbsqlc.New().WorkflowListInactive(ctx, a.dbPool, &dbsqlc.WorkflowListInactiveParams{
-			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error listing workflows: %w", err)
-		}
-		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListInactiveToSerializableWorkflow)), nil
-	default:
-		workflows, err := dbsqlc.New().WorkflowListAll(ctx, a.dbPool, &dbsqlc.WorkflowListAllParams{
-			After:           ptrutil.ValOrDefault(req.After, ""),
-			PaginationLimit: int32(min(ptrutil.ValOrDefault(req.Limit, 100), 1000)), //nolint:gosec
-		})
-		if err != nil {
-			return nil, fmt.Errorf("error listing workflows: %w", err)
-		}
-		return listResponseFrom(sliceutil.Map(workflows, internalWorkflowListAllToSerializableWorkflow)), nil
-	}
 }
 
 func NewNotFoundJob(jobID int64) *apierror.NotFound {
@@ -1134,46 +1004,9 @@ type RiverJobMinimal struct {
 
 type RiverJob struct {
 	RiverJobMinimal
+
 	Errors   []rivertype.AttemptError `json:"errors"`
 	Metadata json.RawMessage          `json:"metadata"`
-}
-
-func internalJobToSerializableJob(internal *dbsqlc.RiverJob) *RiverJob {
-	errs := make([]rivertype.AttemptError, len(internal.Errors))
-	for i, attemptErr := range internal.Errors {
-		if err := json.Unmarshal(attemptErr, &errs[i]); err != nil {
-			// ignore for now
-			fmt.Printf("error unmarshaling attempt error: %s\n", err)
-		}
-	}
-
-	attemptedBy := internal.AttemptedBy
-	if attemptedBy == nil {
-		attemptedBy = []string{}
-	}
-
-	minimal := RiverJobMinimal{
-		ID:          internal.ID,
-		Args:        internal.Args,
-		Attempt:     int(internal.Attempt),
-		AttemptedAt: timePtr(internal.AttemptedAt),
-		AttemptedBy: attemptedBy,
-		CreatedAt:   internal.CreatedAt.Time.UTC(),
-		FinalizedAt: timePtr(internal.FinalizedAt),
-		Kind:        internal.Kind,
-		MaxAttempts: int(internal.MaxAttempts),
-		Priority:    int(internal.Priority),
-		Queue:       internal.Queue,
-		State:       string(internal.State),
-		ScheduledAt: internal.ScheduledAt.Time.UTC(),
-		Tags:        internal.Tags,
-	}
-
-	return &RiverJob{
-		RiverJobMinimal: minimal,
-		Errors:          errs,
-		Metadata:        internal.Metadata,
-	}
 }
 
 func riverJobToSerializableJob(riverJob *rivertype.JobRow) *RiverJob {
@@ -1214,47 +1047,6 @@ func riverJobToSerializableJobMinimal(riverJob *rivertype.JobRow) *RiverJobMinim
 	}
 }
 
-type RiverProducer struct {
-	ID          int64              `json:"id"`
-	ClientID    string             `json:"client_id"`
-	Concurrency *ConcurrencyConfig `json:"concurrency"`
-	CreatedAt   time.Time          `json:"created_at"`
-	MaxWorkers  int                `json:"max_workers"`
-	PausedAt    *time.Time         `json:"paused_at"`
-	QueueName   string             `json:"queue_name"`
-	Running     int32              `json:"running"`
-	UpdatedAt   time.Time          `json:"updated_at"`
-}
-
-func internalProducerToSerializableProducer(internal *dbsqlc.ProducerListByQueueRow) *RiverProducer {
-	var pausedAt *time.Time
-	if internal.RiverProducer.PausedAt.Valid {
-		pausedAt = &internal.RiverProducer.PausedAt.Time
-	}
-
-	var concurrency *ConcurrencyConfig
-	if len(internal.RiverProducer.Metadata) > 0 {
-		var metadata struct {
-			Concurrency ConcurrencyConfig `json:"concurrency"`
-		}
-		if err := json.Unmarshal(internal.RiverProducer.Metadata, &metadata); err == nil {
-			concurrency = &metadata.Concurrency
-		}
-	}
-
-	return &RiverProducer{
-		ID:          internal.RiverProducer.ID,
-		ClientID:    internal.RiverProducer.ClientID,
-		Concurrency: concurrency,
-		CreatedAt:   internal.RiverProducer.CreatedAt.Time,
-		MaxWorkers:  int(internal.RiverProducer.MaxWorkers),
-		PausedAt:    pausedAt,
-		QueueName:   internal.RiverProducer.QueueName,
-		Running:     internal.Running,
-		UpdatedAt:   internal.RiverProducer.UpdatedAt.Time,
-	}
-}
-
 type RiverQueue struct {
 	CountAvailable int                `json:"count_available"`
 	CountRunning   int                `json:"count_running"`
@@ -1265,7 +1057,7 @@ type RiverQueue struct {
 	UpdatedAt      time.Time          `json:"updated_at"`
 }
 
-func riverQueueToSerializableQueue(internal rivertype.Queue, count *dbsqlc.JobCountByQueueAndStateRow) *RiverQueue {
+func riverQueueToSerializableQueue(internal rivertype.Queue, count *riverdriver.JobCountByQueueAndStateResult) *RiverQueue {
 	var concurrency *ConcurrencyConfig
 	if len(internal.Metadata) > 0 {
 		var metadata struct {
@@ -1287,8 +1079,8 @@ func riverQueueToSerializableQueue(internal rivertype.Queue, count *dbsqlc.JobCo
 	}
 }
 
-func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*dbsqlc.JobCountByQueueAndStateRow) *listResponse[RiverQueue] {
-	countsMap := make(map[string]*dbsqlc.JobCountByQueueAndStateRow)
+func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*riverdriver.JobCountByQueueAndStateResult) *listResponse[RiverQueue] {
+	countsMap := make(map[string]*riverdriver.JobCountByQueueAndStateResult)
 	for _, count := range counts {
 		countsMap[count.Queue] = count
 	}
@@ -1298,93 +1090,4 @@ func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*dbsq
 		queues[i] = riverQueueToSerializableQueue(*internalQueue, countsMap[internalQueue.Name])
 	}
 	return listResponseFrom(queues)
-}
-
-type workflowListItem struct {
-	CountAvailable  int       `json:"count_available"`
-	CountCancelled  int       `json:"count_cancelled"`
-	CountCompleted  int       `json:"count_completed"`
-	CountDiscarded  int       `json:"count_discarded"`
-	CountFailedDeps int       `json:"count_failed_deps"`
-	CountPending    int       `json:"count_pending"`
-	CountRetryable  int       `json:"count_retryable"`
-	CountRunning    int       `json:"count_running"`
-	CountScheduled  int       `json:"count_scheduled"`
-	CreatedAt       time.Time `json:"created_at"`
-	ID              string    `json:"id"`
-	Name            *string   `json:"name"`
-}
-
-func internalWorkflowListActiveToSerializableWorkflow(internal *dbsqlc.WorkflowListActiveRow) *workflowListItem {
-	var name *string
-	if internal.WorkflowName != "" {
-		name = &internal.WorkflowName
-	}
-
-	return &workflowListItem{
-		CountAvailable:  int(internal.CountAvailable),
-		CountCancelled:  int(internal.CountCancelled),
-		CountCompleted:  int(internal.CountCompleted),
-		CountDiscarded:  int(internal.CountDiscarded),
-		CountFailedDeps: int(internal.CountFailedDeps),
-		CountPending:    int(internal.CountPending),
-		CountRetryable:  int(internal.CountRetryable),
-		CountRunning:    int(internal.CountRunning),
-		CountScheduled:  int(internal.CountScheduled),
-		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
-		ID:              internal.WorkflowID,
-		Name:            name,
-	}
-}
-
-func internalWorkflowListAllToSerializableWorkflow(internal *dbsqlc.WorkflowListAllRow) *workflowListItem {
-	var name *string
-	if internal.WorkflowName != "" {
-		name = &internal.WorkflowName
-	}
-
-	return &workflowListItem{
-		CountAvailable:  int(internal.CountAvailable),
-		CountCancelled:  int(internal.CountCancelled),
-		CountCompleted:  int(internal.CountCompleted),
-		CountDiscarded:  int(internal.CountDiscarded),
-		CountFailedDeps: int(internal.CountFailedDeps),
-		CountPending:    int(internal.CountPending),
-		CountRetryable:  int(internal.CountRetryable),
-		CountRunning:    int(internal.CountRunning),
-		CountScheduled:  int(internal.CountScheduled),
-		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
-		ID:              internal.WorkflowID,
-		Name:            name,
-	}
-}
-
-func internalWorkflowListInactiveToSerializableWorkflow(internal *dbsqlc.WorkflowListInactiveRow) *workflowListItem {
-	var name *string
-	if internal.WorkflowName != "" {
-		name = &internal.WorkflowName
-	}
-
-	return &workflowListItem{
-		CountAvailable:  int(internal.CountAvailable),
-		CountCancelled:  int(internal.CountCancelled),
-		CountCompleted:  int(internal.CountCompleted),
-		CountDiscarded:  int(internal.CountDiscarded),
-		CountFailedDeps: int(internal.CountFailedDeps),
-		CountPending:    int(internal.CountPending),
-		CountRetryable:  int(internal.CountRetryable),
-		CountRunning:    int(internal.CountRunning),
-		CountScheduled:  int(internal.CountScheduled),
-		CreatedAt:       internal.EarliestCreatedAt.Time.UTC(),
-		ID:              internal.WorkflowID,
-		Name:            name,
-	}
-}
-
-func timePtr(t pgtype.Timestamptz) *time.Time {
-	if !t.Valid {
-		return nil
-	}
-	utc := t.Time.UTC()
-	return &utc
 }

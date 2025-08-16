@@ -7,9 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+⚠️ Version 0.12.0 has breaking changes when running `riverui` as an embedded `http.Handler` or via a Docker image. The `ghcr.io/riverqueue/riverui` images no longer include Pro-specific functionality; Pro customers must use new `riverqueue.com/riverproui` images to access Pro features. See details below.
+
 ### Changed
 
 - Go binary now built without debug symbols for a ~35% reduction in output size. [PR #391](https://github.com/riverqueue/riverui/pull/391).
+- **Breaking change:** River UI has been split into two modules and two executables: `riverui` for OSS-only functionality, and `riverproui` which adds Pro-specific functionality through dependencies on `riverqueue.com/riverpro`. This change makes it far easier to continue extending the UI for everybody but especially for Pro-specific feature.
+
+  Users who embed `riverui` into their Go app as a handler will need to update their `riverui.NewServer` initialization to provide requires an `Endpoints` option in `riverui.ServerOpts`, using `riverui.NewEndpoints(client, nil)` for the OSS `riverui` functionality or `riverproui.NewEndpoints(client, nil)` with a `riverpro.Client` for `riverpro` functionality:
+
+  ```go
+  server, err := riverui.NewServer(&riverui.ServerOpts{
+      // For OSS riverui:
+      Endpoints: riverui.NewEndpoints(client, nil),
+      // Or, for riverpro:
+      Endpoints: riverproui.NewEndpoints(client, nil),
+      // ... other options
+  })
+  ```
+
+  This structure enables Pro-specific API handlers and feature flags to be added to the Pro endpoint bundle.
+
+  Users who run River UI from a Docker image can continue using the published OSS `ghcr.io/riverqueue/riverui` images for OSS-only functionality, while those using River Pro will want to migrate to the `riverqueue.com/riverproui` Docker images which are now being published. The Pro images are hosted with a Docker repository that leverages the same credentials as the River Pro Go module server. For details on how to configure this, see [the River UI docs](https://riverqueue.com/docs/river-ui).
+
+  For users who directly run the published `riverui` executables (published as GitHub release artifacts), there are no `riverproui` equivalents; those who need one can build it directly from `riverproui/cmd/riverproui` in this repository. Alternatively, migrate to either the `riverqueue.com/riverproui` Docker images or embed the `http.Handler` in your app as shown above.
+
+  As part of this change, all database queries were removed from `riverui` in favor of being implemented directly in the underlying OSS and Pro drivers. [PR #379](https://github.com/riverqueue/riverui/pull/379).
 
 ## [v0.11.0] - 2025-06-05
 
