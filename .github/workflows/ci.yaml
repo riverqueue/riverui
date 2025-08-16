@@ -19,9 +19,9 @@ jobs:
     strategy:
       matrix:
         go-version:
-          - "1.23"
           - "1.24"
-        postgres-version: [16, 15]
+          - "1.25"
+        postgres-version: [17, 16, 15]
       fail-fast: false
     timeout-minutes: 5
 
@@ -90,7 +90,7 @@ jobs:
     name: Go lint
     runs-on: ubuntu-latest
     env:
-      GOLANGCI_LINT_VERSION: v2.2.1
+      GOLANGCI_LINT_VERSION: v2.4.0
       GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
     permissions:
       contents: read
@@ -133,7 +133,7 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "22.14.0"
+          - "22.18.0"
       fail-fast: false
     timeout-minutes: 5
 
@@ -170,7 +170,7 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "22.14.0"
+          - "22.18.0"
       fail-fast: false
     timeout-minutes: 5
 
@@ -231,7 +231,7 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
-          node-version: "22.14.0"
+          node-version: "22.18.0"
 
       - name: Install dependencies
         run: npm install

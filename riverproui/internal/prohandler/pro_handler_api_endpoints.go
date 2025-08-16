@@ -8,6 +8,9 @@ import (
 	"strconv"
 	"time"
 
+	"riverqueue.com/riverui/internal/apibundle"
+	"riverqueue.com/riverui/riverproui/internal/uitype"
+
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
@@ -16,12 +19,11 @@ import (
 
 	"riverqueue.com/riverpro"
 	riverprodriver "riverqueue.com/riverpro/driver"
-	"riverqueue.com/riverui/internal/apibundle"
-	"riverqueue.com/riverui/riverproui/internal/uitype"
 )
 
 type ProAPIBundle[TTx any] struct {
 	apibundle.APIBundle[TTx]
+
 	Client *riverpro.Client[TTx]
 	DB     riverprodriver.ProExecutor
 }
@@ -252,6 +254,7 @@ type riverJobMinimal struct {
 
 type riverJobSerializable struct {
 	riverJobMinimal
+
 	Errors   []rivertype.AttemptError `json:"errors"`
 	Metadata json.RawMessage          `json:"metadata"`
 }

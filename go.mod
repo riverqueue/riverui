@@ -1,8 +1,8 @@
 module riverqueue.com/riverui
 
-go 1.23.0
+go 1.24
 
-toolchain go1.24.1
+toolchain go1.24.4
 
 require (
 	github.com/jackc/pgx/v5 v5.7.5
