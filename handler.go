@@ -16,9 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"riverqueue.com/riverui/internal/apibundle"
-	"riverqueue.com/riverui/uiendpoints"
-
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apimiddleware"
 	"github.com/riverqueue/apiframe/apitype"
@@ -26,6 +23,9 @@ import (
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
+
+	"riverqueue.com/riverui/internal/apibundle"
+	"riverqueue.com/riverui/uiendpoints"
 )
 
 type endpointsExtensions interface {

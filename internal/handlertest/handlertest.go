@@ -11,10 +11,11 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
-	"riverqueue.com/riverui/internal/riverinternaltest"
-	"riverqueue.com/riverui/uiendpoints"
 
 	"github.com/riverqueue/river/riverdriver"
+
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/uiendpoints"
 )
 
 type APICallFunc = func(t *testing.T, testCaseName, method, path string, payload []byte)

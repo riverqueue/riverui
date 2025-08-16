@@ -16,11 +16,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
+
+	"github.com/riverqueue/apiframe/apimiddleware"
+
 	"riverqueue.com/riverui"
 	"riverqueue.com/riverui/internal/authmiddleware"
 	"riverqueue.com/riverui/uiendpoints"
-
-	"github.com/riverqueue/apiframe/apimiddleware"
 )
 
 type BundleOpts struct {

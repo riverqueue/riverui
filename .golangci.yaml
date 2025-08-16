@@ -115,3 +115,4 @@ formatters:
         - Default
         - Prefix(github.com/riverqueue)
         - Prefix(riverqueue.com/riverpro)
+        - Prefix(riverqueue.com/riverui)

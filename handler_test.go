@@ -9,14 +9,15 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
-	"riverqueue.com/riverui/internal/handlertest"
-	"riverqueue.com/riverui/internal/riverinternaltest"
-	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
-	"riverqueue.com/riverui/uiendpoints"
 
 	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
+
+	"riverqueue.com/riverui/internal/handlertest"
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/uiendpoints"
 )
 
 func TestNewHandlerIntegration(t *testing.T) {

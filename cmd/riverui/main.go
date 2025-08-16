@@ -3,12 +3,13 @@ package main
 import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/internal/riveruicmd"
-	"riverqueue.com/riverui/uiendpoints"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+
+	"riverqueue.com/riverui"
+	"riverqueue.com/riverui/internal/riveruicmd"
+	"riverqueue.com/riverui/uiendpoints"
 )
 
 func main() {

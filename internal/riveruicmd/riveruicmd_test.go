@@ -13,12 +13,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/require"
-	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/uiendpoints"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
+
+	"riverqueue.com/riverui"
+	"riverqueue.com/riverui/uiendpoints"
 )
 
 func TestInitServer(t *testing.T) {

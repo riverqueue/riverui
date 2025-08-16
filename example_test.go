@@ -11,11 +11,12 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"riverqueue.com/riverui"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivershared/util/slogutil"
+
+	"riverqueue.com/riverui"
 )
 
 // ExampleNewHandler demonstrates how to create a River UI handler,

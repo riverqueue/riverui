@@ -11,17 +11,18 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
-	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/internal/handlertest"
-	"riverqueue.com/riverui/internal/riverinternaltest"
-	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
-	"riverqueue.com/riverui/uiendpoints"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
 
 	"riverqueue.com/riverpro"
 	"riverqueue.com/riverpro/driver/riverpropgxv5"
+
+	"riverqueue.com/riverui"
+	"riverqueue.com/riverui/internal/handlertest"
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/uiendpoints"
 )
 
 type noOpArgs struct {
