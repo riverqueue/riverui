@@ -8,6 +8,7 @@ import (
 	"riverqueue.com/riverui"
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/riverproui/internal/prohandler"
+	"riverqueue.com/riverui/uiendpoints"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/river/rivershared/baseservice"
@@ -22,7 +23,7 @@ type EndpointsOpts[TTx any] struct {
 	Tx *TTx
 }
 
-func NewEndpoints[TTx any](client *riverpro.Client[TTx], opts *EndpointsOpts[TTx]) apibundle.EndpointBundle {
+func NewEndpoints[TTx any](client *riverpro.Client[TTx], opts *EndpointsOpts[TTx]) uiendpoints.Bundle {
 	if opts == nil {
 		opts = &EndpointsOpts[TTx]{}
 	}
@@ -38,13 +39,13 @@ func NewEndpoints[TTx any](client *riverpro.Client[TTx], opts *EndpointsOpts[TTx
 }
 
 type endpoints[TTx any] struct {
-	bundleOpts   *apibundle.EndpointBundleOpts
+	bundleOpts   *uiendpoints.BundleOpts
 	client       *riverpro.Client[TTx]
 	proOpts      *EndpointsOpts[TTx]
-	ossEndpoints apibundle.EndpointBundle
+	ossEndpoints uiendpoints.Bundle
 }
 
-func (e *endpoints[TTx]) Configure(bundleOpts *apibundle.EndpointBundleOpts) {
+func (e *endpoints[TTx]) Configure(bundleOpts *uiendpoints.BundleOpts) {
 	e.bundleOpts = bundleOpts
 	e.ossEndpoints.Configure(bundleOpts)
 }

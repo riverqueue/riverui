@@ -17,8 +17,8 @@ import (
 	"github.com/rs/cors"
 	sloghttp "github.com/samber/slog-http"
 	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/authmiddleware"
+	"riverqueue.com/riverui/uiendpoints"
 
 	"github.com/riverqueue/apiframe/apimiddleware"
 )
@@ -27,7 +27,7 @@ type BundleOpts struct {
 	JobListHideArgsByDefault bool
 }
 
-func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) apibundle.EndpointBundle) {
+func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) {
 	ctx := context.Background()
 
 	logger := slog.New(getLogHandler(&slog.HandlerOptions{
@@ -128,7 +128,7 @@ type initServerResult struct {
 	uiHandler  *riverui.Handler // River UI handler
 }
 
-func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundler func(TClient) apibundle.EndpointBundle) (*initServerResult, error) {
+func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundler func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
 	if !strings.HasPrefix(pathPrefix, "/") || pathPrefix == "" {
 		return nil, fmt.Errorf("invalid path prefix: %s", pathPrefix)
 	}

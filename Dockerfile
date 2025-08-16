@@ -23,6 +23,8 @@ COPY *.go internal docs/README.md LICENSE ./
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY public/ public/
+COPY uiendpoints/ uiendpoints/
+
 COPY --from=build-ui /app/dist ./dist
 
 RUN go build -trimpath -ldflags="-w -s -buildid=" -o /bin/riverui ./cmd/riverui

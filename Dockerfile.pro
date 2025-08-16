@@ -32,7 +32,10 @@ COPY *.go internal docs/README.md LICENSE ./
 COPY cmd/ cmd/
 COPY internal/ internal/
 COPY public/ public/
+COPY uiendpoints/ uiendpoints/
+
 COPY riverproui/ riverproui/
+
 COPY --from=build-ui /app/dist ./dist
 
 # Build the riverproui binary

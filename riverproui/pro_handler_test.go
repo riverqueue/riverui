@@ -12,10 +12,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
 	"riverqueue.com/riverui"
-	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/handlertest"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/uiendpoints"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
@@ -66,11 +66,11 @@ func mustMarshalJSON(t *testing.T, v any) []byte {
 func TestProHandlerIntegration(t *testing.T) {
 	t.Parallel()
 
-	createBundle := func(client *riverpro.Client[pgx.Tx], tx pgx.Tx) apibundle.EndpointBundle {
+	createBundle := func(client *riverpro.Client[pgx.Tx], tx pgx.Tx) uiendpoints.Bundle {
 		return NewEndpoints(client, &EndpointsOpts[pgx.Tx]{Tx: &tx})
 	}
 
-	createHandler := func(t *testing.T, bundle apibundle.EndpointBundle) http.Handler {
+	createHandler := func(t *testing.T, bundle uiendpoints.Bundle) http.Handler {
 		t.Helper()
 
 		logger := riverinternaltest.Logger(t)

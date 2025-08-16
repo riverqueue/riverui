@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Breaking change:** River UI has been split into two modules and two executables: `riverui` for OSS-only functionality, and `riverproui` which adds Pro-specific functionality through dependencies on `riverqueue.com/riverpro`. This change makes it far easier to continue extending the UI for everybody but especially for Pro-specific feature.
 
   As part of this, the `Server` and `ServerOpts` types were also renamed to
-  `Handler` and `HandlerOpts` respectievly.  Users who embed `riverui` into
+  `Handler` and `HandlerOpts` respectively.  Users who embed `riverui` into
   their Go app as a handler will need to update their `riverui.NewServer`
   initialization to `riverui.NewHandler` and to provide an `Endpoints` option in
   `riverui.HandlerOpts`, using `riverui.NewEndpoints(client, nil)` for the OSS
