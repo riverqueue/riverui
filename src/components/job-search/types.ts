@@ -8,12 +8,12 @@ export enum JobFilterTypeID {
 export interface FilterType {
   id: JobFilterTypeID;
   label: string;
-  prefix: string;
+  match: string;
 }
 
 export interface JobFilter {
   id: string;
-  prefix: string;
+  match: string;
   typeId: JobFilterTypeID;
   values: string[];
 }
@@ -22,21 +22,21 @@ export const AVAILABLE_FILTERS: FilterType[] = [
   {
     id: JobFilterTypeID.ID,
     label: "id",
-    prefix: "id:",
+    match: "id:",
   },
   {
     id: JobFilterTypeID.KIND,
     label: "kind",
-    prefix: "kind:",
+    match: "kind:",
   },
   {
     id: JobFilterTypeID.PRIORITY,
     label: "priority",
-    prefix: "priority:",
+    match: "priority:",
   },
   {
     id: JobFilterTypeID.QUEUE,
     label: "queue",
-    prefix: "queue:",
+    match: "queue:",
   },
 ];

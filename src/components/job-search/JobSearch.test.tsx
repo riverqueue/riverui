@@ -67,7 +67,7 @@ describe("JobSearch", () => {
       const initialFilters: Filter[] = [
         {
           id: "1",
-          prefix: "kind:",
+          match: "kind:",
           typeId: FilterTypeId.KIND,
           values: ["batch"],
         },
@@ -99,7 +99,7 @@ describe("JobSearch", () => {
       await waitFor(() => {
         expect(onFiltersChange).toHaveBeenCalledWith([
           expect.objectContaining({
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: ["batch"],
           }),
@@ -129,7 +129,7 @@ describe("JobSearch", () => {
       // Should have called onFiltersChange after debounce
       expect(onFiltersChange).toHaveBeenCalledWith([
         expect.objectContaining({
-          prefix: "kind:",
+          match: "kind:",
           typeId: FilterTypeId.KIND,
           values: ["batch"],
         }),
@@ -274,7 +274,7 @@ describe("JobSearch", () => {
       await waitFor(() => {
         expect(onFiltersChange).toHaveBeenCalledWith([
           expect.objectContaining({
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: [],
           }),
@@ -307,7 +307,7 @@ describe("JobSearch", () => {
       await waitFor(() => {
         expect(onFiltersChange).toHaveBeenCalledWith([
           expect.objectContaining({
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: ["batch"],
           }),
@@ -336,7 +336,7 @@ describe("JobSearch", () => {
       const initialFilters: Filter[] = [
         {
           id: "1",
-          prefix: "kind:",
+          match: "kind:",
           typeId: FilterTypeId.KIND,
           values: ["batch"],
         },
@@ -488,7 +488,7 @@ describe("JobSearch", () => {
       await waitFor(() => {
         expect(onFiltersChange).toHaveBeenCalledWith([
           expect.objectContaining({
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: ["batch", "stream"],
           }),
@@ -509,12 +509,12 @@ describe("JobSearch", () => {
       await waitFor(() => {
         expect(onFiltersChange).toHaveBeenCalledWith([
           expect.objectContaining({
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: ["batch"],
           }),
           expect.objectContaining({
-            prefix: "queue:",
+            match: "queue:",
             typeId: FilterTypeId.QUEUE,
             values: ["priority"],
           }),
@@ -535,12 +535,12 @@ describe("JobSearch", () => {
       await waitFor(() => {
         expect(onFiltersChange).toHaveBeenCalledWith([
           expect.objectContaining({
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: ["batch"],
           }),
           expect.objectContaining({
-            prefix: "queue:",
+            match: "queue:",
             typeId: FilterTypeId.QUEUE,
             values: ["priority"],
           }),

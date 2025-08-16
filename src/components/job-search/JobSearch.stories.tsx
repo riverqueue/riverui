@@ -65,25 +65,25 @@ export const WithInitialFilters: Story = {
     initialFilters: [
       {
         id: "1",
-        prefix: "kind:",
+        match: "kind:",
         typeId: FilterTypeId.KIND,
         values: ["batch"],
       },
       {
         id: "2",
-        prefix: "queue:",
+        match: "queue:",
         typeId: FilterTypeId.QUEUE,
         values: ["default"],
       },
       {
         id: "3",
-        prefix: "priority:",
+        match: "priority:",
         typeId: FilterTypeId.PRIORITY,
         values: ["1"],
       },
       {
         id: "4",
-        prefix: "id:",
+        match: "id:",
         typeId: FilterTypeId.ID,
         values: ["123", "456"],
       },
@@ -108,7 +108,7 @@ const FilterChangeDemo = () => {
 
     // Create a log entry summarizing the change
     const filterSummary = newFilters
-      .map((f) => `${f.prefix}${f.values.join(",")}`)
+      .map((f) => `${f.match}${f.values.join(",")}`)
       .join("; ");
 
     setFilterLog((prev) => [
@@ -135,7 +135,7 @@ const FilterChangeDemo = () => {
           initialFilters={[
             {
               id: "1",
-              prefix: "kind:",
+              match: "kind:",
               typeId: FilterTypeId.KIND,
               values: ["email"],
             },
@@ -229,7 +229,7 @@ const KeyboardInteractionDemo = () => {
         initialFilters={[
           {
             id: "1",
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: ["email"],
           },
@@ -270,13 +270,13 @@ const MultiValueDemo = () => {
         initialFilters={[
           {
             id: "1",
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: ["email"],
           },
           {
             id: "2",
-            prefix: "queue:",
+            match: "queue:",
             typeId: FilterTypeId.QUEUE,
             values: ["high-priority"],
           },
@@ -307,7 +307,7 @@ export const NarrowWithLongFilters: Story = {
         initialFilters={[
           {
             id: "1",
-            prefix: "kind:",
+            match: "kind:",
             typeId: FilterTypeId.KIND,
             values: [
               "very-long-job-kind-value-that-should-truncate",
@@ -317,7 +317,7 @@ export const NarrowWithLongFilters: Story = {
           },
           {
             id: "2",
-            prefix: "queue:",
+            match: "queue:",
             typeId: FilterTypeId.QUEUE,
             values: ["queue-with-a-really-really-long-name-that-will-not-fit"],
           },
