@@ -8,15 +8,15 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/riverqueue/apiframe v0.0.0-20250708014637-e55c49c01ff7
-	github.com/riverqueue/river v0.23.2-0.20250816150517-3bbe023cb707
-	github.com/riverqueue/river/riverdriver v0.23.2-0.20250816150517-3bbe023cb707
-	github.com/riverqueue/river/rivershared v0.23.2-0.20250816150517-3bbe023cb707
-	github.com/riverqueue/river/rivertype v0.23.2-0.20250816150517-3bbe023cb707
+	github.com/riverqueue/river v0.24.0
+	github.com/riverqueue/river/riverdriver v0.24.0
+	github.com/riverqueue/river/rivershared v0.24.0
+	github.com/riverqueue/river/rivertype v0.24.0
 	github.com/stretchr/testify v1.10.0
-	riverqueue.com/riverpro v0.16.0-rc.2
-	riverqueue.com/riverpro/driver v0.16.0-rc.2
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.16.0-rc.2
-	riverqueue.com/riverui v0.0.0-00010101000000-000000000000
+	riverqueue.com/riverpro v0.16.0
+	riverqueue.com/riverpro/driver v0.16.0
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.16.0
+	riverqueue.com/riverui v0.16.0
 )
 
 require (
@@ -31,7 +31,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.23.2-0.20250816150517-3bbe023cb707 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.24.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/slog-http v1.7.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect

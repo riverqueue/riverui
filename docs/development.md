@@ -94,6 +94,7 @@ $ npm run build
    ```shell
    git pull origin master
    git tag $VERSION
+   git tag riverproui/$VERSION -m "release riverproui/$VERSION"
    git push --tags
    ```
 
