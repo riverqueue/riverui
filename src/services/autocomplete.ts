@@ -16,32 +16,32 @@ export type AutocompleteKey = [
 
 export const autocompleteKey = (
   facet: AutocompleteFacet,
-  prefix?: string,
+  match?: string,
   after?: string,
   exclude?: string[],
 ): AutocompleteKey => {
-  return ["autocomplete", facet, prefix, after, exclude];
+  return ["autocomplete", facet, match, after, exclude];
 };
 
 export const getAutocomplete: QueryFunction<
   string[],
   AutocompleteKey
 > = async ({ queryKey, signal }) => {
-  const [, facet, prefix, after, exclude] = queryKey;
-  return fetchAutocomplete(facet, prefix, after, exclude, signal);
+  const [, facet, match, after, exclude] = queryKey;
+  return fetchAutocomplete(facet, match, after, exclude, signal);
 };
 
 // Direct API call function that doesn't use React Query
 export async function fetchAutocomplete(
   facet: AutocompleteFacet,
-  prefix?: string,
+  match?: string,
   after?: string,
   exclude?: string[],
   signal?: AbortSignal,
 ): Promise<string[]> {
   const query = new URLSearchParams({ facet });
-  if (prefix) {
-    query.set("prefix", prefix);
+  if (match) {
+    query.set("match", match);
   }
   if (after) {
     query.set("after", after);

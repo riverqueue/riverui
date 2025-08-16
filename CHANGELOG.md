@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   As part of this change, all database queries were removed from `riverui` in favor of being implemented directly in the underlying OSS and Pro drivers. [PR #379](https://github.com/riverqueue/riverui/pull/379).
 
+- For job kind and queue name searching, match input against substrings instead of only prefixes. Particularly for long names, this is far more convenient. [PR #398](https://github.com/riverqueue/riverui/pull/398).
+
 ## [v0.11.0] - 2025-06-05
 
 ### Changed

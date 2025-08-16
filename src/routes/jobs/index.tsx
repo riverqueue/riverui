@@ -189,7 +189,7 @@ function JobsIndexComponent() {
     if (id !== undefined) {
       filters.push({
         id: "id-filter",
-        prefix: "id:",
+        match: "id:",
         typeId: FilterTypeId.ID,
         values: id.map(String),
       });
@@ -197,7 +197,7 @@ function JobsIndexComponent() {
     if (kind?.length) {
       filters.push({
         id: "kind-filter",
-        prefix: "kind:",
+        match: "kind:",
         typeId: FilterTypeId.KIND,
         values: kind,
       });
@@ -205,7 +205,7 @@ function JobsIndexComponent() {
     if (priority !== undefined) {
       filters.push({
         id: "priority-filter",
-        prefix: "priority:",
+        match: "priority:",
         typeId: FilterTypeId.PRIORITY,
         values: priority.map(String),
       });
@@ -213,7 +213,7 @@ function JobsIndexComponent() {
     if (queue?.length) {
       filters.push({
         id: "queue-filter",
-        prefix: "queue:",
+        match: "queue:",
         typeId: FilterTypeId.QUEUE,
         values: queue,
       });
