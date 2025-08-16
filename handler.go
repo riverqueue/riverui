@@ -16,8 +16,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"riverqueue.com/riverui/internal/apibundle"
-
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apimiddleware"
 	"github.com/riverqueue/apiframe/apitype"
@@ -25,12 +23,16 @@ import (
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/baseservice"
 	"github.com/riverqueue/river/rivershared/startstop"
+
+	"riverqueue.com/riverui/internal/apibundle"
+	"riverqueue.com/riverui/uiendpoints"
 )
 
 type endpointsExtensions interface {
 	Extensions() map[string]bool
 }
 
+// EndpointsOpts are the options for creating a new Endpoints bundle.
 type EndpointsOpts[TTx any] struct {
 	// Tx is an optional transaction to wrap all database operations. It's mainly
 	// used for testing.
@@ -38,12 +40,19 @@ type EndpointsOpts[TTx any] struct {
 }
 
 type endpoints[TTx any] struct {
-	bundleOpts *apibundle.EndpointBundleOpts
+	bundleOpts *uiendpoints.BundleOpts
 	client     *river.Client[TTx]
 	opts       *EndpointsOpts[TTx]
 }
 
-func NewEndpoints[TTx any](client *river.Client[TTx], opts *EndpointsOpts[TTx]) apibundle.EndpointBundle {
+// NewEndpoints creates a new Endpoints bundle, which is a collection of API
+// endpoints for a Handler. Endpoints must be provided to the Handler via the
+// `Endpoints` option of `HandlerOpts`.
+//
+// This constructor returns the open source riverui bundle, whereas
+// `riverproui.NewEndpoints` returns the Pro-specific bundle with Pro APIs and
+// features enabled.
+func NewEndpoints[TTx any](client *river.Client[TTx], opts *EndpointsOpts[TTx]) uiendpoints.Bundle {
 	if opts == nil {
 		opts = &EndpointsOpts[TTx]{}
 	}
@@ -53,7 +62,7 @@ func NewEndpoints[TTx any](client *river.Client[TTx], opts *EndpointsOpts[TTx]) 
 	}
 }
 
-func (e *endpoints[TTx]) Configure(bundleOpts *apibundle.EndpointBundleOpts) {
+func (e *endpoints[TTx]) Configure(bundleOpts *uiendpoints.BundleOpts) {
 	e.bundleOpts = bundleOpts
 }
 
@@ -104,7 +113,7 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 type HandlerOpts struct {
 	// DevMode is whether the server is running in development mode.
 	DevMode                  bool
-	Endpoints                apibundle.EndpointBundle
+	Endpoints                uiendpoints.Bundle
 	JobListHideArgsByDefault bool
 	// LiveFS is whether to use the live filesystem for the frontend.
 	LiveFS bool
@@ -166,7 +175,7 @@ func NewHandler(opts *HandlerOpts) (*Handler, error) {
 		return nil, err
 	}
 
-	opts.Endpoints.Configure(&apibundle.EndpointBundleOpts{
+	opts.Endpoints.Configure(&uiendpoints.BundleOpts{
 		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
 	})
 

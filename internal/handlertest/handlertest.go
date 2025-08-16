@@ -11,15 +11,16 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
-	"riverqueue.com/riverui/internal/apibundle"
-	"riverqueue.com/riverui/internal/riverinternaltest"
 
 	"github.com/riverqueue/river/riverdriver"
+
+	"riverqueue.com/riverui/internal/riverinternaltest"
+	"riverqueue.com/riverui/uiendpoints"
 )
 
 type APICallFunc = func(t *testing.T, testCaseName, method, path string, payload []byte)
 
-func RunIntegrationTest[TClient any](t *testing.T, createClient func(t *testing.T, logger *slog.Logger) (TClient, riverdriver.Driver[pgx.Tx]), createBundle func(client TClient, tx pgx.Tx) apibundle.EndpointBundle, createHandler func(t *testing.T, bundle apibundle.EndpointBundle) http.Handler, testRunner func(exec riverdriver.Executor, makeAPICall APICallFunc)) {
+func RunIntegrationTest[TClient any](t *testing.T, createClient func(t *testing.T, logger *slog.Logger) (TClient, riverdriver.Driver[pgx.Tx]), createBundle func(client TClient, tx pgx.Tx) uiendpoints.Bundle, createHandler func(t *testing.T, bundle uiendpoints.Bundle) http.Handler, testRunner func(exec riverdriver.Executor, makeAPICall APICallFunc)) {
 	t.Helper()
 
 	var (

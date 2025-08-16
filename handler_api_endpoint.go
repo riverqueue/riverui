@@ -10,9 +10,6 @@ import (
 	"strconv"
 	"time"
 
-	"riverqueue.com/riverui/internal/apibundle"
-	"riverqueue.com/riverui/internal/querycacher"
-
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/apiframe/apitype"
@@ -23,6 +20,9 @@ import (
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
+
+	"riverqueue.com/riverui/internal/apibundle"
+	"riverqueue.com/riverui/internal/querycacher"
 )
 
 type listResponse[T any] struct {
