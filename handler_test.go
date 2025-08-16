@@ -34,7 +34,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 		t.Helper()
 
 		logger := riverinternaltest.Logger(t)
-		server, err := NewServer(&ServerOpts{
+		server, err := NewHandler(&HandlerOpts{
 			DevMode:     true,
 			Endpoints:   bundle,
 			LiveFS:      true,

@@ -7,17 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-⚠️ Version 0.12.0 has breaking changes when running `riverui` as an embedded `http.Handler` or via a Docker image. The `ghcr.io/riverqueue/riverui` images no longer include Pro-specific functionality; Pro customers must use new `riverqueue.com/riverproui` images to access Pro features. See details below.
+⚠️ Version 0.12.0 has breaking changes when running `riverui` as an embedded `http.Handler` or via a Docker image. The `ghcr.io/riverqueue/riverui` images no longer include Pro-specific functionality; Pro customers must use new `riverqueue.com/riverproui` images to access Pro features. The main type was also renamed from `Server` to `Handler` for correctness since it functions as an `http.Handler`. See details below.
 
 ### Changed
 
 - Go binary now built without debug symbols for a ~35% reduction in output size. [PR #391](https://github.com/riverqueue/riverui/pull/391).
 - **Breaking change:** River UI has been split into two modules and two executables: `riverui` for OSS-only functionality, and `riverproui` which adds Pro-specific functionality through dependencies on `riverqueue.com/riverpro`. This change makes it far easier to continue extending the UI for everybody but especially for Pro-specific feature.
 
-  Users who embed `riverui` into their Go app as a handler will need to update their `riverui.NewServer` initialization to provide requires an `Endpoints` option in `riverui.ServerOpts`, using `riverui.NewEndpoints(client, nil)` for the OSS `riverui` functionality or `riverproui.NewEndpoints(client, nil)` with a `riverpro.Client` for `riverpro` functionality:
+  As part of this, the `Server` and `ServerOpts` types were also renamed to
+  `Handler` and `HandlerOpts` respectievly.  Users who embed `riverui` into
+  their Go app as a handler will need to update their `riverui.NewServer`
+  initialization to `riverui.NewHandler` and to provide an `Endpoints` option in
+  `riverui.HandlerOpts`, using `riverui.NewEndpoints(client, nil)` for the OSS
+  `riverui` functionality or `riverproui.NewEndpoints(client, nil)` with a
+  `riverpro.Client` for `riverpro` functionality:
 
   ```go
-  server, err := riverui.NewServer(&riverui.ServerOpts{
+  handler, err := riverui.NewHandler(&riverui.HandlerOpts{
       // For OSS riverui:
       Endpoints: riverui.NewEndpoints(client, nil),
       // Or, for riverpro:
@@ -32,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   For users who directly run the published `riverui` executables (published as GitHub release artifacts), there are no `riverproui` equivalents; those who need one can build it directly from `riverproui/cmd/riverproui` in this repository. Alternatively, migrate to either the `riverqueue.com/riverproui` Docker images or embed the `http.Handler` in your app as shown above.
 
-  As part of this change, all database queries were removed from `riverui` in favor of being implemented directly in the underlying OSS and Pro drivers. [PR #379](https://github.com/riverqueue/riverui/pull/379).
+  As part of this change, all database queries were removed from `riverui` in favor of being implemented directly in the underlying OSS and Pro drivers. [PR #379](https://github.com/riverqueue/riverui/pull/379) and [PR 400](https://github.com/riverqueue/riverui/pull/400).
 
 - For job kind and queue name searching, match input against substrings instead of only prefixes. Particularly for long names, this is far more convenient. [PR #398](https://github.com/riverqueue/riverui/pull/398).
 

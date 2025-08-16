@@ -100,8 +100,8 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 	}
 }
 
-// ServerOpts are the options for creating a new Server.
-type ServerOpts struct {
+// HandlerOpts are the options for creating a new Handler.
+type HandlerOpts struct {
 	// DevMode is whether the server is running in development mode.
 	DevMode                  bool
 	Endpoints                apibundle.EndpointBundle
@@ -117,7 +117,7 @@ type ServerOpts struct {
 	projectRoot string
 }
 
-func (opts *ServerOpts) validate() error {
+func (opts *HandlerOpts) validate() error {
 	if opts.Logger == nil {
 		return errors.New("logger is required")
 	}
@@ -136,18 +136,22 @@ func NormalizePathPrefix(prefix string) string {
 	return prefix
 }
 
-// Server is an HTTP server that serves the River UI and API.  It must be
+// Handler is an http.Handler that serves the River UI and API.  It must be
 // started with Start to initialize caching and background query functionality
-// prior to serving requests. Server implements http.Handler, so it can be
-// directly mounted in an http.ServeMux.
-type Server struct {
+// prior to serving requests. It can be directly mounted in an http.ServeMux
+// and placed behind middleware, such as for authentication or logging.
+//
+// Handlers are somewhat stateful with background services for caching, so they
+// must be started with Start to initialize them prior to serving requests. They
+// automatically stop as soon as the context is done.
+type Handler struct {
 	baseStartStop startstop.BaseStartStop
 	handler       http.Handler
 	services      []startstop.Service
 }
 
-// NewServer creates a new Server that serves the River UI and API.
-func NewServer(opts *ServerOpts) (*Server, error) {
+// NewHandler creates a new Handler that serves the River UI and API.
+func NewHandler(opts *HandlerOpts) (*Handler, error) {
 	if opts.Endpoints == nil {
 		return nil, errors.New("endpoints is required")
 	}
@@ -252,44 +256,44 @@ func NewServer(opts *ServerOpts) (*Server, error) {
 		middlewareStack.Use(&stripPrefixMiddleware{prefix})
 	}
 
-	server := &Server{
+	handler := &Handler{
 		handler:  middlewareStack.Mount(mux),
 		services: services,
 	}
 
-	return server, nil
+	return handler, nil
 }
 
 // ServeHTTP returns an http.ServeHTTP that can be mounted to serve HTTP
 // requests.
-func (s *Server) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-	s.handler.ServeHTTP(rw, req)
+func (h *Handler) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
+	h.handler.ServeHTTP(rw, req)
 }
 
-// Start starts the server's background services. Notably, this does _not_ cause
-// the server to start listening for HTTP in any way. To serve HTTP requests,
-// the Server implements `http.Handler` via a `ServeHTTP` method and can be
+// Start starts the handler's background services. Notably, this does _not_ cause
+// the handler to start listening for HTTP in any way. To serve HTTP requests,
+// the Handler implements `http.Handler` via a `ServeHTTP` method and can be
 // mounted in an existing `http.ServeMux`.
-func (s *Server) Start(ctx context.Context) error {
-	ctx, shouldStart, started, stopped := s.baseStartStop.StartInit(ctx)
+func (h *Handler) Start(ctx context.Context) error {
+	ctx, shouldStart, started, stopped := h.baseStartStop.StartInit(ctx)
 	if !shouldStart {
 		return nil
 	}
 
-	if err := startstop.StartAll(ctx, s.services...); err != nil {
+	if err := startstop.StartAll(ctx, h.services...); err != nil {
 		return err
 	}
 
 	go func() {
 		// Wait for all subservices to start up before signaling our own start.
-		startstop.WaitAllStarted(s.services...)
+		startstop.WaitAllStarted(h.services...)
 
 		started()
 		defer stopped() // this defer should come first so it's last out
 
 		<-ctx.Done()
 
-		startstop.StopAllParallel(s.services...)
+		startstop.StopAllParallel(h.services...)
 	}()
 
 	return nil

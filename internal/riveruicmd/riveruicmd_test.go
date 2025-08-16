@@ -82,7 +82,7 @@ func TestInitServer(t *testing.T) {
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
-			initRes.uiServer.ServeHTTP(recorder, req)
+			initRes.uiHandler.ServeHTTP(recorder, req)
 
 			var resp struct {
 				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
@@ -98,7 +98,7 @@ func TestInitServer(t *testing.T) {
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
-			initRes.uiServer.ServeHTTP(recorder, req)
+			initRes.uiHandler.ServeHTTP(recorder, req)
 
 			var resp struct {
 				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`
@@ -114,7 +114,7 @@ func TestInitServer(t *testing.T) {
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
-			initRes.uiServer.ServeHTTP(recorder, req)
+			initRes.uiHandler.ServeHTTP(recorder, req)
 
 			var resp struct {
 				JobListHideArgsByDefault bool `json:"job_list_hide_args_by_default"`

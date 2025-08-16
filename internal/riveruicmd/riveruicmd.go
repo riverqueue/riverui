@@ -122,10 +122,10 @@ func getLogLevel() slog.Level {
 }
 
 type initServerResult struct {
-	dbPool     *pgxpool.Pool   // database pool; close must be deferred by caller!
-	httpServer *http.Server    // HTTP server wrapping the UI server
-	logger     *slog.Logger    // application logger (also internalized in UI server)
-	uiServer   *riverui.Server // River UI server
+	dbPool     *pgxpool.Pool    // database pool; close must be deferred by caller!
+	httpServer *http.Server     // HTTP server wrapping the UI handler
+	logger     *slog.Logger     // application logger (also internalized in UI handler)
+	uiHandler  *riverui.Handler // River UI handler
 }
 
 func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundler func(TClient) apibundle.EndpointBundle) (*initServerResult, error) {
@@ -167,7 +167,7 @@ func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefi
 		return nil, err
 	}
 
-	uiServer, err := riverui.NewServer(&riverui.ServerOpts{
+	uiHandler, err := riverui.NewHandler(&riverui.HandlerOpts{
 		DevMode:                  devMode,
 		Endpoints:                createBundler(client),
 		JobListHideArgsByDefault: jobListHideArgsByDefault,
@@ -201,18 +201,18 @@ func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefi
 		dbPool: dbPool,
 		httpServer: &http.Server{
 			Addr:              host + ":" + port,
-			Handler:           middlewareStack.Mount(uiServer),
+			Handler:           middlewareStack.Mount(uiHandler),
 			ReadHeaderTimeout: 5 * time.Second,
 		},
-		logger:   logger,
-		uiServer: uiServer,
+		logger:    logger,
+		uiHandler: uiHandler,
 	}, nil
 }
 
 func startAndListen(ctx context.Context, logger *slog.Logger, initRes *initServerResult) error {
 	defer initRes.dbPool.Close()
 
-	if err := initRes.uiServer.Start(ctx); err != nil {
+	if err := initRes.uiHandler.Start(ctx); err != nil {
 		return err
 	}
 

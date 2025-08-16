@@ -74,15 +74,15 @@ func TestProHandlerIntegration(t *testing.T) {
 		t.Helper()
 
 		logger := riverinternaltest.Logger(t)
-		opts := &riverui.ServerOpts{
+		opts := &riverui.HandlerOpts{
 			DevMode:   true,
 			Endpoints: bundle,
 			LiveFS:    false, // Disable LiveFS to avoid needing projectRoot
 			Logger:    logger,
 		}
-		server, err := riverui.NewServer(opts)
+		handler, err := riverui.NewHandler(opts)
 		require.NoError(t, err)
-		return server
+		return handler
 	}
 
 	testRunner := func(exec riverdriver.Executor, makeAPICall handlertest.APICallFunc) {
