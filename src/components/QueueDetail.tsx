@@ -749,18 +749,27 @@ const ConcurrencyLimitsDisabled = () => {
               <Logo className="mt-1 mr-3 h-6 w-auto text-brand-primary dark:text-white" />
               <Badge color="blue">Pro</Badge>
             </div>
+            <h3 className="mt-4 text-lg leading-6 font-medium text-slate-900 dark:text-white">
+              Concurrency limits
+            </h3>
           </div>
           <div className="flex flex-col gap-4 px-4 sm:px-6">
             <p className="text-sm text-slate-800 dark:text-slate-100">
-              Concurrency limits are included with River Pro.
-            </p>
-            <p className="text-sm text-slate-800 dark:text-slate-100">
               Control how many jobs can run simultaneously across your entire
               application or within a single client with concurrency limits.
-            </p>
-            <p className="text-sm text-slate-800 dark:text-slate-100">
               Limits can be partitioned by job attributes to fine-tune
               performance and resource usage per customer, region, or job type.
+            </p>
+            <p className="text-sm text-slate-800 dark:text-slate-100">
+              Concurrency limits are included with River Pro. If you're already
+              using Pro,{" "}
+              <a
+                className="text-brand-primary"
+                href="https://riverqueue.com/docs/river-ui"
+              >
+                upgrade your deployment
+              </a>{" "}
+              to access Pro features in the UI.
             </p>
           </div>
           <div className="flex gap-4 px-4 sm:px-6">
