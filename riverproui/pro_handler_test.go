@@ -66,15 +66,13 @@ func mustMarshalJSON(t *testing.T, v any) []byte {
 func TestProHandlerIntegration(t *testing.T) {
 	t.Parallel()
 
-	createClient := func(t *testing.T, logger *slog.Logger) (*riverpro.Client[pgx.Tx], riverdriver.Driver[pgx.Tx]) {
-		return insertOnlyProClient(t, logger)
-	}
-
 	createBundle := func(client *riverpro.Client[pgx.Tx], tx pgx.Tx) apibundle.EndpointBundle {
 		return NewEndpoints(client, &EndpointsOpts[pgx.Tx]{Tx: &tx})
 	}
 
 	createHandler := func(t *testing.T, bundle apibundle.EndpointBundle) http.Handler {
+		t.Helper()
+
 		logger := riverinternaltest.Logger(t)
 		opts := &riverui.ServerOpts{
 			DevMode:   true,
@@ -100,5 +98,5 @@ func TestProHandlerIntegration(t *testing.T) {
 		makeAPICall(t, "WorkflowList", http.MethodGet, "/api/pro/workflows", nil)
 	}
 
-	handlertest.RunIntegrationTest(t, createClient, createBundle, createHandler, testRunner)
+	handlertest.RunIntegrationTest(t, insertOnlyProClient, createBundle, createHandler, testRunner)
 }

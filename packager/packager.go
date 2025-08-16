@@ -79,11 +79,11 @@ func createBundle() error {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(vOutputDir, modFilename), modFileContents, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(vOutputDir, modFilename), modFileContents, 0o600); err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(filepath.Join(vOutputDir, zipFilename), os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(filepath.Join(vOutputDir, zipFilename), os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -112,6 +112,6 @@ func createBundle() error {
 }
 
 type Info struct {
-	Version string    // version string
-	Time    time.Time // commit time
+	Version string    `json:"Version"` //nolint:tagliatelle
+	Time    time.Time `json:"Time"`    //nolint:tagliatelle
 }

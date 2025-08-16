@@ -34,12 +34,6 @@ func listResponseFrom[T any](data []*T) *listResponse[T] {
 	return &listResponse[T]{Data: data}
 }
 
-type statusResponse struct {
-	Status string `json:"status"`
-}
-
-var statusResponseOK = &statusResponse{Status: "ok"} //nolint:gochecknoglobals
-
 //
 // producerListEndpoint
 //
@@ -271,14 +265,14 @@ func internalJobToSerializableJob(internal *rivertype.JobRow) *riverJobSerializa
 	minimal := riverJobMinimal{
 		ID:          internal.ID,
 		Args:        internal.EncodedArgs,
-		Attempt:     int(internal.Attempt),
+		Attempt:     internal.Attempt,
 		AttemptedAt: internal.AttemptedAt,
 		AttemptedBy: attemptedBy,
 		CreatedAt:   internal.CreatedAt,
 		FinalizedAt: internal.FinalizedAt,
 		Kind:        internal.Kind,
-		MaxAttempts: int(internal.MaxAttempts),
-		Priority:    int(internal.Priority),
+		MaxAttempts: internal.MaxAttempts,
+		Priority:    internal.Priority,
 		Queue:       internal.Queue,
 		State:       string(internal.State),
 		ScheduledAt: internal.ScheduledAt,
