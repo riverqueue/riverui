@@ -18,10 +18,11 @@ import (
 	"github.com/riverqueue/river/rivershared/util/slogutil"
 )
 
-// ExampleNewServer demonstrates how to create a River UI server,
+// ExampleNewHandler demonstrates how to create a River UI handler,
 // embed it in an HTTP server, and make requests to its API endpoints.
-func ExampleNewServer() {
-	ctx := context.Background()
+func ExampleNewHandler() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	// Create a PostgreSQL connection pool. In a real application, you'd use your
 	// own connection string or pool config.
@@ -49,9 +50,9 @@ func ExampleNewServer() {
 		panic(err)
 	}
 
-	// Create the River UI server. This server implements http.Handler and can be
+	// Create the River UI handler. This handler implements http.Handler and can be
 	// mounted in an HTTP mux
-	server, err := riverui.NewServer(&riverui.ServerOpts{
+	handler, err := riverui.NewHandler(&riverui.HandlerOpts{
 		DevMode:   true, // Use the live filesystem—don't use this outside tests
 		Endpoints: riverui.NewEndpoints(client, nil),
 		Logger:    logger,
@@ -63,13 +64,13 @@ func ExampleNewServer() {
 
 	// Start the server to initialize background processes
 	// This does not start an HTTP server
-	if err := server.Start(ctx); err != nil {
+	if err := handler.Start(ctx); err != nil {
 		panic(err)
 	}
 
 	// Create an HTTP mux and mount the River UI:
 	mux := http.NewServeMux()
-	mux.Handle("/riverui/", server)
+	mux.Handle("/riverui/", handler)
 
 	// For this example, we use a test server to demonstrate API calls. In a
 	// production environment, you would use http.ListenAndServe instead.
