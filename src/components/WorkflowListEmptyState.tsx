@@ -62,7 +62,15 @@ export default function WorkflowListEmptyState({
                 completed, and support fan-out and fan-in execution.
               </p>
               <p className="text-sm text-slate-800 dark:text-slate-100">
-                Workflows are included with River Pro.
+                Workflows are included with River Pro. If you're already using
+                Pro,{" "}
+                <a
+                  className="text-brand-primary"
+                  href="https://riverqueue.com/docs/river-ui"
+                >
+                  upgrade your deployment
+                </a>{" "}
+                to access Pro features in the UI.
               </p>
             </div>
             <div className="flex gap-4 px-4 sm:px-6">
