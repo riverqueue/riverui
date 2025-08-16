@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - "master"
-      - "*" # TEMPORARY FOR TESTING
     tags:
       - "v*"
   pull_request:
@@ -269,10 +268,14 @@ jobs:
       manifest_digest: ${{ steps.manifest_digest.outputs.digest }}
       tag: ${{ steps.compute_tag.outputs.tag }}
     steps:
-      - name: Checkout
+      - name: Checkout full history (no tags yet)
         uses: actions/checkout@v4
         with:
-          fetch-tags: true
+          fetch-depth: 0 # full history
+          # keep fetch-tags off to avoid the conflict on tag events
+
+      - name: Fetch tags
+        run: git fetch --tags --force
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -438,7 +441,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-tags: true
+          fetch-depth: 0 # full history
+          # keep fetch-tags off to avoid the conflict on tag events
+
+      - name: Fetch tags
+        run: git fetch --tags --force
 
       - name: Force refresh mutable tags
         if: startsWith(github.ref, 'refs/tags/riverproui/v')
