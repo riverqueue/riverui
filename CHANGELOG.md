@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.12.1] - 2025-08-16
+
+No changes from v0.12.0 except fixes to the release process. v0.12.0 is not usable, this version should be used instead.
+
 ## [v0.12.0] - 2025-08-16
 
 ⚠️ Version 0.12.0 has breaking changes when running `riverui` as an embedded `http.Handler` or via a Docker image. The `ghcr.io/riverqueue/riverui` images no longer include Pro-specific functionality; Pro customers must use new `riverqueue.com/riverproui` images to access Pro features. The main type was also renamed from `Server` to `Handler` for correctness since it functions as an `http.Handler`. See details below.

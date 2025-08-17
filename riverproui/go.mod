@@ -16,7 +16,7 @@ require (
 	riverqueue.com/riverpro v0.16.0
 	riverqueue.com/riverpro/driver v0.16.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.16.0
-	riverqueue.com/riverui v0.12.1-rc.1
+	riverqueue.com/riverui v0.12.1
 )
 
 require (
@@ -47,6 +47,10 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+)
+
+retract (
+	v0.12.0 // Improper release process, not fully usable
 )
 
 replace riverqueue.com/riverui => ../
