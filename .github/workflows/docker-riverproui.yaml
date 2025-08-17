@@ -118,6 +118,9 @@ jobs:
     outputs:
       manifest_digest: ${{ steps.manifest_digest.outputs.digest }}
       tag: ${{ steps.compute_tag.outputs.tag }}
+      immutable_tags: ${{ steps.export_immutable_tags.outputs.tags }}
+      mutable_tags: ${{ steps.tag_mutable.outputs.tags }}
+
     steps:
       - name: Checkout full history (no tags yet)
         uses: actions/checkout@v4
@@ -193,7 +196,16 @@ jobs:
             `echo "${{ steps.meta.outputs.tags }}" | xargs -n1 echo -t` \
             $(printf "$ECR_IMAGE@sha256:%s " *)
 
+      - name: Export immutable tags (short) for downstream jobs
+        id: export_immutable_tags
+        run: |
+          TAGS=$(jq -r '.tags[] | split(":") | .[1]' <<< "$DOCKER_METADATA_OUTPUT_JSON")
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Tag mutable on release if latest in series
+        id: tag_mutable
         if: startsWith(github.ref, 'refs/tags/riverproui/v')
         working-directory: /tmp/digests
         run: |
@@ -222,6 +234,12 @@ jobs:
               -t "$ECR_IMAGE:$tag" \
               $(printf "$ECR_IMAGE@sha256:%s " *)
           done
+
+          if [ ${#mutable_tags[@]} -gt 0 ]; then
+            echo "tags<<EOF" >> $GITHUB_OUTPUT
+            printf "%s\n" "${mutable_tags[@]}" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          fi
 
       - name: Install crane
         uses: imjasonh/setup-crane@v0.4
@@ -283,6 +301,8 @@ jobs:
       IMAGE_NAME: riverqueue.com/riverproui
       MANIFEST_DIGEST: ${{ needs.merge-riverproui.outputs.manifest_digest }}
       TAG: ${{ needs.merge-riverproui.outputs.tag }}
+      IMMUTABLE_TAGS: ${{ needs.merge-riverproui.outputs.immutable_tags }}
+      MUTABLE_TAGS: ${{ needs.merge-riverproui.outputs.mutable_tags }}
     if: startsWith(github.ref, 'refs/tags/riverproui/v')
     permissions:
       contents: read
@@ -296,36 +316,35 @@ jobs:
       - name: Fetch tags
         run: git fetch --tags --force
 
-      - name: Force refresh mutable tags
-        if: startsWith(github.ref, 'refs/tags/riverproui/v')
+      - name: Force refresh pushed tags
         run: |
-          STRIPPED_VERSION="${GITHUB_REF_NAME#riverproui/v}"
-          MAJOR="${STRIPPED_VERSION%%.*}"
-          MINOR_PATCH="${STRIPPED_VERSION#${MAJOR}.}"
-          MINOR="${MINOR_PATCH%%.*}"
-          declare -a mutable_tags=()
-          GLOBAL_LATEST=$(git tag --list 'riverproui/v*' --sort=-v:refname | grep -E '^riverproui/v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9\.-]+)?$' | head -n1)
-          if [ "$GLOBAL_LATEST" = "riverproui/v${STRIPPED_VERSION}" ]; then
-            mutable_tags+=("latest")
+          pushed_tags="$IMMUTABLE_TAGS"
+          if [ -n "$MUTABLE_TAGS" ]; then
+            if [ -n "$pushed_tags" ]; then
+              pushed_tags="$pushed_tags,$MUTABLE_TAGS"
+            else
+              pushed_tags="$MUTABLE_TAGS"
+            fi
           fi
-          LATEST_IN_MAJOR=$(git tag --list "riverproui/v${MAJOR}.*" --sort=-v:refname | head -n1)
-          if [ "$LATEST_IN_MAJOR" = "riverproui/v${STRIPPED_VERSION}" ]; then
-            mutable_tags+=("v${MAJOR}")
-          fi
-          LATEST_IN_MINOR=$(git tag --list "riverproui/v${MAJOR}.${MINOR}.*" --sort=-v:refname | head -n1)
-          if [ "$LATEST_IN_MINOR" = "riverproui/v${STRIPPED_VERSION}" ]; then
-            mutable_tags+=("v${MAJOR}.${MINOR}")
-          fi
-          for tag in "${mutable_tags[@]}"; do
-            echo "Force refreshing mutable tag: $tag"
-            curl -f -u river:"${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}" \
-              -H "X-Force-Fetch-From-Upstream: ${{ secrets.FORCE_FETCH_SECRET }}" \
-              -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
-              "https://riverqueue.com/v2/riverproui/manifests/${tag}" -o /dev/null
-            curl -f -u river:"${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}" \
-              -H "X-Force-Fetch-From-Upstream: ${{ secrets.FORCE_FETCH_SECRET }}" \
-              -H "Accept: application/vnd.oci.image.index.v1+json" \
-              "https://riverqueue.com/v2/riverproui/manifests/${tag}" -o /dev/null
+          IFS=',' read -r -a tags <<< "$pushed_tags"
+          declare -a unique_tags=()
+          for t in "${tags[@]}"; do
+            if [[ ! " ${unique_tags[*]} " =~ " ${t} " ]]; then
+              unique_tags+=("$t")
+            fi
+          done
+          for tag in "${unique_tags[@]}"; do
+            if [ -n "$tag" ]; then
+              echo "Force refreshing tag: $tag"
+              curl -f -u river:"${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}" \
+                -H "X-Force-Fetch-From-Upstream: ${{ secrets.FORCE_FETCH_SECRET }}" \
+                -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
+                "https://riverqueue.com/v2/riverproui/manifests/${tag}" -o /dev/null
+              curl -f -u river:"${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}" \
+                -H "X-Force-Fetch-From-Upstream: ${{ secrets.FORCE_FETCH_SECRET }}" \
+                -H "Accept: application/vnd.oci.image.index.v1+json" \
+                "https://riverqueue.com/v2/riverproui/manifests/${tag}" -o /dev/null
+            fi
           done
 
       - name: Login to live registry
