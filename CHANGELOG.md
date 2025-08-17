@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.12.2] - 2025-08-16
+
+No changes from v0.12.0 except fixes to the release process. v0.12.0 is not usable, this version should be used instead.
+
 ## [v0.12.1] - 2025-08-16
 
 No changes from v0.12.0 except fixes to the release process. v0.12.0 is not usable, this version should be used instead.

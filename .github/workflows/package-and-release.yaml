@@ -166,10 +166,25 @@ jobs:
           TAG_PREFIX="${{ steps.module_info.outputs.tag_prefix }}"
           TAG_MATCHER="${TAG_PREFIX}v*"
 
+          # Get all versions in SemVer order with common prereleases before finals
+          # Multiple versionsort.suffix entries allow recognizing various prerelease markers
+          ALL_VERSIONS=$(git \
+            -c versionsort.suffix=-rc \
+            -c versionsort.suffix=.rc \
+            -c versionsort.suffix=-beta \
+            -c versionsort.suffix=.beta \
+            -c versionsort.suffix=-alpha \
+            -c versionsort.suffix=.alpha \
+            -c versionsort.suffix=-pre \
+            -c versionsort.suffix=.pre \
+            tag -l "$TAG_MATCHER" --sort=version:refname | sed "s#^$TAG_PREFIX##")
+
+          # Filter versions strictly after the threshold if specified
           if [ -n "$AFTER_VERSION" ]; then
-            VERSION_LIST=$(git tag -l "$TAG_MATCHER" | sed "s#^$TAG_PREFIX##" | sort -V | awk -v threshold="$AFTER_VERSION" '$0 > threshold')
+            # Print only entries that come after the first occurrence of AFTER_VERSION
+            VERSION_LIST=$(echo "$ALL_VERSIONS" | awk -v t="$AFTER_VERSION" 'seen {print} $0==t {seen=1}')
           else
-            VERSION_LIST=$(git tag -l "$TAG_MATCHER" | sed "s#^$TAG_PREFIX##" | sort -V)
+            VERSION_LIST="$ALL_VERSIONS"
           fi
 
           LATEST_VERSION=$(echo "$VERSION_LIST" | tail -n 1)
