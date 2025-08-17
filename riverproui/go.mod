@@ -16,7 +16,7 @@ require (
 	riverqueue.com/riverpro v0.16.0
 	riverqueue.com/riverpro/driver v0.16.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.16.0
-	riverqueue.com/riverui v0.12.1
+	riverqueue.com/riverui v0.12.2
 )
 
 require (
@@ -51,6 +51,7 @@ require (
 
 retract (
 	v0.12.0 // Improper release process, not fully usable
+	v0.12.1 // Improper release process, not fully usable
 )
 
 replace riverqueue.com/riverui => ../
