@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
+	"github.com/riverqueue/river/riverdriver"
+	"github.com/riverqueue/river/rivershared/util/dbutil"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
@@ -101,6 +104,59 @@ func internalProducerToSerializableProducer(internal *riverprodriver.ProducerLis
 		Running:     internal.Running,
 		UpdatedAt:   internal.Producer.UpdatedAt,
 	}
+}
+
+//
+// workflowCancelEndpoint
+//
+
+type workflowCancelEndpoint[TTx any] struct {
+	ProAPIBundle[TTx]
+	apiendpoint.Endpoint[workflowCancelRequest, workflowCancelResponse]
+}
+
+func NewWorkflowCancelEndpoint[TTx any](apiBundle ProAPIBundle[TTx]) *workflowCancelEndpoint[TTx] {
+	return &workflowCancelEndpoint[TTx]{ProAPIBundle: apiBundle}
+}
+
+func (*workflowCancelEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "POST /api/pro/workflows/{id}/cancel",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type workflowCancelRequest struct {
+	ID string `json:"-" validate:"required"` // from ExtractRaw
+}
+
+func (req *workflowCancelRequest) ExtractRaw(r *http.Request) error {
+	req.ID = r.PathValue("id")
+	return nil
+}
+
+type workflowCancelResponse struct {
+	CancelledJobs []*riverJobMinimal `json:"cancelled_jobs"`
+}
+
+func (a *workflowCancelEndpoint[TTx]) Execute(ctx context.Context, req *workflowCancelRequest) (*workflowCancelResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*workflowCancelResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
+		result, err := a.Client.WorkflowCancelTx(ctx, tx, req.ID)
+		if err != nil {
+			return nil, fmt.Errorf("error cancelling workflow: %w", err)
+		}
+
+		// consistent ordering
+		slices.SortFunc(result.CancelledJobs, func(a, b *rivertype.JobRow) int {
+			return int(a.ID - b.ID)
+		})
+
+		return &workflowCancelResponse{
+			CancelledJobs: sliceutil.Map(result.CancelledJobs, internalJobToJobMinimal),
+		}, nil
+	})
 }
 
 //
@@ -252,20 +308,13 @@ type riverJobMinimal struct {
 	Tags        []string        `json:"tags"`
 }
 
-type riverJobSerializable struct {
-	riverJobMinimal
-
-	Errors   []rivertype.AttemptError `json:"errors"`
-	Metadata json.RawMessage          `json:"metadata"`
-}
-
-func internalJobToSerializableJob(internal *rivertype.JobRow) *riverJobSerializable {
+func internalJobToJobMinimal(internal *rivertype.JobRow) *riverJobMinimal {
 	attemptedBy := internal.AttemptedBy
 	if attemptedBy == nil {
 		attemptedBy = []string{}
 	}
 
-	minimal := riverJobMinimal{
+	return &riverJobMinimal{
 		ID:          internal.ID,
 		Args:        internal.EncodedArgs,
 		Attempt:     internal.Attempt,
@@ -281,9 +330,18 @@ func internalJobToSerializableJob(internal *rivertype.JobRow) *riverJobSerializa
 		ScheduledAt: internal.ScheduledAt,
 		Tags:        internal.Tags,
 	}
+}
 
+type riverJobSerializable struct {
+	riverJobMinimal
+
+	Errors   []rivertype.AttemptError `json:"errors"`
+	Metadata json.RawMessage          `json:"metadata"`
+}
+
+func internalJobToSerializableJob(internal *rivertype.JobRow) *riverJobSerializable {
 	return &riverJobSerializable{
-		riverJobMinimal: minimal,
+		riverJobMinimal: *internalJobToJobMinimal(internal),
 		Errors:          internal.Errors,
 		Metadata:        internal.Metadata,
 	}
