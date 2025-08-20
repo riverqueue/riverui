@@ -46,6 +46,6 @@ require (
 )
 
 retract (
-	v0.12.0 // Improper release process, not fully usable
 	v0.12.1 // Improper release process, not fully usable
+	v0.12.0 // Improper release process, not fully usable
 )
