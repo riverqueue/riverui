@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Added the ability to cancel workflows from the workflow detail page. [PR #407](https://github.com/riverqueue/riverui/pull/407).
+
 ### Fixed
 
 - Workflow detail: prevent the viewport from getting stuck zoomed into empty space after navigating between the workflow list and detail pages by remounting the diagram per workflow and enabling fit-to-view on mount. [PR #408](https://github.com/riverqueue/riverui/pull/408)

@@ -1,7 +1,8 @@
 import WorkflowDetail from "@components/WorkflowDetail";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
-import { getWorkflow, getWorkflowKey } from "@services/workflows";
-import { useQuery } from "@tanstack/react-query";
+import { toastSuccess } from "@services/toast";
+import { cancelJobs, getWorkflow, getWorkflowKey } from "@services/workflows";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
   ErrorComponent,
@@ -56,6 +57,7 @@ function WorkflowComponent() {
   const { selected: selectedJobId } = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
   const refreshSettings = useRefreshSetting();
+  const queryClient = useQueryClient();
   queryOptions.refetchInterval = refreshSettings.intervalMs;
 
   const workflowQuery = useQuery(queryOptions);
@@ -68,9 +70,28 @@ function WorkflowComponent() {
     });
   };
 
+  const workflowID = workflow?.tasks?.[0]?.metadata.workflow_id;
+  const cancelMutation = useMutation({
+    mutationFn: cancelJobs,
+    onSuccess: () => {
+      if (workflowID) {
+        queryClient.invalidateQueries({ queryKey: getWorkflowKey(workflowID) });
+      }
+      queryClient.invalidateQueries({ queryKey: ["listWorkflows"] });
+      toastSuccess({
+        message: "Workflow cancellation requested",
+        duration: 2000,
+      });
+    },
+  });
+
   return (
     <WorkflowDetail
+      cancelPending={cancelMutation.isPending}
       loading={workflowQuery.isLoading}
+      onCancel={() =>
+        workflowID && cancelMutation.mutate({ workflowID: String(workflowID) })
+      }
       selectedJobId={selectedJobId}
       setSelectedJobId={setSelectedJobId}
       workflow={workflow}

@@ -188,12 +188,24 @@ export default function WorkflowDiagram({
         const depStatus = depStatusFromJob(dep);
         const edgeColor = edgeColors[depStatus];
 
+        // Only animate when the downstream job is actively waiting on deps
+        // i.e., Pending. If the downstream job is cancelled/discarded/etc.,
+        // keep the edge static.
+        const isActivelyWaiting = job.state === JobState.Pending;
+
+        // Subtle visual distinction:
+        // - blocked: grey dashed; animated only if actively waiting
+        // - failed: red dashed; never animated
+        // - unblocked: grey solid
+        const strokeDasharray = depStatus === "unblocked" ? "0" : "6 3";
+
         return {
-          animated: depStatus === "blocked",
+          animated: depStatus === "blocked" && isActivelyWaiting,
           id: `e-${dep.id}-${job.id}`,
           source: dep.id.toString(),
           style: {
             stroke: edgeColor,
+            strokeDasharray,
             strokeWidth: 2,
           },
           target: job.id.toString(),

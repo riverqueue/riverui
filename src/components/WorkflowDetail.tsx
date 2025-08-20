@@ -22,14 +22,18 @@ type JobsByTask = {
 };
 
 type WorkflowDetailProps = {
+  cancelPending?: boolean;
   loading: boolean;
+  onCancel?: () => void;
   selectedJobId: bigint | undefined;
   setSelectedJobId: (jobId: bigint | undefined) => void;
   workflow: undefined | Workflow;
 };
 
 export default function WorkflowDetail({
+  cancelPending,
   loading,
+  onCancel,
   selectedJobId,
   setSelectedJobId,
   workflow,
@@ -43,6 +47,7 @@ export default function WorkflowDetail({
   );
 
   const firstTask = workflow?.tasks?.[0];
+  const workflowID = firstTask?.metadata.workflow_id;
   // TODO: this is being repeated in WorkflowDiagram, dedupe
   const jobsByTask: JobsByTask = useMemo(() => {
     if (!workflow?.tasks) return {};
@@ -50,6 +55,17 @@ export default function WorkflowDetail({
       acc[job.metadata.task] = job;
       return acc;
     }, {});
+  }, [workflow?.tasks]);
+
+  const isActive = useMemo(() => {
+    const activeStates = new Set<JobState>([
+      JobState.Available,
+      JobState.Pending,
+      JobState.Retryable,
+      JobState.Running,
+      JobState.Scheduled,
+    ]);
+    return Boolean(workflow?.tasks?.some((t) => activeStates.has(t.state)));
   }, [workflow?.tasks]);
 
   if (!features.workflowQueries) {
@@ -94,7 +110,16 @@ export default function WorkflowDetail({
               </span>
             </p>
           </div>
-          <div className="order-none flex w-full justify-around sm:block sm:w-auto sm:flex-none">
+          <div className="order-none flex w-full items-center justify-end gap-2 sm:w-auto sm:flex-none">
+            {isActive && (
+              <Button
+                color="red"
+                disabled={cancelPending || !workflowID}
+                onClick={onCancel}
+              >
+                Cancel
+              </Button>
+            )}
             <Button color="light">
               <EllipsisHorizontalIcon className="size-6 text-red-500 dark:text-red-500" />
             </Button>

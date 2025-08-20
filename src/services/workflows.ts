@@ -1,6 +1,13 @@
-import type { QueryFunction } from "@tanstack/react-query";
+import type { MutationFunction, QueryFunction } from "@tanstack/react-query";
 
-import { apiJobToJob, JobFromAPI, JobWithKnownMetadata } from "@services/jobs";
+import {
+  apiJobMinimalToJobMinimal,
+  apiJobToJob,
+  JobFromAPI,
+  JobMinimal,
+  JobMinimalFromAPI,
+  JobWithKnownMetadata,
+} from "@services/jobs";
 import { API } from "@utils/api";
 
 import { ListResponse } from "./listResponse";
@@ -14,7 +21,17 @@ export type Workflow = {
   tasks: JobWithKnownMetadata[];
 };
 
-type GetWorkflowKey = ["getWorkflow", string];
+type CancelPayload = {
+  workflowID: string;
+};
+
+type CancelResponse = {
+  cancelledJobs: JobMinimal[];
+};
+
+type CancelResponseFromAPI = {
+  cancelled_jobs: JobMinimalFromAPI[];
+};
 
 // Represents Job as received from the API. This just like Job, except with
 // string dates instead of Date objects and keys as snake_case instead of
@@ -22,6 +39,21 @@ type GetWorkflowKey = ["getWorkflow", string];
 type WorkflowFromAPI = {
   tasks: JobFromAPI[];
 };
+
+export const cancelJobs: MutationFunction<
+  CancelResponse,
+  CancelPayload
+> = async ({ workflowID }) => {
+  const response = await API.post<never, CancelResponseFromAPI>(
+    `/pro/workflows/${workflowID}/cancel`,
+  );
+
+  return {
+    cancelledJobs: response.cancelled_jobs.map(apiJobMinimalToJobMinimal),
+  };
+};
+
+type GetWorkflowKey = ["getWorkflow", string];
 
 export const getWorkflowKey = (id: string): GetWorkflowKey => {
   return ["getWorkflow", id.toString()];
