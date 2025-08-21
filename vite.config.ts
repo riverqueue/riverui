@@ -1,5 +1,5 @@
 import tailwindcss from "@tailwindcss/vite";
-import { TanStackRouterVite } from "@tanstack/router-vite-plugin";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
@@ -27,7 +27,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
-    TanStackRouterVite({
+    tanstackRouter({
       routeFileIgnorePattern: ".(const|schema|test).(ts|tsx)",
     }),
     tsconfigPaths(),

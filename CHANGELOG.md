@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Workflow detail: prevent the viewport from getting stuck zoomed into empty space after navigating between the workflow list and detail pages by remounting the diagram per workflow and enabling fit-to-view on mount. [PR #408](https://github.com/riverqueue/riverui/pull/408)
+- Workflow detail: make MiniMap render nodes correctly and respect dark mode by setting explicit node bounds and theme-aware colors. [PR #408](https://github.com/riverqueue/riverui/pull/408)
+
 ## [v0.12.2] - 2025-08-16
 
 No changes from v0.12.0 except fixes to the release process. v0.12.0 is not usable, this version should be used instead.
