@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"riverqueue.com/riverui/internal/uicommontest"
 )
 
 func TestInt64String(t *testing.T) {
@@ -15,7 +16,7 @@ func TestInt64String(t *testing.T) {
 	t.Run("MarshalJSON", func(t *testing.T) {
 		t.Parallel()
 
-		require.Equal(t, `"123"`, string(mustMarshalJSON(t, int64String(123))))
+		require.Equal(t, `"123"`, string(uicommontest.MustMarshalJSON(t, int64String(123))))
 	})
 
 	t.Run("UnmarshalJSON", func(t *testing.T) {

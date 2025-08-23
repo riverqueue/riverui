@@ -23,6 +23,7 @@ import (
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/internal/uicommontest"
 )
 
 type setupEndpointTestBundle struct {
@@ -218,7 +219,7 @@ func TestAPIHandlerAutocompleteList(t *testing.T) {
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
 			Facet: "invalid",
 		})
-		requireAPIError(t, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, queue_name", "invalid"), err)
+		uicommontest.RequireAPIError(t, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, queue_name", "invalid"), err)
 	})
 }
 
@@ -322,7 +323,7 @@ func TestAPIHandlerHealthCheckGet(t *testing.T) {
 		require.NoError(t, bundle.tx.Rollback(ctx))
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &healthCheckGetRequest{Name: healthCheckNameComplete})
-		requireAPIError(t, apierror.WithInternalError(
+		uicommontest.RequireAPIError(t, apierror.WithInternalError(
 			apierror.NewServiceUnavailable("Unable to query database. Check logs for details."),
 			pgx.ErrTxClosed,
 		), err)
@@ -344,7 +345,7 @@ func TestAPIHandlerHealthCheckGet(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newHealthCheckGetEndpoint)
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &healthCheckGetRequest{Name: "other"})
-		requireAPIError(t, apierror.NewNotFoundf("Health check %q not found. Use either `complete` or `minimal`.", "other"), err)
+		uicommontest.RequireAPIError(t, apierror.NewNotFoundf("Health check %q not found. Use either `complete` or `minimal`.", "other"), err)
 	})
 }
 
@@ -380,7 +381,7 @@ func TestAPIHandlerJobCancel(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newJobCancelEndpoint)
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobCancelRequest{JobIDs: []int64String{123}})
-		requireAPIError(t, NewNotFoundJob(123), err)
+		uicommontest.RequireAPIError(t, NewNotFoundJob(123), err)
 	})
 }
 
@@ -414,7 +415,7 @@ func TestAPIHandlerJobDelete(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newJobDeleteEndpoint)
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobDeleteRequest{JobIDs: []int64String{123}})
-		requireAPIError(t, NewNotFoundJob(123), err)
+		uicommontest.RequireAPIError(t, NewNotFoundJob(123), err)
 	})
 }
 
@@ -441,7 +442,7 @@ func TestAPIHandlerJobGet(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newJobGetEndpoint)
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobGetRequest{JobID: 123})
-		requireAPIError(t, NewNotFoundJob(123), err)
+		uicommontest.RequireAPIError(t, NewNotFoundJob(123), err)
 	})
 }
 
@@ -638,7 +639,7 @@ func TestAPIHandlerJobRetry(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newJobRetryEndpoint)
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobRetryRequest{JobIDs: []int64String{123}})
-		requireAPIError(t, NewNotFoundJob(123), err)
+		uicommontest.RequireAPIError(t, NewNotFoundJob(123), err)
 	})
 }
 
@@ -654,7 +655,7 @@ func TestAPIHandlerQueueGet(t *testing.T) {
 
 		queue := testfactory.Queue(ctx, t, bundle.exec, nil)
 
-		_, err := bundle.client.InsertTx(ctx, bundle.tx, &noOpArgs{}, &river.InsertOpts{Queue: queue.Name})
+		_, err := bundle.client.InsertTx(ctx, bundle.tx, &uicommontest.NoOpArgs{}, &river.InsertOpts{Queue: queue.Name})
 		require.NoError(t, err)
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueGetRequest{Name: queue.Name})
@@ -669,7 +670,7 @@ func TestAPIHandlerQueueGet(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newQueueGetEndpoint)
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueGetRequest{Name: "does_not_exist"})
-		requireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
+		uicommontest.RequireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
 	})
 }
 
@@ -736,7 +737,7 @@ func TestAPIHandlerQueuePause(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newQueuePauseEndpoint)
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queuePauseRequest{Name: "does_not_exist"})
-		requireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
+		uicommontest.RequireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
 	})
 }
 
@@ -765,7 +766,7 @@ func TestAPIHandlerQueueResume(t *testing.T) {
 		endpoint, _ := setupEndpoint(ctx, t, newQueueResumeEndpoint)
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueResumeRequest{Name: "does_not_exist"})
-		requireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
+		uicommontest.RequireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
 	})
 }
 
@@ -837,7 +838,7 @@ func TestAPIHandlerQueueUpdate(t *testing.T) {
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueUpdateRequest{
 			Name: "does_not_exist",
 		})
-		requireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
+		uicommontest.RequireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
 	})
 }
 

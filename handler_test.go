@@ -17,6 +17,7 @@ import (
 	"riverqueue.com/riverui/internal/handlertest"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/internal/uicommontest"
 	"riverqueue.com/riverui/uiendpoints"
 )
 
@@ -67,16 +68,16 @@ func TestNewHandlerIntegration(t *testing.T) {
 		makeAPICall(t, "FeaturesGet", http.MethodGet, makeURL("/api/features"), nil)
 		makeAPICall(t, "HealthCheckGetComplete", http.MethodGet, makeURL("/api/health-checks/%s", healthCheckNameComplete), nil)
 		makeAPICall(t, "HealthCheckGetMinimal", http.MethodGet, makeURL("/api/health-checks/%s", healthCheckNameMinimal), nil)
-		makeAPICall(t, "JobCancel", http.MethodPost, makeURL("/api/jobs/cancel"), mustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
-		makeAPICall(t, "JobDelete", http.MethodPost, makeURL("/api/jobs/delete"), mustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
+		makeAPICall(t, "JobCancel", http.MethodPost, makeURL("/api/jobs/cancel"), uicommontest.MustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
+		makeAPICall(t, "JobDelete", http.MethodPost, makeURL("/api/jobs/delete"), uicommontest.MustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
 		makeAPICall(t, "JobGet", http.MethodGet, makeURL("/api/jobs/%d", job.ID), nil)
 		makeAPICall(t, "JobList", http.MethodGet, makeURL("/api/jobs"), nil)
-		makeAPICall(t, "JobRetry", http.MethodPost, makeURL("/api/jobs/retry"), mustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
+		makeAPICall(t, "JobRetry", http.MethodPost, makeURL("/api/jobs/retry"), uicommontest.MustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
 		makeAPICall(t, "QueueGet", http.MethodGet, makeURL("/api/queues/%s", queue.Name), nil)
 		makeAPICall(t, "QueueList", http.MethodGet, makeURL("/api/queues"), nil)
 		makeAPICall(t, "QueuePause", http.MethodPut, makeURL("/api/queues/%s/pause", queue.Name), nil)
 		makeAPICall(t, "QueueResume", http.MethodPut, makeURL("/api/queues/%s/resume", queue.Name), nil)
-		makeAPICall(t, "QueueUpdate", http.MethodPatch, makeURL("/api/queues/%s", queue.Name), mustMarshalJSON(t, &queueUpdateRequest{
+		makeAPICall(t, "QueueUpdate", http.MethodPatch, makeURL("/api/queues/%s", queue.Name), uicommontest.MustMarshalJSON(t, &queueUpdateRequest{
 			Concurrency: apitype.ExplicitNullable[ConcurrencyConfig]{
 				Value: &ConcurrencyConfig{
 					GlobalLimit: 10,

@@ -89,6 +89,7 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 	endpoints := e.ossEndpoints.MountEndpoints(archetype, logger, mux, mountOpts, extensions)
 	endpoints = append(endpoints,
 		apiendpoint.Mount(mux, prohandler.NewProducerListEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, prohandler.NewWorkflowCancelEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewWorkflowGetEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewWorkflowListEndpoint(bundle), mountOpts),
 	)

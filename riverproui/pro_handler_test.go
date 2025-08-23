@@ -2,7 +2,6 @@ package riverproui
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -22,26 +21,15 @@ import (
 	"riverqueue.com/riverui/internal/handlertest"
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/internal/uicommontest"
 	"riverqueue.com/riverui/uiendpoints"
 )
-
-type noOpArgs struct {
-	Name string `json:"name"`
-}
-
-func (noOpArgs) Kind() string { return "noOp" }
-
-type noOpWorker struct {
-	river.WorkerDefaults[noOpArgs]
-}
-
-func (w *noOpWorker) Work(_ context.Context, _ *river.Job[noOpArgs]) error { return nil }
 
 func insertOnlyProClient(t *testing.T, logger *slog.Logger) (*riverpro.Client[pgx.Tx], riverdriver.Driver[pgx.Tx]) {
 	t.Helper()
 
 	workers := river.NewWorkers()
-	river.AddWorker(workers, &noOpWorker{})
+	river.AddWorker(workers, &uicommontest.NoOpWorker{})
 
 	driver := riverpropgxv5.New(nil)
 
@@ -54,14 +42,6 @@ func insertOnlyProClient(t *testing.T, logger *slog.Logger) (*riverpro.Client[pg
 	require.NoError(t, err)
 
 	return client, driver
-}
-
-func mustMarshalJSON(t *testing.T, v any) []byte {
-	t.Helper()
-
-	data, err := json.Marshal(v)
-	require.NoError(t, err)
-	return data
 }
 
 func TestProHandlerIntegration(t *testing.T) {
@@ -92,10 +72,13 @@ func TestProHandlerIntegration(t *testing.T) {
 		queue := testfactory.Queue(ctx, t, exec, nil)
 
 		workflowID := uuid.New()
-		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: mustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
+		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: uicommontest.MustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
+		workflowID2 := uuid.New()
+		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: uicommontest.MustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID2})})
 
 		makeAPICall(t, "ProducerList", http.MethodGet, "/api/pro/producers?queue_name="+queue.Name, nil)
-		makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/pro/workflows/%s", workflowID), nil)
+		makeAPICall(t, "WorkflowCancel", http.MethodPost, fmt.Sprintf("/api/pro/workflows/%s/cancel", workflowID), nil)
+		makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/pro/workflows/%s", workflowID2), nil)
 		makeAPICall(t, "WorkflowList", http.MethodGet, "/api/pro/workflows", nil)
 	}
 
