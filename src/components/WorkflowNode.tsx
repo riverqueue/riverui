@@ -3,10 +3,10 @@ import type { Node, NodeProps } from "@xyflow/react";
 import { TaskStateIcon } from "@components/TaskStateIcon";
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
-import { Handle, Position } from "@xyflow/react";
+import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 import clsx from "clsx";
 import { differenceInSeconds } from "date-fns";
-import { memo, useMemo } from "react";
+import { memo, useEffect, useMemo } from "react";
 import { useTime } from "react-time-sync";
 
 export type WorkflowNodeData = {
@@ -20,6 +20,12 @@ type WorkflowNode = Node<WorkflowNodeData, "workflow">;
 const WorkflowNode = memo(
   ({ data, isConnectable, selected }: NodeProps<WorkflowNode>) => {
     const { hasDownstreamDeps, hasUpstreamDeps, job } = data;
+    const updateNodeInternals = useUpdateNodeInternals();
+
+    // Ask xyflow to re-measure this custom node after mount/updates so MiniMap gets correct bounds
+    useEffect(() => {
+      updateNodeInternals(String(job.id));
+    }, [job.id, updateNodeInternals]);
 
     return (
       <div

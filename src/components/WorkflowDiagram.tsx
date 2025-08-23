@@ -8,8 +8,9 @@ import type {
 } from "@xyflow/react";
 
 import WorkflowNode, { WorkflowNodeData } from "@components/WorkflowNode";
+
+import "./reactflow-base.css";
 import dagre from "@dagrejs/dagre";
-import "@xyflow/react/dist/style.css";
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import { MiniMap, ReactFlow } from "@xyflow/react";
@@ -87,7 +88,8 @@ const edgeColorsDark = {
 
 const depStatusFromJob = (job: JobWithKnownMetadata) => {
   switch (job.state) {
-    case (JobState.Cancelled, JobState.Discarded):
+    case JobState.Cancelled:
+    case JobState.Discarded:
       return "failed";
     case JobState.Completed:
       return "unblocked";
@@ -114,6 +116,27 @@ export default function WorkflowDiagram({
 
   const minimapMaskColor =
     resolvedTheme === "dark" ? "rgb(5, 5, 5, 0.5)" : "rgb(250, 250, 250, 0.5)";
+  const getMiniMapNodeClassName = (
+    node: Node<WorkflowNodeData, NodeTypeKey>,
+  ): string => {
+    const state = node.data?.job?.state;
+    switch (state) {
+      case JobState.Available:
+      case JobState.Pending:
+      case JobState.Retryable:
+      case JobState.Scheduled:
+        return "fill-amber-300/60 stroke-amber-500/60 dark:fill-amber-700/50 dark:stroke-amber-400/50 stroke-1";
+      case JobState.Cancelled:
+      case JobState.Discarded:
+        return "fill-red-300/60 stroke-red-500/60 dark:fill-red-700/50 dark:stroke-red-400/50 stroke-1";
+      case JobState.Completed:
+        return "fill-green-300/60 stroke-green-500/60 dark:fill-green-500/70 dark:stroke-green-300/70 stroke-1";
+      case JobState.Running:
+        return "fill-blue-300/60 stroke-blue-500/60 dark:fill-blue-700/50 dark:stroke-blue-400/50 stroke-1";
+      default:
+        return "fill-slate-300/60 stroke-slate-600/60 dark:fill-slate-700/50 dark:stroke-slate-400/50 stroke-1";
+    }
+  };
 
   // TODO: not ideal to iterate through this list so many times. Should probably
   // do that once and save all results at the same time.
@@ -139,10 +162,12 @@ export default function WorkflowDiagram({
           hasUpstreamDeps: job.metadata.deps?.length > 0,
           job,
         },
+        height: nodeHeight,
         id: job.id.toString(),
         position: { x: 0, y: 0 },
         selected: selectedJobId === job.id,
         type: "workflowNode",
+        width: nodeWidth,
       })),
     [tasks, selectedJobId, tasksWithDownstreamDeps],
   );
@@ -184,6 +209,10 @@ export default function WorkflowDiagram({
     "LR",
   );
 
+  // Use workflow id to scope/reset the ReactFlow instance between navigations
+  const workflowIdForInstance =
+    tasks[0]?.metadata.workflow_id ?? "unknown-workflow";
+
   const isNodeSelectionChange = (
     change: NodeChange,
   ): change is NodeSelectionChange => {
@@ -211,8 +240,12 @@ export default function WorkflowDiagram({
       <ReactFlow
         defaultViewport={{ x: 32, y: 32, zoom: 1 }}
         edges={layoutedEdges}
+        fitView
+        fitViewOptions={{ padding: 0.2 }}
+        id={`workflow-diagram-${workflowIdForInstance}`}
+        key={`workflow-diagram-${workflowIdForInstance}`}
+        minZoom={0.8}
         nodes={layoutedNodes}
-        // fitView
         nodesFocusable={true}
         nodeTypes={nodeTypes}
         onEdgesChange={(_newEdges) => {}}
@@ -220,12 +253,15 @@ export default function WorkflowDiagram({
         proOptions={{ hideAttribution: true }}
       >
         <MiniMap
-          className="hidden bg-slate-400 md:block dark:bg-slate-500"
+          className="hidden md:block"
           maskColor={minimapMaskColor}
-          // TODO: dynamic class name based on state
-          nodeClassName="fill-slate-500 dark:fill-slate-800"
+          nodeClassName={getMiniMapNodeClassName}
           pannable
-          style={{ height: 100, width: 150 }}
+          style={{
+            backgroundColor: resolvedTheme === "dark" ? "#64748b" : "#94a3b8",
+            height: 100,
+            width: 150,
+          }}
           zoomable
         />
       </ReactFlow>
