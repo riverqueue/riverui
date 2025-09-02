@@ -12,7 +12,7 @@ require (
 	github.com/riverqueue/river/riverdriver v0.24.0
 	github.com/riverqueue/river/rivershared v0.24.0
 	github.com/riverqueue/river/rivertype v0.24.0
-	github.com/stretchr/testify v1.11.0
+	github.com/stretchr/testify v1.11.1
 	riverqueue.com/riverpro v0.16.0
 	riverqueue.com/riverpro/driver v0.16.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.16.0
@@ -33,7 +33,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.24.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/samber/slog-http v1.7.0 // indirect
+	github.com/samber/slog-http v1.8.1 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
