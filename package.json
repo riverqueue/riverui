@@ -12,7 +12,7 @@
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-query": "^5.85.3",
     "@tanstack/react-router": "^1.131.22",
-    "@xyflow/react": "^12.8.2",
+    "@xyflow/react": "^12.8.4",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "nanostores": "^1.0.1",
@@ -20,9 +20,9 @@
     "query-string": "^9.2.2",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-hot-toast": "^2.5.2",
+    "react-hot-toast": "^2.6.0",
     "react-time-sync": "^5.2.1",
-    "zod": "^4.0.14"
+    "zod": "^4.1.5"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^4.1.0",
