@@ -410,7 +410,9 @@ jobs:
 
       - name: Prefetch all referrers content
         run: |
-          for subject in "${{ steps.resolve-digest.outputs.digest }}" "${{ steps.platform-digests.outputs.amd64_digest }}" "${{ steps.platform-digests.outputs.arm64_digest }}"; do
+          # Include both the ECR-derived index digest (attestations live here)
+          # and the live registry's index digest (may differ but could gain referrers).
+          for subject in "${{ env.MANIFEST_DIGEST }}" "${{ steps.resolve-digest.outputs.digest }}" "${{ steps.platform-digests.outputs.amd64_digest }}" "${{ steps.platform-digests.outputs.arm64_digest }}"; do
             oras discover --format json "$IMAGE_NAME@$subject" | tee /tmp/referrers.json
             digests=$(jq -r '.manifests[]?.digest // empty' /tmp/referrers.json)
             for d in $digests; do
@@ -433,12 +435,14 @@ jobs:
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
+          # Verify against the ECR-derived index digest (MANIFEST_DIGEST).
+          # The live tag's index digest may differ and typically has no bundles.
           cosign verify-attestation \
             --type https://slsa.dev/provenance/v1 \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
             --certificate-identity-regexp '^https://github.com/riverqueue/riverui/.*' \
             --new-bundle-format \
-            "$IMAGE_NAME@${{ steps.resolve-digest.outputs.digest }}" \
+            "$IMAGE_NAME@${{ env.MANIFEST_DIGEST }}" \
           | tee /tmp/cosign-verify-registry-index.txt
           cosign verify-attestation \
             --type https://slsa.dev/provenance/v1 \
@@ -496,7 +500,7 @@ jobs:
               exit 1
             fi
           }
-          verify_bundle "${{ steps.resolve-digest.outputs.digest }}"
+          verify_bundle "${{ env.MANIFEST_DIGEST }}"
           verify_bundle "${{ steps.platform-digests.outputs.amd64_digest }}"
           verify_bundle "${{ steps.platform-digests.outputs.arm64_digest }}"
 
