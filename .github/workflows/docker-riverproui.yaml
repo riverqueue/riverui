@@ -12,8 +12,22 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: "Tag to build (e.g. v0.1.0)"
+        description: "Release ref to operate on (format: riverproui/vX.Y.Z)"
         required: true
+      verify_only:
+        description: "Verification/prefetch only (skip rebuild and pushes)"
+        required: false
+        type: boolean
+        default: false
+      ecr_manifest_digest:
+        description: "Optional ECR index digest (sha256:...) to verify index without ECR access"
+        required: false
+        type: string
+      force_prefetch:
+        description: "Force run prefetch/verification even if ref is not a release tag"
+        required: false
+        type: boolean
+        default: false
 
 env:
   ECR_REGION: us-east-2
@@ -22,6 +36,8 @@ jobs:
   build-riverproui:
     name: "Build image: riverproui"
     runs-on: ubuntu-latest
+    # Skip this job when manually dispatched with verify_only=true
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.verify_only == 'true') }}
     env:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}
       ECR_ROLE_ARN: ${{ secrets.ECR_CACHE_ROLE_ARN }}
@@ -99,13 +115,16 @@ jobs:
           name: pro-digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
           if-no-files-found: error
-          retention-days: 1
+          # Keep platform digests longer to allow safe reruns without rebuilds
+          retention-days: 14
 
   merge-riverproui:
     name: "Merge manifests: riverproui"
     runs-on: ubuntu-latest
     needs:
       - build-riverproui
+    # Skip this job when manually dispatched with verify_only=true
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.verify_only == 'true') }}
     permissions:
       contents: read
       id-token: write
@@ -125,6 +144,7 @@ jobs:
       - name: Checkout full history (no tags yet)
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0 # full history
           # keep fetch-tags off to avoid the conflict on tag events
 
@@ -160,7 +180,18 @@ jobs:
       - name: Compute TAG
         id: compute_tag
         run: |
-          if [[ "${{ github.ref }}" =~ ^refs/tags/riverproui/v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9\.-]+)?$ ]]; then
+          if [ -n "${{ inputs.ref }}" ]; then
+            REF="${{ inputs.ref }}"
+            if [[ "$REF" =~ ^refs/tags/riverproui/v ]]; then
+              TAG="${REF#refs/tags/riverproui/v}"
+            elif [[ "$REF" =~ ^riverproui/v ]]; then
+              TAG="${REF#riverproui/v}"
+            elif [[ "$REF" =~ ^v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              TAG="${REF#v}"
+            else
+              TAG="$REF"
+            fi
+          elif [[ "${{ github.ref }}" =~ ^refs/tags/riverproui/v[0-9]+\.[0-9]+\.[0-9]+(-[a-z0-9\.-]+)?$ ]]; then
             TAG="${GITHUB_REF_NAME#riverproui/v}"
           elif [ "${{ github.event_name }}" = "pull_request" ]; then
             TAG="pr-${{ github.event.pull_request.number }}"
@@ -181,6 +212,7 @@ jobs:
         with:
           images: ${{ env.ECR_IMAGE }}
           tags: |
+            type=raw,value=${{ env.TAG }}
             type=ref,event=branch
             type=ref,event=pr
             type=sha,pattern=sha-{{sha}}
@@ -189,12 +221,23 @@ jobs:
       - name: Create manifest list and push immutable tags
         working-directory: /tmp/digests
         run: |
+          set -euo pipefail
+          # Deterministic ordering of platform digests (avoid non-deterministic glob order)
+          mapfile -t DIGEST_FILES < <(ls -1 | sort)
+          if crane manifest "$ECR_IMAGE:$TAG" > /tmp/current-index.json 2>/dev/null; then
+            mapfile -t HAVE < <(jq -r '.manifests[].digest | sub("^sha256:", "")' /tmp/current-index.json | sort)
+            mapfile -t WANT < <(printf '%s\n' "${DIGEST_FILES[@]}" | sort)
+            if [ "${HAVE[*]-}" = "${WANT[*]-}" ]; then
+              echo "Index $ECR_IMAGE:$TAG already has the same platform digests; skipping create."
+              exit 0
+            fi
+          fi
           docker buildx imagetools create \
             --annotation "index:org.opencontainers.image.source=https://github.com/riverqueue/riverui" \
             --annotation "index:org.opencontainers.image.description=River UI Pro is a web-based user interface for River, with pro features." \
             --annotation "index:org.opencontainers.image.licenses=commercial" \
             `echo "${{ steps.meta.outputs.tags }}" | xargs -n1 echo -t` \
-            $(printf "$ECR_IMAGE@sha256:%s " *)
+            $(printf "$ECR_IMAGE@sha256:%s " "${DIGEST_FILES[@]}")
 
       - name: Export immutable tags (short) for downstream jobs
         id: export_immutable_tags
@@ -206,7 +249,7 @@ jobs:
 
       - name: Tag mutable on release if latest in series
         id: tag_mutable
-        if: startsWith(github.ref, 'refs/tags/riverproui/v')
+        if: startsWith(github.ref, 'refs/tags/riverproui/v') || (github.event_name == 'workflow_dispatch' && (startsWith(inputs.ref, 'refs/tags/riverproui/v') || startsWith(inputs.ref, 'riverproui/v') || startsWith(inputs.ref, 'v')))
         working-directory: /tmp/digests
         run: |
           STRIPPED_VERSION="${GITHUB_REF_NAME#riverproui/v}"
@@ -227,12 +270,20 @@ jobs:
             mutable_tags+=("v${MAJOR}.${MINOR}")
           fi
           for tag in "${mutable_tags[@]}"; do
+            set -euo pipefail
+            NEW_DIGEST=$(crane digest "$ECR_IMAGE:$TAG")
+            CURRENT_DIGEST=$(crane digest "$ECR_IMAGE:$tag" 2>/dev/null || true)
+            if [ -n "$CURRENT_DIGEST" ] && [ "$CURRENT_DIGEST" = "$NEW_DIGEST" ]; then
+              echo "Mutable tag $tag already points to $NEW_DIGEST; skipping."
+              continue
+            fi
+            mapfile -t DIGEST_FILES < <(ls -1 | sort)
             docker buildx imagetools create \
               --annotation "index:org.opencontainers.image.source=https://github.com/riverqueue/riverui" \
               --annotation "index:org.opencontainers.image.description=River UI Pro is a web-based user interface for River, with pro features." \
               --annotation "index:org.opencontainers.image.licenses=commercial" \
               -t "$ECR_IMAGE:$tag" \
-              $(printf "$ECR_IMAGE@sha256:%s " *)
+              $(printf "$ECR_IMAGE@sha256:%s " "${DIGEST_FILES[@]}")
           done
 
           if [ ${#mutable_tags[@]} -gt 0 ]; then
@@ -282,7 +333,13 @@ jobs:
           COSIGN_REPOSITORY: ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui
           ECR_IMAGE: ${{ env.ECR_ACCOUNT_ID }}.dkr.ecr.${{ env.ECR_REGION }}.amazonaws.com/riverqueue/riverproui
         run: |
+          # Idempotency guard: skip if a bundle is already present for this subject.
           for subject in "${{ steps.manifest_digest.outputs.digest }}" "${{ steps.platform_digests.outputs.amd64 }}" "${{ steps.platform_digests.outputs.arm64 }}"; do
+            existing=$(oras discover --format json "${ECR_IMAGE}@${subject}" | jq -r '.manifests[]? | select(.artifactType=="application/vnd.dev.sigstore.bundle.v0.3+json" or .artifactType=="application/vnd.dev.sigstore.bundle+json;version=0.3") | .digest' | head -n1)
+            if [ -n "$existing" ]; then
+              echo "Bundle already exists for ${subject} (manifest $existing). Skipping cosign attest."
+              continue
+            fi
             cosign attest \
               --predicate /tmp/predicate.json \
               --type https://slsa.dev/provenance/v1 \
@@ -303,18 +360,42 @@ jobs:
       TAG: ${{ needs.merge-riverproui.outputs.tag }}
       IMMUTABLE_TAGS: ${{ needs.merge-riverproui.outputs.immutable_tags }}
       MUTABLE_TAGS: ${{ needs.merge-riverproui.outputs.mutable_tags }}
-    if: startsWith(github.ref, 'refs/tags/riverproui/v')
+    # Only run on release tag events (refs/tags/riverproui/vX.Y.Z),
+    # or when manually forced via workflow_dispatch: force_prefetch=true.
+    # For workflow_dispatch, inputs.ref should be in the form 'riverproui/vX.Y.Z'.
+    if: startsWith(github.ref, 'refs/tags/riverproui/v') || (github.event_name == 'workflow_dispatch' && (startsWith(inputs.ref, 'riverproui/v') || inputs.force_prefetch == 'true'))
     permissions:
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0 # full history
           # keep fetch-tags off to avoid the conflict on tag events
 
       - name: Fetch tags
         run: git fetch --tags --force
+
+      # Compute TAG when running via workflow_dispatch. Expect inputs.ref to be 'riverproui/vX.Y.Z'.
+      - name: Compute TAG for workflow_dispatch
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          REF="${{ inputs.ref }}"
+          if [[ "$REF" =~ ^riverproui/v ]]; then
+            TAG="${REF#riverproui/v}"
+          elif [[ "$REF" =~ ^refs/tags/riverproui/v ]]; then
+            TAG="${REF#refs/tags/riverproui/}"
+          else
+            echo "inputs.ref must be of the form 'riverproui/vX.Y.Z' unless force_prefetch=true" >&2
+            if [ "${{ inputs.force_prefetch }}" != "true" ]; then
+              exit 1
+            fi
+            # Best-effort fallback: try to strip common prefixes
+            TAG="${REF#refs/tags/}"
+            TAG="${TAG#v}"
+          fi
+          echo "TAG=$TAG" >> $GITHUB_ENV
 
       - name: Force refresh pushed tags
         run: |
@@ -325,6 +406,10 @@ jobs:
             else
               pushed_tags="$MUTABLE_TAGS"
             fi
+          fi
+          # In verify_only mode or when upstream jobs are skipped, fallback to current TAG
+          if [ -z "$pushed_tags" ] && [ -n "$TAG" ]; then
+            pushed_tags="$TAG"
           fi
           IFS=',' read -r -a tags <<< "$pushed_tags"
           declare -a unique_tags=()
@@ -408,11 +493,23 @@ jobs:
             done
           done
 
+      # Prefetch referrers for index (ECR digest if provided) and per-arch manifests.
+      # If neither MANIFEST_DIGEST (from merge job) nor ecr_manifest_digest (manual input)
+      # is available, we skip index referrer prefetch rather than fail.
       - name: Prefetch all referrers content
         run: |
           # Include both the ECR-derived index digest (attestations live here)
           # and the live registry's index digest (may differ but could gain referrers).
-          for subject in "${{ env.MANIFEST_DIGEST }}" "${{ steps.resolve-digest.outputs.digest }}" "${{ steps.platform-digests.outputs.amd64_digest }}" "${{ steps.platform-digests.outputs.arm64_digest }}"; do
+          FALLBACK="${{ inputs.ecr_manifest_digest }}"
+          INDEX_SUBJECT="${MANIFEST_DIGEST:-$FALLBACK}"
+          subjects=()
+          if [ -n "$INDEX_SUBJECT" ]; then
+            subjects+=("$INDEX_SUBJECT")
+          else
+            echo "Note: no index subject digest provided; skipping index referrers prefetch."
+          fi
+          subjects+=("${{ steps.resolve-digest.outputs.digest }}" "${{ steps.platform-digests.outputs.amd64_digest }}" "${{ steps.platform-digests.outputs.arm64_digest }}")
+          for subject in "${subjects[@]}"; do
             oras discover --format json "$IMAGE_NAME@$subject" | tee /tmp/referrers.json
             digests=$(jq -r '.manifests[]?.digest // empty' /tmp/referrers.json)
             for d in $digests; do
@@ -431,19 +528,28 @@ jobs:
             done
           done
 
+      # Verify index (if digest is available) and per-arch attestations against live registry.
+      # Index-level attestation is bound to the ECR index digest; provide it via MANIFEST_DIGEST
+      # or the ecr_manifest_digest input. If missing, we skip index verification.
       - name: Verify image attestation via Workers (registry-based)
         env:
           COSIGN_EXPERIMENTAL: "true"
         run: |
           # Verify against the ECR-derived index digest (MANIFEST_DIGEST).
           # The live tag's index digest may differ and typically has no bundles.
-          cosign verify-attestation \
-            --type https://slsa.dev/provenance/v1 \
-            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-            --certificate-identity-regexp '^https://github.com/riverqueue/riverui/.*' \
-            --new-bundle-format \
-            "$IMAGE_NAME@${{ env.MANIFEST_DIGEST }}" \
-          | tee /tmp/cosign-verify-registry-index.txt
+          FALLBACK="${{ inputs.ecr_manifest_digest }}"
+          INDEX_SUBJECT="${MANIFEST_DIGEST:-$FALLBACK}"
+          if [ -n "$INDEX_SUBJECT" ]; then
+            cosign verify-attestation \
+              --type https://slsa.dev/provenance/v1 \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+              --certificate-identity-regexp '^https://github.com/riverqueue/riverui/.*' \
+              --new-bundle-format \
+              "$IMAGE_NAME@$INDEX_SUBJECT" \
+            | tee /tmp/cosign-verify-registry-index.txt
+          else
+            echo "Skipping index-level verification: no MANIFEST_DIGEST or ecr_manifest_digest provided."
+          fi
           cosign verify-attestation \
             --type https://slsa.dev/provenance/v1 \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com \
@@ -459,8 +565,11 @@ jobs:
             "$IMAGE_NAME@${{ steps.platform-digests.outputs.arm64_digest }}" \
           | tee /tmp/cosign-verify-registry-arm64.txt
 
+      # Offline verification of Sigstore bundle: only attempt for index if digest provided.
       - name: Verify Sigstore bundle against subject bytes (offline crypto)
         run: |
+          FALLBACK="${{ inputs.ecr_manifest_digest }}"
+          INDEX_SUBJECT="${MANIFEST_DIGEST:-$FALLBACK}"
           verify_bundle () {
             subject="$1"
             # Exact subject bytes
@@ -500,7 +609,11 @@ jobs:
               exit 1
             fi
           }
-          verify_bundle "${{ env.MANIFEST_DIGEST }}"
+          if [ -n "$INDEX_SUBJECT" ]; then
+            verify_bundle "$INDEX_SUBJECT"
+          else
+            echo "Skipping offline index bundle verification: no MANIFEST_DIGEST or ecr_manifest_digest provided."
+          fi
           verify_bundle "${{ steps.platform-digests.outputs.amd64_digest }}"
           verify_bundle "${{ steps.platform-digests.outputs.arm64_digest }}"
 
