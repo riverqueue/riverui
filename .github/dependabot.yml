@@ -4,6 +4,17 @@
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
+registries:
+  golang-proxy:
+    type: goproxy-server
+    url: https://proxy.golang.org
+    username: ""
+    password: ""
+  riverpro-proxy:
+    type: goproxy-server
+    url: https://riverqueue.com/goproxy
+    username: river
+    password: ${{secrets.RIVERPRO_GO_MOD_CREDENTIAL}}
 updates:
   - package-ecosystem: "docker"
     directory: "/"
@@ -32,6 +43,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    registries:
+      - golang-proxy
+      - riverpro-proxy
     schedule:
       interval: "weekly"
 
