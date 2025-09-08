@@ -5,7 +5,7 @@ go 1.24
 toolchain go1.24.4
 
 require (
-	github.com/jackc/pgx/v5 v5.7.5
+	github.com/jackc/pgx/v5 v5.7.6
 	github.com/riverqueue/apiframe v0.0.0-20250408034821-b206bbbd0fb4
 	github.com/riverqueue/river v0.24.0
 	github.com/riverqueue/river/riverdriver v0.24.0
