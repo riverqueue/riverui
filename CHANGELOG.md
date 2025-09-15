@@ -10,11 +10,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added the ability to cancel workflows from the workflow detail page. [PR #407](https://github.com/riverqueue/riverui/pull/407).
+- Added the ability to retry workflows from the workflow detail page. [PR #430](https://github.com/riverqueue/riverui/pull/430).
 
 ### Fixed
 
 - Workflow detail: prevent the viewport from getting stuck zoomed into empty space after navigating between the workflow list and detail pages by remounting the diagram per workflow and enabling fit-to-view on mount. [PR #408](https://github.com/riverqueue/riverui/pull/408)
 - Workflow detail: make MiniMap render nodes correctly and respect dark mode by setting explicit node bounds and theme-aware colors. [PR #408](https://github.com/riverqueue/riverui/pull/408)
+- Job detail: show correct wait duration for running or completed jobs. [PR #430](https://github.com/riverqueue/riverui/pull/430).
 
 ## [v0.12.2] - 2025-08-16
 
