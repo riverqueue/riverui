@@ -6,11 +6,12 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
-	"riverqueue.com/riverui/internal/uicommontest"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+
+	"riverqueue.com/riverui/internal/uicommontest"
 )
 
 func insertOnlyClient(t *testing.T, logger *slog.Logger) (*river.Client[pgx.Tx], riverdriver.Driver[pgx.Tx]) {

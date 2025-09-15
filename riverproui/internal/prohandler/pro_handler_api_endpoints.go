@@ -291,6 +291,77 @@ func (a *workflowListEndpoint[TTx]) Execute(ctx context.Context, req *workflowLi
 	}
 }
 
+//
+// workflowRetryEndpoint
+//
+
+type workflowRetryEndpoint[TTx any] struct {
+	ProAPIBundle[TTx]
+	apiendpoint.Endpoint[workflowRetryRequest, workflowRetryResponse]
+}
+
+func NewWorkflowRetryEndpoint[TTx any](apiBundle ProAPIBundle[TTx]) *workflowRetryEndpoint[TTx] {
+	return &workflowRetryEndpoint[TTx]{ProAPIBundle: apiBundle}
+}
+
+func (*workflowRetryEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "POST /api/pro/workflows/{id}/retry",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type workflowRetryRequest struct {
+	ID           string `json:"-"             validate:"required"` // from ExtractRaw
+	Mode         string `json:"mode"          validate:"omitempty,oneof=all failed_only failed_and_downstream"`
+	ResetHistory bool   `json:"reset_history"`
+}
+
+func (req *workflowRetryRequest) ExtractRaw(r *http.Request) error {
+	req.ID = r.PathValue("id")
+	return nil
+}
+
+type workflowRetryResponse struct {
+	RetriedJobs []*riverJobMinimal `json:"retried_jobs"`
+}
+
+func (a *workflowRetryEndpoint[TTx]) Execute(ctx context.Context, req *workflowRetryRequest) (*workflowRetryResponse, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*workflowRetryResponse, error) {
+		tx := a.Driver.UnwrapTx(execTx)
+
+		// Build workflow wrapper from existing workflow ID
+		workflow := a.Client.NewWorkflow(&riverpro.WorkflowOpts{ID: req.ID})
+
+		// Determine retry mode (defaults to "all")
+		var mode riverpro.WorkflowRetryMode
+		switch req.Mode {
+		case "failed_only":
+			mode = riverpro.WorkflowRetryModeFailedOnly
+		case "failed_and_downstream":
+			mode = riverpro.WorkflowRetryModeFailedAndDownstream
+		case "", "all":
+			mode = riverpro.WorkflowRetryModeAll
+		default:
+			// validator should prevent this path; keep safe default
+			mode = riverpro.WorkflowRetryModeAll
+		}
+
+		result, err := workflow.RetryTx(ctx, tx, &riverpro.WorkflowRetryOpts{
+			Mode:         mode,
+			ResetHistory: req.ResetHistory,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		// consistent ordering
+		slices.SortFunc(result.Jobs, func(a, b *rivertype.JobRow) int { return int(a.ID - b.ID) })
+
+		return &workflowRetryResponse{RetriedJobs: sliceutil.Map(result.Jobs, internalJobToJobMinimal)}, nil
+	})
+}
+
 type riverJobMinimal struct {
 	ID          int64           `json:"id"`
 	Args        json.RawMessage `json:"args"`

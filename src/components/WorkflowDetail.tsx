@@ -121,7 +121,7 @@ export default function WorkflowDetail({
               </Button>
             )}
             <Button color="light">
-              <EllipsisHorizontalIcon className="size-6 text-red-500 dark:text-red-500" />
+              <EllipsisHorizontalIcon className="size-6" />
             </Button>
           </div>
         </div>

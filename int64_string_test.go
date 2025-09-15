@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"riverqueue.com/riverui/internal/uicommontest"
 )
 
