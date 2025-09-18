@@ -112,9 +112,13 @@ function WorkflowComponent() {
       onCancel={() =>
         workflowID && cancelMutation.mutate({ workflowID: String(workflowID) })
       }
-      onRetry={(mode?: WorkflowRetryMode) =>
+      onRetry={(mode: WorkflowRetryMode, resetHistory: boolean) =>
         workflowID &&
-        retryMutation.mutate({ workflowID: String(workflowID), mode })
+        retryMutation.mutate({
+          workflowID: String(workflowID),
+          mode,
+          resetHistory,
+        })
       }
       retryPending={retryMutation.isPending}
       selectedJobId={selectedJobId}

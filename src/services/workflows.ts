@@ -75,7 +75,7 @@ export const retryWorkflow: MutationFunction<
 > = async ({ mode, resetHistory, workflowID }) => {
   const bodyObj: Record<string, unknown> = {};
   if (mode) bodyObj.mode = mode;
-  bodyObj.reset_history = resetHistory ?? true;
+  if (typeof resetHistory === "boolean") bodyObj.reset_history = resetHistory;
 
   const response = await API.post<string, RetryWorkflowResponseFromAPI>(
     `/pro/workflows/${workflowID}/retry`,

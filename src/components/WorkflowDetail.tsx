@@ -1,25 +1,21 @@
 import ButtonForGroup from "@components/ButtonForGroup";
-import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
 import { Subheading } from "@components/Heading";
 import JSONView from "@components/JSONView";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import RetryWorkflowDialog from "@components/RetryWorkflowDialog";
 import { TaskStateIcon } from "@components/TaskStateIcon";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import WorkflowDiagram from "@components/WorkflowDiagram";
 import { useFeatures } from "@contexts/Features.hook";
-import { MenuButton as HeadlessMenuButton } from "@headlessui/react";
-import {
-  ArrowPathIcon,
-  ChevronDownIcon,
-  XCircleIcon,
-} from "@heroicons/react/24/outline";
+// (Dialog is now encapsulated in RetryWorkflowDialog)
+import { ArrowPathIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import { Workflow, type WorkflowRetryMode } from "@services/workflows";
 import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
 import clsx from "clsx";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import WorkflowListEmptyState from "./WorkflowListEmptyState";
 
@@ -31,7 +27,7 @@ type WorkflowDetailProps = {
   cancelPending?: boolean;
   loading: boolean;
   onCancel?: () => void;
-  onRetry?: (mode?: WorkflowRetryMode) => void;
+  onRetry?: (mode: WorkflowRetryMode, resetHistory: boolean) => void;
   retryPending?: boolean;
   selectedJobId: bigint | undefined;
   setSelectedJobId: (jobId: bigint | undefined) => void;
@@ -78,6 +74,10 @@ export default function WorkflowDetail({
     return Boolean(workflow?.tasks?.some((t) => activeStates.has(t.state)));
   }, [workflow?.tasks]);
 
+  // Modal state for retry
+  const [retryOpen, setRetryOpen] = useState(false);
+  const [retryMode, setRetryMode] = useState<undefined | WorkflowRetryMode>();
+
   if (!features.workflowQueries) {
     return (
       <div>
@@ -122,35 +122,13 @@ export default function WorkflowDetail({
           </div>
           <div className="order-none flex w-full items-center justify-end gap-2 sm:w-auto sm:flex-none">
             <span className="isolate inline-flex rounded-md shadow-xs">
-              <Dropdown>
-                <HeadlessMenuButton
-                  as={ButtonForGroup}
-                  disabled={retryPending || !workflowID || isActive}
-                >
-                  <ArrowPathIcon aria-hidden="true" className="mr-2 size-5" />
-                  Retry
-                  <ChevronDownIcon
-                    aria-hidden="true"
-                    className="-mr-1 ml-2 size-3 shrink-0"
-                  />
-                </HeadlessMenuButton>
-                <DropdownMenu
-                  anchor="bottom end"
-                  className="z-40 min-w-(--button-width)"
-                >
-                  <DropdownItem onClick={() => onRetry?.("all")}>
-                    All jobs
-                  </DropdownItem>
-                  <DropdownItem onClick={() => onRetry?.("failed_only")}>
-                    Only failed jobs
-                  </DropdownItem>
-                  <DropdownItem
-                    onClick={() => onRetry?.("failed_and_downstream")}
-                  >
-                    Failed jobs + dependents
-                  </DropdownItem>
-                </DropdownMenu>
-              </Dropdown>
+              <ButtonForGroup
+                disabled={retryPending || !workflowID || isActive}
+                onClick={() => setRetryOpen(true)}
+              >
+                <ArrowPathIcon aria-hidden="true" className="mr-2 size-5" />
+                Retry
+              </ButtonForGroup>
 
               <ButtonForGroup
                 disabled={cancelPending || !workflowID || !isActive}
@@ -176,6 +154,18 @@ export default function WorkflowDetail({
           <SelectedJobDetails job={selectedJob} jobsByTask={jobsByTask} />
         )}
       </div>
+
+      <RetryWorkflowDialog
+        defaultMode={retryMode}
+        onClose={() => setRetryOpen(false)}
+        onConfirm={(mode, reset) => {
+          onRetry?.(mode, reset);
+          setRetryOpen(false);
+          setRetryMode(undefined);
+        }}
+        open={retryOpen}
+        pending={retryPending}
+      />
     </>
   );
 }
