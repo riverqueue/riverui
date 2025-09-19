@@ -1,7 +1,13 @@
 import WorkflowDetail from "@components/WorkflowDetail";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { toastSuccess } from "@services/toast";
-import { cancelJobs, getWorkflow, getWorkflowKey } from "@services/workflows";
+import {
+  cancelJobs,
+  getWorkflow,
+  getWorkflowKey,
+  retryWorkflow,
+  type WorkflowRetryMode,
+} from "@services/workflows";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -85,6 +91,20 @@ function WorkflowComponent() {
     },
   });
 
+  const retryMutation = useMutation({
+    mutationFn: retryWorkflow,
+    onSuccess: () => {
+      if (workflowID) {
+        queryClient.invalidateQueries({ queryKey: getWorkflowKey(workflowID) });
+      }
+      queryClient.invalidateQueries({ queryKey: ["listWorkflows"] });
+      toastSuccess({
+        message: "Workflow retry requested",
+        duration: 2000,
+      });
+    },
+  });
+
   return (
     <WorkflowDetail
       cancelPending={cancelMutation.isPending}
@@ -92,6 +112,15 @@ function WorkflowComponent() {
       onCancel={() =>
         workflowID && cancelMutation.mutate({ workflowID: String(workflowID) })
       }
+      onRetry={(mode: WorkflowRetryMode, resetHistory: boolean) =>
+        workflowID &&
+        retryMutation.mutate({
+          workflowID: String(workflowID),
+          mode,
+          resetHistory,
+        })
+      }
+      retryPending={retryMutation.isPending}
       selectedJobId={selectedJobId}
       setSelectedJobId={setSelectedJobId}
       workflow={workflow}

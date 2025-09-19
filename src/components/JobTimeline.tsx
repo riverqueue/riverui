@@ -189,7 +189,8 @@ const WaitStep = ({ job }: { job: Job }) => {
 
   return (
     <StatusStep Icon={QueueListIcon} name="Wait" status="complete">
-      (<DurationCompact startTime={job.attemptedAt} />)
+      (<DurationCompact endTime={job.attemptedAt} startTime={job.scheduledAt} />
+      )
     </StatusStep>
   );
 };

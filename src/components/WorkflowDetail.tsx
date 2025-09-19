@@ -1,19 +1,21 @@
-import { Button } from "@components/Button";
+import ButtonForGroup from "@components/ButtonForGroup";
 import { Subheading } from "@components/Heading";
 import JSONView from "@components/JSONView";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import RetryWorkflowDialog from "@components/RetryWorkflowDialog";
 import { TaskStateIcon } from "@components/TaskStateIcon";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import WorkflowDiagram from "@components/WorkflowDiagram";
 import { useFeatures } from "@contexts/Features.hook";
-import { EllipsisHorizontalIcon } from "@heroicons/react/20/solid";
+// (Dialog is now encapsulated in RetryWorkflowDialog)
+import { ArrowPathIcon, XCircleIcon } from "@heroicons/react/24/outline";
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
-import { Workflow } from "@services/workflows";
+import { Workflow, type WorkflowRetryMode } from "@services/workflows";
 import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
 import clsx from "clsx";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import WorkflowListEmptyState from "./WorkflowListEmptyState";
 
@@ -25,6 +27,8 @@ type WorkflowDetailProps = {
   cancelPending?: boolean;
   loading: boolean;
   onCancel?: () => void;
+  onRetry?: (mode: WorkflowRetryMode, resetHistory: boolean) => void;
+  retryPending?: boolean;
   selectedJobId: bigint | undefined;
   setSelectedJobId: (jobId: bigint | undefined) => void;
   workflow: undefined | Workflow;
@@ -34,6 +38,8 @@ export default function WorkflowDetail({
   cancelPending,
   loading,
   onCancel,
+  onRetry,
+  retryPending,
   selectedJobId,
   setSelectedJobId,
   workflow,
@@ -67,6 +73,10 @@ export default function WorkflowDetail({
     ]);
     return Boolean(workflow?.tasks?.some((t) => activeStates.has(t.state)));
   }, [workflow?.tasks]);
+
+  // Modal state for retry
+  const [retryOpen, setRetryOpen] = useState(false);
+  const [retryMode, setRetryMode] = useState<undefined | WorkflowRetryMode>();
 
   if (!features.workflowQueries) {
     return (
@@ -111,18 +121,23 @@ export default function WorkflowDetail({
             </p>
           </div>
           <div className="order-none flex w-full items-center justify-end gap-2 sm:w-auto sm:flex-none">
-            {isActive && (
-              <Button
-                color="red"
-                disabled={cancelPending || !workflowID}
+            <span className="isolate inline-flex rounded-md shadow-xs">
+              <ButtonForGroup
+                disabled={retryPending || !workflowID || isActive}
+                onClick={() => setRetryOpen(true)}
+              >
+                <ArrowPathIcon aria-hidden="true" className="mr-2 size-5" />
+                Retry
+              </ButtonForGroup>
+
+              <ButtonForGroup
+                disabled={cancelPending || !workflowID || !isActive}
                 onClick={onCancel}
               >
+                <XCircleIcon aria-hidden="true" className="mr-2 size-5" />
                 Cancel
-              </Button>
-            )}
-            <Button color="light">
-              <EllipsisHorizontalIcon className="size-6 text-red-500 dark:text-red-500" />
-            </Button>
+              </ButtonForGroup>
+            </span>
           </div>
         </div>
       </header>
@@ -139,6 +154,18 @@ export default function WorkflowDetail({
           <SelectedJobDetails job={selectedJob} jobsByTask={jobsByTask} />
         )}
       </div>
+
+      <RetryWorkflowDialog
+        defaultMode={retryMode}
+        onClose={() => setRetryOpen(false)}
+        onConfirm={(mode, reset) => {
+          onRetry?.(mode, reset);
+          setRetryOpen(false);
+          setRetryMode(undefined);
+        }}
+        open={retryOpen}
+        pending={retryPending}
+      />
     </>
   );
 }

@@ -115,7 +115,7 @@ const JobDuration = ({ job }: { job: JobWithKnownMetadata }) => {
     case JobState.Running:
       return <DurationMicro startTime={job.attemptedAt!} />;
     case JobState.Scheduled:
-      return <DurationMicro endTime={job.attemptedAt!} />;
+      return <DurationMicro endTime={job.scheduledAt!} />;
   }
 
   return "–";
