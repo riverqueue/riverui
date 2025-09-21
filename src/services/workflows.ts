@@ -21,6 +21,8 @@ export type Workflow = {
   tasks: JobWithKnownMetadata[];
 };
 
+export type WorkflowRetryMode = "all" | "failed_and_downstream" | "failed_only";
+
 type CancelPayload = {
   workflowID: string;
 };
@@ -50,6 +52,41 @@ export const cancelJobs: MutationFunction<
 
   return {
     cancelledJobs: response.cancelled_jobs.map(apiJobMinimalToJobMinimal),
+  };
+};
+
+type RetryWorkflowPayload = {
+  mode?: WorkflowRetryMode;
+  resetHistory?: boolean;
+  workflowID: string;
+};
+
+type RetryWorkflowResponse = {
+  retriedJobs: JobMinimal[];
+};
+
+type RetryWorkflowResponseFromAPI = {
+  retried_jobs: JobMinimalFromAPI[];
+};
+
+export const retryWorkflow: MutationFunction<
+  RetryWorkflowResponse,
+  RetryWorkflowPayload
+> = async ({ mode, resetHistory, workflowID }) => {
+  const bodyObj: Record<string, unknown> = {};
+  if (mode) bodyObj.mode = mode;
+  if (typeof resetHistory === "boolean") bodyObj.reset_history = resetHistory;
+
+  const response = await API.post<string, RetryWorkflowResponseFromAPI>(
+    `/pro/workflows/${workflowID}/retry`,
+    Object.keys(bodyObj).length ? JSON.stringify(bodyObj) : undefined,
+    Object.keys(bodyObj).length
+      ? { headers: { "Content-Type": "application/json" } }
+      : undefined,
+  );
+
+  return {
+    retriedJobs: response.retried_jobs.map(apiJobMinimalToJobMinimal),
   };
 };
 
