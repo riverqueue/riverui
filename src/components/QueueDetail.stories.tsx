@@ -1,8 +1,10 @@
+import { useFeatures } from "@contexts/Features.hook";
 import { type Producer } from "@services/producers";
 import { type ConcurrencyConfig } from "@services/queues";
 import { Meta, StoryObj } from "@storybook/react-vite";
 import { producerFactory } from "@test/factories/producer";
 import { queueFactory } from "@test/factories/queue";
+import { createFeatures } from "@test/utils/features";
 
 import QueueDetail from "./QueueDetail";
 
@@ -88,24 +90,24 @@ export const QueueNotFound: Story = {
   },
 };
 
-// Active queue with no producers (features disabled)
-export const ActiveQueueWithoutPro: Story = {
-  args: {
-    producers: [],
-    queue: queueFactory.active().build(),
-  },
-  parameters: {
-    features: {
-      hasProducerTable: false,
-    },
-  },
-};
-
 // Active queue with no producers (features enabled)
 export const ActiveQueueNoProducers: Story = {
   args: {
     producers: [],
     queue: queueFactory.active().build(),
+  },
+  parameters: {
+    mockData: [
+      {
+        hook: useFeatures,
+        mockValue: {
+          features: createFeatures({
+            hasProducerTable: true,
+            producerQueries: true,
+          }),
+        },
+      },
+    ],
   },
 };
 
@@ -115,6 +117,19 @@ export const PausedQueueNoProducers: Story = {
     producers: [],
     queue: queueFactory.paused().build(),
   },
+  parameters: {
+    mockData: [
+      {
+        hook: useFeatures,
+        mockValue: {
+          features: createFeatures({
+            hasProducerTable: true,
+            producerQueries: true,
+          }),
+        },
+      },
+    ],
+  },
 };
 
 // Active queue with producers
@@ -122,6 +137,19 @@ export const ActiveQueueWithProducers: Story = {
   args: {
     producers: createProducers(5, "test-queue"),
     queue: queueFactory.active().build(),
+  },
+  parameters: {
+    mockData: [
+      {
+        hook: useFeatures,
+        mockValue: {
+          features: createFeatures({
+            hasProducerTable: true,
+            producerQueries: true,
+          }),
+        },
+      },
+    ],
   },
 };
 
@@ -131,18 +159,37 @@ export const PausedQueueWithMixedProducers: Story = {
     producers: createProducers(5, "test-queue", { paused: true }),
     queue: queueFactory.paused().build(),
   },
+  parameters: {
+    mockData: [
+      {
+        hook: useFeatures,
+        mockValue: {
+          features: createFeatures({
+            hasProducerTable: true,
+            producerQueries: true,
+          }),
+        },
+      },
+    ],
+  },
 };
 
 // Queue with concurrency settings
-export const QueueWithConcurrencySettings: Story = {
+export const WithConcurrencySettings: Story = {
   args: {
     producers: createProducers(3, "test-queue", { withConcurrency: true }),
     queue: queueFactory.withConcurrency().build(),
   },
+  parameters: {
+    features: createFeatures({
+      hasProducerTable: true,
+      producerQueries: true,
+    }),
+  },
 };
 
 // Queue with inconsistent producer concurrency settings
-export const QueueWithInconsistentConcurrency: Story = {
+export const InconsistentConcurrency: Story = {
   args: {
     producers: createProducers(3, "test-queue", {
       inconsistentConcurrency: true,
@@ -150,12 +197,72 @@ export const QueueWithInconsistentConcurrency: Story = {
     }),
     queue: queueFactory.withConcurrency().build(),
   },
+  parameters: {
+    mockData: [
+      {
+        hook: useFeatures,
+        mockValue: {
+          features: createFeatures({
+            hasProducerTable: true,
+            producerQueries: true,
+          }),
+        },
+      },
+    ],
+  },
 };
 
 // Queue with many producers
-export const QueueWithManyProducers: Story = {
+export const ManyProducers: Story = {
   args: {
     producers: createProducers(20, "test-queue", { paused: true }),
     queue: queueFactory.active().build(),
+  },
+  parameters: {
+    mockData: [
+      {
+        hook: useFeatures,
+        mockValue: {
+          features: createFeatures({
+            hasProducerTable: true,
+            producerQueries: true,
+          }),
+        },
+      },
+    ],
+  },
+};
+
+// Queue with single paused producer (should not show concurrency warning)
+export const SinglePausedProducer: Story = {
+  args: {
+    producers: createProducers(1, "test-queue", { paused: true }),
+    queue: queueFactory.active().build(),
+  },
+  parameters: {
+    mockData: [
+      {
+        hook: useFeatures,
+        mockValue: {
+          features: createFeatures({
+            hasProducerTable: true,
+            producerQueries: true,
+          }),
+        },
+      },
+    ],
+  },
+};
+
+// Pro features disabled
+export const WithoutPro: Story = {
+  args: {
+    producers: [],
+    queue: queueFactory.active().build(),
+  },
+  parameters: {
+    features: createFeatures({
+      hasProducerTable: false,
+    }),
   },
 };
