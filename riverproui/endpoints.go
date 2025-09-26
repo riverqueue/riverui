@@ -175,6 +175,7 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 
 	endpoints := e.ossEndpoints.MountEndpoints(archetype, logger, mux, mountOpts)
 	endpoints = append(endpoints,
+		apiendpoint.Mount(mux, prohandler.NewPeriodicJobListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewProducerListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewWorkflowCancelEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewWorkflowGetEndpoint(bundle), mountOpts),

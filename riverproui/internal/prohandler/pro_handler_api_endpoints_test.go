@@ -28,11 +28,12 @@ import (
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 	"riverqueue.com/riverui/internal/uicommontest"
+	"riverqueue.com/riverui/riverproui/internal/protestfactory"
 )
 
 type setupEndpointTestBundle struct {
 	client *riverpro.Client[pgx.Tx]
-	exec   riverdriver.ExecutorTx
+	exec   driver.ProExecutorTx
 	logger *slog.Logger
 	tx     pgx.Tx
 }
@@ -99,6 +100,41 @@ func testMountOpts(t *testing.T) *apiendpoint.MountOpts {
 		Logger:    riverinternaltest.Logger(t),
 		Validator: apitype.NewValidator(),
 	}
+}
+
+func TestProAPIHandlerPeriodicJobList(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, NewPeriodicJobListEndpoint)
+
+		job1 := protestfactory.PeriodicJob(ctx, t, bundle.exec, &protestfactory.PeriodicJobOpts{ID: ptrutil.Ptr("alpha"), NextRunAt: ptrutil.Ptr(time.Now().Add(time.Minute))})
+		job2 := protestfactory.PeriodicJob(ctx, t, bundle.exec, &protestfactory.PeriodicJobOpts{ID: ptrutil.Ptr("beta"), NextRunAt: ptrutil.Ptr(time.Now().Add(2 * time.Minute))})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &periodicJobListRequest{})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+		require.Equal(t, job2.ID, resp.Data[1].ID)
+	})
+
+	t.Run("Limit", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, NewPeriodicJobListEndpoint)
+
+		job1 := protestfactory.PeriodicJob(ctx, t, bundle.exec, nil)
+		_ = protestfactory.PeriodicJob(ctx, t, bundle.exec, nil)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &periodicJobListRequest{Limit: ptrutil.Ptr(1)})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+	})
 }
 
 func TestProAPIHandlerWorkflowCancel(t *testing.T) {

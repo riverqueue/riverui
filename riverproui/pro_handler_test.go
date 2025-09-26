@@ -17,6 +17,7 @@ import (
 	"github.com/riverqueue/river/riverdriver"
 
 	"riverqueue.com/riverpro"
+	"riverqueue.com/riverpro/driver"
 	"riverqueue.com/riverpro/driver/riverpropgxv5"
 
 	"riverqueue.com/riverui"
@@ -24,6 +25,7 @@ import (
 	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 	"riverqueue.com/riverui/internal/uicommontest"
+	"riverqueue.com/riverui/riverproui/internal/protestfactory"
 	"riverqueue.com/riverui/uiendpoints"
 )
 
@@ -71,6 +73,11 @@ func TestProHandlerIntegration(t *testing.T) {
 	testRunner := func(exec riverdriver.Executor, makeAPICall handlertest.APICallFunc) {
 		ctx := context.Background()
 
+		proExec, ok := exec.(driver.ProExecutor)
+		require.True(t, ok)
+
+		_ = protestfactory.PeriodicJob(ctx, t, proExec, nil)
+
 		queue := testfactory.Queue(ctx, t, exec, nil)
 
 		workflowID := uuid.New()
@@ -81,6 +88,7 @@ func TestProHandlerIntegration(t *testing.T) {
 		// Verify OSS features endpoint is mounted and returns success even w/ Pro bundle:
 		makeAPICall(t, "FeaturesGet", http.MethodGet, "/api/features", nil)
 
+		makeAPICall(t, "PeriodicJobList", http.MethodGet, "/api/pro/periodic-jobs", nil)
 		makeAPICall(t, "ProducerList", http.MethodGet, "/api/pro/producers?queue_name="+queue.Name, nil)
 		makeAPICall(t, "WorkflowCancel", http.MethodPost, fmt.Sprintf("/api/pro/workflows/%s/cancel", workflowID), nil)
 		makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/pro/workflows/%s", workflowID2), nil)

@@ -40,6 +40,59 @@ func listResponseFrom[T any](data []*T) *listResponse[T] {
 }
 
 //
+// periodicJobListEndpoint
+//
+
+type periodicJobListEndpoint[TTx any] struct {
+	ProAPIBundle[TTx]
+	apiendpoint.Endpoint[periodicJobListRequest, listResponse[uitype.RiverPeriodicJob]]
+}
+
+func NewPeriodicJobListEndpoint[TTx any](apiBundle ProAPIBundle[TTx]) *periodicJobListEndpoint[TTx] {
+	return &periodicJobListEndpoint[TTx]{ProAPIBundle: apiBundle}
+}
+
+func (*periodicJobListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/pro/periodic-jobs",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type periodicJobListRequest struct {
+	Limit *int `json:"-" validate:"omitempty,min=0,max=1000"` // from ExtractRaw
+}
+
+func (req *periodicJobListRequest) ExtractRaw(r *http.Request) error {
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return apierror.NewBadRequestf("Couldn't convert `limit` to integer: %s.", err)
+		}
+
+		req.Limit = &limit
+	}
+
+	return nil
+}
+
+func (a *periodicJobListEndpoint[TTx]) Execute(ctx context.Context, req *periodicJobListRequest) (*listResponse[uitype.RiverPeriodicJob], error) {
+	result, err := a.DB.PeriodicJobGetAll(ctx, &riverprodriver.PeriodicJobGetAllParams{
+		Max:    ptrutil.ValOrDefault(req.Limit, 100),
+		Schema: a.Client.Schema(),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error listing periodic jobs: %w", err)
+	}
+
+	return listResponseFrom(sliceutil.Map(result, internalPeriodicJobToSerializablePeriodicJob)), nil
+}
+
+func internalPeriodicJobToSerializablePeriodicJob(internal *riverprodriver.PeriodicJob) *uitype.RiverPeriodicJob {
+	return (*uitype.RiverPeriodicJob)(internal)
+}
+
+//
 // producerListEndpoint
 //
 
