@@ -176,62 +176,19 @@ type featuresGetRequest struct{}
 
 type featuresGetResponse struct {
 	Extensions               map[string]bool `json:"extensions"`
-	HasClientTable           bool            `json:"has_client_table"`
-	HasProducerTable         bool            `json:"has_producer_table"`
-	HasSequenceTable         bool            `json:"has_sequence_table"`
-	HasWorkflows             bool            `json:"has_workflows"`
 	JobListHideArgsByDefault bool            `json:"job_list_hide_args_by_default"`
 }
 
 func (a *featuresGetEndpoint[TTx]) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
-	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*featuresGetResponse, error) {
-		tx := a.Driver.UnwrapTx(execTx)
+	extensions, err := a.Extensions(ctx)
+	if err != nil {
+		return nil, err
+	}
 
-		schema := a.Client.Schema()
-		hasClientTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
-			Schema: schema,
-			Table:  "river_client",
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		hasProducerTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
-			Schema: schema,
-			Table:  "river_producer",
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		hasSequenceTable, err := a.Driver.UnwrapExecutor(tx).TableExists(ctx, &riverdriver.TableExistsParams{
-			Schema: schema,
-			Table:  "river_job_sequence",
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		indexResults, err := a.Driver.UnwrapExecutor(tx).IndexesExist(ctx, &riverdriver.IndexesExistParams{
-			IndexNames: []string{
-				"river_job_workflow_list_active",
-				"river_job_workflow_scheduling",
-			},
-			Schema: schema,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		return &featuresGetResponse{
-			Extensions:               a.Extensions,
-			HasClientTable:           hasClientTable,
-			HasProducerTable:         hasProducerTable,
-			HasSequenceTable:         hasSequenceTable,
-			HasWorkflows:             indexResults["river_job_workflow_list_active"] || indexResults["river_job_workflow_scheduling"],
-			JobListHideArgsByDefault: a.JobListHideArgsByDefault,
-		}, nil
-	})
+	return &featuresGetResponse{
+		Extensions:               extensions,
+		JobListHideArgsByDefault: a.JobListHideArgsByDefault,
+	}, nil
 }
 
 //

@@ -1,6 +1,7 @@
 package apibundle
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/riverqueue/river"
@@ -14,7 +15,13 @@ type APIBundle[TTx any] struct {
 	Client                   *river.Client[TTx]
 	DB                       riverdriver.Executor
 	Driver                   riverdriver.Driver[TTx]
-	Extensions               map[string]bool
+	Extensions               func(ctx context.Context) (map[string]bool, error)
 	JobListHideArgsByDefault bool
 	Logger                   *slog.Logger
+}
+
+// APIExtensionsProviderSetter is an interface to allow setting the extensions
+// provider for the feature flag API.
+type APIExtensionsProviderSetter interface {
+	SetExtensionsProvider(provider func(context.Context) (map[string]bool, error))
 }

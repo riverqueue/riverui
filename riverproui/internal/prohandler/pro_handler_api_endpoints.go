@@ -74,7 +74,7 @@ func (req *producerListRequest) ExtractRaw(r *http.Request) error {
 func (a *producerListEndpoint[TTx]) Execute(ctx context.Context, req *producerListRequest) (*listResponse[uitype.RiverProducer], error) {
 	result, err := a.DB.ProducerListByQueue(ctx, &riverprodriver.ProducerListByQueueParams{
 		QueueName: req.QueueName,
-		Schema:    "", // TODO: need to inject schema from Client or params
+		Schema:    a.Client.Schema(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing producers: %w", err)

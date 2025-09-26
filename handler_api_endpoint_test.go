@@ -48,7 +48,7 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 		Client:     client,
 		DB:         exec,
 		Driver:     driver,
-		Extensions: map[string]bool{},
+		Extensions: func(_ context.Context) (map[string]bool, error) { return map[string]bool{}, nil },
 		Logger:     logger,
 	})
 
@@ -247,10 +247,6 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, &featuresGetResponse{
 			Extensions:               map[string]bool{},
-			HasClientTable:           false,
-			HasProducerTable:         false,
-			HasSequenceTable:         false,
-			HasWorkflows:             false,
 			JobListHideArgsByDefault: false,
 		}, resp)
 	})
@@ -276,10 +272,6 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, &featuresGetResponse{
 			Extensions:               map[string]bool{},
-			HasClientTable:           true,
-			HasProducerTable:         true,
-			HasSequenceTable:         true,
-			HasWorkflows:             true,
 			JobListHideArgsByDefault: true,
 		}, resp)
 	})
@@ -288,9 +280,11 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		t.Parallel()
 
 		endpoint, _ := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
-		endpoint.Extensions = map[string]bool{
-			"test_1": true,
-			"test_2": false,
+		endpoint.Extensions = func(_ context.Context) (map[string]bool, error) {
+			return map[string]bool{
+				"test_1": true,
+				"test_2": false,
+			}, nil
 		}
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})

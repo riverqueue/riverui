@@ -4,6 +4,7 @@ import { useFeatures } from "@contexts/Features.hook";
 import { useSettings } from "@hooks/use-settings";
 import { JobState } from "@services/types";
 import { jobMinimalFactory } from "@test/factories/job";
+import { createFeatures } from "@test/utils/features";
 import { vi } from "vitest";
 
 import JobList from "./JobList";
@@ -38,9 +39,9 @@ export const Running: Story = {
       {
         hook: useFeatures,
         mockValue: {
-          features: {
+          features: createFeatures({
             jobListHideArgsByDefault: false,
-          },
+          }),
         },
       },
       {
@@ -64,9 +65,9 @@ export const ArgsHiddenByDefault: Story = {
       {
         hook: useFeatures,
         mockValue: {
-          features: {
+          features: createFeatures({
             jobListHideArgsByDefault: true,
-          },
+          }),
         },
       },
       {
@@ -90,9 +91,9 @@ export const ArgsVisibleUserOverride: Story = {
       {
         hook: useFeatures,
         mockValue: {
-          features: {
+          features: createFeatures({
             jobListHideArgsByDefault: true,
-          },
+          }),
         },
       },
       {
@@ -116,9 +117,9 @@ export const ArgsHiddenUserOverride: Story = {
       {
         hook: useFeatures,
         mockValue: {
-          features: {
+          features: createFeatures({
             jobListHideArgsByDefault: false,
-          },
+          }),
         },
       },
       {

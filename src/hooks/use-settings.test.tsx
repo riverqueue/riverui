@@ -1,5 +1,6 @@
 import { useFeatures } from "@contexts/Features.hook";
 import { $userSettings } from "@stores/settings";
+import { createFeatures } from "@test/utils/features";
 import { renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -19,9 +20,9 @@ describe("useSettings", () => {
   it("should return default show job args value when no override", () => {
     // Mock Features hook
     (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      features: {
+      features: createFeatures({
         jobListHideArgsByDefault: true,
-      },
+      }),
     });
 
     // Mock empty settings
@@ -34,9 +35,9 @@ describe("useSettings", () => {
   it("should return override when set to true", () => {
     // Mock Features hook with hide args by default
     (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      features: {
+      features: createFeatures({
         jobListHideArgsByDefault: true,
-      },
+      }),
     });
 
     // Mock settings with showJobArgs true
@@ -49,9 +50,9 @@ describe("useSettings", () => {
   it("should return override when set to false", () => {
     // Mock Features hook with show args by default
     (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      features: {
+      features: createFeatures({
         jobListHideArgsByDefault: false,
-      },
+      }),
     });
 
     // Mock settings with showJobArgs false

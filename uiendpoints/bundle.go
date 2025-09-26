@@ -24,6 +24,6 @@ type BundleOpts struct {
 //     requires the `riverpro` module to be installed.
 type Bundle interface {
 	Configure(bundleOpts *BundleOpts)
-	MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts, extensions map[string]bool) []apiendpoint.EndpointInterface
+	MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts) []apiendpoint.EndpointInterface
 	Validate() error
 }

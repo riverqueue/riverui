@@ -49,11 +49,12 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 
 	endpoint := initFunc(ProAPIBundle[pgx.Tx]{
 		APIBundle: apibundle.APIBundle[pgx.Tx]{
-			Archetype:  riversharedtest.BaseServiceArchetype(t),
-			Client:     client.Client,
-			DB:         exec,
-			Driver:     driver,
-			Extensions: map[string]bool{},
+			Archetype: riversharedtest.BaseServiceArchetype(t),
+			Client:    client.Client,
+			DB:        exec,
+			Driver:    driver,
+			// Extensions aren't needed for any of these test endpoints
+			Extensions: func(_ context.Context) (map[string]bool, error) { return map[string]bool{}, nil },
 			Logger:     logger,
 		},
 		Client: client,

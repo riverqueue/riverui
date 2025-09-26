@@ -2,6 +2,7 @@ import { FeaturesContext } from "@contexts/Features";
 import { useSettings } from "@hooks/use-settings";
 import { JobState } from "@services/types";
 import { jobMinimalFactory } from "@test/factories/job";
+import { createFeatures } from "@test/utils/features";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -33,14 +34,9 @@ vi.mock("@hooks/use-settings", () => ({
 describe("JobList", () => {
   it("shows job args by default", () => {
     const job = jobMinimalFactory.build();
-    const features = {
-      hasClientTable: false,
-      hasProducerTable: false,
-      hasWorkflows: false,
+    const features = createFeatures({
       jobListHideArgsByDefault: false,
-      producerQueries: false,
-      workflowQueries: false,
-    };
+    });
 
     // Mock settings with no override
     (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -70,14 +66,9 @@ describe("JobList", () => {
 
   it("hides job args when jobListHideArgsByDefault is true", () => {
     const job = jobMinimalFactory.build();
-    const features = {
-      hasClientTable: false,
-      hasProducerTable: false,
-      hasWorkflows: false,
+    const features = createFeatures({
       jobListHideArgsByDefault: true,
-      producerQueries: false,
-      workflowQueries: false,
-    };
+    });
 
     // Mock settings with no override
     (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -109,14 +100,9 @@ describe("JobList", () => {
 
   it("shows job args when user overrides default hide setting", () => {
     const job = jobMinimalFactory.build();
-    const features = {
-      hasClientTable: false,
-      hasProducerTable: false,
-      hasWorkflows: false,
+    const features = createFeatures({
       jobListHideArgsByDefault: true, // Server default is to hide
-      producerQueries: false,
-      workflowQueries: false,
-    };
+    });
 
     // Mock settings with override to show args
     (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -147,14 +133,9 @@ describe("JobList", () => {
 
   it("hides job args when user overrides default show setting", () => {
     const job = jobMinimalFactory.build();
-    const features = {
-      hasClientTable: false,
-      hasProducerTable: false,
-      hasWorkflows: false,
+    const features = createFeatures({
       jobListHideArgsByDefault: false, // Server default is to show
-      producerQueries: false,
-      workflowQueries: false,
-    };
+    });
 
     // Mock settings with override to hide args
     (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({

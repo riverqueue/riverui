@@ -1,5 +1,6 @@
 import { useFeatures } from "@contexts/Features.hook";
 import { useSettings } from "@hooks/use-settings";
+import { createFeatures } from "@test/utils/features";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -29,9 +30,9 @@ describe("SettingsPage", () => {
 
     // Mock features
     (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      features: {
+      features: createFeatures({
         jobListHideArgsByDefault: false,
-      },
+      }),
     });
 
     render(<SettingsPage />);
@@ -69,9 +70,9 @@ describe("SettingsPage", () => {
 
     // Mock features
     (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      features: {
+      features: createFeatures({
         jobListHideArgsByDefault: true,
-      },
+      }),
     });
 
     render(<SettingsPage />);
@@ -104,9 +105,9 @@ describe("SettingsPage", () => {
 
     // Mock features
     (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      features: {
+      features: createFeatures({
         jobListHideArgsByDefault: true,
-      },
+      }),
     });
 
     render(<SettingsPage />);
