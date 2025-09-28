@@ -78,8 +78,9 @@ func (req *periodicJobListRequest) ExtractRaw(r *http.Request) error {
 
 func (a *periodicJobListEndpoint[TTx]) Execute(ctx context.Context, req *periodicJobListRequest) (*listResponse[uitype.RiverPeriodicJob], error) {
 	result, err := a.DB.PeriodicJobGetAll(ctx, &riverprodriver.PeriodicJobGetAllParams{
-		Max:    ptrutil.ValOrDefault(req.Limit, 100),
-		Schema: a.Client.Schema(),
+		Max:                   ptrutil.ValOrDefault(req.Limit, 100),
+		Schema:                a.Client.Schema(),
+		StaleUpdatedAtHorizon: time.Now().Add(-24 * time.Hour),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing periodic jobs: %w", err)
