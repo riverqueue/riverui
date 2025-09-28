@@ -7,6 +7,7 @@ import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import { useFeatures } from "@contexts/Features.hook";
 import { Switch } from "@headlessui/react";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
+import { BookOpenIcon } from "@heroicons/react/24/outline";
 import { PauseCircleIcon, PlayCircleIcon } from "@heroicons/react/24/outline";
 import { Features } from "@services/features";
 import { type Producer } from "@services/producers";
@@ -421,9 +422,20 @@ const ConcurrencySettings = ({
             </div>
           )}
         </div>
-        <p className="mt-1 text-sm/6 text-gray-600 dark:text-gray-400">
-          Control how many jobs can run simultaneously in this queue.
-        </p>
+        <div className="mt-1 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm/6 text-gray-600 dark:text-gray-400">
+            Control how many jobs can run simultaneously in this queue.
+          </p>
+          <a
+            className="inline-flex items-center text-sm font-medium text-brand-primary hover:text-brand-primary/80"
+            href="https://riverqueue.com/docs/pro/concurrency-limits"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            <BookOpenIcon aria-hidden="true" className="mr-1.5 size-4" />
+            View docs
+          </a>
+        </div>
       </div>
 
       <div className="space-y-6">
