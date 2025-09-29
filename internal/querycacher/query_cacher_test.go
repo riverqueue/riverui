@@ -7,13 +7,13 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/riverqueue/river/riverdbtest"
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/startstoptest"
 	"github.com/riverqueue/river/rivertype"
 
-	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 )
 
@@ -32,7 +32,7 @@ func TestQueryCacher(t *testing.T) {
 		var (
 			archetype = riversharedtest.BaseServiceArchetype(t)
 			driver    = riverpgxv5.New(nil)
-			tx        = riverinternaltest.TestTx(ctx, t)
+			tx        = riverdbtest.TestTxPgx(ctx, t)
 			runQuery  = func(ctx context.Context) (map[rivertype.JobState]int, error) {
 				return driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: ""})
 			}

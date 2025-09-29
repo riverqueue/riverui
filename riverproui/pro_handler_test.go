@@ -14,7 +14,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdbtest"
 	"github.com/riverqueue/river/riverdriver"
+	"github.com/riverqueue/river/rivershared/riversharedtest"
 
 	"riverqueue.com/riverpro"
 	"riverqueue.com/riverpro/driver"
@@ -22,31 +24,11 @@ import (
 
 	"riverqueue.com/riverui"
 	"riverqueue.com/riverui/internal/handlertest"
-	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 	"riverqueue.com/riverui/internal/uicommontest"
 	"riverqueue.com/riverui/riverproui/internal/protestfactory"
 	"riverqueue.com/riverui/uiendpoints"
 )
-
-func insertOnlyProClient(t *testing.T, logger *slog.Logger) (*riverpro.Client[pgx.Tx], riverdriver.Driver[pgx.Tx]) {
-	t.Helper()
-
-	workers := river.NewWorkers()
-	river.AddWorker(workers, &uicommontest.NoOpWorker{})
-
-	driver := riverpropgxv5.New(nil)
-
-	client, err := riverpro.NewClient(driver, &riverpro.Config{
-		Config: river.Config{
-			Logger:  logger,
-			Workers: workers,
-		},
-	})
-	require.NoError(t, err)
-
-	return client, driver
-}
 
 func TestProHandlerIntegration(t *testing.T) {
 	t.Parallel()
@@ -55,10 +37,30 @@ func TestProHandlerIntegration(t *testing.T) {
 		return NewEndpoints(client, &EndpointsOpts[pgx.Tx]{Tx: &tx})
 	}
 
+	createClient := func(ctx context.Context, tb testing.TB, logger *slog.Logger) (*riverpro.Client[pgx.Tx], riverdriver.Driver[pgx.Tx], pgx.Tx) {
+		tb.Helper()
+
+		workers := river.NewWorkers()
+		river.AddWorker(workers, &uicommontest.NoOpWorker{})
+
+		driver := riverpropgxv5.New(riversharedtest.DBPool(ctx, tb))
+		tx, _ := riverdbtest.TestTxPgxDriver(ctx, tb, driver, nil)
+
+		client, err := riverpro.NewClient(driver, &riverpro.Config{
+			Config: river.Config{
+				Logger:  logger,
+				Workers: workers,
+			},
+		})
+		require.NoError(tb, err)
+
+		return client, driver, tx
+	}
+
 	createHandler := func(t *testing.T, bundle uiendpoints.Bundle) http.Handler {
 		t.Helper()
 
-		logger := riverinternaltest.Logger(t)
+		logger := riversharedtest.Logger(t)
 		opts := &riverui.HandlerOpts{
 			DevMode:   true,
 			Endpoints: bundle,
@@ -95,23 +97,29 @@ func TestProHandlerIntegration(t *testing.T) {
 		makeAPICall(t, "WorkflowList", http.MethodGet, "/api/pro/workflows", nil)
 	}
 
-	handlertest.RunIntegrationTest(t, insertOnlyProClient, createBundle, createHandler, testRunner)
+	handlertest.RunIntegrationTest(t, createClient, createBundle, createHandler, testRunner)
 }
 
 func TestProFeaturesEndpointResponse(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
-	logger := riverinternaltest.Logger(t)
+	ctx := t.Context()
+	logger := riversharedtest.Logger(t)
 
-	client, _ := insertOnlyProClient(t, logger)
-	tx := riverinternaltest.TestTx(ctx, t)
+	driver := riverpropgxv5.New(riversharedtest.DBPool(ctx, t))
+	tx, _ := riverdbtest.TestTxPgxDriver(ctx, t, driver, &riverdbtest.TestTxOpts{DisableSchemaSharing: true})
+	client, err := riverpro.NewClient(driver, &riverpro.Config{
+		Config: river.Config{
+			Logger: logger,
+		},
+	})
+	require.NoError(t, err)
 
 	bundle := NewEndpoints(client, &EndpointsOpts[pgx.Tx]{Tx: &tx})
 
 	// Reuse the same handler creation pattern as integration tests
 	handler := func() http.Handler {
-		logger := riverinternaltest.Logger(t)
+		logger := riversharedtest.Logger(t)
 		opts := &riverui.HandlerOpts{
 			DevMode:   true,
 			Endpoints: bundle,
