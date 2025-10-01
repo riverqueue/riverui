@@ -1,11 +1,13 @@
 package riverproui
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"net/http"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
+	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/baseservice"
 
 	"riverqueue.com/riverpro"
@@ -47,6 +49,12 @@ type endpoints[TTx any] struct {
 
 func (e *endpoints[TTx]) Configure(bundleOpts *uiendpoints.BundleOpts) {
 	e.bundleOpts = bundleOpts
+
+	// Inject extensions provider into OSS via private setter
+	if s, ok := e.ossEndpoints.(apibundle.APIExtensionsProviderSetter); ok {
+		s.SetExtensionsProvider(e.Extensions)
+	}
+
 	e.ossEndpoints.Configure(bundleOpts)
 }
 
@@ -60,7 +68,85 @@ func (e *endpoints[TTx]) Validate() error {
 	return nil
 }
 
-func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts, extensions map[string]bool) []apiendpoint.EndpointInterface {
+func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error) {
+	ossDriver := e.client.Driver()
+	driver, ok := ossDriver.(prodriver.ProDriver[TTx])
+	if !ok {
+		panic("riverpro.Client is not configured with a ProDriver")
+	}
+
+	var executor prodriver.ProExecutor
+	if e.proOpts.Tx == nil {
+		executor = driver.GetProExecutor()
+	} else {
+		executor = driver.UnwrapProExecutor(*e.proOpts.Tx)
+	}
+
+	schema := e.client.Schema()
+
+	execTx, err := executor.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer execTx.Rollback(ctx)
+
+	hasClientTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
+		Schema: schema,
+		Table:  "river_client",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	hasPeriodicJobTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
+		Schema: schema,
+		Table:  "river_periodic_job",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	hasProducerTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
+		Schema: schema,
+		Table:  "river_producer",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	hasSequenceTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
+		Schema: schema,
+		Table:  "river_job_sequence",
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	indexResults, err := execTx.IndexesExist(ctx, &riverdriver.IndexesExistParams{
+		IndexNames: []string{
+			"river_job_workflow_list_active",
+			"river_job_workflow_scheduling",
+		},
+		Schema: schema,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	hasWorkflows := indexResults["river_job_workflow_list_active"] || indexResults["river_job_workflow_scheduling"]
+
+	return map[string]bool{
+		"durable_periodic_jobs": hasPeriodicJobTable,
+		"producer_queries":      true,
+		"workflow_queries":      true,
+		"has_client_table":      hasClientTable,
+		"has_producer_table":    hasProducerTable,
+		"has_sequence_table":    hasSequenceTable,
+		"has_workflows":         hasWorkflows,
+	}, nil
+}
+
+func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts) []apiendpoint.EndpointInterface {
 	ossDriver := e.client.Driver()
 	driver, ok := ossDriver.(prodriver.ProDriver[TTx])
 	if !ok {
@@ -79,6 +165,7 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 			Client:                   e.client.Client,
 			DB:                       executor,
 			Driver:                   driver,
+			Extensions:               e.Extensions,
 			JobListHideArgsByDefault: e.bundleOpts.JobListHideArgsByDefault,
 			Logger:                   logger,
 		},
@@ -86,8 +173,9 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 		DB:     executor,
 	}
 
-	endpoints := e.ossEndpoints.MountEndpoints(archetype, logger, mux, mountOpts, extensions)
+	endpoints := e.ossEndpoints.MountEndpoints(archetype, logger, mux, mountOpts)
 	endpoints = append(endpoints,
+		apiendpoint.Mount(mux, prohandler.NewPeriodicJobListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewProducerListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewWorkflowCancelEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewWorkflowGetEndpoint(bundle), mountOpts),
@@ -96,11 +184,4 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 	)
 
 	return endpoints
-}
-
-func (e *endpoints[TTx]) Extensions() map[string]bool {
-	return map[string]bool{
-		"producer_queries": true,
-		"workflow_queries": true,
-	}
 }

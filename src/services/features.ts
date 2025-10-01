@@ -13,13 +13,18 @@ export type Features = {
 
 type FeaturesFromAPI = {
   extensions: Record<string, boolean>;
-  has_client_table: boolean;
-  has_producer_table: boolean;
-  has_workflows: boolean;
   job_list_hide_args_by_default: boolean;
 };
 
-const KNOWN_EXTENSIONS = ["producer_queries", "workflow_queries"] as const;
+const KNOWN_EXTENSIONS = [
+  "durable_periodic_jobs",
+  "producer_queries",
+  "workflow_queries",
+  "has_client_table",
+  "has_producer_table",
+  "has_sequence_table",
+  "has_workflows",
+] as const;
 type KnownExtensionKey = (typeof KNOWN_EXTENSIONS)[number];
 
 type KnownExtensions = {
@@ -63,9 +68,6 @@ export const apiFeaturesToFeatures = (features: FeaturesFromAPI): Features => {
   }
 
   return {
-    hasClientTable: features.has_client_table,
-    hasProducerTable: features.has_producer_table,
-    hasWorkflows: features.has_workflows,
     jobListHideArgsByDefault: features.job_list_hide_args_by_default,
     ...completeKnownExtensions,
   };

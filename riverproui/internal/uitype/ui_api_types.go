@@ -13,6 +13,13 @@ type PartitionConfig struct {
 	ByKind bool     `json:"by_kind"`
 }
 
+type RiverPeriodicJob struct {
+	ID        string    `json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	NextRunAt time.Time `json:"next_run_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 type RiverProducer struct {
 	ID          int64              `json:"id"`
 	ClientID    string             `json:"client_id"`

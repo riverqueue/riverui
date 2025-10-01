@@ -14,14 +14,15 @@ import (
 	"github.com/riverqueue/apiframe/apitest"
 	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdbtest"
 	"github.com/riverqueue/river/riverdriver"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivertype"
 
 	"riverqueue.com/riverui/internal/apibundle"
-	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 	"riverqueue.com/riverui/internal/uicommontest"
 )
@@ -37,18 +38,23 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 	t.Helper()
 
 	var (
-		logger         = riverinternaltest.Logger(t)
-		client, driver = insertOnlyClient(t, logger)
-		tx             = riverinternaltest.TestTx(ctx, t)
-		exec           = driver.UnwrapExecutor(tx)
+		logger = riversharedtest.Logger(t)
+		driver = riverpgxv5.New(riversharedtest.DBPool(ctx, t))
+		tx, _  = riverdbtest.TestTxPgxDriver(ctx, t, driver, nil)
+		exec   = driver.UnwrapExecutor(tx)
 	)
+
+	client, err := river.NewClient(driver, &river.Config{
+		Logger: logger,
+	})
+	require.NoError(t, err)
 
 	endpoint := initFunc(apibundle.APIBundle[pgx.Tx]{
 		Archetype:  riversharedtest.BaseServiceArchetype(t),
 		Client:     client,
 		DB:         exec,
 		Driver:     driver,
-		Extensions: map[string]bool{},
+		Extensions: func(_ context.Context) (map[string]bool, error) { return map[string]bool{}, nil },
 		Logger:     logger,
 	})
 
@@ -68,7 +74,7 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 func testMountOpts(t *testing.T) *apiendpoint.MountOpts {
 	t.Helper()
 	return &apiendpoint.MountOpts{
-		Logger:    riverinternaltest.Logger(t),
+		Logger:    riversharedtest.Logger(t),
 		Validator: apitype.NewValidator(),
 	}
 }
@@ -247,10 +253,6 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, &featuresGetResponse{
 			Extensions:               map[string]bool{},
-			HasClientTable:           false,
-			HasProducerTable:         false,
-			HasSequenceTable:         false,
-			HasWorkflows:             false,
 			JobListHideArgsByDefault: false,
 		}, resp)
 	})
@@ -276,10 +278,6 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, &featuresGetResponse{
 			Extensions:               map[string]bool{},
-			HasClientTable:           true,
-			HasProducerTable:         true,
-			HasSequenceTable:         true,
-			HasWorkflows:             true,
 			JobListHideArgsByDefault: true,
 		}, resp)
 	})
@@ -288,9 +286,11 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		t.Parallel()
 
 		endpoint, _ := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
-		endpoint.Extensions = map[string]bool{
-			"test_1": true,
-			"test_2": false,
+		endpoint.Extensions = func(_ context.Context) (map[string]bool, error) {
+			return map[string]bool{
+				"test_1": true,
+				"test_2": false,
+			}, nil
 		}
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &featuresGetRequest{})

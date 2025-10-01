@@ -26,6 +26,7 @@ export const withFeatures: Decorator = (StoryFn, context) => {
   // Default features with story-specific overrides
   const features = {
     hasProducerTable: true,
+    producerQueries: true,
     ...context.parameters?.features,
   };
 

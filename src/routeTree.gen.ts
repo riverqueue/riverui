@@ -15,6 +15,7 @@ import { Route as JobsRouteImport } from "./routes/jobs"
 import { Route as IndexRouteImport } from "./routes/index"
 import { Route as WorkflowsIndexRouteImport } from "./routes/workflows/index"
 import { Route as QueuesIndexRouteImport } from "./routes/queues/index"
+import { Route as PeriodicJobsIndexRouteImport } from "./routes/periodic-jobs/index"
 import { Route as JobsIndexRouteImport } from "./routes/jobs/index"
 import { Route as WorkflowsWorkflowIdRouteImport } from "./routes/workflows/$workflowId"
 import { Route as QueuesNameRouteImport } from "./routes/queues/$name"
@@ -50,6 +51,11 @@ const QueuesIndexRoute = QueuesIndexRouteImport.update({
   id: "/",
   path: "/",
   getParentRoute: () => QueuesRoute,
+} as any)
+const PeriodicJobsIndexRoute = PeriodicJobsIndexRouteImport.update({
+  id: "/periodic-jobs/",
+  path: "/periodic-jobs/",
+  getParentRoute: () => rootRouteImport,
 } as any)
 const JobsIndexRoute = JobsIndexRouteImport.update({
   id: "/",
@@ -87,6 +93,7 @@ export interface FileRoutesByFullPath {
   "/queues/$name": typeof QueuesNameRoute
   "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
   "/jobs/": typeof JobsIndexRoute
+  "/periodic-jobs": typeof PeriodicJobsIndexRoute
   "/queues/": typeof QueuesIndexRoute
   "/workflows": typeof WorkflowsIndexRoute
 }
@@ -98,6 +105,7 @@ export interface FileRoutesByTo {
   "/queues/$name": typeof QueuesNameRoute
   "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
   "/jobs": typeof JobsIndexRoute
+  "/periodic-jobs": typeof PeriodicJobsIndexRoute
   "/queues": typeof QueuesIndexRoute
   "/workflows": typeof WorkflowsIndexRoute
 }
@@ -112,6 +120,7 @@ export interface FileRoutesById {
   "/queues/$name": typeof QueuesNameRoute
   "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
   "/jobs/": typeof JobsIndexRoute
+  "/periodic-jobs/": typeof PeriodicJobsIndexRoute
   "/queues/": typeof QueuesIndexRoute
   "/workflows/": typeof WorkflowsIndexRoute
 }
@@ -127,6 +136,7 @@ export interface FileRouteTypes {
     | "/queues/$name"
     | "/workflows/$workflowId"
     | "/jobs/"
+    | "/periodic-jobs"
     | "/queues/"
     | "/workflows"
   fileRoutesByTo: FileRoutesByTo
@@ -138,6 +148,7 @@ export interface FileRouteTypes {
     | "/queues/$name"
     | "/workflows/$workflowId"
     | "/jobs"
+    | "/periodic-jobs"
     | "/queues"
     | "/workflows"
   id:
@@ -151,6 +162,7 @@ export interface FileRouteTypes {
     | "/queues/$name"
     | "/workflows/$workflowId"
     | "/jobs/"
+    | "/periodic-jobs/"
     | "/queues/"
     | "/workflows/"
   fileRoutesById: FileRoutesById
@@ -162,6 +174,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   AboutAboutRoute: typeof AboutAboutRoute
   WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRoute
+  PeriodicJobsIndexRoute: typeof PeriodicJobsIndexRoute
   WorkflowsIndexRoute: typeof WorkflowsIndexRoute
 }
 
@@ -208,6 +221,13 @@ declare module "@tanstack/react-router" {
       fullPath: "/queues/"
       preLoaderRoute: typeof QueuesIndexRouteImport
       parentRoute: typeof QueuesRoute
+    }
+    "/periodic-jobs/": {
+      id: "/periodic-jobs/"
+      path: "/periodic-jobs"
+      fullPath: "/periodic-jobs"
+      preLoaderRoute: typeof PeriodicJobsIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     "/jobs/": {
       id: "/jobs/"
@@ -279,6 +299,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   AboutAboutRoute: AboutAboutRoute,
   WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRoute,
+  PeriodicJobsIndexRoute: PeriodicJobsIndexRoute,
   WorkflowsIndexRoute: WorkflowsIndexRoute,
 }
 export const routeTree = rootRouteImport

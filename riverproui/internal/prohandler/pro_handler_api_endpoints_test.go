@@ -14,6 +14,7 @@ import (
 	"github.com/riverqueue/apiframe/apitest"
 	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdbtest"
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/startstop"
@@ -25,14 +26,13 @@ import (
 	"riverqueue.com/riverpro/driver/riverpropgxv5"
 
 	"riverqueue.com/riverui/internal/apibundle"
-	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
-	"riverqueue.com/riverui/internal/uicommontest"
+	"riverqueue.com/riverui/riverproui/internal/protestfactory"
 )
 
 type setupEndpointTestBundle struct {
 	client *riverpro.Client[pgx.Tx]
-	exec   riverdriver.ExecutorTx
+	exec   driver.ProExecutorTx
 	logger *slog.Logger
 	tx     pgx.Tx
 }
@@ -41,19 +41,27 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 	t.Helper()
 
 	var (
-		logger         = riverinternaltest.Logger(t)
-		client, driver = insertOnlyClient(t, logger)
-		tx             = riverinternaltest.TestTx(ctx, t)
-		exec           = driver.UnwrapProExecutor(tx)
+		logger = riversharedtest.Logger(t)
+		driver = riverpropgxv5.New(riversharedtest.DBPool(ctx, t))
+		tx, _  = riverdbtest.TestTxPgxDriver(ctx, t, driver, nil)
+		exec   = driver.UnwrapProExecutor(tx)
 	)
+
+	client, err := riverpro.NewClient(driver, &riverpro.Config{
+		Config: river.Config{
+			Logger: logger,
+		},
+	})
+	require.NoError(t, err)
 
 	endpoint := initFunc(ProAPIBundle[pgx.Tx]{
 		APIBundle: apibundle.APIBundle[pgx.Tx]{
-			Archetype:  riversharedtest.BaseServiceArchetype(t),
-			Client:     client.Client,
-			DB:         exec,
-			Driver:     driver,
-			Extensions: map[string]bool{},
+			Archetype: riversharedtest.BaseServiceArchetype(t),
+			Client:    client.Client,
+			DB:        exec,
+			Driver:    driver,
+			// Extensions aren't needed for any of these test endpoints
+			Extensions: func(_ context.Context) (map[string]bool, error) { return map[string]bool{}, nil },
 			Logger:     logger,
 		},
 		Client: client,
@@ -73,31 +81,47 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 	}
 }
 
-func insertOnlyClient(t *testing.T, logger *slog.Logger) (*riverpro.Client[pgx.Tx], driver.ProDriver[pgx.Tx]) {
-	t.Helper()
-
-	workers := river.NewWorkers()
-	river.AddWorker(workers, &uicommontest.NoOpWorker{})
-
-	driver := riverpropgxv5.New(nil)
-
-	client, err := riverpro.NewClient(driver, &riverpro.Config{
-		Config: river.Config{
-			Logger:  logger,
-			Workers: workers,
-		},
-	})
-	require.NoError(t, err)
-
-	return client, driver
-}
-
 func testMountOpts(t *testing.T) *apiendpoint.MountOpts {
 	t.Helper()
 	return &apiendpoint.MountOpts{
-		Logger:    riverinternaltest.Logger(t),
+		Logger:    riversharedtest.Logger(t),
 		Validator: apitype.NewValidator(),
 	}
+}
+
+func TestProAPIHandlerPeriodicJobList(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, NewPeriodicJobListEndpoint)
+
+		job1 := protestfactory.PeriodicJob(ctx, t, bundle.exec, &protestfactory.PeriodicJobOpts{ID: ptrutil.Ptr("alpha"), NextRunAt: ptrutil.Ptr(time.Now().Add(time.Minute))})
+		job2 := protestfactory.PeriodicJob(ctx, t, bundle.exec, &protestfactory.PeriodicJobOpts{ID: ptrutil.Ptr("beta"), NextRunAt: ptrutil.Ptr(time.Now().Add(2 * time.Minute))})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &periodicJobListRequest{})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+		require.Equal(t, job2.ID, resp.Data[1].ID)
+	})
+
+	t.Run("Limit", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, NewPeriodicJobListEndpoint)
+
+		job1 := protestfactory.PeriodicJob(ctx, t, bundle.exec, nil)
+		_ = protestfactory.PeriodicJob(ctx, t, bundle.exec, nil)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &periodicJobListRequest{Limit: ptrutil.Ptr(1)})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 1)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+	})
 }
 
 func TestProAPIHandlerWorkflowCancel(t *testing.T) {

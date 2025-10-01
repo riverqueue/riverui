@@ -1,4 +1,5 @@
 import Toast from "@components/Toast";
+import { useFeatures } from "@contexts/Features.hook";
 import { useSidebarSetting } from "@contexts/SidebarSetting.hook";
 import {
   Dialog,
@@ -7,13 +8,13 @@ import {
   TransitionChild,
 } from "@headlessui/react";
 import {
+  CalendarDaysIcon,
   Cog6ToothIcon,
   InboxStackIcon,
   QueueListIcon,
   RectangleGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import useFeature from "@hooks/use-feature";
 import { Link } from "@tanstack/react-router";
 import { Fragment, PropsWithChildren, useMemo } from "react";
 
@@ -22,7 +23,7 @@ type LayoutProps = PropsWithChildren<object>;
 const Layout = ({ children }: LayoutProps) => {
   const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebarSetting();
 
-  const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
+  const { features } = useFeatures();
 
   const navigation = useMemo(
     () =>
@@ -34,14 +35,15 @@ const Layout = ({ children }: LayoutProps) => {
           search: {},
         },
         { href: "/queues", icon: InboxStackIcon, name: "Queues" },
+        { href: "/workflows", icon: RectangleGroupIcon, name: "Workflows" },
         {
-          hidden: !featureEnabledWorkflows,
-          href: "/workflows",
-          icon: RectangleGroupIcon,
-          name: "Workflows",
+          hidden: !features.durablePeriodicJobs,
+          href: "/periodic-jobs",
+          icon: CalendarDaysIcon,
+          name: "Periodic Jobs",
         },
       ].filter((item) => item.hidden === undefined || item.hidden === false),
-    [featureEnabledWorkflows],
+    [features.durablePeriodicJobs],
   );
 
   return (
@@ -163,8 +165,8 @@ const Layout = ({ children }: LayoutProps) => {
         </Transition>
 
         {/* Static sidebar for desktop */}
-        <div className="hidden overflow-x-hidden bg-slate-100 shadow-sm shadow-slate-400 transition-all hover:w-40 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4 dark:bg-slate-800 dark:shadow-slate-600">
-          <div className="flex w-40 grow flex-col">
+        <div className="hidden overflow-x-hidden bg-slate-100 shadow-sm shadow-slate-400 transition-all hover:w-48 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:w-16 lg:overflow-y-auto lg:pb-4 dark:bg-slate-800 dark:shadow-slate-600">
+          <div className="flex w-48 shrink-0 grow flex-col">
             <nav className="flex flex-1 flex-col">
               <ul className="flex flex-1 flex-col" role="list">
                 {navigation.map((item) => (

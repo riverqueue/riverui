@@ -3,6 +3,7 @@ package riverui
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -12,10 +13,12 @@ import (
 
 	"github.com/riverqueue/apiframe/apitype"
 	"github.com/riverqueue/river"
+	"github.com/riverqueue/river/riverdbtest"
 	"github.com/riverqueue/river/riverdriver"
+	"github.com/riverqueue/river/riverdriver/riverpgxv5"
+	"github.com/riverqueue/river/rivershared/riversharedtest"
 
 	"riverqueue.com/riverui/internal/handlertest"
-	"riverqueue.com/riverui/internal/riverinternaltest"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 	"riverqueue.com/riverui/internal/uicommontest"
 	"riverqueue.com/riverui/uiendpoints"
@@ -24,7 +27,19 @@ import (
 func TestNewHandlerIntegration(t *testing.T) {
 	t.Parallel()
 
-	createClient := insertOnlyClient
+	createClient := func(ctx context.Context, tb testing.TB, logger *slog.Logger) (*river.Client[pgx.Tx], riverdriver.Driver[pgx.Tx], pgx.Tx) {
+		tb.Helper()
+
+		driver := riverpgxv5.New(riversharedtest.DBPool(ctx, tb))
+		tx, _ := riverdbtest.TestTxPgxDriver(ctx, tb, driver, nil)
+
+		client, err := river.NewClient(driver, &river.Config{
+			Logger: logger,
+		})
+		require.NoError(tb, err)
+
+		return client, driver, tx
+	}
 
 	createBundle := func(client *river.Client[pgx.Tx], tx pgx.Tx) uiendpoints.Bundle {
 		return NewEndpoints(client, &EndpointsOpts[pgx.Tx]{
@@ -35,7 +50,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 	createHandler := func(t *testing.T, bundle uiendpoints.Bundle) http.Handler {
 		t.Helper()
 
-		logger := riverinternaltest.Logger(t)
+		logger := riversharedtest.Logger(t)
 		server, err := NewHandler(&HandlerOpts{
 			DevMode:     true,
 			Endpoints:   bundle,
@@ -105,7 +120,7 @@ func TestMountStaticFiles(t *testing.T) {
 	t.Parallel()
 
 	var (
-		logger = riverinternaltest.Logger(t)
+		logger = riversharedtest.Logger(t)
 		mux    = http.NewServeMux()
 	)
 

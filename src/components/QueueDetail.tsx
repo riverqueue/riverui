@@ -252,14 +252,13 @@ const ConcurrencySettings = ({
 
   const producerConcurrencyStatus = useMemo(() => {
     if (!producers || producers.length === 0)
-      return { config: null, consistent: false };
+      return { config: null, consistent: true };
 
     // Filter out paused producers
     const activeProducers = producers.filter((p) => !p.pausedAt);
 
-    // If there are no active producers, return null config
-    if (activeProducers.length === 0)
-      return { config: null, consistent: false };
+    // If there are no active producers, return null config but consider it consistent
+    if (activeProducers.length === 0) return { config: null, consistent: true };
 
     const firstProducer = activeProducers[0];
     const allSame = activeProducers.every((p) => {

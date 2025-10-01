@@ -28,10 +28,6 @@ import (
 	"riverqueue.com/riverui/uiendpoints"
 )
 
-type endpointsExtensions interface {
-	Extensions() map[string]bool
-}
-
 // EndpointsOpts are the options for creating a new Endpoints bundle.
 type EndpointsOpts[TTx any] struct {
 	// Tx is an optional transaction to wrap all database operations. It's mainly
@@ -42,6 +38,7 @@ type EndpointsOpts[TTx any] struct {
 type endpoints[TTx any] struct {
 	bundleOpts *uiendpoints.BundleOpts
 	client     *river.Client[TTx]
+	extensions func(ctx context.Context) (map[string]bool, error)
 	opts       *EndpointsOpts[TTx]
 }
 
@@ -66,6 +63,19 @@ func (e *endpoints[TTx]) Configure(bundleOpts *uiendpoints.BundleOpts) {
 	e.bundleOpts = bundleOpts
 }
 
+func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error) {
+	if e.extensions == nil {
+		return map[string]bool{}, nil
+	}
+	return e.extensions(ctx)
+}
+
+// SetExtensionsProvider sets the extensions provider function for this bundle.
+// This is a private "friend interface" method for use by riverproui.
+func (e *endpoints[TTx]) SetExtensionsProvider(provider func(ctx context.Context) (map[string]bool, error)) {
+	e.extensions = provider
+}
+
 func (e *endpoints[TTx]) Validate() error {
 	if e.client == nil {
 		return errors.New("client is required")
@@ -73,7 +83,7 @@ func (e *endpoints[TTx]) Validate() error {
 	return nil
 }
 
-func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts, extensions map[string]bool) []apiendpoint.EndpointInterface {
+func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger *slog.Logger, mux *http.ServeMux, mountOpts *apiendpoint.MountOpts) []apiendpoint.EndpointInterface {
 	driver := e.client.Driver()
 	var executor riverdriver.Executor
 	if e.opts.Tx == nil {
@@ -86,7 +96,7 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 		Client:                   e.client,
 		DB:                       executor,
 		Driver:                   driver,
-		Extensions:               extensions,
+		Extensions:               e.Extensions,
 		JobListHideArgsByDefault: e.bundleOpts.JobListHideArgsByDefault,
 		Logger:                   logger,
 	}
@@ -232,12 +242,7 @@ func NewHandler(opts *HandlerOpts) (*Handler, error) {
 		Validator: apitype.NewValidator(),
 	}
 
-	extensions := map[string]bool{}
-	if withExtensions, ok := opts.Endpoints.(endpointsExtensions); ok {
-		extensions = withExtensions.Extensions()
-	}
-
-	endpoints := opts.Endpoints.MountEndpoints(baseservice.NewArchetype(opts.Logger), opts.Logger, mux, &mountOpts, extensions)
+	endpoints := opts.Endpoints.MountEndpoints(baseservice.NewArchetype(opts.Logger), opts.Logger, mux, &mountOpts)
 
 	var services []startstop.Service
 

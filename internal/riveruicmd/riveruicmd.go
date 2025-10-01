@@ -129,7 +129,7 @@ type initServerResult struct {
 	uiHandler  *riverui.Handler // River UI handler
 }
 
-func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundler func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
+func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
 	if !strings.HasPrefix(pathPrefix, "/") || pathPrefix == "" {
 		return nil, fmt.Errorf("invalid path prefix: %s", pathPrefix)
 	}
@@ -170,7 +170,7 @@ func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefi
 
 	uiHandler, err := riverui.NewHandler(&riverui.HandlerOpts{
 		DevMode:                  devMode,
-		Endpoints:                createBundler(client),
+		Endpoints:                createBundle(client),
 		JobListHideArgsByDefault: jobListHideArgsByDefault,
 		LiveFS:                   liveFS,
 		Logger:                   logger,
