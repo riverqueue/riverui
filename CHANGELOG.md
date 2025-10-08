@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.13.0] - 2025-10-07
+
 ### Added
 
 - Added the ability to cancel workflows from the workflow detail page. [PR #407](https://github.com/riverqueue/riverui/pull/407).
