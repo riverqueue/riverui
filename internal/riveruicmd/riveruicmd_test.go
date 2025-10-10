@@ -22,8 +22,8 @@ import (
 	"riverqueue.com/riverui/uiendpoints"
 )
 
-func TestInitServer(t *testing.T) {
-	// TODO: this should be upgradeable to our latest test patterns to be parallelizable.
+func TestInitServer(t *testing.T) { //nolint:tparallel
+	// Cannot be parallelized because of Setenv calls.
 	var (
 		ctx         = context.Background()
 		databaseURL = cmp.Or(os.Getenv("TEST_DATABASE_URL"), "postgres://localhost/river_test")
@@ -51,14 +51,16 @@ func TestInitServer(t *testing.T) {
 		return initRes, &testBundle{}
 	}
 
-	t.Run("WithDatabaseURL", func(t *testing.T) { //nolint:paralleltest
+	t.Run("WithDatabaseURL", func(t *testing.T) {
+		t.Parallel()
 		initRes, _ := setup(t)
 
 		_, err := initRes.dbPool.Exec(ctx, "SELECT 1")
 		require.NoError(t, err)
 	})
 
-	t.Run("WithPGEnvVars", func(t *testing.T) {
+	t.Run("WithPGEnvVars", func(t *testing.T) { //nolint:paralleltest
+		// Cannot be parallelized because of Setenv calls.
 		t.Setenv("DATABASE_URL", "")
 
 		parsedURL, err := url.Parse(databaseURL)
@@ -79,7 +81,9 @@ func TestInitServer(t *testing.T) {
 	})
 
 	t.Run("JobListHideArgsByDefault", func(t *testing.T) {
-		t.Run("default value is false", func(t *testing.T) { //nolint:paralleltest
+		t.Run("DefaultValueIsFalse", func(t *testing.T) {
+			t.Parallel()
+
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
@@ -94,7 +98,8 @@ func TestInitServer(t *testing.T) {
 			require.False(t, resp.JobListHideArgsByDefault)
 		})
 
-		t.Run("set to true with true", func(t *testing.T) {
+		t.Run("SetToTrueWithTrue", func(t *testing.T) { //nolint:paralleltest
+			// Cannot be parallelized because of Setenv calls.
 			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "true")
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
@@ -110,7 +115,8 @@ func TestInitServer(t *testing.T) {
 			require.True(t, resp.JobListHideArgsByDefault)
 		})
 
-		t.Run("set to true with 1", func(t *testing.T) {
+		t.Run("SetToTrueWith1", func(t *testing.T) { //nolint:paralleltest
+			// Cannot be parallelized because of Setenv calls.
 			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "1")
 			initRes, _ := setup(t)
 			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
