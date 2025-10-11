@@ -36,11 +36,16 @@ type setupEndpointTestBundle struct {
 
 func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(bundle apibundle.APIBundle[pgx.Tx]) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
 	t.Helper()
+	return setupEndpointWithOpts(ctx, t, initFunc, nil)
+}
+
+func setupEndpointWithOpts[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(bundle apibundle.APIBundle[pgx.Tx]) *TEndpoint, opts *riverdbtest.TestTxOpts) (*TEndpoint, *setupEndpointTestBundle) {
+	t.Helper()
 
 	var (
 		logger = riversharedtest.Logger(t)
 		driver = riverpgxv5.New(riversharedtest.DBPool(ctx, t))
-		tx, _  = riverdbtest.TestTxPgxDriver(ctx, t, driver, nil)
+		tx, _  = riverdbtest.TestTxPgxDriver(ctx, t, driver, opts)
 		exec   = driver.UnwrapExecutor(tx)
 	)
 
@@ -234,9 +239,11 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("SuccessWithEverythingFalse", func(t *testing.T) { //nolint:paralleltest
-		// This can't be parallelized because it tries to make DB schema changes.
-		endpoint, bundle := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
+	t.Run("SuccessWithEverythingFalse", func(t *testing.T) {
+		t.Parallel()
+
+		// DisableSchemaSharing is required because we're making DB schema changes.
+		endpoint, bundle := setupEndpointWithOpts(ctx, t, newFeaturesGetEndpoint, &riverdbtest.TestTxOpts{DisableSchemaSharing: true})
 
 		_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_client CASCADE;`)
 		require.NoError(t, err)
@@ -257,9 +264,11 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		}, resp)
 	})
 
-	t.Run("SuccessWithEverythingTrue", func(t *testing.T) { //nolint:paralleltest
-		// This can't be parallelized because it tries to make DB schema changes.
-		endpoint, bundle := setupEndpoint(ctx, t, newFeaturesGetEndpoint)
+	t.Run("SuccessWithEverythingTrue", func(t *testing.T) {
+		t.Parallel()
+
+		// DisableSchemaSharing is required because we're making DB schema changes.
+		endpoint, bundle := setupEndpointWithOpts(ctx, t, newFeaturesGetEndpoint, &riverdbtest.TestTxOpts{DisableSchemaSharing: true})
 
 		_, err := bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_client (id SERIAL PRIMARY KEY);`)
 		require.NoError(t, err)

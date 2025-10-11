@@ -21,7 +21,7 @@ jobs:
         go-version:
           - "1.24"
           - "1.25"
-        postgres-version: [17, 16, 15]
+        postgres-version: [18, 17, 16]
       fail-fast: false
     timeout-minutes: 5
 
