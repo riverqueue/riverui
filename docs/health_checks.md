@@ -53,3 +53,23 @@ When setting this command in ECS tasks for healtechecks it would something like 
   ]
 }
 ```
+
+### Silencing request logs for health checks
+
+If you run the bundled `riverui` server and want to reduce log noise from frequent health probes, use the `-silent-healthchecks` flag. This will configure the HTTP logging middleware to skip logs for health endpoints under the configured prefix.
+
+```text
+/bin/riverui -prefix=/my-prefix -silent-healthchecks
+```
+
+If you embed the UI in your own server, you can apply a similar filter to your logging middleware. For example with `slog-http`:
+
+```go
+// assuming prefix has been normalized (e.g., "/my-prefix")
+apiHealthPrefix := strings.TrimSuffix(prefix, "/") + "/api/health-checks"
+logHandler := sloghttp.NewWithConfig(logger, sloghttp.Config{
+    Filters:     []sloghttp.Filter{sloghttp.IgnorePathPrefix(apiHealthPrefix)},
+    WithSpanID:  otelEnabled,
+    WithTraceID: otelEnabled,
+})
+```

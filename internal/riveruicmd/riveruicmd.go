@@ -41,6 +41,9 @@ func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createB
 	var healthCheckName string
 	flag.StringVar(&healthCheckName, "healthcheck", "", "the name of the health checks: minimal or complete")
 
+	var silentHealthChecks bool
+	flag.BoolVar(&silentHealthChecks, "silent-healthchecks", false, "silence request logs for health check routes")
+
 	flag.Parse()
 
 	if healthCheckName != "" {
@@ -51,7 +54,11 @@ func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createB
 		os.Exit(0)
 	}
 
-	initRes, err := initServer(ctx, logger, pathPrefix, createClient, createBundle)
+	initRes, err := initServer(ctx, &initServerOpts{
+		logger:             logger,
+		pathPrefix:         pathPrefix,
+		silentHealthChecks: silentHealthChecks,
+	}, createClient, createBundle)
 	if err != nil {
 		logger.ErrorContext(ctx, "Error initializing server", slog.String("error", err.Error()))
 		os.Exit(1)
@@ -129,12 +136,21 @@ type initServerResult struct {
 	uiHandler  *riverui.Handler // River UI handler
 }
 
-func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefix string, createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
-	if !strings.HasPrefix(pathPrefix, "/") || pathPrefix == "" {
-		return nil, fmt.Errorf("invalid path prefix: %s", pathPrefix)
+type initServerOpts struct {
+	logger             *slog.Logger
+	pathPrefix         string
+	silentHealthChecks bool
+}
+
+func initServer[TClient any](ctx context.Context, opts *initServerOpts, createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
+	if opts == nil {
+		return nil, errors.New("opts is required")
+	}
+	if !strings.HasPrefix(opts.pathPrefix, "/") || opts.pathPrefix == "" {
+		return nil, fmt.Errorf("invalid path prefix: %s", opts.pathPrefix)
 	}
 
-	pathPrefix = riverui.NormalizePathPrefix(pathPrefix)
+	opts.pathPrefix = riverui.NormalizePathPrefix(opts.pathPrefix)
 
 	var (
 		basicAuthUsername        = os.Getenv("RIVER_BASIC_AUTH_USER")
@@ -173,8 +189,8 @@ func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefi
 		Endpoints:                createBundle(client),
 		JobListHideArgsByDefault: jobListHideArgsByDefault,
 		LiveFS:                   liveFS,
-		Logger:                   logger,
-		Prefix:                   pathPrefix,
+		Logger:                   opts.logger,
+		Prefix:                   opts.pathPrefix,
 	})
 	if err != nil {
 		return nil, err
@@ -184,7 +200,13 @@ func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefi
 		AllowedMethods: []string{"GET", "HEAD", "POST", "PUT"},
 		AllowedOrigins: corsOrigins,
 	})
-	logHandler := sloghttp.NewWithConfig(logger, sloghttp.Config{
+	filters := []sloghttp.Filter{}
+	if opts.silentHealthChecks {
+		apiHealthPrefix := strings.TrimSuffix(opts.pathPrefix, "/") + "/api/health-checks"
+		filters = append(filters, sloghttp.IgnorePathPrefix(apiHealthPrefix))
+	}
+	logHandler := sloghttp.NewWithConfig(opts.logger, sloghttp.Config{
+		Filters:     filters,
 		WithSpanID:  otelEnabled,
 		WithTraceID: otelEnabled,
 	})
@@ -205,7 +227,7 @@ func initServer[TClient any](ctx context.Context, logger *slog.Logger, pathPrefi
 			Handler:           middlewareStack.Mount(uiHandler),
 			ReadHeaderTimeout: 5 * time.Second,
 		},
-		logger:    logger,
+		logger:    opts.logger,
 		uiHandler: uiHandler,
 	}, nil
 }
