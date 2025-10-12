@@ -36,7 +36,11 @@ func TestAuthMiddleware(t *testing.T) { //nolint:tparallel
 
 	setup := func(t *testing.T, prefix string) http.Handler {
 		t.Helper()
-		initRes, err := initServer(ctx, riversharedtest.Logger(t), prefix,
+		initRes, err := initServer(ctx,
+			&initServerOpts{
+				logger:     riversharedtest.Logger(t),
+				pathPrefix: prefix,
+			},
 			func(dbPool *pgxpool.Pool) (*river.Client[pgx.Tx], error) {
 				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
 			},

@@ -30,7 +30,7 @@ func MustMarshalJSON(t *testing.T, v any) []byte {
 	return data
 }
 
-// Requires that err is an equivalent API error to expectedErr.
+// RequireAPIError requires that err is an equivalent API error to expectedErr.
 //
 // TError is a pointer to an API error type like *apierror.NotFound.
 func RequireAPIError[TError error](t *testing.T, expectedErr TError, err error) {
