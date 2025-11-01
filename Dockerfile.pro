@@ -12,7 +12,7 @@ COPY src ./src
 RUN npx vite build
 
 # Build the Go binary, including embedded UI files:
-FROM golang:1.24.7-alpine AS build-go
+FROM golang:1.25.3-alpine AS build-go
 WORKDIR /go/src/riverui
 
 # Download main module dependencies first
