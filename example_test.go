@@ -40,7 +40,7 @@ func ExampleNewHandler() {
 
 	// Create a River client with a message-only logger for reproducible output.
 	// You can use any slog.Handler implementation in your application.
-	logger := slog.New(&slogutil.SlogMessageOnlyHandler{Level: slog.LevelWarn})
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelWarn, ReplaceAttr: slogutil.NoLevelTime}))
 
 	// Create a River client. We don't need to start the client since we're only
 	// using it to demonstrate the UI.
