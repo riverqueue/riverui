@@ -7,11 +7,11 @@ toolchain go1.24.4
 require (
 	github.com/jackc/pgx/v5 v5.7.6
 	github.com/riverqueue/apiframe v0.0.0-20250408034821-b206bbbd0fb4
-	github.com/riverqueue/river v0.26.0
-	github.com/riverqueue/river/riverdriver v0.26.0
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.26.0
-	github.com/riverqueue/river/rivershared v0.26.0
-	github.com/riverqueue/river/rivertype v0.26.0
+	github.com/riverqueue/river v0.27.0
+	github.com/riverqueue/river/riverdriver v0.27.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.27.0
+	github.com/riverqueue/river/rivershared v0.27.0
+	github.com/riverqueue/river/rivertype v0.27.0
 	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.9.0
 	github.com/stretchr/testify v1.11.1
@@ -39,9 +39,9 @@ require (
 	go.uber.org/goleak v1.3.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
-	golang.org/x/sync v0.17.0 // indirect
+	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.29.0 // indirect
+	golang.org/x/text v0.30.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
