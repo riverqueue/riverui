@@ -90,29 +90,37 @@ function QueueComponent() {
 
   // Mutations for queue actions
   const pauseMutation = useMutation({
-    mutationFn: async (queueName: string) => pauseQueue({ name: queueName }),
+    mutationFn: async (queueName: string, context) =>
+      pauseQueue({ name: queueName }, context),
     throwOnError: true,
     onSuccess: invalidateQueue,
   });
 
   const resumeMutation = useMutation({
-    mutationFn: async (queueName: string) => resumeQueue({ name: queueName }),
+    mutationFn: async (queueName: string, context) =>
+      resumeQueue({ name: queueName }, context),
     throwOnError: true,
     onSuccess: invalidateQueue,
   });
 
   const updateQueueMutation = useMutation({
-    mutationFn: async ({
-      queueName,
-      concurrencyConfig,
-    }: {
-      concurrencyConfig?: ConcurrencyConfig | null;
-      queueName: string;
-    }) =>
-      updateQueue({
-        name: queueName,
-        concurrency: concurrencyConfig,
-      }),
+    mutationFn: async (
+      {
+        queueName,
+        concurrencyConfig,
+      }: {
+        concurrencyConfig?: ConcurrencyConfig | null;
+        queueName: string;
+      },
+      context,
+    ) =>
+      updateQueue(
+        {
+          name: queueName,
+          concurrency: concurrencyConfig,
+        },
+        context,
+      ),
     throwOnError: true,
     onSuccess: invalidateQueue,
   });
