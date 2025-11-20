@@ -61,8 +61,9 @@ function JobComponent() {
   const queryClient = useQueryClient();
   const jobQuery = useQuery(queryOptions);
 
-  const cancelMutation = useMutation({
-    mutationFn: async () => cancelJobs({ ids: [jobId] }),
+  const cancelMutation = useMutation<void, Error, void>({
+    mutationFn: async (_variables, context) =>
+      cancelJobs({ ids: [jobId] }, context),
     throwOnError: true,
     onSuccess: () => {
       toastError({
@@ -75,8 +76,9 @@ function JobComponent() {
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: async () => deleteJobs({ ids: [jobId] }),
+  const deleteMutation = useMutation<void, Error, void>({
+    mutationFn: async (_variables, context) =>
+      deleteJobs({ ids: [jobId] }, context),
     throwOnError: true,
     onSuccess: async () => {
       toastError({
@@ -90,8 +92,9 @@ function JobComponent() {
     },
   });
 
-  const retryMutation = useMutation({
-    mutationFn: async () => retryJobs({ ids: [jobId] }),
+  const retryMutation = useMutation<void, Error, void>({
+    mutationFn: async (_variables, context) =>
+      retryJobs({ ids: [jobId] }, context),
     throwOnError: true,
     onSuccess: () => {
       toastSuccess({

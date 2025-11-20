@@ -41,12 +41,12 @@ function QueuesIndexComponent() {
   };
 
   const pauseMutation = useMutation({
-    mutationFn: async (name: string) => pauseQueue({ name }),
+    mutationFn: async (name: string, context) => pauseQueue({ name }, context),
     throwOnError: true,
     onSuccess: invalidate,
   });
   const resumeMutation = useMutation({
-    mutationFn: async (name: string) => resumeQueue({ name }),
+    mutationFn: async (name: string, context) => resumeQueue({ name }, context),
     throwOnError: true,
     onSuccess: invalidate,
   });

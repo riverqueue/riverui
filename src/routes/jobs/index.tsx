@@ -221,7 +221,8 @@ function JobsIndexComponent() {
   }, [id, kind, priority, queue]);
 
   const cancelMutation = useMutation({
-    mutationFn: async (jobIDs: bigint[]) => cancelJobs({ ids: jobIDs }),
+    mutationFn: async (jobIDs: bigint[], context) =>
+      cancelJobs({ ids: jobIDs }, context),
     throwOnError: true,
     onSuccess: () => {
       toastError({
@@ -243,7 +244,8 @@ function JobsIndexComponent() {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: async (jobIDs: bigint[]) => deleteJobs({ ids: jobIDs }),
+    mutationFn: async (jobIDs: bigint[], context) =>
+      deleteJobs({ ids: jobIDs }, context),
     throwOnError: true,
     onSuccess: async () => {
       toastError({
@@ -258,7 +260,8 @@ function JobsIndexComponent() {
   });
 
   const retryMutation = useMutation({
-    mutationFn: async (jobIDs: bigint[]) => retryJobs({ ids: jobIDs }),
+    mutationFn: async (jobIDs: bigint[], context) =>
+      retryJobs({ ids: jobIDs }, context),
     throwOnError: true,
     onSuccess: () => {
       toastSuccess({
