@@ -1,6 +1,6 @@
 import js from "@eslint/js";
 import css from "@eslint/css";
-import { tailwindSyntax } from "@eslint/css/syntax";
+import { tailwind4 } from "tailwind-csstree";
 import globals from "globals";
 import perfectionist from "eslint-plugin-perfectionist";
 import reactHooks from "eslint-plugin-react-hooks";
@@ -60,7 +60,7 @@ export default tseslint.config(
     },
     language: "css/css",
     languageOptions: {
-      customSyntax: tailwindSyntax,
+      customSyntax: tailwind4,
       tolerant: true,
     },
     rules: {
