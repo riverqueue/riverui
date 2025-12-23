@@ -90,7 +90,7 @@ jobs:
     name: Go lint
     runs-on: ubuntu-latest
     env:
-      GOLANGCI_LINT_VERSION: v2.5.0
+      GOLANGCI_LINT_VERSION: v2.7.2
       GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
     permissions:
       contents: read

@@ -313,9 +313,9 @@ func (h *Handler) Start(ctx context.Context) error {
 	return nil
 }
 
-func readManifest(frontendIndex fs.FS, devMode bool) (map[string]interface{}, error) {
+func readManifest(frontendIndex fs.FS, devMode bool) (map[string]any, error) {
 	if devMode {
-		return map[string]interface{}{}, nil
+		return map[string]any{}, nil
 	}
 
 	file, err := frontendIndex.Open(".vite/manifest.json")
@@ -326,7 +326,7 @@ func readManifest(frontendIndex fs.FS, devMode bool) (map[string]interface{}, er
 	if err != nil {
 		return nil, errors.New("could not read .vite/manifest.json")
 	}
-	var manifest map[string]interface{}
+	var manifest map[string]any
 	err = json.Unmarshal(bytes, &manifest)
 	if err != nil {
 		return nil, errors.New("could not unmarshal .vite/manifest.json")
