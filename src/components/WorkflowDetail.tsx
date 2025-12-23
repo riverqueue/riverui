@@ -55,13 +55,12 @@ export default function WorkflowDetail({
   const firstTask = workflow?.tasks?.[0];
   const workflowID = firstTask?.metadata.workflow_id;
   // TODO: this is being repeated in WorkflowDiagram, dedupe
-  const jobsByTask: JobsByTask = useMemo(() => {
-    if (!workflow?.tasks) return {};
-    return workflow.tasks.reduce((acc: JobsByTask, job) => {
-      acc[job.metadata.task] = job;
-      return acc;
-    }, {});
-  }, [workflow?.tasks]);
+  const jobsByTask: JobsByTask = workflow?.tasks
+    ? workflow.tasks.reduce((acc: JobsByTask, job) => {
+        acc[job.metadata.task] = job;
+        return acc;
+      }, {})
+    : {};
 
   const isActive = useMemo(() => {
     const activeStates = new Set<JobState>([

@@ -5,7 +5,7 @@ import {
   DialogTitle,
 } from "@headlessui/react";
 import { type WorkflowRetryMode } from "@services/workflows";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export type RetryWorkflowDialogProps = {
   defaultMode?: WorkflowRetryMode;
@@ -16,6 +16,8 @@ export type RetryWorkflowDialogProps = {
   pending?: boolean;
 };
 
+type RetryWorkflowDialogInnerProps = Omit<RetryWorkflowDialogProps, "open">;
+
 export default function RetryWorkflowDialog({
   defaultMode,
   defaultResetHistory = false,
@@ -24,19 +26,39 @@ export default function RetryWorkflowDialog({
   open,
   pending,
 }: RetryWorkflowDialogProps) {
+  // Important: this component can stay mounted even when `open={false}` (e.g.
+  // via rerender in tests). Put state in an inner component that unmounts when
+  // closed so each open starts from defaults.
+  if (!open) return null;
+
+  return (
+    <RetryWorkflowDialogInner
+      defaultMode={defaultMode}
+      defaultResetHistory={defaultResetHistory}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      pending={pending}
+    />
+  );
+}
+
+function RetryWorkflowDialogInner({
+  defaultMode,
+  defaultResetHistory = false,
+  onClose,
+  onConfirm,
+  pending,
+}: RetryWorkflowDialogInnerProps) {
   const [mode, setMode] = useState<undefined | WorkflowRetryMode>(defaultMode);
   const [resetHistory, setResetHistory] =
     useState<boolean>(defaultResetHistory);
 
-  useEffect(() => {
-    if (!open) {
-      setMode(defaultMode);
-      setResetHistory(defaultResetHistory);
-    }
-  }, [open, defaultMode, defaultResetHistory]);
+  const handleClose = () => {
+    onClose();
+  };
 
   return (
-    <Dialog className="relative z-10" onClose={onClose} open={open}>
+    <Dialog className="relative z-10" onClose={handleClose} open>
       <DialogBackdrop
         className="fixed inset-0 bg-gray-500/75 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in dark:bg-gray-900/50"
         transition
@@ -208,7 +230,7 @@ export default function RetryWorkflowDialog({
                 <button
                   className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
                   data-autofocus
-                  onClick={onClose}
+                  onClick={handleClose}
                   type="button"
                 >
                   Cancel

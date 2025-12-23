@@ -1,5 +1,5 @@
 import { formatDurationShort } from "@utils/time";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { useTime } from "react-time-sync";
 
 type DurationCompactProps = {
@@ -13,33 +13,17 @@ export const DurationCompact = ({
   startTime,
   subsecond,
 }: DurationCompactProps) => {
-  const [relative, setRelative] = useState("");
   const nowSec = useTime();
-  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
-  const start = startTime || now;
-  const end = endTime || now;
   const subsecondEnabled = subsecond === undefined ? !!endTime : subsecond;
 
-  const timer = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    const recompute = () => {
-      return formatDurationShort(end, start, subsecondEnabled);
-    };
-    setRelative(recompute);
-
-    if (!endTime) {
-      timer.current = setInterval(() => {
-        setRelative(recompute);
-      }, 1000);
-    }
-
-    return () => {
-      if (timer.current) {
-        clearInterval(timer.current);
-      }
-    };
-  }, [end, endTime, start, subsecondEnabled]);
+  const relative = useMemo(() => {
+    // When `endTime` is undefined we use the current time; `useTime()` already
+    // updates periodically, so we don't need to manage our own interval/state.
+    const now = new Date(nowSec * 1000);
+    const start = startTime ?? now;
+    const end = endTime ?? now;
+    return formatDurationShort(end, start, subsecondEnabled);
+  }, [endTime, nowSec, startTime, subsecondEnabled]);
 
   return relative;
 };

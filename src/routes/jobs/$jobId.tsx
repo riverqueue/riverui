@@ -17,6 +17,7 @@ import {
   getRouteApi,
 } from "@tanstack/react-router";
 import { NotFoundError } from "@utils/api";
+import { useMemo } from "react";
 
 const routeApi = getRouteApi("/jobs/$jobId");
 
@@ -56,10 +57,13 @@ function JobComponent() {
   const navigate = Route.useNavigate();
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
-  queryOptions.refetchInterval = refreshSettings.intervalMs;
+  const queryOptionsWithRefresh = useMemo(
+    () => ({ ...queryOptions, refetchInterval: refreshSettings.intervalMs }),
+    [queryOptions, refreshSettings.intervalMs],
+  );
 
   const queryClient = useQueryClient();
-  const jobQuery = useQuery(queryOptions);
+  const jobQuery = useQuery(queryOptionsWithRefresh);
 
   const cancelMutation = useMutation<void, Error, void>({
     mutationFn: async (_variables, context) =>
@@ -71,7 +75,7 @@ function JobComponent() {
         duration: 2000,
       });
       return queryClient.invalidateQueries({
-        queryKey: queryOptions.queryKey,
+        queryKey: queryOptionsWithRefresh.queryKey,
       });
     },
   });
@@ -87,7 +91,7 @@ function JobComponent() {
       });
       await navigate({ to: "/jobs", search: { state: JobState.Running } });
       await queryClient.removeQueries({
-        queryKey: queryOptions.queryKey,
+        queryKey: queryOptionsWithRefresh.queryKey,
       });
     },
   });
@@ -103,7 +107,7 @@ function JobComponent() {
       });
 
       return queryClient.invalidateQueries({
-        queryKey: queryOptions.queryKey,
+        queryKey: queryOptionsWithRefresh.queryKey,
       });
     },
   });

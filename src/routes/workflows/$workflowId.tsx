@@ -15,6 +15,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { NotFoundError } from "@utils/api";
+import { useMemo } from "react";
 import { z } from "zod";
 
 const workflowDetailSearchSchema = z.object({
@@ -64,9 +65,12 @@ function WorkflowComponent() {
   const navigate = useNavigate({ from: Route.fullPath });
   const refreshSettings = useRefreshSetting();
   const queryClient = useQueryClient();
-  queryOptions.refetchInterval = refreshSettings.intervalMs;
+  const queryOptionsWithRefresh = useMemo(
+    () => ({ ...queryOptions, refetchInterval: refreshSettings.intervalMs }),
+    [queryOptions, refreshSettings.intervalMs],
+  );
 
-  const workflowQuery = useQuery(queryOptions);
+  const workflowQuery = useQuery(queryOptionsWithRefresh);
 
   const { data: workflow } = workflowQuery;
   const setSelectedJobId = (jobId: bigint | undefined) => {

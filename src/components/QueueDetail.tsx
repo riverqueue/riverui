@@ -17,7 +17,7 @@ import {
   type Queue,
 } from "@services/queues";
 import clsx from "clsx";
-import { type ReactElement, useEffect, useMemo, useState } from "react";
+import { type ReactElement, useMemo, useState } from "react";
 
 type QueueDetailProps = {
   loading: boolean;
@@ -134,18 +134,10 @@ const QueueStatusCard = ({
   queue,
   resumeQueue,
 }: QueueStatusCardProps) => {
-  const totalRunning = useMemo(
-    () =>
-      features.hasProducerTable && features.producerQueries
-        ? producers?.reduce((acc, producer) => acc + producer.running, 0)
-        : queue?.countRunning,
-    [
-      features.hasProducerTable,
-      features.producerQueries,
-      producers,
-      queue?.countRunning,
-    ],
-  );
+  const totalRunning =
+    features.hasProducerTable && features.producerQueries
+      ? producers?.reduce((acc, producer) => acc + producer.running, 0)
+      : queue.countRunning;
 
   return (
     <div className="border-1 border-slate-200 sm:rounded-lg dark:border-slate-800">
@@ -219,36 +211,14 @@ const ConcurrencySettings = ({
   updateQueueConcurrency,
 }: ConcurrencySettingsProps) => {
   const [isEditMode, setIsEditMode] = useState(false);
-  const [initialForm, setInitialForm] = useState<{
+  type ConcurrencyForm = {
     enabled: boolean;
     globalLimit: number;
     localLimit: number;
     partitionArgs: string[];
     partitionByArgs: boolean;
     partitionByKind: boolean;
-  }>({
-    enabled: false,
-    globalLimit: 0,
-    localLimit: 0,
-    partitionArgs: [],
-    partitionByArgs: false,
-    partitionByKind: false,
-  });
-  const [concurrencyForm, setConcurrencyForm] = useState<{
-    enabled: boolean;
-    globalLimit: number;
-    localLimit: number;
-    partitionArgs: string[];
-    partitionByArgs: boolean;
-    partitionByKind: boolean;
-  }>({
-    enabled: false,
-    globalLimit: 0,
-    localLimit: 0,
-    partitionArgs: [],
-    partitionByArgs: false,
-    partitionByKind: false,
-  });
+  };
 
   const producerConcurrencyStatus = useMemo(() => {
     if (!producers || producers.length === 0)
@@ -303,61 +273,68 @@ const ConcurrencySettings = ({
     };
   }, [producers]);
 
-  // Update form when queue or producer settings change, but only if not in edit mode
-  useEffect(() => {
-    if (!isEditMode) {
-      const config =
-        queue.concurrency ||
-        (producerConcurrencyStatus.consistent
-          ? producerConcurrencyStatus.config
-          : null);
+  const derivedForm: ConcurrencyForm = useMemo(() => {
+    const config =
+      queue.concurrency ||
+      (producerConcurrencyStatus.consistent
+        ? producerConcurrencyStatus.config
+        : null);
 
-      const newFormValues = {
-        enabled: !!queue.concurrency,
-        globalLimit: config?.global_limit || 0,
-        localLimit: config?.local_limit || 0,
-        partitionArgs: config?.partition?.by_args
-          ? Array.isArray(config.partition.by_args)
-            ? config.partition.by_args
-            : []
-          : [],
-        partitionByArgs: !!config?.partition?.by_args,
-        partitionByKind: !!config?.partition?.by_kind,
-      };
+    const byArgs = config?.partition?.by_args;
 
-      setConcurrencyForm(newFormValues);
-      setInitialForm(newFormValues);
-    }
-  }, [queue, producerConcurrencyStatus, isEditMode]);
+    return {
+      enabled: Boolean(queue.concurrency),
+      globalLimit: config?.global_limit ?? 0,
+      localLimit: config?.local_limit ?? 0,
+      partitionArgs: Array.isArray(byArgs) ? byArgs : [],
+      partitionByArgs: Boolean(config?.partition?.by_args),
+      partitionByKind: Boolean(config?.partition?.by_kind),
+    };
+  }, [
+    producerConcurrencyStatus.config,
+    producerConcurrencyStatus.consistent,
+    queue.concurrency,
+  ]);
+
+  const [initialForm, setInitialForm] = useState<ConcurrencyForm>(derivedForm);
+  const [concurrencyForm, setConcurrencyForm] =
+    useState<ConcurrencyForm>(derivedForm);
+
+  const activeForm = isEditMode ? concurrencyForm : derivedForm;
+  const activeInitialForm = isEditMode ? initialForm : derivedForm;
 
   // Check if form is dirty (has changes)
   const isDirty = useMemo(() => {
     const partitionArgsChanged = () => {
       if (
-        concurrencyForm.partitionArgs.length !==
-        initialForm.partitionArgs.length
+        activeForm.partitionArgs.length !==
+        activeInitialForm.partitionArgs.length
       ) {
         return true;
       }
       // Compare arrays
-      return concurrencyForm.partitionArgs.some(
-        (arg, index) => arg !== initialForm.partitionArgs[index],
+      return activeForm.partitionArgs.some(
+        (arg, index) => arg !== activeInitialForm.partitionArgs[index],
       );
     };
 
     return (
-      concurrencyForm.enabled !== initialForm.enabled ||
-      concurrencyForm.globalLimit !== initialForm.globalLimit ||
-      concurrencyForm.localLimit !== initialForm.localLimit ||
-      concurrencyForm.partitionByArgs !== initialForm.partitionByArgs ||
-      concurrencyForm.partitionByKind !== initialForm.partitionByKind ||
-      (concurrencyForm.partitionByArgs && partitionArgsChanged())
+      activeForm.enabled !== activeInitialForm.enabled ||
+      activeForm.globalLimit !== activeInitialForm.globalLimit ||
+      activeForm.localLimit !== activeInitialForm.localLimit ||
+      activeForm.partitionByArgs !== activeInitialForm.partitionByArgs ||
+      activeForm.partitionByKind !== activeInitialForm.partitionByKind ||
+      (activeForm.partitionByArgs && partitionArgsChanged())
     );
-  }, [concurrencyForm, initialForm]);
+  }, [activeForm, activeInitialForm]);
 
   // Toggle edit mode when enabled is switched
   const handleEnabledToggle = (enabled: boolean) => {
-    setIsEditMode(true);
+    if (!isEditMode) {
+      setIsEditMode(true);
+      setConcurrencyForm(derivedForm);
+      setInitialForm(derivedForm);
+    }
     setConcurrencyForm((prev) => ({ ...prev, enabled }));
   };
 
@@ -367,8 +344,10 @@ const ConcurrencySettings = ({
     value: (typeof concurrencyForm)[K],
   ) => {
     // Enter edit mode if we're changing values when concurrency is already overridden
-    if (!isEditMode && concurrencyForm.enabled) {
+    if (!isEditMode && activeForm.enabled) {
       setIsEditMode(true);
+      setConcurrencyForm(derivedForm);
+      setInitialForm(derivedForm);
     }
     setConcurrencyForm((prev) => ({ ...prev, [key]: value }));
   };
@@ -378,34 +357,34 @@ const ConcurrencySettings = ({
 
     let newConcurrency = null;
 
-    if (concurrencyForm.enabled) {
+    if (activeForm.enabled) {
       const partition: PartitionConfig = {
-        by_args: concurrencyForm.partitionByArgs
-          ? concurrencyForm.partitionArgs.length > 0
-            ? concurrencyForm.partitionArgs
+        by_args: activeForm.partitionByArgs
+          ? activeForm.partitionArgs.length > 0
+            ? activeForm.partitionArgs
             : []
           : null,
-        by_kind: concurrencyForm.partitionByKind ? true : null,
+        by_kind: activeForm.partitionByKind ? true : null,
       };
 
       newConcurrency = {
-        global_limit: concurrencyForm.globalLimit,
-        local_limit: concurrencyForm.localLimit,
+        global_limit: activeForm.globalLimit,
+        local_limit: activeForm.localLimit,
         partition,
       };
     }
 
     updateQueueConcurrency(queue.name, newConcurrency);
     setIsEditMode(false);
-    setInitialForm(concurrencyForm);
+    setInitialForm(activeForm);
   };
 
   const cancelEdit = () => {
-    setConcurrencyForm(initialForm);
+    setConcurrencyForm(activeInitialForm);
     setIsEditMode(false);
   };
 
-  const isFormDisabled = !concurrencyForm.enabled;
+  const isFormDisabled = !activeForm.enabled;
 
   return (
     <div className="px-6 py-6">
