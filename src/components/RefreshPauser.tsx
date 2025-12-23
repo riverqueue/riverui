@@ -9,7 +9,6 @@ import {
 import { ArrowPathIcon } from "@heroicons/react/20/solid";
 import { PauseIcon } from "@heroicons/react/24/outline";
 import clsx from "clsx";
-import { useEffect, useState } from "react";
 
 type RefreshIntervalSetting = {
   name: string;
@@ -32,15 +31,6 @@ export function RefreshPauser(
   >,
 ) {
   const { intervalMs, setIntervalMs } = useRefreshSetting();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
-    return <div className="size-6" />;
-  }
 
   const disabled = intervalMs === 0;
   const selectedInterval =
