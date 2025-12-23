@@ -16,6 +16,8 @@ export type RetryWorkflowDialogProps = {
   pending?: boolean;
 };
 
+type RetryWorkflowDialogInnerProps = Omit<RetryWorkflowDialogProps, "open">;
+
 export default function RetryWorkflowDialog({
   defaultMode,
   defaultResetHistory = false,
@@ -24,18 +26,39 @@ export default function RetryWorkflowDialog({
   open,
   pending,
 }: RetryWorkflowDialogProps) {
+  // Important: this component can stay mounted even when `open={false}` (e.g.
+  // via rerender in tests). Put state in an inner component that unmounts when
+  // closed so each open starts from defaults.
+  if (!open) return null;
+
+  return (
+    <RetryWorkflowDialogInner
+      defaultMode={defaultMode}
+      defaultResetHistory={defaultResetHistory}
+      onClose={onClose}
+      onConfirm={onConfirm}
+      pending={pending}
+    />
+  );
+}
+
+function RetryWorkflowDialogInner({
+  defaultMode,
+  defaultResetHistory = false,
+  onClose,
+  onConfirm,
+  pending,
+}: RetryWorkflowDialogInnerProps) {
   const [mode, setMode] = useState<undefined | WorkflowRetryMode>(defaultMode);
   const [resetHistory, setResetHistory] =
     useState<boolean>(defaultResetHistory);
 
   const handleClose = () => {
-    setMode(defaultMode);
-    setResetHistory(defaultResetHistory);
     onClose();
   };
 
   return (
-    <Dialog className="relative z-10" onClose={handleClose} open={open}>
+    <Dialog className="relative z-10" onClose={handleClose} open>
       <DialogBackdrop
         className="fixed inset-0 bg-gray-500/75 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in dark:bg-gray-900/50"
         transition

@@ -15,6 +15,17 @@ class ResizeObserverMock {
 
 global.ResizeObserver = ResizeObserverMock;
 
+// Headless UI relies on the Web Animations API for transitions. JSDOM doesn't
+// implement it, and Headless UI will polyfill with warnings (and may behave
+// differently across versions). Provide a minimal stable polyfill.
+if (!("getAnimations" in Element.prototype)) {
+  Object.defineProperty(Element.prototype, "getAnimations", {
+    configurable: true,
+    value: () => [],
+    writable: true,
+  });
+}
+
 // Configure React testing environment to support act() with Vitest
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
