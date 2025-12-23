@@ -8,6 +8,7 @@ import {
 } from "@services/queues";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useMemo } from "react";
 
 export const Route = createFileRoute("/queues/")({
   beforeLoad: ({ abortController }) => {
@@ -30,13 +31,16 @@ export const Route = createFileRoute("/queues/")({
 function QueuesIndexComponent() {
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
-  queryOptions.refetchInterval = refreshSettings.intervalMs;
+  const queryOptionsWithRefresh = useMemo(
+    () => ({ ...queryOptions, refetchInterval: refreshSettings.intervalMs }),
+    [queryOptions, refreshSettings.intervalMs],
+  );
 
   const queryClient = useQueryClient();
 
   const invalidate = () => {
     return queryClient.invalidateQueries({
-      queryKey: queryOptions.queryKey,
+      queryKey: queryOptionsWithRefresh.queryKey,
     });
   };
 
@@ -51,7 +55,7 @@ function QueuesIndexComponent() {
     onSuccess: invalidate,
   });
 
-  const queuesQuery = useQuery(queryOptions);
+  const queuesQuery = useQuery(queryOptionsWithRefresh);
   const loading = queuesQuery.isLoading || !queuesQuery.data;
 
   return (
