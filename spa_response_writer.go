@@ -27,7 +27,7 @@ func intercept404(handler, on404 http.Handler) http.Handler {
 	})
 }
 
-func serveIndexHTML(devMode bool, manifest map[string]interface{}, pathPrefix string, files http.FileSystem) http.HandlerFunc {
+func serveIndexHTML(devMode bool, manifest map[string]any, pathPrefix string, files http.FileSystem) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		// Restrict only to instances where the browser is looking for an HTML file
 		if !strings.Contains(req.Header.Get("Accept"), "text/html") {
@@ -51,7 +51,7 @@ func serveIndexHTML(devMode bool, manifest map[string]interface{}, pathPrefix st
 			Base:   pathPrefix,
 		}
 
-		templateData := map[string]interface{}{
+		templateData := map[string]any{
 			"Config":   config,
 			"Dev":      devMode,
 			"Manifest": manifest,
@@ -71,7 +71,7 @@ func serveIndexHTML(devMode bool, manifest map[string]interface{}, pathPrefix st
 		}
 
 		tmpl, err := template.New("index.html").Funcs(template.FuncMap{
-			"marshal": func(v interface{}) template.JS {
+			"marshal": func(v any) template.JS {
 				a, _ := json.Marshal(v)
 				return template.JS(a) //nolint:gosec
 			},

@@ -794,7 +794,7 @@ func (a *queueUpdateEndpoint[TTx]) Execute(ctx context.Context, req *queueUpdate
 				slices.Sort(req.Concurrency.Value.Partition.ByArgs)
 
 				// Otherwise, construct metadata with the concurrency config
-				metadataStruct := map[string]interface{}{
+				metadataStruct := map[string]any{
 					"concurrency": req.Concurrency.Value,
 				}
 				var err error
