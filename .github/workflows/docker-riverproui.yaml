@@ -475,7 +475,7 @@ jobs:
           FORCE_FETCH_SECRET: ${{ secrets.FORCE_FETCH_SECRET }}
           REGISTRY_MANIFEST_URL: https://riverqueue.com/v2/riverproui/manifests
         run: |
-          bash scripts/prefetch-buildx-attestation-manifests.sh /tmp/index-manifest-docker.json
+          bash scripts/ci/prefetch-buildx-attestation-manifests.sh /tmp/index-manifest-docker.json
 
       - name: Fetch amd64 manifest with crane (Docker media type)
         run: crane manifest "$IMAGE_NAME@${{ steps.platform-digests.outputs.amd64_digest }}" > /tmp/amd64-manifest-docker.json
