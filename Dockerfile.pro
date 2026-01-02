@@ -42,7 +42,7 @@ COPY --from=build-ui /app/dist ./dist
 WORKDIR /go/src/riverui/riverproui
 RUN go build -trimpath -ldflags="-w -s -buildid=" -o /bin/riverproui ./cmd/riverproui
 
-FROM alpine:3.22.2
+FROM alpine:3.23.2
 ENV PATH_PREFIX="/"
 COPY --from=build-go /bin/riverproui /bin/riverproui
 CMD ["/bin/sh", "-c", "/bin/riverproui -prefix=$PATH_PREFIX"]
