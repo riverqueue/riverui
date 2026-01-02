@@ -506,6 +506,12 @@ jobs:
       # If neither MANIFEST_DIGEST (from merge job) nor ecr_manifest_digest (manual input)
       # is available, we skip index referrer prefetch rather than fail.
       - name: Prefetch all referrers content
+        env:
+          AUTH_USER: river
+          AUTH_PASSWORD: ${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}
+          FORCE_FETCH_SECRET: ${{ secrets.FORCE_FETCH_SECRET }}
+          REGISTRY_MANIFEST_URL: https://riverqueue.com/v2/riverproui/manifests
+          REGISTRY_REFERRERS_URL: https://riverqueue.com/v2/riverproui/referrers
         run: |
           # Include both the ECR-derived index digest (attestations live here)
           # and the live registry's index digest (may differ but could gain referrers).
@@ -518,24 +524,7 @@ jobs:
             echo "Note: no index subject digest provided; skipping index referrers prefetch."
           fi
           subjects+=("${{ steps.resolve-digest.outputs.digest }}" "${{ steps.platform-digests.outputs.amd64_digest }}" "${{ steps.platform-digests.outputs.arm64_digest }}")
-          for subject in "${subjects[@]}"; do
-            oras discover --format json "$IMAGE_NAME@$subject" | tee /tmp/referrers.json
-            digests=$(jq -r '.manifests[]?.digest // empty' /tmp/referrers.json)
-            for d in $digests; do
-              tmpfile=$(mktemp)
-              # Fetch the full referrer manifest to a file so we can parse layers + config
-              oras manifest fetch --output "$tmpfile" "$IMAGE_NAME@$d"
-              # Prefetch config blob (often empty but warms cache)
-              cfg=$(jq -r '.config.digest // empty' "$tmpfile")
-              if [ -n "$cfg" ]; then
-                oras blob fetch --output /dev/null "$IMAGE_NAME@$cfg"
-              fi
-              # Prefetch any layer blobs (DSSE envelope, bundle, etc.)
-              jq -r '.layers[]?.digest // empty' "$tmpfile" | while read -r ld; do
-                [ -n "$ld" ] && oras blob fetch --output /dev/null "$IMAGE_NAME@$ld"
-              done
-            done
-          done
+          bash scripts/ci/prefetch-referrers-content.sh "${subjects[@]}"
 
       # Verify index (if digest is available) and per-arch attestations against live registry.
       # Index-level attestation is bound to the ECR index digest; provide it via MANIFEST_DIGEST
@@ -576,55 +565,23 @@ jobs:
 
       # Offline verification of Sigstore bundle: only attempt for index if digest provided.
       - name: Verify Sigstore bundle against subject bytes (offline crypto)
+        env:
+          AUTH_USER: river
+          AUTH_PASSWORD: ${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}
+          FORCE_FETCH_SECRET: ${{ secrets.FORCE_FETCH_SECRET }}
+          REGISTRY_MANIFEST_URL: https://riverqueue.com/v2/riverproui/manifests
+          REGISTRY_REFERRERS_URL: https://riverqueue.com/v2/riverproui/referrers
         run: |
           FALLBACK="${{ inputs.ecr_manifest_digest }}"
           INDEX_SUBJECT="${MANIFEST_DIGEST:-$FALLBACK}"
-          verify_bundle () {
-            subject="$1"
-            # Exact subject bytes
-            oras manifest fetch --output /tmp/subject.json "$IMAGE_NAME@$subject"
-
-            # Find *all* bundle candidates for this subject (both media-type spellings)
-            refjson=$(mktemp)
-            oras discover --format json "$IMAGE_NAME@$subject" > "$refjson"
-            mapfile -t bundle_mfs < <(jq -r '.manifests[]
-              | select(.artifactType=="application/vnd.dev.sigstore.bundle.v0.3+json"
-                       or .artifactType=="application/vnd.dev.sigstore.bundle+json;version=0.3")
-              | .digest' "$refjson")
-
-            ok=0
-            for bmf in "${bundle_mfs[@]}"; do
-              [ -z "$bmf" ] && continue
-              mf=$(mktemp)
-              oras manifest fetch --output "$mf" "$IMAGE_NAME@$bmf"
-              bundle_blob=$(jq -r '.layers[0].digest' "$mf")
-              oras blob fetch --output /tmp/bundle.json "$IMAGE_NAME@$bundle_blob"
-
-              if cosign verify-blob-attestation \
-                    --bundle /tmp/bundle.json \
-                    --new-bundle-format \
-                    --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-                    --certificate-identity-regexp '^https://github.com/riverqueue/riverui/.*' \
-                    /tmp/subject.json > /tmp/verify.out 2>&1; then
-                echo "Verified OK with bundle $bmf"
-                ok=1
-                break
-              fi
-            done
-
-            if [ "$ok" -ne 1 ]; then
-              echo "No matching bundle verified for subject $subject"
-              cat /tmp/verify.out || true
-              exit 1
-            fi
-          }
           if [ -n "$INDEX_SUBJECT" ]; then
-            verify_bundle "$INDEX_SUBJECT"
+            bash scripts/ci/verify-sigstore-bundles-offline.sh "$INDEX_SUBJECT"
           else
             echo "Skipping offline index bundle verification: no MANIFEST_DIGEST or ecr_manifest_digest provided."
           fi
-          verify_bundle "${{ steps.platform-digests.outputs.amd64_digest }}"
-          verify_bundle "${{ steps.platform-digests.outputs.arm64_digest }}"
+          bash scripts/ci/verify-sigstore-bundles-offline.sh \
+            "${{ steps.platform-digests.outputs.amd64_digest }}" \
+            "${{ steps.platform-digests.outputs.arm64_digest }}"
 
       - name: Upload debug artifacts
         if: failure() || cancelled()
