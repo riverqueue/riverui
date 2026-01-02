@@ -468,6 +468,15 @@ jobs:
           echo "amd64_digest=$AMD64_DIGEST" >> $GITHUB_OUTPUT
           echo "arm64_digest=$ARM64_DIGEST" >> $GITHUB_OUTPUT
 
+      - name: Prefetch buildx attestation manifests referenced by index (legacy non-referrers)
+        env:
+          AUTH_USER: river
+          AUTH_PASSWORD: ${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}
+          FORCE_FETCH_SECRET: ${{ secrets.FORCE_FETCH_SECRET }}
+          REGISTRY_MANIFEST_URL: https://riverqueue.com/v2/riverproui/manifests
+        run: |
+          bash scripts/prefetch-buildx-attestation-manifests.sh /tmp/index-manifest-docker.json
+
       - name: Fetch amd64 manifest with crane (Docker media type)
         run: crane manifest "$IMAGE_NAME@${{ steps.platform-digests.outputs.amd64_digest }}" > /tmp/amd64-manifest-docker.json
 
