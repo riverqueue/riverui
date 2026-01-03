@@ -50,7 +50,10 @@ for subject in "$@"; do
 
   # Discover and warm each referrer manifest and its blobs.
   oras discover --format json "${IMAGE_NAME}@${subject}" | tee /tmp/referrers.json
-  digests="$(jq -r '.manifests[]?.digest // empty' /tmp/referrers.json)"
+  # ORAS output shape differs by version/flags:
+  # - some versions return { "manifests": [...] }
+  # - some return { "referrers": [...] }
+  digests="$(jq -r '((.manifests // .referrers // []) | .[]? | .digest // empty)' /tmp/referrers.json)"
   for d in $digests; do
     [ -z "$d" ] && continue
 

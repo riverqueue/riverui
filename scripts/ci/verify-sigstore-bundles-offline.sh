@@ -59,7 +59,7 @@ verify_bundle_for_subject() {
     force_fetch_manifest_and_referrers "$subject"
     oras discover --format json "${IMAGE_NAME}@${subject}" > "$refjson"
 
-    mapfile -t bundle_mfs < <(jq -r '(.manifests // [])[]
+    mapfile -t bundle_mfs < <(jq -r '((.manifests // .referrers // []) | .[]?)
       | select(.artifactType=="application/vnd.dev.sigstore.bundle.v0.3+json"
                or .artifactType=="application/vnd.dev.sigstore.bundle+json;version=0.3")
       | .digest' "$refjson")
