@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.14.0] - 2026-01-02
+
 ### Added
 
 - Added a `-silent-healthchecks` flag to `riverui` and `riveruipro` executables to avoid noisy HTTP logs from healthcheck endpoints. [PR #444](https://github.com/riverqueue/riverui/pull/444).
+
+### Fixed
+
+- Remove accidentally left in `replace` statement in `riverproui/go.mod`. [PR #480](https://github.com/riverqueue/riverui/pull/480).
 
 ## [v0.13.0] - 2025-10-07
 
