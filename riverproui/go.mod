@@ -16,7 +16,7 @@ require (
 	riverqueue.com/riverpro v0.20.0
 	riverqueue.com/riverpro/driver v0.20.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.20.0
-	riverqueue.com/riverui v0.13.0
+	riverqueue.com/riverui v0.14.0
 )
 
 require (
