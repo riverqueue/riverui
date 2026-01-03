@@ -89,13 +89,47 @@ $ npm run build
 
 2. Prepare a PR with the changes, updating `CHANGELOG.md` with any necessary additions at the same time. Have it reviewed and merged.
 
-3. Upon merge, pull down the changes, tag each module with the new version, and push the new tags:
+3. Upon merge, pull down the changes, tag the main riverui module with the new version, and push the new tag:
 
    ```shell
    git pull origin master
    git tag $VERSION
-   git tag riverproui/$VERSION -m "release riverproui/$VERSION"
    git push --tags
    ```
 
 4. The build will cut a new release and create binaries automatically, but it won't have a good release message. Go the [release list](https://github.com/riverqueue/riverui/releases), find `$VERSION` and change the description to the release content in `CHANGELOG.md` (again, the build will have to finish first).
+
+### Releasing riverproui
+
+The `riverproui` submodule depends on the top level `riverui` module and in development it is customary to leave a `replace` directive in its `go.mod` so that it can be developed against the live local version. However, this `replace` directive makes it incompatible with `go install ...@latest`.
+
+As such, we must use a two-phase release for these modules:
+
+1. Release `riverui` with an initial version (i.e. all the steps above).
+
+2. Comment out `replace` directives to riverui `./riverproui/go.mod`. These were probably needed for developing the new feature, but need to be removed because they prevent the module from being `go install`-able.
+
+3. From `./riverproui`, `go get` to upgrade to the main package versions were just released (make sure you're getting `$VERSION` and not thwarted by shenanigans in Go's module proxy):
+
+   ```shell
+   cd ./riverproui
+   go get -u riverqueue.com/riverui@$VERSION
+   ```
+
+4. Run `go mod tidy`:
+
+   ```shell
+   go mod tidy
+   ```
+
+5. Prepare a PR with the changes. Have it reviewed and merged.
+
+6. Pull the changes back down, add a tag for `riverproui/$VERSION`, and push it to GitHub:
+
+   ```shell
+   git pull origin master
+   git tag riverproui/$VERSION -m "release riverproui/$VERSION"
+   git push --tags
+   ```
+
+   The main `$VERSION` tag and `riverproui/$VERSION` will point to different commits, and although a little odd, is tolerable.
