@@ -37,7 +37,7 @@ jobs:
     name: "Build image: riverproui"
     runs-on: ubuntu-latest
     # Skip this job when manually dispatched with verify_only=true
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.verify_only == 'true') }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.verify_only) }}
     env:
       ECR_ACCOUNT_ID: ${{ secrets.ECR_CACHE_AWS_ACCOUNT_ID }}
       ECR_ROLE_ARN: ${{ secrets.ECR_CACHE_ROLE_ARN }}
@@ -124,7 +124,7 @@ jobs:
     needs:
       - build-riverproui
     # Skip this job when manually dispatched with verify_only=true
-    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.verify_only == 'true') }}
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.verify_only) }}
     permissions:
       contents: read
       id-token: write
@@ -363,7 +363,7 @@ jobs:
     # Only run on release tag events (refs/tags/riverproui/vX.Y.Z),
     # or when manually forced via workflow_dispatch: force_prefetch=true.
     # For workflow_dispatch, inputs.ref should be in the form 'riverproui/vX.Y.Z'.
-    if: startsWith(github.ref, 'refs/tags/riverproui/v') || (github.event_name == 'workflow_dispatch' && (startsWith(inputs.ref, 'riverproui/v') || inputs.force_prefetch == 'true'))
+    if: startsWith(github.ref, 'refs/tags/riverproui/v') || (github.event_name == 'workflow_dispatch' && (startsWith(inputs.ref, 'riverproui/v') || inputs.force_prefetch))
     permissions:
       contents: read
     steps:
