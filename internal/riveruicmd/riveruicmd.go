@@ -202,7 +202,7 @@ func initServer[TClient any](ctx context.Context, opts *initServerOpts, createCl
 	})
 	filters := []sloghttp.Filter{}
 	if opts.silentHealthChecks {
-		apiHealthPrefix := strings.TrimSuffix(opts.pathPrefix, "/") + "/api/health-checks"
+		apiHealthPrefix := opts.pathPrefix + "/api/health-checks"
 		filters = append(filters, sloghttp.IgnorePathPrefix(apiHealthPrefix))
 	}
 	logHandler := sloghttp.NewWithConfig(opts.logger, sloghttp.Config{
