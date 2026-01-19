@@ -18,11 +18,11 @@
     "nanostores": "^1.1.0",
     "next-themes": "^0.4.6",
     "query-string": "^9.3.1",
-    "react": "^19.2.1",
-    "react-dom": "^19.2.1",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "react-hot-toast": "^2.6.0",
     "react-time-sync": "^5.2.1",
-    "zod": "^4.1.13"
+    "zod": "^4.3.5"
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^5.0.0",
@@ -44,7 +44,7 @@
     "@testing-library/react": "^16.3.2",
     "@types/eslint__js": "^9.14.0",
     "@types/node": "^25.0.9",
-    "@types/react": "^19.2.7",
+    "@types/react": "^19.2.8",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react-swc": "^4.2.2",
     "concurrently": "^9.2.1",
