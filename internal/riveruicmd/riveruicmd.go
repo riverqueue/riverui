@@ -36,7 +36,7 @@ func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createB
 	}))
 
 	var pathPrefix string
-	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix to use for the API and UI HTTP requests")
+	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix for API and UI routes (must start with '/', use '/' for no prefix)")
 
 	var healthCheckName string
 	flag.StringVar(&healthCheckName, "healthcheck", "", "the name of the health checks: minimal or complete")
@@ -146,8 +146,11 @@ func initServer[TClient any](ctx context.Context, opts *initServerOpts, createCl
 	if opts == nil {
 		return nil, errors.New("opts is required")
 	}
-	if !strings.HasPrefix(opts.pathPrefix, "/") || opts.pathPrefix == "" {
-		return nil, fmt.Errorf("invalid path prefix: %s", opts.pathPrefix)
+	if opts.pathPrefix == "" {
+		return nil, errors.New("invalid path prefix: cannot be empty (use \"/\" for no prefix)")
+	}
+	if !strings.HasPrefix(opts.pathPrefix, "/") {
+		return nil, fmt.Errorf("invalid path prefix %q: must start with '/' (use \"/\" for no prefix)", opts.pathPrefix)
 	}
 
 	opts.pathPrefix = riverui.NormalizePathPrefix(opts.pathPrefix)
