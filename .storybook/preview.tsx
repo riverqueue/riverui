@@ -14,9 +14,14 @@ import React from "react";
 
 import type { Features } from "../src/services/features";
 
+import { FeaturesContext } from "../src/contexts/Features";
 import "../src/global-type-overrides";
 import "../src/index.css";
-import { FeaturesContext } from "../src/contexts/Features";
+import {
+  $userSettings,
+  clearAllSettings,
+  type UserSettings,
+} from "../src/stores/settings";
 
 /**
  * Decorator that provides feature flags to stories
@@ -77,6 +82,22 @@ export const withThemeProvider: Decorator = (StoryFn) => (
   </ThemeProvider>
 );
 
+/**
+ * Decorator that sets user settings for stories
+ * Can be overridden per story using parameters.settings
+ */
+export const withSettings: Decorator = (StoryFn, context) => {
+  const settings = context.parameters?.settings;
+
+  if (settings) {
+    $userSettings.set(settings);
+  } else {
+    clearAllSettings();
+  }
+
+  return <StoryFn />;
+};
+
 // Define parameter types
 declare module "@storybook/react-vite" {
   interface Parameters {
@@ -86,12 +107,14 @@ declare module "@storybook/react-vite" {
       initialIndex?: number;
       routes?: string[];
     };
+    settings?: UserSettings;
   }
 }
 
 const preview: Preview = {
   decorators: [
     withFeatures,
+    withSettings,
     withRouter,
     withThemeByClassName<ReactRenderer>({
       defaultTheme: "light",
