@@ -1,22 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { useFeatures } from "@contexts/Features.hook";
-import { useSettings } from "@hooks/use-settings";
 import { JobState } from "@services/types";
 import { jobMinimalFactory } from "@test/factories/job";
 import { createFeatures } from "@test/utils/features";
-import { vi } from "vitest";
 
 import JobList from "./JobList";
-
-// Mock hooks for stories
-vi.mock("@contexts/Features.hook", () => ({
-  useFeatures: vi.fn(),
-}));
-
-vi.mock("@hooks/use-settings", () => ({
-  useSettings: vi.fn(),
-}));
 
 const meta: Meta<typeof JobList> = {
   component: JobList,
@@ -35,22 +23,10 @@ export const Running: Story = {
     state: JobState.Running,
   },
   parameters: {
-    mockData: [
-      {
-        hook: useFeatures,
-        mockValue: {
-          features: createFeatures({
-            jobListHideArgsByDefault: false,
-          }),
-        },
-      },
-      {
-        hook: useSettings,
-        mockValue: {
-          settings: {},
-        },
-      },
-    ],
+    features: createFeatures({
+      jobListHideArgsByDefault: false,
+    }),
+    settings: {},
   },
 };
 
@@ -61,22 +37,10 @@ export const ArgsHiddenByDefault: Story = {
     jobs: jobMinimalFactory.running().buildList(10),
   },
   parameters: {
-    mockData: [
-      {
-        hook: useFeatures,
-        mockValue: {
-          features: createFeatures({
-            jobListHideArgsByDefault: true,
-          }),
-        },
-      },
-      {
-        hook: useSettings,
-        mockValue: {
-          settings: {},
-        },
-      },
-    ],
+    features: createFeatures({
+      jobListHideArgsByDefault: true,
+    }),
+    settings: {},
   },
 };
 
@@ -87,22 +51,10 @@ export const ArgsVisibleUserOverride: Story = {
     jobs: jobMinimalFactory.running().buildList(10),
   },
   parameters: {
-    mockData: [
-      {
-        hook: useFeatures,
-        mockValue: {
-          features: createFeatures({
-            jobListHideArgsByDefault: true,
-          }),
-        },
-      },
-      {
-        hook: useSettings,
-        mockValue: {
-          settings: { showJobArgs: true },
-        },
-      },
-    ],
+    features: createFeatures({
+      jobListHideArgsByDefault: true,
+    }),
+    settings: { showJobArgs: true },
   },
 };
 
@@ -113,21 +65,9 @@ export const ArgsHiddenUserOverride: Story = {
     jobs: jobMinimalFactory.running().buildList(10),
   },
   parameters: {
-    mockData: [
-      {
-        hook: useFeatures,
-        mockValue: {
-          features: createFeatures({
-            jobListHideArgsByDefault: false,
-          }),
-        },
-      },
-      {
-        hook: useSettings,
-        mockValue: {
-          settings: { showJobArgs: false },
-        },
-      },
-    ],
+    features: createFeatures({
+      jobListHideArgsByDefault: false,
+    }),
+    settings: { showJobArgs: false },
   },
 };
