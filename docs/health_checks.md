@@ -6,12 +6,13 @@ River UI exposes two types of health checks:
 For production deployments, it is recommended to use the `complete` health check.
 
 ## How to use
+
 ### HTTP Endpoint
 Useful when running on Kubernetes or behind load balancer that can hit the HTTP endpoint.
 
-The URL would be `{prefix}/api/health-checks/{name}`
+The URL would be `{prefix}/api/health-checks/{name}`.
 
-- `{prefix}` is the path prefix set in the environment variable `PATH_PREFIX` or `-prefix` flag
+- `{prefix}` is the path prefix set in the environment variable `PATH_PREFIX` or `-prefix` flag (must start with `/`; use `/` for none; trailing slash is ignored)
 - `{name}` is the health check name. Can be `minimal` or `complete`.
 
 **Example:** When setting `PATH_PREFIX=/my-prefix` and wanting to include the database connection in the health check the path would be

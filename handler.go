@@ -145,12 +145,12 @@ func (opts *HandlerOpts) validate() error {
 }
 
 func NormalizePathPrefix(prefix string) string {
-	if prefix == "" {
-		return "/"
+	if prefix == "" || prefix == "/" {
+		return ""
 	}
 	prefix = strings.TrimSuffix(prefix, "/")
 	if !strings.HasPrefix(prefix, "/") {
-		return "/" + prefix
+		prefix = "/" + prefix
 	}
 	return prefix
 }
@@ -189,7 +189,7 @@ func NewHandler(opts *HandlerOpts) (*Handler, error) {
 		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
 	})
 
-	prefix := cmp.Or(strings.TrimSuffix(opts.Prefix, "/"), "")
+	prefix := opts.Prefix
 
 	frontendIndex, err := fs.Sub(FrontendIndex, "dist")
 	if err != nil {
@@ -266,7 +266,7 @@ func NewHandler(opts *HandlerOpts) (*Handler, error) {
 
 	middlewareStack := apimiddleware.NewMiddlewareStack()
 
-	if prefix != "/" {
+	if prefix != "" {
 		middlewareStack.Use(&stripPrefixMiddleware{prefix})
 	}
 

@@ -216,6 +216,15 @@ func TestSilentHealthchecks_SuppressesLogs(t *testing.T) {
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Empty(t, memoryHandler.records)
 
+	// reset and test with trailing slash prefix
+	memoryHandler.records = nil
+	initRes = makeServer(t, "/pfx/", true)
+
+	recorder = httptest.NewRecorder()
+	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/pfx/api/health-checks/minimal", nil))
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Empty(t, memoryHandler.records)
+
 	// now silent=false should log health
 	memoryHandler.records = nil
 	initRes = makeServer(t, "/", false)

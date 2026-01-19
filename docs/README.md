@@ -49,7 +49,11 @@ See [health checks](health_checks.md).
 
 ### Custom path prefix
 
-The `riverui` command accepts a `-prefix` arg to set a path prefix on both the API and static assets. When executing the Docker image, this is accepted as a `PATH_PREFIX` env.
+Serve River UI under a URL prefix like `/ui` by setting `-prefix` (binary) or `PATH_PREFIX` (Docker). Rules: **must start with `/`**, use `/` for no prefix, and a trailing `/` is ignored.
+
+Example: `./riverui -prefix=/ui` serves the UI at `/ui/` and the API at `/ui/api/...` (and `/ui` will redirect to `/ui/`).
+
+Reverse proxies: either preserve the prefix and set `-prefix=/ui`, or strip the prefix and leave `-prefix=/` (don’t do both).
 
 ### Hiding job list arguments by default
 

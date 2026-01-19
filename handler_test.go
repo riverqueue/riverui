@@ -139,3 +139,27 @@ func TestMountStaticFiles(t *testing.T) {
 	require.Equal(t, "text/plain; charset=utf-8", recorder.Header().Get("Content-Type"))
 	require.Contains(t, recorder.Body.String(), "User-Agent")
 }
+
+func TestNormalizePathPrefix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "Empty", input: "", want: ""},
+		{name: "Root", input: "/", want: ""},
+		{name: "NoLeadingSlash", input: "prefix", want: "/prefix"},
+		{name: "LeadingSlash", input: "/prefix", want: "/prefix"},
+		{name: "TrailingSlash", input: "/prefix/", want: "/prefix"},
+		{name: "NoLeadingWithTrailing", input: "prefix/", want: "/prefix"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, NormalizePathPrefix(tt.input))
+		})
+	}
+}
