@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Prevent double slash in URLs for root path prefix. Thanks [Jan Kott](https://github.com/boostvolt)! [PR #487](https://github.com/riverqueue/riverui/pull/487)
+
 ## [v0.14.0] - 2026-01-02
 
 ### Added
