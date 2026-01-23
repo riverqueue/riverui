@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"mime"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -30,9 +32,9 @@ func intercept404(handler, on404 http.Handler) http.Handler {
 func serveIndexHTML(devMode bool, manifest map[string]any, pathPrefix string, files http.FileSystem) http.HandlerFunc {
 	return func(rw http.ResponseWriter, req *http.Request) {
 		// Restrict only to instances where the browser is looking for an HTML file
-		if !strings.Contains(req.Header.Get("Accept"), "text/html") {
-			rw.WriteHeader(http.StatusNotFound)
-			fmt.Fprint(rw, "404 not found")
+		if !acceptsHTML(req) {
+			rw.WriteHeader(http.StatusNotAcceptable)
+			fmt.Fprint(rw, "not acceptable: only text/html is available")
 
 			return
 		}
@@ -92,6 +94,46 @@ func serveIndexHTML(devMode bool, manifest map[string]any, pathPrefix string, fi
 		rw.Header().Set("Content-Type", "text/html; charset=utf-8")
 		http.ServeContent(rw, req, fileInfo.Name(), fileInfo.ModTime(), index)
 	}
+}
+
+func acceptsHTML(req *http.Request) bool {
+	accept := strings.TrimSpace(req.Header.Get("Accept"))
+	if accept == "" {
+		return true
+	}
+
+	for part := range strings.SplitSeq(accept, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+
+		mediaType, params, err := mime.ParseMediaType(part)
+		if err != nil {
+			mediaType = strings.TrimSpace(strings.SplitN(part, ";", 2)[0])
+			params = nil
+		}
+
+		quality := 1.0
+		if params != nil {
+			if qRaw, ok := params["q"]; ok {
+				if parsed, err := strconv.ParseFloat(qRaw, 64); err == nil {
+					quality = parsed
+				}
+			}
+		}
+
+		if quality <= 0 {
+			continue
+		}
+
+		switch mediaType {
+		case "text/html", "text/*", "*/*":
+			return true
+		}
+	}
+
+	return false
 }
 
 type spaResponseWriter struct {
