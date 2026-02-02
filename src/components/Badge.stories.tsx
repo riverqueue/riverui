@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
-import { Badge, BadgeButton, BadgeColors } from "./Badge";
+import { Badge, BadgeButton } from "./Badge";
+import { BadgeColors } from "./Badge.colors";
 
 const meta: Meta<typeof Badge> = {
   component: Badge,
