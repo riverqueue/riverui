@@ -51,6 +51,7 @@ export default tseslint.config(
     files: ["**/routes/**/*.{ts,tsx}"],
     rules: {
       "perfectionist/sort-objects": "off",
+      "react-refresh/only-export-components": "off",
     },
   },
   {

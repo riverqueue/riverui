@@ -93,9 +93,9 @@ export interface FileRoutesByFullPath {
   "/queues/$name": typeof QueuesNameRoute
   "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
   "/jobs/": typeof JobsIndexRoute
-  "/periodic-jobs": typeof PeriodicJobsIndexRoute
+  "/periodic-jobs/": typeof PeriodicJobsIndexRoute
   "/queues/": typeof QueuesIndexRoute
-  "/workflows": typeof WorkflowsIndexRoute
+  "/workflows/": typeof WorkflowsIndexRoute
 }
 export interface FileRoutesByTo {
   "/": typeof IndexRoute
@@ -136,9 +136,9 @@ export interface FileRouteTypes {
     | "/queues/$name"
     | "/workflows/$workflowId"
     | "/jobs/"
-    | "/periodic-jobs"
+    | "/periodic-jobs/"
     | "/queues/"
-    | "/workflows"
+    | "/workflows/"
   fileRoutesByTo: FileRoutesByTo
   to:
     | "/"
@@ -211,7 +211,7 @@ declare module "@tanstack/react-router" {
     "/workflows/": {
       id: "/workflows/"
       path: "/workflows"
-      fullPath: "/workflows"
+      fullPath: "/workflows/"
       preLoaderRoute: typeof WorkflowsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
@@ -225,7 +225,7 @@ declare module "@tanstack/react-router" {
     "/periodic-jobs/": {
       id: "/periodic-jobs/"
       path: "/periodic-jobs"
-      fullPath: "/periodic-jobs"
+      fullPath: "/periodic-jobs/"
       preLoaderRoute: typeof PeriodicJobsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
