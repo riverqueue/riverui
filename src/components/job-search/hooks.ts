@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   analyzeAutocompleteContext,
@@ -50,7 +50,10 @@ export function useFilterInput({
   } | null>(null);
 
   const debounceTimeoutRef = useRef<number | undefined>(undefined);
-  const currentFilters = parseFiltersFromText(inputValue);
+  const currentFilters = useMemo(
+    () => parseFiltersFromText(inputValue),
+    [inputValue],
+  );
 
   const {
     clearSuggestions,

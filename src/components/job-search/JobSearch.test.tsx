@@ -135,6 +135,26 @@ describe("JobSearch", () => {
         }),
       ]);
     });
+
+    it("does not notify parent on unrelated rerenders", async () => {
+      const onFiltersChange = vi.fn();
+      const { rerender } = render(
+        <JobSearch onFiltersChange={onFiltersChange} />,
+      );
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      });
+      onFiltersChange.mockClear();
+
+      rerender(<JobSearch onFiltersChange={onFiltersChange} />);
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      });
+
+      expect(onFiltersChange).not.toHaveBeenCalled();
+    });
   });
 
   describe("Suggestion System", () => {

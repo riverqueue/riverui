@@ -32,6 +32,14 @@ const minimumLimit = 20;
 const defaultLimit = 20;
 const maximumLimit = 200;
 
+const areStringArraysEqual = (a?: string[], b?: string[]) => {
+  if (a === b) return true;
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+};
+
 export const Route = createFileRoute("/jobs/")({
   validateSearch: jobSearchSchema,
   // Strip default values from URLs and retain important params across navigation
@@ -165,6 +173,26 @@ function JobsIndexComponent() {
         }
       });
 
+      const currentSearchParams = {
+        id: id?.map(String),
+        kind,
+        priority: priority?.map(String),
+        queue,
+      };
+
+      // Avoid no-op navigations that can race with route transitions.
+      if (
+        areStringArraysEqual(currentSearchParams.id, searchParams.id) &&
+        areStringArraysEqual(currentSearchParams.kind, searchParams.kind) &&
+        areStringArraysEqual(
+          currentSearchParams.priority,
+          searchParams.priority,
+        ) &&
+        areStringArraysEqual(currentSearchParams.queue, searchParams.queue)
+      ) {
+        return;
+      }
+
       // Update route search params, preserving other existing ones
       navigate({
         replace: true,
@@ -179,7 +207,7 @@ function JobsIndexComponent() {
           },
       });
     },
-    [navigate],
+    [id, kind, navigate, priority, queue],
   );
 
   // Convert current search params to initial filters
