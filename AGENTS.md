@@ -16,6 +16,10 @@
 - UI/router/search-state: targeted tests + `npm run lint`.
 - Larger changes: `npm run test:once` + `npm run build`.
 - Go changes: `make lint`.
+- User-facing changes (features, bug fixes, behavior changes): add an
+  `Unreleased` changelog entry in `CHANGELOG.md` under the correct section.
+- Changelog entries for user-facing changes should include a PR reference
+  link using project convention: `[PR #XXX](https://github.com/riverqueue/riverui/pull/XXX)`.
 
 ## Commits
 - Title <= 50 chars (max 72); wrap body ~72.
