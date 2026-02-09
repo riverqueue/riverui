@@ -261,7 +261,7 @@ func (a *workflowGetEndpoint[TTx]) Execute(ctx context.Context, req *workflowGet
 	}
 
 	return &workflowGetResponse{
-		Tasks: sliceutil.Map(jobs, internalJobToSerializableJob),
+		Tasks: sliceutil.Map(jobs, internalWorkflowTaskWithJobToSerializableJob),
 	}, nil
 }
 
@@ -470,6 +470,10 @@ func internalJobToSerializableJob(internal *rivertype.JobRow) *riverJobSerializa
 		Errors:          internal.Errors,
 		Metadata:        internal.Metadata,
 	}
+}
+
+func internalWorkflowTaskWithJobToSerializableJob(internal *riverprodriver.WorkflowTaskWithJob) *riverJobSerializable {
+	return internalJobToSerializableJob(internal.Job)
 }
 
 type workflowListItem struct {
