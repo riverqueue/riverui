@@ -1,5 +1,6 @@
 import type {
   Edge,
+  EdgeTypes,
   Node,
   NodeChange,
   NodeSelectionChange,
@@ -17,6 +18,11 @@ import { MiniMap, ReactFlow } from "@xyflow/react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo } from "react";
 
+import type { WorkflowDiagramNodeRect } from "./workflowDiagramEdgePath";
+
+import WorkflowDiagramEdge from "./WorkflowDiagramEdge";
+import { withPreferredTargetMergeX } from "./workflowDiagramMergeHints";
+
 type nameToJobMap = {
   [key: string]: JobWithKnownMetadata;
 };
@@ -27,9 +33,6 @@ type WorkflowDiagramProps = {
   tasks: JobWithKnownMetadata[];
 };
 
-const dagreGraph = new dagre.graphlib.Graph();
-dagreGraph.setDefaultEdgeLabel(() => ({}));
-
 const nodeWidth = 256;
 const nodeHeight = 44;
 
@@ -38,6 +41,9 @@ const getLayoutedElements = (
   edges: Edge[],
   direction = "TB",
 ): { edges: Edge[]; nodes: Node<WorkflowNodeData, NodeTypeKey>[] } => {
+  const dagreGraph = new dagre.graphlib.Graph({ multigraph: true });
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+
   const isHorizontal = direction === "LR";
   dagreGraph.setGraph({
     align: "UL",
@@ -52,27 +58,56 @@ const getLayoutedElements = (
   });
 
   edges.forEach((edge) => {
-    dagreGraph.setEdge(edge.source, edge.target);
+    dagreGraph.setEdge(edge.source, edge.target, {}, edge.id);
   });
 
   dagre.layout(dagreGraph);
 
-  nodes.forEach((node) => {
+  const layoutedNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
-    node.targetPosition = (isHorizontal ? "left" : "top") as Position;
-    node.sourcePosition = (isHorizontal ? "right" : "bottom") as Position;
-
-    // We are shifting the dagre node position (anchor=center center) to the top left
-    // so it matches the React Flow node anchor point (top left).
-    node.position = {
-      x: nodeWithPosition.x - nodeWidth / 2,
-      y: nodeWithPosition.y - nodeHeight / 2,
+    return {
+      ...node,
+      // Shift dagre center-based coordinates to React Flow's top-left anchor.
+      position: {
+        x: nodeWithPosition.x - nodeWidth / 2,
+        y: nodeWithPosition.y - nodeHeight / 2,
+      },
+      sourcePosition: (isHorizontal ? "right" : "bottom") as Position,
+      targetPosition: (isHorizontal ? "left" : "top") as Position,
     };
-
-    return node;
   });
 
-  return { edges, nodes };
+  const nodeRects: WorkflowDiagramNodeRect[] = layoutedNodes.map((node) => ({
+    height: node.height ?? node.measured?.height ?? nodeHeight,
+    width: node.width ?? node.measured?.width ?? nodeWidth,
+    x: node.position.x,
+    y: node.position.y,
+  }));
+
+  const layoutedEdges = edges.map((edge) => {
+    const edgeWithPoints = dagreGraph.edge({
+      name: edge.id,
+      v: edge.source,
+      w: edge.target,
+    });
+    const dagrePoints = (edgeWithPoints?.points || []).map(
+      (point: { x: number; y: number }) => ({
+        x: point.x,
+        y: point.y,
+      }),
+    );
+
+    return {
+      ...edge,
+      data: {
+        ...(edge.data as Record<string, unknown> | undefined),
+        dagrePoints,
+        nodeRects,
+      },
+    };
+  });
+
+  return { edges: layoutedEdges, nodes: layoutedNodes };
 };
 
 const edgeColorsLight = {
@@ -100,6 +135,9 @@ const depStatusFromJob = (job: JobWithKnownMetadata) => {
 
 const nodeTypes: NodeTypes = {
   workflowNode: WorkflowNode,
+};
+const edgeTypes: EdgeTypes = {
+  workflowEdge: WorkflowDiagramEdge,
 };
 
 type NodeTypeKey = Extract<keyof typeof nodeTypes, string>;
@@ -209,16 +247,20 @@ export default function WorkflowDiagram({
             strokeWidth: 2,
           },
           target: job.id.toString(),
-          type: "smoothstep",
+          type: "workflowEdge",
         };
       });
     return [...acc, ...newEdges];
   }, []);
 
-  const { edges: layoutedEdges, nodes: layoutedNodes } = getLayoutedElements(
+  const { edges: layoutedEdgesRaw, nodes: layoutedNodes } = getLayoutedElements(
     initialNodes,
     initialEdges,
     "LR",
+  );
+  const layoutedEdges = withPreferredTargetMergeX(
+    layoutedEdgesRaw,
+    layoutedNodes,
   );
 
   // Use workflow id to scope/reset the ReactFlow instance between navigations
@@ -252,6 +294,7 @@ export default function WorkflowDiagram({
       <ReactFlow
         defaultViewport={{ x: 32, y: 32, zoom: 1 }}
         edges={layoutedEdges}
+        edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         id={`workflow-diagram-${workflowIdForInstance}`}

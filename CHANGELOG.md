@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Prevent double slash in URLs for root path prefix. Thanks [Jan Kott](https://github.com/boostvolt)! [PR #487](https://github.com/riverqueue/riverui/pull/487).
 - Serve UI HTML for wildcard or missing Accept headers and return 406 for explicit non-HTML requests. Fixes #485. [PR #493](https://github.com/riverqueue/riverui/pull/493).
 - Prevent jobs detail navigation from bouncing back to `/jobs/` on slow networks due to stale filter-sync URL updates. Fixes #495. [PR #504](https://github.com/riverqueue/riverui/pull/504).
+- Workflow detail: improve dependency edge routing to avoid turns under task cards, avoid line segments crossing node bodies, and keep fan-in edges visually converged into shared merge lanes when possible. [PR #507](https://github.com/riverqueue/riverui/pull/507).
 
 ## [v0.14.0] - 2026-01-02
 
