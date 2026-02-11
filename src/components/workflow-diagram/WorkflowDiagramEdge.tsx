@@ -9,6 +9,7 @@ import {
 
 type WorkflowDiagramEdgeData = {
   dagrePoints?: Array<{ x: number; y: number }>;
+  depStatus?: "blocked" | "failed" | "unblocked";
   nodeRects?: WorkflowDiagramNodeRect[];
   preferredBendX?: number;
 };

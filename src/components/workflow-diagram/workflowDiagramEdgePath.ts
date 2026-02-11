@@ -1,23 +1,23 @@
-export type WorkflowDiagramNodeRect = {
-  height: number;
-  width: number;
-  x: number;
-  y: number;
-};
+import {
+  bendNudgeMaxSteps,
+  bendNudgeStep,
+  minTargetApproach,
+  turnNodePadding,
+} from "./workflowDiagramConstants";
+import {
+  areCollinear,
+  dedupeConsecutivePoints,
+  dedupeNearPoints,
+  doesSegmentIntersectRectWithPadding,
+  isPointInAnyRectWithPadding,
+  isPointInRectWithPadding,
+  type Point,
+  type Rect,
+  simplifyCollinearPoints,
+  toPath,
+} from "./workflowDiagramGeometry";
 
-type Point = {
-  x: number;
-  y: number;
-};
-
-// Extra padding around each node card where edge turns are not allowed.
-const turnNodePadding = 12;
-// Keep the final horizontal segment into the target handle visibly long.
-const minTargetApproach = 20;
-// Search granularity when probing for an alternate bend lane.
-const bendNudgeStep = 8;
-// Upper bound on probing attempts for an alternate bend lane.
-const bendNudgeMaxSteps = 24;
+export type WorkflowDiagramNodeRect = Rect;
 
 /*
 Routing policy (left-to-right workflows):
@@ -32,88 +32,9 @@ Routing policy (left-to-right workflows):
    - minimum visible target approach distance.
 4. If invalid, probe nearby lanes and pick the nearest valid one.
 
-This preserves the original routing as much as possible while fixing only the
-connections that need adjustment.
+`isCandidatePathValid` centralizes all route validity checks so baseline and
+probed candidates use identical acceptance criteria.
 */
-
-const dedupeConsecutivePoints = (points: Point[]): Point[] => {
-  return points.filter((point, index) => {
-    const previous = points[index - 1];
-    if (!previous) return true;
-
-    return previous.x !== point.x || previous.y !== point.y;
-  });
-};
-
-const dedupeNearPoints = (points: Point[], epsilon = 0.5): Point[] => {
-  return points.filter((point, index) => {
-    const previous = points[index - 1];
-    if (!previous) return true;
-
-    return (
-      Math.abs(previous.x - point.x) > epsilon ||
-      Math.abs(previous.y - point.y) > epsilon
-    );
-  });
-};
-
-const areCollinear = (pointA: Point, pointB: Point, pointC: Point): boolean => {
-  const crossProduct =
-    (pointB.x - pointA.x) * (pointC.y - pointA.y) -
-    (pointB.y - pointA.y) * (pointC.x - pointA.x);
-
-  return Math.abs(crossProduct) < 0.01;
-};
-
-const simplifyCollinearPoints = (points: Point[]): Point[] => {
-  if (points.length <= 2) return points;
-
-  const simplified: Point[] = [points[0]];
-
-  for (let index = 1; index < points.length - 1; index += 1) {
-    const previous = simplified[simplified.length - 1];
-    const current = points[index];
-    const next = points[index + 1];
-
-    if (!areCollinear(previous, current, next)) {
-      simplified.push(current);
-    }
-  }
-
-  simplified.push(points[points.length - 1]);
-  return simplified;
-};
-
-const isPointInRectWithPadding = (
-  point: Point,
-  nodeRect: WorkflowDiagramNodeRect,
-  padding: number,
-): boolean => {
-  return (
-    point.x >= nodeRect.x - padding &&
-    point.x <= nodeRect.x + nodeRect.width + padding &&
-    point.y >= nodeRect.y - padding &&
-    point.y <= nodeRect.y + nodeRect.height + padding
-  );
-};
-
-const isPointInAnyRectWithPadding = (
-  point: Point,
-  nodeRects: WorkflowDiagramNodeRect[],
-  padding: number,
-): boolean => {
-  return nodeRects.some((nodeRect) =>
-    isPointInRectWithPadding(point, nodeRect, padding),
-  );
-};
-
-const toPath = (points: Point[]): string => {
-  if (points.length === 0) return "";
-  if (points.length === 1) return `M ${points[0].x},${points[0].y}`;
-
-  const [start, ...rest] = points;
-  return `M ${start.x},${start.y} ${rest.map((point) => `L ${point.x},${point.y}`).join(" ")}`;
-};
 
 const toInteriorDagrePoints = (
   source: Point,
@@ -193,10 +114,7 @@ const getTurnPoints = (points: Point[]): Point[] => {
   return turns;
 };
 
-const isPathTurnSafe = (
-  points: Point[],
-  nodeRects: WorkflowDiagramNodeRect[],
-): boolean => {
+const isPathTurnSafe = (points: Point[], nodeRects: Rect[]): boolean => {
   const turnPoints = getTurnPoints(points);
 
   return turnPoints.every(
@@ -207,8 +125,8 @@ const isPathTurnSafe = (
 
 const getBlockingRectsForPathTurns = (
   points: Point[],
-  nodeRects: WorkflowDiagramNodeRect[],
-): WorkflowDiagramNodeRect[] => {
+  nodeRects: Rect[],
+): Rect[] => {
   const turnPoints = getTurnPoints(points);
   if (turnPoints.length === 0) return [];
 
@@ -220,7 +138,7 @@ const getBlockingRectsForPathTurns = (
 };
 
 const isEndpointRect = (
-  nodeRect: WorkflowDiagramNodeRect,
+  nodeRect: Rect,
   source: Point,
   target: Point,
 ): boolean => {
@@ -230,47 +148,13 @@ const isEndpointRect = (
   );
 };
 
-const doesSegmentIntersectRectWithPadding = (
-  segmentStart: Point,
-  segmentEnd: Point,
-  nodeRect: WorkflowDiagramNodeRect,
-  padding: number,
-): boolean => {
-  const minX = nodeRect.x - padding;
-  const maxX = nodeRect.x + nodeRect.width + padding;
-  const minY = nodeRect.y - padding;
-  const maxY = nodeRect.y + nodeRect.height + padding;
-
-  if (segmentStart.y === segmentEnd.y) {
-    const segmentY = segmentStart.y;
-    if (segmentY < minY || segmentY > maxY) return false;
-
-    const segmentMinX = Math.min(segmentStart.x, segmentEnd.x);
-    const segmentMaxX = Math.max(segmentStart.x, segmentEnd.x);
-
-    return segmentMaxX > minX && segmentMinX < maxX;
-  }
-
-  if (segmentStart.x === segmentEnd.x) {
-    const segmentX = segmentStart.x;
-    if (segmentX < minX || segmentX > maxX) return false;
-
-    const segmentMinY = Math.min(segmentStart.y, segmentEnd.y);
-    const segmentMaxY = Math.max(segmentStart.y, segmentEnd.y);
-
-    return segmentMaxY > minY && segmentMinY < maxY;
-  }
-
-  return false;
-};
-
 const isPathSegmentSafe = ({
   nodeRects,
   points,
   source,
   target,
 }: {
-  nodeRects: WorkflowDiagramNodeRect[];
+  nodeRects: Rect[];
   points: Point[];
   source: Point;
   target: Point;
@@ -303,11 +187,11 @@ const getBlockingRectsForPathSegments = ({
   source,
   target,
 }: {
-  nodeRects: WorkflowDiagramNodeRect[];
+  nodeRects: Rect[];
   points: Point[];
   source: Point;
   target: Point;
-}): WorkflowDiagramNodeRect[] => {
+}): Rect[] => {
   const obstacleRects = nodeRects.filter(
     (nodeRect) => !isEndpointRect(nodeRect, source, target),
   );
@@ -375,7 +259,7 @@ const buildBendXCandidates = ({
   targetApproachYOffset = 0,
 }: {
   baselineX: number;
-  blockingRects: WorkflowDiagramNodeRect[];
+  blockingRects: Rect[];
   source: Point;
   target: Point;
   targetApproachYOffset?: number;
@@ -386,8 +270,8 @@ const buildBendXCandidates = ({
     candidates.add(targetApproachBoundary({ source, target }));
   }
 
-  // Try lanes just outside blocking node bounds first; these often produce the
-  // smallest visible adjustment away from the baseline route.
+  // Try lanes just outside blocking node bounds first; these usually produce
+  // the smallest visual change away from the baseline route.
   blockingRects.forEach((nodeRect) => {
     candidates.add(nodeRect.x - turnNodePadding);
     candidates.add(nodeRect.x + nodeRect.width + turnNodePadding);
@@ -399,12 +283,37 @@ const buildBendXCandidates = ({
     candidates.add(baselineX + offset);
   }
 
-  // Keep search deterministic and local by preferring candidates nearest to the
-  // baseline lane before trying farther nudges.
+  // Keep search deterministic and local by prioritizing lanes nearest to the
+  // original baseline before trying farther nudges.
   return [...candidates].sort(
     (candidateA, candidateB) =>
       Math.abs(candidateA - baselineX) - Math.abs(candidateB - baselineX),
   );
+};
+
+const isCandidatePathValid = ({
+  bendX,
+  nodeRects,
+  points,
+  source,
+  target,
+  targetApproachYOffset,
+}: {
+  bendX: number;
+  nodeRects: Rect[];
+  points: Point[];
+  source: Point;
+  target: Point;
+  targetApproachYOffset: number;
+}): boolean => {
+  if (!isPathTurnSafe(points, nodeRects)) return false;
+  if (!isPathSegmentSafe({ nodeRects, points, source, target })) return false;
+
+  if (targetApproachYOffset === 0) {
+    return isTargetApproachVisible({ bendX, source, target });
+  }
+
+  return true;
 };
 
 const chooseValidBendX = ({
@@ -415,7 +324,7 @@ const chooseValidBendX = ({
   targetApproachYOffset = 0,
 }: {
   baselineX: number;
-  nodeRects: WorkflowDiagramNodeRect[];
+  nodeRects: Rect[];
   source: Point;
   target: Point;
   targetApproachYOffset?: number;
@@ -439,15 +348,16 @@ const chooseValidBendX = ({
   const blockingRects = [
     ...new Set([...blockingSegmentRects, ...blockingTurnRects]),
   ];
-  const targetApproachIsValid =
-    targetApproachYOffset === 0
-      ? isTargetApproachVisible({ bendX: baselineX, source, target })
-      : true;
 
   if (
-    isPathTurnSafe(baselinePath, nodeRects) &&
-    isPathSegmentSafe({ nodeRects, points: baselinePath, source, target }) &&
-    targetApproachIsValid
+    isCandidatePathValid({
+      bendX: baselineX,
+      nodeRects,
+      points: baselinePath,
+      source,
+      target,
+      targetApproachYOffset,
+    })
   ) {
     return baselineX;
   }
@@ -467,15 +377,16 @@ const chooseValidBendX = ({
       target,
       targetApproachYOffset,
     });
-    const candidateTargetApproachIsValid =
-      targetApproachYOffset === 0
-        ? isTargetApproachVisible({ bendX, source, target })
-        : true;
 
     if (
-      isPathTurnSafe(candidatePath, nodeRects) &&
-      isPathSegmentSafe({ nodeRects, points: candidatePath, source, target }) &&
-      candidateTargetApproachIsValid
+      isCandidatePathValid({
+        bendX,
+        nodeRects,
+        points: candidatePath,
+        source,
+        target,
+        targetApproachYOffset,
+      })
     ) {
       return bendX;
     }
@@ -490,11 +401,12 @@ const toOrthogonalPoints = (
   source: Point,
   target: Point,
   dagrePoints: Point[],
-  nodeRects: WorkflowDiagramNodeRect[],
+  nodeRects: Rect[],
   preferredBendX: number | undefined,
   targetApproachYOffset = 0,
 ): Point[] => {
-  // Straight line for same-row targets keeps simple cases unchanged.
+  // Straight same-row edges should stay straight unless a target approach
+  // offset explicitly asks for a merge lane detour.
   if (source.y === target.y && targetApproachYOffset === 0) {
     return [source, target];
   }

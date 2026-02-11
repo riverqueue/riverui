@@ -1,8 +1,10 @@
 import type { Edge, Node } from "@xyflow/react";
 
-const nodeHeight = 44;
-const sameRowTolerance = 1;
-const targetMergePadding = 20;
+import {
+  nodeHeight,
+  sameRowTolerance,
+  targetMergePadding,
+} from "./workflowDiagramConstants";
 
 const nodeCenterY = (node: Node): number => {
   const renderedHeight = node.height ?? node.measured?.height ?? nodeHeight;
@@ -53,6 +55,8 @@ export const withPreferredTargetMergeX = (
 
     if (!hasSameRowIncoming || offRowEdges.length === 0) return;
 
+    // Only off-row incoming edges are nudged to a shared lane. Same-row edges
+    // keep their direct path into the target for readability.
     const preferredBendX = targetNode.position.x - targetMergePadding;
     offRowEdges.forEach((edge) => {
       preferredBendByEdgeID.set(edge.id, preferredBendX);

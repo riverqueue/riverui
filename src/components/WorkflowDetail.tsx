@@ -5,7 +5,7 @@ import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import RetryWorkflowDialog from "@components/RetryWorkflowDialog";
 import { TaskStateIcon } from "@components/TaskStateIcon";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
-import WorkflowDiagram from "@components/WorkflowDiagram";
+import WorkflowDiagram from "@components/workflow-diagram/WorkflowDiagram";
 import { useFeatures } from "@contexts/Features.hook";
 // (Dialog is now encapsulated in RetryWorkflowDialog)
 import { ArrowPathIcon, XCircleIcon } from "@heroicons/react/24/outline";
