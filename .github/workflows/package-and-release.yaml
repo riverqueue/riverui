@@ -70,7 +70,7 @@ jobs:
         run: npm exec vite build -- --sourcemap false
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v6
         with:
           check-latest: true
           go-version-file: "packager/go.mod"
