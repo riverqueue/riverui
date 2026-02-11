@@ -1,51 +1,11 @@
 import type { PropsWithChildren } from "react";
 
-import { JobWithKnownMetadata } from "@services/jobs";
-import { JobState } from "@services/types";
+import { workflowJobFactory } from "@test/factories/workflowJob";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkflowDiagram from "./WorkflowDiagram";
 import * as workflowDiagramLayout from "./workflowDiagramLayout";
-
-const baseDate = new Date("2025-01-01T00:00:00.000Z");
-
-const workflowJob = ({
-  deps = [],
-  id,
-  state = JobState.Available,
-  task,
-  workflowID = "wf-1",
-}: {
-  deps?: string[];
-  id: number;
-  state?: JobState;
-  task: string;
-  workflowID?: string;
-}): JobWithKnownMetadata => ({
-  args: {},
-  attempt: 0,
-  attemptedAt: undefined,
-  attemptedBy: [],
-  createdAt: baseDate,
-  errors: [],
-  finalizedAt: undefined,
-  id: BigInt(id),
-  kind: `job-${task}`,
-  logs: {},
-  maxAttempts: 1,
-  metadata: {
-    deps,
-    task,
-    workflow_id: workflowID,
-    workflow_staged_at: baseDate.toISOString(),
-  },
-  priority: 1,
-  queue: "default",
-  scheduledAt: baseDate,
-  state,
-  tags: [],
-});
 
 type MockReactFlowProps = PropsWithChildren<{
   edges: unknown[];
@@ -95,9 +55,9 @@ describe("WorkflowDiagram", () => {
 
   it("renders nodes and edges for a workflow", () => {
     const tasks = [
-      workflowJob({ id: 1, task: "a" }),
-      workflowJob({ deps: ["a"], id: 2, task: "b" }),
-      workflowJob({ deps: ["a", "b"], id: 3, task: "c" }),
+      workflowJobFactory.build({ id: 1, task: "a" }),
+      workflowJobFactory.build({ deps: ["a"], id: 2, task: "b" }),
+      workflowJobFactory.build({ deps: ["a", "b"], id: 3, task: "c" }),
     ];
 
     render(
@@ -115,8 +75,8 @@ describe("WorkflowDiagram", () => {
 
   it("calls setSelectedJobId when a node is selected", () => {
     const tasks = [
-      workflowJob({ id: 1, task: "a" }),
-      workflowJob({ deps: ["a"], id: 2, task: "b" }),
+      workflowJobFactory.build({ id: 1, task: "a" }),
+      workflowJobFactory.build({ deps: ["a"], id: 2, task: "b" }),
     ];
 
     const setSelectedJobID = vi.fn();
@@ -142,8 +102,8 @@ describe("WorkflowDiagram", () => {
 
   it("does not rerun layout when only selectedJobId changes", () => {
     const tasks = [
-      workflowJob({ id: 1, task: "a" }),
-      workflowJob({ deps: ["a"], id: 2, task: "b" }),
+      workflowJobFactory.build({ id: 1, task: "a" }),
+      workflowJobFactory.build({ deps: ["a"], id: 2, task: "b" }),
     ];
     const layoutSpy = vi.spyOn(workflowDiagramLayout, "getLayoutedElements");
 
@@ -170,8 +130,8 @@ describe("WorkflowDiagram", () => {
 
   it("does not rerun layout when only theme changes", () => {
     const tasks = [
-      workflowJob({ id: 1, task: "a" }),
-      workflowJob({ deps: ["a"], id: 2, task: "b" }),
+      workflowJobFactory.build({ id: 1, task: "a" }),
+      workflowJobFactory.build({ deps: ["a"], id: 2, task: "b" }),
     ];
     const layoutSpy = vi.spyOn(workflowDiagramLayout, "getLayoutedElements");
 
@@ -199,7 +159,7 @@ describe("WorkflowDiagram", () => {
   });
 
   it("renders when metadata.deps is missing on a task", () => {
-    const malformedJob = workflowJob({ id: 1, task: "a" });
+    const malformedJob = workflowJobFactory.build({ id: 1, task: "a" });
     (
       malformedJob.metadata as unknown as {
         deps?: string[];
