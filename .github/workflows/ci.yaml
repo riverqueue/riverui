@@ -90,7 +90,7 @@ jobs:
     name: Go lint
     runs-on: ubuntu-latest
     env:
-      GOLANGCI_LINT_VERSION: v2.7.2
+      GOLANGCI_LINT_VERSION: v2.9.0
       GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
     permissions:
       contents: read
@@ -112,7 +112,7 @@ jobs:
         run: make fake_assets
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v9
         with:
           # golangci-lint needs to be run separately for every Go module, and
           # its GitHub Action doesn't provide any way to do that. Have it fetch
