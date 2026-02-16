@@ -33,7 +33,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.30.2 // indirect
 	github.com/rs/cors v1.11.1 // indirect
-	github.com/samber/slog-http v1.11.1 // indirect
+	github.com/samber/slog-http v1.12.0 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect

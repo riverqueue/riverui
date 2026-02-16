@@ -13,7 +13,7 @@ require (
 	github.com/riverqueue/river/rivershared v0.30.2
 	github.com/riverqueue/river/rivertype v0.30.2
 	github.com/rs/cors v1.11.1
-	github.com/samber/slog-http v1.11.1
+	github.com/samber/slog-http v1.12.0
 	github.com/stretchr/testify v1.11.1
 )
 
