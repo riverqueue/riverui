@@ -14,8 +14,8 @@ import (
 
 func main() {
 	riveruicmd.Run(
-		func(dbPool *pgxpool.Pool) (*riverpro.Client[pgx.Tx], error) {
-			return riverpro.NewClient(riverpropgxv5.New(dbPool), &riverpro.Config{})
+		func(dbPool *pgxpool.Pool, schema string) (*riverpro.Client[pgx.Tx], error) {
+			return riverpro.NewClient(riverpropgxv5.New(dbPool), &riverpro.Config{Schema: schema})
 		},
 		func(client *riverpro.Client[pgx.Tx]) uiendpoints.Bundle {
 			return riverproui.NewEndpoints(client, nil)

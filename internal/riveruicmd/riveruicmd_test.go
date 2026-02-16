@@ -42,8 +42,8 @@ func TestInitServer(t *testing.T) { //nolint:tparallel
 			logger:     riversharedtest.Logger(t),
 			pathPrefix: "/",
 		},
-			func(dbPool *pgxpool.Pool) (*river.Client[pgx.Tx], error) {
-				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
+			func(dbPool *pgxpool.Pool, schema string) (*river.Client[pgx.Tx], error) {
+				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{Schema: schema})
 			},
 			func(client *river.Client[pgx.Tx]) uiendpoints.Bundle {
 				return riverui.NewEndpoints(client, nil)
@@ -182,8 +182,8 @@ func TestSilentHealthchecks_SuppressesLogs(t *testing.T) {
 			pathPrefix:         prefix,
 			silentHealthChecks: silent,
 		},
-			func(dbPool *pgxpool.Pool) (*river.Client[pgx.Tx], error) {
-				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
+			func(dbPool *pgxpool.Pool, schema string) (*river.Client[pgx.Tx], error) {
+				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{Schema: schema})
 			},
 			func(client *river.Client[pgx.Tx]) uiendpoints.Bundle {
 				return riverui.NewEndpoints(client, nil)
