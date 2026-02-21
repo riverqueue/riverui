@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Upgrade supported Go versions to 1.25 and 1.26, and update CI accordingly. [PR #508](https://github.com/riverqueue/riverui/pull/508).
+- Upgrade River to v0.31.0 and River Pro to v0.22.0.  [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
+- Numerous dependency upgrades.
 
 ### Fixed
 
