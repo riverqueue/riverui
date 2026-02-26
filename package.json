@@ -59,7 +59,7 @@
     "jsdom": "^27.4.0",
     "prettier": "^3.8.1",
     "prettier-plugin-tailwindcss": "^0.7.2",
-    "storybook": "^10.2.3",
+    "storybook": "^10.2.13",
     "tailwind-csstree": "^0.1.0",
     "tailwindcss": "^4.1.8",
     "typescript": "^5.9.3",
