@@ -114,6 +114,7 @@ func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autoco
 				Exclude: req.Exclude,
 				Match:   match,
 				Max:     100,
+				Schema:     a.Client.Schema(),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("error listing job kinds: %w", err)
@@ -133,6 +134,7 @@ func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autoco
 				Exclude: req.Exclude,
 				Match:   match,
 				Max:     100,
+				Schema:     a.Client.Schema(),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("error listing queue names: %w", err)
