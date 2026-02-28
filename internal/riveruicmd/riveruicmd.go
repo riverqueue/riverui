@@ -28,7 +28,7 @@ type BundleOpts struct {
 	JobListHideArgsByDefault bool
 }
 
-func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) {
+func Run[TClient any](createClient func(dbPool *pgxpool.Pool, schema string) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) {
 	ctx := context.Background()
 
 	logger := slog.New(getLogHandler(&slog.HandlerOptions{
@@ -142,7 +142,7 @@ type initServerOpts struct {
 	silentHealthChecks bool
 }
 
-func initServer[TClient any](ctx context.Context, opts *initServerOpts, createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
+func initServer[TClient any](ctx context.Context, opts *initServerOpts, createClient func(dbPool *pgxpool.Pool, schema string) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
 	if opts == nil {
 		return nil, errors.New("opts is required")
 	}
@@ -177,12 +177,17 @@ func initServer[TClient any](ctx context.Context, opts *initServerOpts, createCl
 		return nil, fmt.Errorf("error parsing db config: %w", err)
 	}
 
+	schema := os.Getenv("RIVER_SCHEMA")
+	if schema == "" {
+		schema = poolConfig.ConnConfig.Config.RuntimeParams["search_path"]
+	}
+
 	dbPool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to db: %w", err)
 	}
 
-	client, err := createClient(dbPool)
+	client, err := createClient(dbPool, schema)
 	if err != nil {
 		return nil, err
 	}

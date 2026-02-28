@@ -41,8 +41,8 @@ func TestAuthMiddleware(t *testing.T) { //nolint:tparallel
 				logger:     riversharedtest.Logger(t),
 				pathPrefix: prefix,
 			},
-			func(dbPool *pgxpool.Pool) (*river.Client[pgx.Tx], error) {
-				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
+			func(dbPool *pgxpool.Pool, schema string) (*river.Client[pgx.Tx], error) {
+				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{Schema: schema})
 			},
 			func(client *river.Client[pgx.Tx]) uiendpoints.Bundle {
 				return riverui.NewEndpoints(client, nil)
