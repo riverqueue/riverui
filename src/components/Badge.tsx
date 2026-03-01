@@ -32,11 +32,11 @@ export const BadgeButton = React.forwardRef(function BadgeButton(
     className,
     color = "zinc",
     ...props
-  }: { children: React.ReactNode; className?: string } & (
-    | Omit<Headless.ButtonProps, "className">
-    | Omit<React.ComponentPropsWithoutRef<typeof HeadlessLink>, "className">
-  ) &
-    BadgeProps,
+  }: { children: React.ReactNode; className?: string } & BadgeProps &
+    (
+      | Omit<Headless.ButtonProps, "className">
+      | Omit<React.ComponentPropsWithoutRef<typeof HeadlessLink>, "className">
+    ),
   ref: React.ForwardedRef<HTMLElement>,
 ) {
   const classes = clsx(
