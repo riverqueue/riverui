@@ -14,11 +14,11 @@ export default function ButtonForGroup({
   children?: React.ReactNode;
   Icon?: Heroicon;
   text?: string;
-} & (
-  | Omit<HeadlessButtonProps, "className">
-  | Omit<React.ComponentPropsWithoutRef<typeof HeadlessLink>, "className">
-) &
-  Omit<ButtonProps, "children" | "color" | "outline" | "plain">) {
+} & Omit<ButtonProps, "children" | "color" | "outline" | "plain"> &
+  (
+    | Omit<HeadlessButtonProps, "className">
+    | Omit<React.ComponentPropsWithoutRef<typeof HeadlessLink>, "className">
+  )) {
   return (
     <Button
       className={classNames(
