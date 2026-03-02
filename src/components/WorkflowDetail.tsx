@@ -8,8 +8,14 @@ import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import WorkflowDiagram from "@components/workflow-diagram/WorkflowDiagram";
 import { useFeatures } from "@contexts/Features.hook";
 // (Dialog is now encapsulated in RetryWorkflowDialog)
-import { ArrowPathIcon, XCircleIcon } from "@heroicons/react/24/outline";
+import { CheckIcon } from "@heroicons/react/16/solid";
+import {
+  ArrowPathIcon,
+  ClipboardIcon,
+  XCircleIcon,
+} from "@heroicons/react/24/outline";
 import { JobWithKnownMetadata } from "@services/jobs";
+import { toastSuccess } from "@services/toast";
 import { JobState } from "@services/types";
 import { Workflow, type WorkflowRetryMode } from "@services/workflows";
 import { Link } from "@tanstack/react-router";
@@ -76,6 +82,7 @@ export default function WorkflowDetail({
   // Modal state for retry
   const [retryOpen, setRetryOpen] = useState(false);
   const [retryMode, setRetryMode] = useState<undefined | WorkflowRetryMode>();
+  const [workflowNameCopied, setWorkflowNameCopied] = useState(false);
 
   if (!features.workflowQueries) {
     return (
@@ -93,12 +100,12 @@ export default function WorkflowDetail({
     return <h4>No workflow data available</h4>;
   }
 
-  const { tasks } = workflow;
-
   // Ensure firstTask exists before rendering
   if (!firstTask) {
     return <h4>No tasks available</h4>;
   }
+  const { tasks } = workflow;
+  const workflowName = firstTask.metadata.workflow_name || "Unnamed Workflow";
 
   return (
     <>
@@ -106,10 +113,53 @@ export default function WorkflowDetail({
       <header>
         {/* Heading */}
         <div className="mb-4 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 sm:flex-row sm:items-center sm:px-6 lg:px-8 dark:bg-gray-700/10">
-          <div>
-            <h1 className="flex gap-x-3 text-2xl leading-7">
-              <span className="font-semibold text-slate-900 dark:text-white">
-                {firstTask.metadata.workflow_name || "Unnamed Workflow"}
+          <div className="w-full min-w-0 flex-1">
+            <h1 className="text-2xl leading-7">
+              <span className="inline-flex max-w-full items-center gap-x-2">
+                <span
+                  className="block min-w-0 truncate font-semibold text-slate-900 dark:text-white"
+                  title={workflowName}
+                >
+                  {workflowName}
+                </span>
+                <button
+                  className="inline-flex shrink-0 cursor-pointer items-center rounded p-1 text-slate-500 hover:text-brand-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary dark:text-slate-400 dark:hover:text-brand-primary"
+                  onClick={() => {
+                    if (!navigator.clipboard?.writeText) {
+                      console.error(
+                        "Failed to copy workflow name: Clipboard API unavailable",
+                      );
+                      return;
+                    }
+
+                    navigator.clipboard.writeText(workflowName).then(
+                      () => {
+                        setWorkflowNameCopied(true);
+                        toastSuccess({
+                          message: "Workflow name copied to clipboard",
+                        });
+                        setTimeout(() => setWorkflowNameCopied(false), 2000);
+                      },
+                      (error: unknown) => {
+                        console.error(
+                          "Failed to copy workflow name to clipboard:",
+                          error,
+                        );
+                      },
+                    );
+                  }}
+                  title="Copy workflow name"
+                  type="button"
+                >
+                  {workflowNameCopied ? (
+                    <CheckIcon
+                      aria-hidden="true"
+                      className="size-4 text-green-500"
+                    />
+                  ) : (
+                    <ClipboardIcon aria-hidden="true" className="size-4" />
+                  )}
+                </button>
               </span>
             </h1>
             <p className="mt-2 text-base leading-6 text-slate-600 dark:text-slate-400">
