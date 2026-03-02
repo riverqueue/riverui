@@ -44,10 +44,12 @@ export default function JSONView({
   data,
   defaultExpandDepth = 1,
 }: JSONViewProps) {
+  const sortedData = React.useMemo(() => sortObjectKeys(data), [data]);
+
   const jsonContent = (
     <>
       <JSONNodeRenderer
-        data={data}
+        data={sortedData}
         defaultExpandDepth={defaultExpandDepth}
         depth={0}
         isLastItemInParent={true}
@@ -63,9 +65,18 @@ export default function JSONView({
       codeClassName="pl-6"
       content={jsonContent}
       copyTitle={copyTitle}
-      rawText={JSON.stringify(data, null, 2)}
+      rawText={JSON.stringify(sortedData, null, 2)}
     />
   );
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (value === null || typeof value !== "object") {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === null || prototype === Object.prototype;
 }
 
 function JSONNodeRenderer({
@@ -569,4 +580,56 @@ function renderValue(
       )}
     </Disclosure>
   );
+}
+
+function sortObjectKeys(value: unknown): unknown {
+  return sortObjectKeysInternal(value, new WeakMap<object, unknown>());
+}
+
+function sortObjectKeysInternal(
+  value: unknown,
+  sortedValues: WeakMap<object, unknown>,
+): unknown {
+  if (Array.isArray(value)) {
+    const cachedArray = sortedValues.get(value);
+    if (cachedArray) {
+      return cachedArray;
+    }
+
+    const sortedArray: unknown[] = [];
+    sortedValues.set(value, sortedArray);
+    for (const item of value) {
+      sortedArray.push(sortObjectKeysInternal(item, sortedValues));
+    }
+    return sortedArray;
+  }
+
+  if (!isPlainObject(value)) {
+    return value;
+  }
+
+  const cachedObject = sortedValues.get(value);
+  if (cachedObject) {
+    return cachedObject;
+  }
+
+  const sortedObject = Object.create(Object.getPrototypeOf(value)) as Record<
+    string,
+    unknown
+  >;
+  sortedValues.set(value, sortedObject);
+
+  const sortedEntries = Object.entries(value).sort(([leftKey], [rightKey]) =>
+    leftKey.localeCompare(rightKey),
+  );
+  for (const [key, item] of sortedEntries) {
+    Object.defineProperty(sortedObject, key, {
+      configurable: true,
+      enumerable: true,
+      value: sortObjectKeysInternal(item, sortedValues),
+      writable: true,
+    });
+  }
+
+  return sortedObject;
 }

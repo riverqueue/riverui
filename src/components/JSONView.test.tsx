@@ -58,6 +58,44 @@ describe("JSONView Component", () => {
     expect(screen.getByText(/true/)).toBeInTheDocument();
   });
 
+  it("renders object keys alphabetically at root and nested levels", () => {
+    const unsortedData = Object.fromEntries([
+      ["zebra", 3],
+      [
+        "alpha",
+        Object.fromEntries([
+          ["zulu", true],
+          ["bravo", true],
+        ]),
+      ],
+      ["middle", 2],
+    ]);
+
+    render(<JSONView data={unsortedData} defaultExpandDepth={2} />);
+
+    const alphaKey = screen.getByText(/"alpha"/);
+    const middleKey = screen.getByText(/"middle"/);
+    const zebraKey = screen.getByText(/"zebra"/);
+
+    const alphaBeforeMiddle =
+      alphaKey.compareDocumentPosition(middleKey) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+    const middleBeforeZebra =
+      middleKey.compareDocumentPosition(zebraKey) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+
+    expect(alphaBeforeMiddle).toBeTruthy();
+    expect(middleBeforeZebra).toBeTruthy();
+
+    const bravoKey = screen.getByText(/"bravo"/);
+    const zuluKey = screen.getByText(/"zulu"/);
+    const bravoBeforeZulu =
+      bravoKey.compareDocumentPosition(zuluKey) &
+      Node.DOCUMENT_POSITION_FOLLOWING;
+
+    expect(bravoBeforeZulu).toBeTruthy();
+  });
+
   it("renders nested JSON data with collapsed nodes but visible keys by default", () => {
     render(<JSONView data={nestedData} defaultExpandDepth={1} />);
 
@@ -186,6 +224,74 @@ describe("JSONView Component", () => {
     await waitFor(() => {
       expect(toast.custom).toHaveBeenCalled();
     });
+  });
+
+  it("copies alphabetically sorted JSON to clipboard", async () => {
+    const unsortedData = Object.fromEntries([
+      ["zebra", 3],
+      [
+        "alpha",
+        Object.fromEntries([
+          ["zulu", true],
+          ["bravo", true],
+        ]),
+      ],
+      ["middle", 2],
+    ]);
+
+    render(<JSONView copyTitle="Test Data" data={unsortedData} />);
+
+    const copyButton = screen.getByTestId("text-copy-button");
+
+    await act(async () => {
+      fireEvent.click(copyButton);
+    });
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
+    const clipboardCall = (
+      navigator.clipboard.writeText as unknown as {
+        mock: { calls: string[][] };
+      }
+    ).mock.calls[0][0];
+
+    const parsed = JSON.parse(clipboardCall) as Record<string, unknown>;
+    expect(Object.keys(parsed)).toEqual(["alpha", "middle", "zebra"]);
+    expect(Object.keys(parsed.alpha as Record<string, unknown>)).toEqual([
+      "bravo",
+      "zulu",
+    ]);
+  });
+
+  it("preserves __proto__ as data when rendering and copying", async () => {
+    const dataWithProtoKey = JSON.parse(
+      '{"zebra":3,"__proto__":{"safe":"value"},"alpha":1}',
+    ) as Record<string, unknown>;
+
+    render(<JSONView copyTitle="Test Data" data={dataWithProtoKey} />);
+
+    expect(screen.getByText(/"__proto__"/)).toBeInTheDocument();
+
+    const copyButton = screen.getByTestId("text-copy-button");
+
+    await act(async () => {
+      fireEvent.click(copyButton);
+    });
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalled();
+    const clipboardCall = (
+      navigator.clipboard.writeText as unknown as {
+        mock: { calls: string[][] };
+      }
+    ).mock.calls[0][0];
+
+    expect(clipboardCall).toContain('"__proto__"');
+
+    const parsed = JSON.parse(clipboardCall) as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(parsed, "__proto__")).toBe(
+      true,
+    );
+    expect(parsed["__proto__"]).toEqual({ safe: "value" });
+    expect(Object.getPrototypeOf(parsed)).toBe(Object.prototype);
   });
 
   it("renders null and undefined values", () => {
