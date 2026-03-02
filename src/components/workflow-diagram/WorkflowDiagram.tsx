@@ -46,6 +46,10 @@ const edgeTypes: EdgeTypes = {
   workflowEdge: WorkflowDiagramEdge,
 };
 
+const workflowDiagramMinZoom = 0.2;
+const workflowDiagramFitViewMinZoom = 0.55;
+const workflowDiagramFitViewPadding = 0.08;
+
 type NodeTypeKey = Extract<keyof typeof nodeTypes, string>;
 
 const getMiniMapNodeClassName = (
@@ -137,10 +141,13 @@ export default function WorkflowDiagram({
         edges={layoutedEdges}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{
+          minZoom: workflowDiagramFitViewMinZoom,
+          padding: workflowDiagramFitViewPadding,
+        }}
         id={`workflow-diagram-${workflowIdForInstance}`}
         key={`workflow-diagram-${workflowIdForInstance}`}
-        minZoom={0.8}
+        minZoom={workflowDiagramMinZoom}
         nodes={layoutedNodes}
         nodesFocusable={true}
         nodeTypes={nodeTypes}
