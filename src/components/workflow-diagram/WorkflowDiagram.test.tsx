@@ -32,6 +32,7 @@ vi.mock("./WorkflowNode", () => ({
 
 vi.mock("@xyflow/react", () => ({
   BaseEdge: () => null,
+  Controls: () => <div data-testid="diagram-controls" />,
   MiniMap: () => <div data-testid="mini-map" />,
   ReactFlow: (props: MockReactFlowProps) => {
     latestReactFlowProps = props;
@@ -71,6 +72,7 @@ describe("WorkflowDiagram", () => {
     expect(screen.getByTestId("react-flow")).toBeInTheDocument();
     expect(screen.getByTestId("node-count")).toHaveTextContent("3");
     expect(screen.getByTestId("edge-count")).toHaveTextContent("3");
+    expect(screen.getByTestId("diagram-controls")).toBeInTheDocument();
   });
 
   it("calls setSelectedJobId when a node is selected", () => {

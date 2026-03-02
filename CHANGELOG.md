@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Workflow detail: add on-canvas zoom controls for click/touch navigation and improve controls styling for dark mode. [PR #524](https://github.com/riverqueue/riverui/pull/524).
+
 ## [v0.15.0] - 2026-02-26
 
 ### Changed

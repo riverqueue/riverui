@@ -8,7 +8,7 @@ import type {
 
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
-import { MiniMap, ReactFlow } from "@xyflow/react";
+import { Controls, MiniMap, ReactFlow } from "@xyflow/react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo } from "react";
 
@@ -148,6 +148,11 @@ export default function WorkflowDiagram({
         onNodesChange={onNodesChange}
         proOptions={{ hideAttribution: true }}
       >
+        <Controls
+          className="workflow-diagram-controls"
+          position="bottom-left"
+          showInteractive={false}
+        />
         <MiniMap
           className="hidden md:block"
           maskColor={minimapMaskColor}
