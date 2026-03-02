@@ -9,6 +9,11 @@ import * as workflowDiagramLayout from "./workflowDiagramLayout";
 
 type MockReactFlowProps = PropsWithChildren<{
   edges: unknown[];
+  fitViewOptions?: {
+    minZoom?: number;
+    padding?: number;
+  };
+  minZoom?: number;
   nodes: unknown[];
   onNodesChange?: (changes: SelectionChange[]) => void;
 }>;
@@ -32,6 +37,7 @@ vi.mock("./WorkflowNode", () => ({
 
 vi.mock("@xyflow/react", () => ({
   BaseEdge: () => null,
+  Controls: () => <div data-testid="diagram-controls" />,
   MiniMap: () => <div data-testid="mini-map" />,
   ReactFlow: (props: MockReactFlowProps) => {
     latestReactFlowProps = props;
@@ -71,6 +77,9 @@ describe("WorkflowDiagram", () => {
     expect(screen.getByTestId("react-flow")).toBeInTheDocument();
     expect(screen.getByTestId("node-count")).toHaveTextContent("3");
     expect(screen.getByTestId("edge-count")).toHaveTextContent("3");
+    expect(screen.getByTestId("diagram-controls")).toBeInTheDocument();
+    expect(latestReactFlowProps?.minZoom).toBe(0.2);
+    expect(latestReactFlowProps?.fitViewOptions?.minZoom).toBe(0.55);
   });
 
   it("calls setSelectedJobId when a node is selected", () => {

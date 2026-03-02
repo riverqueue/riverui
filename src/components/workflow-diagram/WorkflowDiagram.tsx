@@ -8,7 +8,7 @@ import type {
 
 import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
-import { MiniMap, ReactFlow } from "@xyflow/react";
+import { Controls, MiniMap, ReactFlow } from "@xyflow/react";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo } from "react";
 
@@ -45,6 +45,10 @@ const nodeTypes: NodeTypes = {
 const edgeTypes: EdgeTypes = {
   workflowEdge: WorkflowDiagramEdge,
 };
+
+const workflowDiagramMinZoom = 0.2;
+const workflowDiagramFitViewMinZoom = 0.55;
+const workflowDiagramFitViewPadding = 0.08;
 
 type NodeTypeKey = Extract<keyof typeof nodeTypes, string>;
 
@@ -137,10 +141,13 @@ export default function WorkflowDiagram({
         edges={layoutedEdges}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={{ padding: 0.2 }}
+        fitViewOptions={{
+          minZoom: workflowDiagramFitViewMinZoom,
+          padding: workflowDiagramFitViewPadding,
+        }}
         id={`workflow-diagram-${workflowIdForInstance}`}
         key={`workflow-diagram-${workflowIdForInstance}`}
-        minZoom={0.8}
+        minZoom={workflowDiagramMinZoom}
         nodes={layoutedNodes}
         nodesFocusable={true}
         nodeTypes={nodeTypes}
@@ -148,6 +155,11 @@ export default function WorkflowDiagram({
         onNodesChange={onNodesChange}
         proOptions={{ hideAttribution: true }}
       >
+        <Controls
+          className="workflow-diagram-controls"
+          position="bottom-left"
+          showInteractive={false}
+        />
         <MiniMap
           className="hidden md:block"
           maskColor={minimapMaskColor}
