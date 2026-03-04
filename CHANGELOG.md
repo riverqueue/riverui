@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Workflow detail: improve default workflow diagram framing for legibility while still allowing manual zoom-out to view the full graph. [PR #524](https://github.com/riverqueue/riverui/pull/524).
 - Workflow detail: truncate long workflow names in the header to prevent overflow and add a copy button for the full name. [PR #524](https://github.com/riverqueue/riverui/pull/524).
 - JSON viewer: sort keys alphabetically in rendered and copied output for object payloads. [PR #525](https://github.com/riverqueue/riverui/pull/525).
+- Job state sidebar: only highlight `Running` when the selected jobs state is actually running, even with retained search filters in the URL. [Fixes #526](https://github.com/riverqueue/riverui/issues/526). [PR #527](https://github.com/riverqueue/riverui/pull/527).
 
 ## [v0.15.0] - 2026-02-26
 

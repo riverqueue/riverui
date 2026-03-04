@@ -34,6 +34,10 @@ export const JobStateFilters: (
                 return (
                   <li key={item.name}>
                     <Link
+                      activeOptions={{
+                        exact: true,
+                        includeSearch: true,
+                      }}
                       activeProps={{
                         className:
                           "bg-gray-50 dark:bg-gray-800 text-indigo-600 dark:text-slate-100",
