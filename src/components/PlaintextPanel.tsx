@@ -124,9 +124,11 @@ export default function PlaintextPanel({
         className={styleConfig.content.base}
         style={styleConfig.content.layout}
       >
-        <code className={`${styleConfig.content.code} ${codeClassName || ""}`}>
-          {content}
-        </code>
+        <pre>
+          <code className={`${styleConfig.content.code} ${codeClassName || ""}`}>
+            {content}
+          </code>
+        </pre>
       </div>
     </div>
   );
