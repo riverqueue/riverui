@@ -13,9 +13,9 @@ require (
 	github.com/riverqueue/river/rivershared v0.32.0
 	github.com/riverqueue/river/rivertype v0.32.0
 	github.com/stretchr/testify v1.11.1
-	riverqueue.com/riverpro v0.22.0
-	riverqueue.com/riverpro/driver v0.22.0
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.22.0
+	riverqueue.com/riverpro v0.23.0
+	riverqueue.com/riverpro/driver v0.23.0
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.23.0
 	riverqueue.com/riverui v0.15.0
 )
 
