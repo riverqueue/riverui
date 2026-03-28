@@ -174,6 +174,51 @@ func runAutocompleteTests(t *testing.T, facet autocompleteFacet, setupFunc func(
 		require.Len(t, resp.Data, 1)
 		require.Equal(t, "alpha_task", *resp.Data[0])
 	})
+
+	t.Run("WithNonDefaultSchema", func(t *testing.T) {
+		t.Parallel()
+
+		var (
+			logger = riversharedtest.Logger(t)
+			driver = riverpgxv5.New(riversharedtest.DBPool(ctx, t))
+		)
+
+		// DisableSchemaSharing is required because we need the schema name to configure the River client.
+		tx, schema := riverdbtest.TestTxPgxDriver(ctx, t, driver, &riverdbtest.TestTxOpts{DisableSchemaSharing: true})
+		exec := driver.UnwrapExecutor(tx)
+
+		client, err := river.NewClient(driver, &river.Config{
+			Logger: logger,
+			Schema: schema,
+		})
+		require.NoError(t, err)
+
+		endpoint := newAutocompleteListEndpoint(apibundle.APIBundle[pgx.Tx]{
+			Archetype:  riversharedtest.BaseServiceArchetype(t),
+			Client:     client,
+			DB:         exec,
+			Driver:     driver,
+			Extensions: func(_ context.Context) (map[string]bool, error) { return map[string]bool{}, nil },
+			Logger:     logger,
+		})
+
+		setupFunc(t, &setupEndpointTestBundle{client: client, exec: exec, logger: logger, tx: tx})
+
+		// Reset search_path to simulate production conditions where the connection
+		// doesn't include the River schema; unqualified table names would then fail.
+		_, err = tx.Exec(ctx, "SET search_path TO 'public'")
+		require.NoError(t, err)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Facet: facet,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 4)
+		require.Equal(t, "alpha_"+facet.baseString(), *resp.Data[0])
+		require.Equal(t, "alpha_task", *resp.Data[1])
+		require.Equal(t, "beta_"+facet.baseString(), *resp.Data[2])
+		require.Equal(t, "gamma_"+facet.baseString(), *resp.Data[3])
+	})
 }
 
 func (f autocompleteFacet) baseString() string {
