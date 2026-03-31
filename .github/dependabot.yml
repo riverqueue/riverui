@@ -49,11 +49,18 @@ updates:
       - riverpro-proxy
     schedule:
       interval: "weekly"
+    cooldown:
+      default-days: 7
+      exclude:
+        - "github.com/riverqueue/*"
+        - "riverqueue.com/*"
 
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     groups:
       production-dependencies:
         dependency-type: "production"
