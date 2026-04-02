@@ -25,7 +25,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@chromatic-com/storybook": "^5.0.2",
+    "@chromatic-com/storybook": "^5.1.0",
     "@eslint/css": "^0.14.1",
     "@eslint/js": "^9.39.2",
     "@faker-js/faker": "^10.4.0",
