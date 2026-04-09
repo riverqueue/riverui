@@ -17,6 +17,7 @@ import type { Features } from "../src/services/features";
 import { FeaturesContext } from "../src/contexts/Features";
 import "../src/global-type-overrides";
 import "../src/index.css";
+import "../tests/visual/visual.css";
 import {
   $userSettings,
   clearAllSettings,
@@ -98,6 +99,44 @@ export const withSettings: Decorator = (StoryFn, context) => {
   return <StoryFn />;
 };
 
+const isVisualTestRun = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return (
+    new URLSearchParams(window.location.search).get("visual-test") === "true"
+  );
+};
+
+const visualNow = Date.parse("2025-03-01T12:00:00.000Z");
+
+export const withVisualTestingMode: Decorator = (StoryFn) => {
+  if (typeof document !== "undefined" && typeof window !== "undefined") {
+    const windowWithDateNowStore = window as {
+      __originalDateNow?: () => number;
+    } & Window;
+
+    if (isVisualTestRun()) {
+      document.documentElement.setAttribute("data-visual-test", "true");
+
+      if (!windowWithDateNowStore.__originalDateNow) {
+        windowWithDateNowStore.__originalDateNow = Date.now;
+      }
+
+      Date.now = () => visualNow;
+    } else {
+      document.documentElement.removeAttribute("data-visual-test");
+
+      if (windowWithDateNowStore.__originalDateNow) {
+        Date.now = windowWithDateNowStore.__originalDateNow;
+      }
+    }
+  }
+
+  return <StoryFn />;
+};
+
 // Define parameter types
 declare module "@storybook/react-vite" {
   interface Parameters {
@@ -108,11 +147,16 @@ declare module "@storybook/react-vite" {
       routes?: string[];
     };
     settings?: UserSettings;
+    visual?: {
+      viewport?: "desktop" | "mobile";
+      waitFor?: string;
+    };
   }
 }
 
 const preview: Preview = {
   decorators: [
+    withVisualTestingMode,
     withFeatures,
     withSettings,
     withRouter,
