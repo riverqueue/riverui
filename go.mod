@@ -7,11 +7,11 @@ toolchain go1.25.7
 require (
 	github.com/jackc/pgx/v5 v5.9.1
 	github.com/riverqueue/apiframe v0.0.0-20251229202423-2b52ce1c482e
-	github.com/riverqueue/river v0.32.0
-	github.com/riverqueue/river/riverdriver v0.32.0
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.32.0
-	github.com/riverqueue/river/rivershared v0.32.0
-	github.com/riverqueue/river/rivertype v0.32.0
+	github.com/riverqueue/river v0.34.0
+	github.com/riverqueue/river/riverdriver v0.34.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.34.0
+	github.com/riverqueue/river/rivershared v0.34.0
+	github.com/riverqueue/river/rivertype v0.34.0
 	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.12.0
 	github.com/stretchr/testify v1.11.1
