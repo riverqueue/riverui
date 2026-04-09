@@ -82,3 +82,4 @@ By default logs are written with the [`slog.TextHandler`](https://pkg.go.dev/log
 ## Development
 
 See [developing River UI](./development.md).
+See [storybook visual regression](./visual_regression.md).

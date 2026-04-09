@@ -43,4 +43,5 @@ export const AllColors: Story = {
       </div>
     </div>
   ),
+  tags: ["visual"],
 };

@@ -13,6 +13,7 @@ const meta: Meta<typeof JobTimeline> = {
 export default meta;
 
 type Story = StoryObj<typeof JobTimeline>;
+const fixedCurrentTime = new Date("2025-02-01T08:00:00.000Z");
 
 export const Pending: Story = {
   args: {
@@ -58,9 +59,9 @@ export const Retryable: Story = {
 
 export const RetryableOverdue: Story = {
   args: {
-    job: jobFactory
-      .retryable()
-      .build({ scheduledAt: sub(Date.now(), { minutes: 2, seconds: 30 }) }),
+    job: jobFactory.retryable().build({
+      scheduledAt: sub(fixedCurrentTime, { minutes: 2, seconds: 30 }),
+    }),
   },
 };
 

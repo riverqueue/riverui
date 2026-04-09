@@ -15,17 +15,19 @@ const meta: Meta<typeof PeriodicJobList> = {
 export default meta;
 type Story = StoryObj<typeof PeriodicJobList>;
 
+const baseTime = new Date("2025-01-15T12:00:00.000Z");
+const oneDayInMs = 24 * 60 * 60 * 1000;
+
 // Helper function to create mock periodic jobs
 const createMockJob = (
   id: string,
   daysAgo: number,
   nextRunDays: number,
 ): PeriodicJob => {
-  const now = new Date();
-  const createdAt = new Date(now.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-  const nextRunAt = new Date(now.getTime() + nextRunDays * 24 * 60 * 60 * 1000);
+  const createdAt = new Date(baseTime.getTime() - daysAgo * oneDayInMs);
+  const nextRunAt = new Date(baseTime.getTime() + nextRunDays * oneDayInMs);
   const updatedAt = new Date(
-    now.getTime() - Math.floor(daysAgo / 2) * 24 * 60 * 60 * 1000,
+    baseTime.getTime() - Math.floor(daysAgo / 2) * oneDayInMs,
   );
 
   return {
@@ -35,6 +37,13 @@ const createMockJob = (
     updatedAt,
   };
 };
+
+const manyJobDaysAgo = [
+  5, 11, 23, 2, 18, 7, 26, 13, 9, 30, 16, 4, 21, 14, 1, 28, 8, 19, 6, 24,
+];
+const manyJobNextRunDays = [
+  2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 3, 5, 7, 9, 11,
+];
 
 export const Loading: Story = {
   args: {
@@ -104,12 +113,8 @@ export const LongJobIds: Story = {
 
 export const ManyJobs: Story = {
   args: {
-    jobs: Array.from({ length: 20 }, (_, i) =>
-      createMockJob(
-        `periodic-job-${i + 1}`,
-        Math.floor(Math.random() * 30),
-        Math.floor(Math.random() * 30) + 1,
-      ),
+    jobs: manyJobDaysAgo.map((daysAgo, i) =>
+      createMockJob(`periodic-job-${i + 1}`, daysAgo, manyJobNextRunDays[i]),
     ),
     loading: false,
   },

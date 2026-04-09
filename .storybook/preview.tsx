@@ -17,6 +17,7 @@ import type { Features } from "../src/services/features";
 import { FeaturesContext } from "../src/contexts/Features";
 import "../src/global-type-overrides";
 import "../src/index.css";
+import "../tests/visual/visual.css";
 import {
   $userSettings,
   clearAllSettings,
@@ -98,6 +99,28 @@ export const withSettings: Decorator = (StoryFn, context) => {
   return <StoryFn />;
 };
 
+const isVisualTestRun = () => {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return (
+    new URLSearchParams(window.location.search).get("visual-test") === "true"
+  );
+};
+
+export const withVisualTestingMode: Decorator = (StoryFn) => {
+  if (typeof document !== "undefined") {
+    if (isVisualTestRun()) {
+      document.documentElement.setAttribute("data-visual-test", "true");
+    } else {
+      document.documentElement.removeAttribute("data-visual-test");
+    }
+  }
+
+  return <StoryFn />;
+};
+
 // Define parameter types
 declare module "@storybook/react-vite" {
   interface Parameters {
@@ -108,11 +131,16 @@ declare module "@storybook/react-vite" {
       routes?: string[];
     };
     settings?: UserSettings;
+    visual?: {
+      viewport?: "desktop" | "mobile";
+      waitFor?: string;
+    };
   }
 }
 
 const preview: Preview = {
   decorators: [
+    withVisualTestingMode,
     withFeatures,
     withSettings,
     withRouter,
