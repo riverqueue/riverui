@@ -54,12 +54,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.ECR_ROLE_ARN }}
           aws-region: ${{ env.ECR_REGION }}
@@ -74,11 +74,11 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Docker meta for Pro
         id: meta-pro
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ format('{0}.dkr.ecr.{1}.amazonaws.com/riverqueue/riverproui', env.ECR_ACCOUNT_ID, env.ECR_REGION) }}
           labels: |
@@ -88,7 +88,7 @@ jobs:
 
       - name: Build & push (by digest)
         id: build-pro
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: Dockerfile.pro
@@ -109,7 +109,7 @@ jobs:
           touch "/tmp/digests/${digest#sha256:}"
 
       - name: Upload digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pro-digests-${{ env.PLATFORM_PAIR }}
           path: /tmp/digests/*
@@ -141,7 +141,7 @@ jobs:
 
     steps:
       - name: Checkout full history (no tags yet)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0 # full history
@@ -151,16 +151,16 @@ jobs:
         run: git fetch --tags --force
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Set up ORAS CLI
-        uses: oras-project/setup-oras@v1
+        uses: oras-project/setup-oras@v2
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.ECR_ROLE_ARN }}
           aws-region: ${{ env.ECR_REGION }}
@@ -170,7 +170,7 @@ jobs:
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Download digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: /tmp/digests
           pattern: pro-digests-*
@@ -207,7 +207,7 @@ jobs:
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.ECR_IMAGE }}
           tags: |
@@ -292,7 +292,7 @@ jobs:
           fi
 
       - name: Install crane
-        uses: imjasonh/setup-crane@v0.4
+        uses: imjasonh/setup-crane@v0.5
 
       - name: Compute manifest digest for attestation
         id: manifest_digest
@@ -302,7 +302,7 @@ jobs:
 
       - name: Generate build provenance attestation (not pushed)
         id: attest
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         with:
           push-to-registry: false
           subject-digest: ${{ steps.manifest_digest.outputs.digest }}
@@ -367,7 +367,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0 # full history
@@ -432,20 +432,20 @@ jobs:
           done
 
       - name: Login to live registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: riverqueue.com
           username: river
           password: ${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}
 
       - name: Install crane
-        uses: imjasonh/setup-crane@v0.4
+        uses: imjasonh/setup-crane@v0.5
 
       - name: Set up ORAS CLI
-        uses: oras-project/setup-oras@v1
+        uses: oras-project/setup-oras@v2
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4
 
       - name: Resolve manifest digest
         id: resolve-digest
@@ -584,7 +584,7 @@ jobs:
 
       - name: Upload debug artifacts
         if: failure() || cancelled()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: prefetch-debug
           path: |
