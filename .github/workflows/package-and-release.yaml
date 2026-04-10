@@ -1,5 +1,8 @@
 name: Package and Release
 
+env:
+  NODE_VERSION: "24.14.1"
+
 on:
   workflow_call:
     inputs:
@@ -59,7 +62,7 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
-          node-version: "22.18.0"
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         run: npm install
