@@ -1,5 +1,6 @@
 import { Badge } from "@components/Badge";
 import ButtonForGroup from "@components/ButtonForGroup";
+import ConfirmationDialog from "@components/ConfirmationDialog";
 import JobAttempts from "@components/JobAttempts";
 import JobTimeline from "@components/JobTimeline";
 import JSONView from "@components/JSONView";
@@ -15,7 +16,7 @@ import { Job, JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
-import { FormEvent } from "react";
+import { FormEvent, useState } from "react";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -185,12 +186,19 @@ export default function JobDetail({
 }
 
 function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+
   // Can only delete jobs that aren't running:
   const deleteDisabled = job.state === JobState.Running;
 
   const deleteJob = (event: FormEvent) => {
     event.preventDefault();
+    setDeleteConfirmationOpen(true);
+  };
+
+  const confirmDelete = () => {
     deleteFn();
+    setDeleteConfirmationOpen(false);
   };
 
   // Can only cancel jobs that aren't already finalized (completed, discarded, cancelled):
@@ -215,26 +223,42 @@ function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
   };
 
   return (
-    <span className="isolate inline-flex rounded-md shadow-xs">
-      <ButtonForGroup
-        disabled={retryDisabled}
-        Icon={ArrowUturnLeftIcon}
-        onClick={retryJob}
-        text="Retry"
+    <>
+      <span className="isolate inline-flex rounded-md shadow-xs">
+        <ButtonForGroup
+          disabled={retryDisabled}
+          Icon={ArrowUturnLeftIcon}
+          onClick={retryJob}
+          text="Retry"
+        />
+        <ButtonForGroup
+          disabled={cancelDisabled}
+          Icon={XCircleIcon}
+          onClick={cancelJob}
+          text="Cancel"
+        />
+        <ButtonForGroup
+          disabled={deleteDisabled}
+          Icon={TrashIcon}
+          onClick={deleteJob}
+          text="Delete"
+        />
+      </span>
+      <ConfirmationDialog
+        confirmText="Delete job"
+        description={
+          <>
+            This permanently deletes job{" "}
+            <span className="font-mono">{job.id.toString()}</span>. This action
+            cannot be undone.
+          </>
+        }
+        onClose={() => setDeleteConfirmationOpen(false)}
+        onConfirm={confirmDelete}
+        open={deleteConfirmationOpen}
+        title="Delete job?"
       />
-      <ButtonForGroup
-        disabled={cancelDisabled}
-        Icon={XCircleIcon}
-        onClick={cancelJob}
-        text="Cancel"
-      />
-      <ButtonForGroup
-        disabled={deleteDisabled}
-        Icon={TrashIcon}
-        onClick={deleteJob}
-        text="Delete"
-      />
-    </span>
+    </>
   );
 }
 

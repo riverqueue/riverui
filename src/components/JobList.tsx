@@ -1,6 +1,7 @@
 import { Badge } from "@components/Badge";
 import { Button } from "@components/Button";
 import ButtonForGroup from "@components/ButtonForGroup";
+import ConfirmationDialog from "@components/ConfirmationDialog";
 import { CustomCheckbox } from "@components/CustomCheckbox";
 import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
 import { Filter, JobSearch } from "@components/job-search/JobSearch";
@@ -29,7 +30,13 @@ import {
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
 import { classNames } from "@utils/style";
-import React, { FormEvent, useCallback, useEffect, useMemo } from "react";
+import React, {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 const states: { [key in JobState]: string } = {
   [JobState.Available]: "text-sky-500 bg-sky-100/10",
@@ -216,12 +223,19 @@ function JobListActionButtons({
   retry: (jobIDs: bigint[]) => void;
   state: JobState;
 }) {
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+
   // Can only delete jobs that aren't running:
   const deleteDisabled = state === JobState.Running;
 
   const deleteJob = (event: FormEvent) => {
     event.preventDefault();
+    setDeleteConfirmationOpen(true);
+  };
+
+  const confirmDelete = () => {
     deleteFn(jobIDs);
+    setDeleteConfirmationOpen(false);
   };
 
   // Can only cancel jobs that aren't already finalized (completed, discarded, cancelled):
@@ -243,32 +257,52 @@ function JobListActionButtons({
     retry(jobIDs);
   };
 
+  const selectedJobCount = jobIDs.length;
+
   return (
-    <span
-      className={classNames(
-        "mr-6 inline-flex rounded-md shadow-xs",
-        className || "",
-      )}
-    >
-      <ButtonForGroup
-        disabled={retryDisabled}
-        Icon={ArrowUturnLeftIcon}
-        onClick={retryJob}
-        text="Retry"
+    <>
+      <span
+        className={classNames(
+          "mr-6 inline-flex rounded-md shadow-xs",
+          className || "",
+        )}
+      >
+        <ButtonForGroup
+          disabled={retryDisabled}
+          Icon={ArrowUturnLeftIcon}
+          onClick={retryJob}
+          text="Retry"
+        />
+        <ButtonForGroup
+          disabled={cancelDisabled}
+          Icon={XCircleIcon}
+          onClick={cancelJob}
+          text="Cancel"
+        />
+        <ButtonForGroup
+          disabled={deleteDisabled}
+          Icon={TrashIcon}
+          onClick={deleteJob}
+          text="Delete"
+        />
+      </span>
+      <ConfirmationDialog
+        confirmText={selectedJobCount === 1 ? "Delete job" : "Delete jobs"}
+        description={
+          selectedJobCount === 1
+            ? "This permanently deletes the selected job. This action cannot be undone."
+            : `This permanently deletes ${selectedJobCount.toString()} selected jobs. This action cannot be undone.`
+        }
+        onClose={() => setDeleteConfirmationOpen(false)}
+        onConfirm={confirmDelete}
+        open={deleteConfirmationOpen}
+        title={
+          selectedJobCount === 1
+            ? "Delete selected job?"
+            : "Delete selected jobs?"
+        }
       />
-      <ButtonForGroup
-        disabled={cancelDisabled}
-        Icon={XCircleIcon}
-        onClick={cancelJob}
-        text="Cancel"
-      />
-      <ButtonForGroup
-        disabled={deleteDisabled}
-        Icon={TrashIcon}
-        onClick={deleteJob}
-        text="Delete"
-      />
-    </span>
+    </>
   );
 }
 

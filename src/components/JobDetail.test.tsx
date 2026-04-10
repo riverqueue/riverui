@@ -1,16 +1,75 @@
 import { jobFactory } from "@test/factories/job";
-import { render } from "@testing-library/react";
-import { expect, test } from "vitest";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
+import { userEvent } from "storybook/test";
+import { expect, test, vi } from "vitest";
 
 import JobDetail from "./JobDetail";
 
-test("adds 1 + 2 to equal 3", () => {
-  const job = jobFactory.build();
-  const cancel = () => {};
-  const deleteFn = () => {};
-  const retry = () => {};
-  const { getByTestId: _getTestById } = render(
-    <JobDetail cancel={cancel} deleteFn={deleteFn} job={job} retry={retry} />,
+test("requires confirmation before deleting a job", async () => {
+  const job = jobFactory.completed().build({ id: 123n });
+  const deleteFn = vi.fn();
+  const user = userEvent.setup();
+
+  render(
+    <JobDetail
+      cancel={vi.fn()}
+      deleteFn={deleteFn}
+      job={job}
+      retry={vi.fn()}
+    />,
   );
-  expect(3).toBe(3);
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+  });
+
+  expect(deleteFn).not.toHaveBeenCalled();
+  const dialog = await screen.findByRole("dialog", { name: "Delete job?" });
+  expect(
+    within(dialog).getByText(/This permanently deletes job/i),
+  ).toBeInTheDocument();
+  expect(within(dialog).getByText("123")).toBeInTheDocument();
+
+  await act(async () => {
+    await user.click(
+      within(dialog).getByRole("button", { name: /delete job/i }),
+    );
+  });
+
+  await waitFor(() => {
+    expect(deleteFn).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("dialog", { name: "Delete job?" }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+test("cancels job delete confirmation", async () => {
+  const job = jobFactory.completed().build();
+  const deleteFn = vi.fn();
+  const user = userEvent.setup();
+
+  render(
+    <JobDetail
+      cancel={vi.fn()}
+      deleteFn={deleteFn}
+      job={job}
+      retry={vi.fn()}
+    />,
+  );
+
+  await act(async () => {
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+  });
+  const dialog = await screen.findByRole("dialog", { name: "Delete job?" });
+  await act(async () => {
+    await user.click(within(dialog).getByRole("button", { name: /cancel/i }));
+  });
+
+  await waitFor(() => {
+    expect(deleteFn).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("dialog", { name: "Delete job?" }),
+    ).not.toBeInTheDocument();
+  });
 });

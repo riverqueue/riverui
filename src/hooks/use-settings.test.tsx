@@ -1,25 +1,46 @@
-import { useFeatures } from "@contexts/Features.hook";
 import { $userSettings } from "@stores/settings";
 import { createFeatures } from "@test/utils/features";
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockedFunction,
+  vi,
+} from "vitest";
 
 import { useSettings } from "./use-settings";
 
+type UseFeatures = typeof import("@contexts/Features.hook").useFeatures;
+type UseStore = typeof import("@nanostores/react").useStore;
+
+const { mockUseFeatures, mockUseStore } = vi.hoisted(() => ({
+  mockUseFeatures: vi.fn() as MockedFunction<UseFeatures>,
+  mockUseStore: vi.fn() as MockedFunction<UseStore>,
+}));
+
 // Mock nanostores/react
 vi.mock("@nanostores/react", () => ({
-  useStore: vi.fn().mockImplementation((store) => store.get()),
+  useStore: mockUseStore,
 }));
 
 // Mock Features context
 vi.mock("@contexts/Features.hook", () => ({
-  useFeatures: vi.fn(),
+  useFeatures: mockUseFeatures,
 }));
 
 describe("useSettings", () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockUseFeatures.mockReset();
+    mockUseStore.mockReset();
+    mockUseStore.mockImplementation((store) => store.get());
+  });
+
   it("should return default show job args value when no override", () => {
     // Mock Features hook
-    (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseFeatures.mockReturnValue({
       features: createFeatures({
         jobListHideArgsByDefault: true,
       }),
@@ -34,7 +55,7 @@ describe("useSettings", () => {
 
   it("should return override when set to true", () => {
     // Mock Features hook with hide args by default
-    (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseFeatures.mockReturnValue({
       features: createFeatures({
         jobListHideArgsByDefault: true,
       }),
@@ -49,7 +70,7 @@ describe("useSettings", () => {
 
   it("should return override when set to false", () => {
     // Mock Features hook with show args by default
-    (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseFeatures.mockReturnValue({
       features: createFeatures({
         jobListHideArgsByDefault: false,
       }),
