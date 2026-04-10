@@ -38,7 +38,7 @@ const WorkflowNode = memo(
       >
         <Handle
           className={clsx(
-            "left-[-7px] size-4 border-4 border-slate-50 bg-slate-300 dark:border-slate-800 dark:bg-slate-600",
+            "left-px size-4 border-4 border-slate-50 bg-slate-300 dark:border-slate-800 dark:bg-slate-600",
             hasUpstreamDeps || "opacity-0",
           )}
           isConnectable={isConnectable}
@@ -48,7 +48,7 @@ const WorkflowNode = memo(
         />
         <Handle
           className={clsx(
-            "right-[-7px] size-4 border-4 border-slate-50 bg-slate-300 dark:border-slate-800 dark:bg-slate-600",
+            "right-px size-4 border-4 border-slate-50 bg-slate-300 dark:border-slate-800 dark:bg-slate-600",
             hasDownstreamDeps || "opacity-0",
           )}
           isConnectable={isConnectable}
