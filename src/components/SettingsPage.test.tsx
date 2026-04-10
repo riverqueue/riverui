@@ -1,27 +1,45 @@
-import { useFeatures } from "@contexts/Features.hook";
-import { useSettings } from "@hooks/use-settings";
 import { createFeatures } from "@test/utils/features";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockedFunction,
+  vi,
+} from "vitest";
 
 import SettingsPage from "./SettingsPage";
 
+type UseFeatures = typeof import("@contexts/Features.hook").useFeatures;
+type UseSettings = typeof import("@hooks/use-settings").useSettings;
+
+const { mockUseFeatures, mockUseSettings } = vi.hoisted(() => ({
+  mockUseFeatures: vi.fn() as MockedFunction<UseFeatures>,
+  mockUseSettings: vi.fn() as MockedFunction<UseSettings>,
+}));
+
 // Mock useSettings hook
 vi.mock("@hooks/use-settings", () => ({
-  useSettings: vi.fn(),
+  useSettings: mockUseSettings,
 }));
 
 // Mock useFeatures hook
 vi.mock("@contexts/Features.hook", () => ({
-  useFeatures: vi.fn(),
+  useFeatures: mockUseFeatures,
 }));
 
 describe("SettingsPage", () => {
+  beforeEach(() => {
+    mockUseFeatures.mockReset();
+    mockUseSettings.mockReset();
+  });
+
   it("renders correctly with default settings", () => {
     // Mock settings hook
     const mockSetShowJobArgs = vi.fn();
     const mockClearShowJobArgs = vi.fn();
-    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseSettings.mockReturnValue({
       clearShowJobArgs: mockClearShowJobArgs,
       setShowJobArgs: mockSetShowJobArgs,
       settings: {},
@@ -29,7 +47,7 @@ describe("SettingsPage", () => {
     });
 
     // Mock features
-    (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseFeatures.mockReturnValue({
       features: createFeatures({
         jobListHideArgsByDefault: false,
       }),
@@ -61,7 +79,7 @@ describe("SettingsPage", () => {
     // Mock settings hook with override
     const mockSetShowJobArgs = vi.fn();
     const mockClearShowJobArgs = vi.fn();
-    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseSettings.mockReturnValue({
       clearShowJobArgs: mockClearShowJobArgs,
       setShowJobArgs: mockSetShowJobArgs,
       settings: { showJobArgs: true },
@@ -69,7 +87,7 @@ describe("SettingsPage", () => {
     });
 
     // Mock features
-    (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseFeatures.mockReturnValue({
       features: createFeatures({
         jobListHideArgsByDefault: true,
       }),
@@ -96,7 +114,7 @@ describe("SettingsPage", () => {
     // Mock settings hook
     const mockSetShowJobArgs = vi.fn();
     const mockClearShowJobArgs = vi.fn();
-    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseSettings.mockReturnValue({
       clearShowJobArgs: mockClearShowJobArgs,
       setShowJobArgs: mockSetShowJobArgs,
       settings: {},
@@ -104,7 +122,7 @@ describe("SettingsPage", () => {
     });
 
     // Mock features
-    (useFeatures as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+    mockUseFeatures.mockReturnValue({
       features: createFeatures({
         jobListHideArgsByDefault: true,
       }),

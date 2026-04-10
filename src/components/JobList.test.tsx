@@ -1,12 +1,35 @@
 import { FeaturesContext } from "@contexts/Features";
-import { useSettings } from "@hooks/use-settings";
 import { JobState } from "@services/types";
 import { jobMinimalFactory } from "@test/factories/job";
 import { createFeatures } from "@test/utils/features";
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { type ReactNode } from "react";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  type MockedFunction,
+  vi,
+} from "vitest";
 
 import JobList from "./JobList";
+
+type UseSettings = typeof import("@hooks/use-settings").useSettings;
+type UseSettingsReturn = ReturnType<UseSettings>;
+
+const { mockUseSettings } = vi.hoisted(() => ({
+  mockUseSettings: vi.fn() as MockedFunction<UseSettings>,
+}));
+
+const settingsMock = (
+  settings: UseSettingsReturn["settings"],
+): UseSettingsReturn => ({
+  clearShowJobArgs: vi.fn(),
+  setShowJobArgs: vi.fn(),
+  settings,
+  shouldShowJobArgs: true,
+});
 
 vi.mock("@tanstack/react-router", () => {
   return {
@@ -15,7 +38,7 @@ vi.mock("@tanstack/react-router", () => {
       className,
       to,
     }: {
-      children: React.ReactNode;
+      children: ReactNode;
       className: string;
       to: string;
     }) => (
@@ -28,10 +51,14 @@ vi.mock("@tanstack/react-router", () => {
 
 // Mock the useSettings hook
 vi.mock("@hooks/use-settings", () => ({
-  useSettings: vi.fn(),
+  useSettings: mockUseSettings,
 }));
 
 describe("JobList", () => {
+  beforeEach(() => {
+    mockUseSettings.mockReset();
+  });
+
   it("shows job args by default", () => {
     const job = jobMinimalFactory.build();
     const features = createFeatures({
@@ -39,9 +66,7 @@ describe("JobList", () => {
     });
 
     // Mock settings with no override
-    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      settings: {},
-    });
+    mockUseSettings.mockReturnValue(settingsMock({}));
 
     render(
       <FeaturesContext.Provider value={{ features }}>
@@ -71,9 +96,7 @@ describe("JobList", () => {
     });
 
     // Mock settings with no override
-    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      settings: {},
-    });
+    mockUseSettings.mockReturnValue(settingsMock({}));
 
     render(
       <FeaturesContext.Provider value={{ features }}>
@@ -105,9 +128,7 @@ describe("JobList", () => {
     });
 
     // Mock settings with override to show args
-    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      settings: { showJobArgs: true },
-    });
+    mockUseSettings.mockReturnValue(settingsMock({ showJobArgs: true }));
 
     render(
       <FeaturesContext.Provider value={{ features }}>
@@ -138,9 +159,7 @@ describe("JobList", () => {
     });
 
     // Mock settings with override to hide args
-    (useSettings as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
-      settings: { showJobArgs: false },
-    });
+    mockUseSettings.mockReturnValue(settingsMock({ showJobArgs: false }));
 
     render(
       <FeaturesContext.Provider value={{ features }}>
