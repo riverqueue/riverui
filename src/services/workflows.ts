@@ -18,10 +18,82 @@ import {
 } from "./types";
 
 export type Workflow = {
-  tasks: JobWithKnownMetadata[];
+  id: string;
+  name: string;
+  tasks: WorkflowTask[];
 };
 
 export type WorkflowRetryMode = "all" | "failed_and_downstream" | "failed_only";
+
+export type WorkflowTask = {
+  deps: string[];
+  gate?: WorkflowTaskGate;
+  ignoreCancelledDeps: boolean;
+  ignoreDeletedDeps: boolean;
+  ignoreDiscardedDeps: boolean;
+  name: string;
+  stagedAt?: Date;
+  waitReason: WorkflowTaskWaitReason;
+  workflowID: string;
+} & JobWithKnownMetadata;
+
+export type WorkflowTaskGate = {
+  activeAt?: Date;
+  declaredSignals: string[];
+  enabled: boolean;
+  exprCel: string;
+  phase: WorkflowTaskGatePhase;
+  satisfaction?: WorkflowTaskGateSatisfaction;
+  satisfiedAt?: Date;
+  timers: WorkflowTaskGateTimer[];
+};
+
+export type WorkflowTaskGatePhase =
+  | "inactive"
+  | "satisfied"
+  | "unknown"
+  | "waiting";
+
+export type WorkflowTaskGateSatisfaction = {
+  asOf: Date;
+  attempt: number;
+  signals: WorkflowTaskGateSatisfactionSignal[];
+  timers: WorkflowTaskGateSatisfactionTimer[];
+};
+
+export type WorkflowTaskGateSatisfactionSignal = {
+  count: number;
+  key: string;
+  lastSignalId?: bigint;
+};
+
+export type WorkflowTaskGateSatisfactionTimer = {
+  fireAt?: Date;
+  fired: boolean;
+  name: string;
+};
+
+export type WorkflowTaskGateTimer = {
+  after?: string;
+  afterSeconds?: number;
+  afterUs?: number;
+  anchor?: WorkflowTaskGateTimerAnchor;
+  fireAt?: Date;
+  hasAfter: boolean;
+  hasFireAt: boolean;
+  name: string;
+};
+
+export type WorkflowTaskGateTimerAnchor = {
+  kind: string;
+  task?: string;
+};
+
+export type WorkflowTaskWaitReason =
+  | "dependencies_and_gate"
+  | "dependencies"
+  | "gate"
+  | "none";
 
 type CancelPayload = {
   workflowID: string;
@@ -39,8 +111,70 @@ type CancelResponseFromAPI = {
 // string dates instead of Date objects and keys as snake_case instead of
 // camelCase.
 type WorkflowFromAPI = {
-  tasks: JobFromAPI[];
+  id: string;
+  name: string;
+  tasks: WorkflowTaskFromAPI[];
 };
+
+type WorkflowTaskFromAPI = {
+  deps: string[];
+  gate?: WorkflowTaskGateFromAPI;
+  ignore_cancelled_deps: boolean;
+  ignore_deleted_deps: boolean;
+  ignore_discarded_deps: boolean;
+  name: string;
+  staged_at?: string;
+  wait_reason: WorkflowTaskWaitReasonFromAPI;
+  workflow_id: string;
+} & JobFromAPI;
+
+type WorkflowTaskGateFromAPI = {
+  active_at?: string;
+  declared_signals: string[];
+  enabled: boolean;
+  expr_cel: string;
+  phase: string;
+  satisfaction?: WorkflowTaskGateSatisfactionFromAPI;
+  satisfied_at?: string;
+  timers: WorkflowTaskGateTimerFromAPI[];
+};
+
+type WorkflowTaskGateSatisfactionFromAPI = {
+  as_of: string;
+  attempt: number;
+  signals: WorkflowTaskGateSatisfactionSignalFromAPI[];
+  timers: WorkflowTaskGateSatisfactionTimerFromAPI[];
+};
+
+type WorkflowTaskGateSatisfactionSignalFromAPI = {
+  count: number;
+  key: string;
+  last_signal_id: number | string;
+};
+
+type WorkflowTaskGateSatisfactionTimerFromAPI = {
+  fire_at?: string;
+  fired: boolean;
+  name: string;
+};
+
+type WorkflowTaskGateTimerAnchorFromAPI = {
+  kind: string;
+  task?: string;
+};
+
+type WorkflowTaskGateTimerFromAPI = {
+  after?: string;
+  after_seconds?: number;
+  after_us?: number;
+  anchor?: WorkflowTaskGateTimerAnchorFromAPI;
+  fire_at?: string;
+  has_after: boolean;
+  has_fire_at: boolean;
+  name: string;
+};
+
+type WorkflowTaskWaitReasonFromAPI = WorkflowTaskWaitReason;
 
 export const cancelJobs: MutationFunction<
   CancelResponse,
@@ -107,9 +241,145 @@ export const getWorkflow: QueryFunction<Workflow, GetWorkflowKey> = async ({
   ).then(apiWorkflowToWorkflow);
 };
 
-const apiWorkflowToWorkflow = (job: WorkflowFromAPI): Workflow => ({
-  tasks: job.tasks.map(apiJobToJob) as JobWithKnownMetadata[],
+const apiWorkflowToWorkflow = (workflow: WorkflowFromAPI): Workflow => ({
+  id: workflow.id,
+  name: workflow.name,
+  tasks: workflow.tasks.map(apiWorkflowTaskToWorkflowTask),
 });
+
+const apiWorkflowTaskToWorkflowTask = (
+  taskFromAPI: WorkflowTaskFromAPI,
+): WorkflowTask => {
+  return {
+    ...(apiJobToJob(taskFromAPI) as JobWithKnownMetadata),
+    deps: taskFromAPI.deps,
+    gate: apiWorkflowTaskGateToWorkflowTaskGate(taskFromAPI.gate),
+    ignoreCancelledDeps: taskFromAPI.ignore_cancelled_deps,
+    ignoreDeletedDeps: taskFromAPI.ignore_deleted_deps,
+    ignoreDiscardedDeps: taskFromAPI.ignore_discarded_deps,
+    name: taskFromAPI.name,
+    stagedAt: parseDate(taskFromAPI.staged_at),
+    waitReason: taskFromAPI.wait_reason,
+    workflowID: taskFromAPI.workflow_id,
+  };
+};
+
+const apiWorkflowTaskGateToWorkflowTaskGate = (
+  gate: undefined | WorkflowTaskGateFromAPI,
+): undefined | WorkflowTaskGate => {
+  if (!gate) return undefined;
+
+  return {
+    activeAt: parseDate(gate.active_at),
+    declaredSignals: gate.declared_signals,
+    enabled: gate.enabled,
+    exprCel: gate.expr_cel,
+    phase: parseWorkflowTaskGatePhase(gate.phase),
+    satisfaction: apiWorkflowTaskGateSatisfactionToWorkflowTaskGateSatisfaction(
+      gate.satisfaction,
+    ),
+    satisfiedAt: parseDate(gate.satisfied_at),
+    timers: gate.timers.map(apiWorkflowTaskGateTimerToWorkflowTaskGateTimer),
+  };
+};
+
+const parseWorkflowTaskGatePhase = (phase: unknown): WorkflowTaskGatePhase => {
+  if (phase === "inactive" || phase === "waiting" || phase === "satisfied") {
+    return phase;
+  }
+
+  return "unknown";
+};
+
+const apiWorkflowTaskGateTimerToWorkflowTaskGateTimer = (
+  timer: WorkflowTaskGateTimerFromAPI,
+): WorkflowTaskGateTimer => {
+  return {
+    after: timer.after,
+    afterSeconds: timer.after_seconds,
+    afterUs: timer.after_us,
+    anchor: apiWorkflowTaskGateTimerAnchorToWorkflowTaskGateTimerAnchor(
+      timer.anchor,
+    ),
+    fireAt: parseDate(timer.fire_at),
+    hasAfter: timer.has_after,
+    hasFireAt: timer.has_fire_at,
+    name: timer.name,
+  };
+};
+
+const apiWorkflowTaskGateTimerAnchorToWorkflowTaskGateTimerAnchor = (
+  anchor: undefined | WorkflowTaskGateTimerAnchorFromAPI,
+): undefined | WorkflowTaskGateTimerAnchor => {
+  if (!anchor || !anchor.kind) return undefined;
+
+  return {
+    kind: anchor.kind,
+    task: anchor.task,
+  };
+};
+
+const apiWorkflowTaskGateSatisfactionToWorkflowTaskGateSatisfaction = (
+  satisfaction: undefined | WorkflowTaskGateSatisfactionFromAPI,
+): undefined | WorkflowTaskGateSatisfaction => {
+  if (!satisfaction) {
+    return undefined;
+  }
+
+  const asOf = parseDate(satisfaction.as_of);
+  if (!asOf) return undefined;
+
+  return {
+    asOf,
+    attempt: satisfaction.attempt,
+    signals: satisfaction.signals.map(
+      apiWorkflowTaskGateSatisfactionSignalToWorkflowTaskGateSatisfactionSignal,
+    ),
+    timers: satisfaction.timers.map(
+      apiWorkflowTaskGateSatisfactionTimerToWorkflowTaskGateSatisfactionTimer,
+    ),
+  };
+};
+
+const apiWorkflowTaskGateSatisfactionSignalToWorkflowTaskGateSatisfactionSignal =
+  (
+    signal: WorkflowTaskGateSatisfactionSignalFromAPI,
+  ): WorkflowTaskGateSatisfactionSignal => {
+    return {
+      count: signal.count,
+      key: signal.key,
+      lastSignalId: parseBigInt(signal.last_signal_id),
+    };
+  };
+
+const apiWorkflowTaskGateSatisfactionTimerToWorkflowTaskGateSatisfactionTimer =
+  (
+    timer: WorkflowTaskGateSatisfactionTimerFromAPI,
+  ): WorkflowTaskGateSatisfactionTimer => {
+    return {
+      fireAt: parseDate(timer.fire_at),
+      fired: timer.fired,
+      name: timer.name,
+    };
+  };
+
+const parseDate = (value: unknown): Date | undefined => {
+  if (typeof value !== "string") return undefined;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
+const parseBigInt = (value: unknown): bigint | undefined => {
+  if (typeof value !== "number" && typeof value !== "string") {
+    return undefined;
+  }
+
+  try {
+    return BigInt(value);
+  } catch {
+    return undefined;
+  }
+};
 
 export type ListWorkflowsKey = [
   "listWorkflows",

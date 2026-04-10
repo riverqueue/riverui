@@ -12,12 +12,20 @@ import { CheckIcon } from "@heroicons/react/16/solid";
 import {
   ArrowPathIcon,
   ClipboardIcon,
+  InformationCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/24/outline";
-import { JobWithKnownMetadata } from "@services/jobs";
 import { toastSuccess } from "@services/toast";
 import { JobState } from "@services/types";
-import { Workflow, type WorkflowRetryMode } from "@services/workflows";
+import {
+  Workflow,
+  type WorkflowRetryMode,
+  type WorkflowTask,
+  type WorkflowTaskGate,
+  type WorkflowTaskGateSatisfactionTimer,
+  type WorkflowTaskGateTimer,
+  type WorkflowTaskWaitReason,
+} from "@services/workflows";
 import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
 import clsx from "clsx";
@@ -26,7 +34,7 @@ import { useMemo, useState } from "react";
 import WorkflowListEmptyState from "./WorkflowListEmptyState";
 
 type JobsByTask = {
-  [key: string]: JobWithKnownMetadata;
+  [key: string]: WorkflowTask;
 };
 
 type WorkflowDetailProps = {
@@ -59,11 +67,11 @@ export default function WorkflowDetail({
   );
 
   const firstTask = workflow?.tasks?.[0];
-  const workflowID = firstTask?.metadata.workflow_id;
+  const workflowID = workflow?.id;
   // TODO: this is being repeated in WorkflowDiagram, dedupe
   const jobsByTask: JobsByTask = workflow?.tasks
     ? workflow.tasks.reduce((acc: JobsByTask, job) => {
-        acc[job.metadata.task] = job;
+        acc[job.name] = job;
         return acc;
       }, {})
     : {};
@@ -105,7 +113,8 @@ export default function WorkflowDetail({
     return <h4>No tasks available</h4>;
   }
   const { tasks } = workflow;
-  const workflowName = firstTask.metadata.workflow_name || "Unnamed Workflow";
+  const workflowName =
+    workflow.name === "" ? "Unnamed Workflow" : workflow.name;
 
   return (
     <>
@@ -163,13 +172,10 @@ export default function WorkflowDetail({
               </span>
             </h1>
             <p className="mt-2 text-base leading-6 text-slate-600 dark:text-slate-400">
-              ID:{" "}
-              <span className="font-mono">
-                {firstTask.metadata.workflow_id}
-              </span>
+              ID: <span className="font-mono">{workflow.id}</span>
             </p>
           </div>
-          <div className="order-none flex w-full items-center justify-end gap-2 sm:w-auto sm:flex-none">
+          <div className="order-0 flex w-full items-center justify-end gap-2 sm:w-auto sm:flex-none">
             <span className="isolate inline-flex rounded-md shadow-xs">
               <ButtonForGroup
                 disabled={retryPending || !workflowID || isActive}
@@ -229,16 +235,10 @@ const SelectedJobDetails = ({
   job,
   jobsByTask,
 }: {
-  job: JobWithKnownMetadata;
+  job: WorkflowTask;
   jobsByTask: JobsByTask;
 }) => {
-  const stagedAt = useMemo(
-    () =>
-      job.metadata.workflow_staged_at
-        ? new Date(job.metadata.workflow_staged_at)
-        : undefined,
-    [job.metadata.workflow_staged_at],
-  );
+  const stagedAt = useMemo(() => job.stagedAt, [job.stagedAt]);
 
   return (
     <>
@@ -284,24 +284,25 @@ const SelectedJobDetails = ({
           </dl>
         </div>
 
-        <div className="order-first col-span-2 border-t border-slate-100 pt-4 sm:order-none sm:col-span-1 sm:border-t-0 dark:border-slate-800">
+        <div className="order-first col-span-2 border-t border-slate-100 pt-4 sm:order-0 sm:col-span-1 sm:border-t-0 dark:border-slate-800">
           <Subheading>Workflow Task</Subheading>
           <dl className={dlClasses}>
             <dt className={dtClasses}>Task</dt>
-            <dd className={ddClasses}>{job.metadata.task}</dd>
+            <dd className={ddClasses}>{job.name}</dd>
+            <dt className={dtClasses}>Wait reason</dt>
+            <dd className={ddClasses}>{formatWaitReason(job.waitReason)}</dd>
             <dt className={dtClasses}>Dependencies</dt>
             <dd className={ddClasses}>
-              {job.metadata.deps &&
-                job.metadata.deps.map((dep: string) => (
-                  <div className="flex items-center gap-2" key={dep}>
-                    <DependencyItem depJob={jobsByTask[dep]} depName={dep} />
-                  </div>
-                ))}
+              {job.deps.map((dep: string) => (
+                <div className="flex items-center gap-2" key={dep}>
+                  <DependencyItem depJob={jobsByTask[dep]} depName={dep} />
+                </div>
+              ))}
             </dd>
             <dt className={dtClasses}>Staged</dt>
             <dd className={ddClasses}>
               {job.state === JobState.Pending ? (
-                <span>Not yet staged, pending dependencies</span>
+                <span>{getPendingStageLabel(job.waitReason)}</span>
               ) : (
                 <RelativeTimeFormatter
                   addSuffix
@@ -309,8 +310,76 @@ const SelectedJobDetails = ({
                 />
               )}
             </dd>
+            <dt className={dtClasses}>Gate status</dt>
+            <dd className={ddClasses}>
+              {job.gate ? (
+                <GateStatusPill gate={job.gate} />
+              ) : (
+                <span className="text-slate-500 dark:text-slate-400">None</span>
+              )}
+            </dd>
           </dl>
         </div>
+
+        {job.gate && (
+          <div className="col-span-2 border-t border-slate-100 py-4 sm:px-0 dark:border-slate-800">
+            <Subheading>Gate</Subheading>
+            <dl className={dlClasses}>
+              <dt className={dtClasses}>State</dt>
+              <dd className={ddClasses}>{getGateStatusLabel(job.gate)}</dd>
+              <dt className={dtClasses}>Expression</dt>
+              <dd className={ddClasses}>
+                {job.gate.exprCel || "No expression"}
+              </dd>
+              <dt className={dtClasses}>Blocking</dt>
+              <dd className={ddClasses}>
+                {isGateBlocking(job.gate)
+                  ? "Blocking this task"
+                  : "Not blocking"}
+              </dd>
+              <dt className={dtClasses}>Phase</dt>
+              <dd className={ddClasses}>{job.gate.phase}</dd>
+              <dt className={dtClasses}>Activated</dt>
+              <dd className={ddClasses}>
+                {job.gate.activeAt ? (
+                  <RelativeTimeFormatter addSuffix time={job.gate.activeAt} />
+                ) : (
+                  <span className="text-slate-500 dark:text-slate-400">
+                    Not activated yet
+                  </span>
+                )}
+              </dd>
+              <dt className={dtClasses}>Satisfied</dt>
+              <dd className={ddClasses}>
+                {job.gate.satisfiedAt ? (
+                  <RelativeTimeFormatter
+                    addSuffix
+                    time={job.gate.satisfiedAt}
+                  />
+                ) : (
+                  <span className="text-slate-500 dark:text-slate-400">
+                    Not satisfied yet
+                  </span>
+                )}
+              </dd>
+              <dt className={dtClasses}>Declared signals</dt>
+              <dd className={ddClasses}>
+                <GateDeclaredSignals signals={job.gate.declaredSignals} />
+              </dd>
+              <dt className={dtClasses}>Timers</dt>
+              <dd className={ddClasses}>
+                <GateTimers
+                  satisfactionTimers={job.gate.satisfaction?.timers}
+                  timers={job.gate.timers}
+                />
+              </dd>
+              <dt className={dtClasses}>Satisfaction snapshot</dt>
+              <dd className={ddClasses}>
+                <GateSatisfactionSummary satisfaction={job.gate.satisfaction} />
+              </dd>
+            </dl>
+          </div>
+        )}
 
         <div className="col-span-2 border-t border-slate-100 py-4 text-sm sm:col-span-1 sm:px-0 dark:border-slate-800">
           <dt className={dtClasses}>Args</dt>
@@ -337,7 +406,7 @@ const DependencyItem = ({
   depJob,
   depName,
 }: {
-  depJob?: JobWithKnownMetadata;
+  depJob?: WorkflowTask;
   depName: string;
 }) => {
   if (!depJob) {
@@ -358,5 +427,172 @@ const DependencyItem = ({
       <TaskStateIcon className="size-4" jobState={depJob.state} />
       <span className="truncate">{depName}</span>
     </Link>
+  );
+};
+
+const formatWaitReason = (waitReason: WorkflowTaskWaitReason): string => {
+  switch (waitReason) {
+    case "dependencies":
+      return "Waiting on dependencies";
+    case "dependencies_and_gate":
+      return "Waiting on dependencies and gate";
+    case "gate":
+      return "Waiting on gate";
+    case "none":
+    default:
+      return "Not waiting";
+  }
+};
+
+const getPendingStageLabel = (waitReason: WorkflowTaskWaitReason): string => {
+  switch (waitReason) {
+    case "dependencies":
+      return "Not yet staged, pending dependencies";
+    case "dependencies_and_gate":
+      return "Not yet staged, pending dependencies and gate";
+    case "gate":
+      return "Not yet staged, waiting on gate";
+    case "none":
+    default:
+      return "Not yet staged";
+  }
+};
+
+const GateStatusPill = ({ gate }: { gate: WorkflowTaskGate }) => {
+  return (
+    <span
+      className={clsx(
+        "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold",
+        isGateBlocking(gate)
+          ? "bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+          : "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200",
+      )}
+      title={getGateStatusLabel(gate)}
+    >
+      <InformationCircleIcon className="size-3" />
+      {getGateStatusLabel(gate)}
+    </span>
+  );
+};
+
+const isGateBlocking = (gate: WorkflowTaskGate): boolean => {
+  return gate.phase !== "satisfied";
+};
+
+const getGateStatusLabel = (gate: WorkflowTaskGate): string => {
+  switch (gate.phase) {
+    case "inactive":
+      return "Gate inactive";
+    case "satisfied":
+      return "Gate satisfied";
+    case "waiting":
+      return "Gate pending";
+    default:
+      return isGateBlocking(gate) ? "Gate pending" : "Gate status unknown";
+  }
+};
+
+const GateDeclaredSignals = ({ signals }: { signals: string[] }) => {
+  if (signals.length === 0) {
+    return (
+      <span className="text-slate-500 dark:text-slate-400">
+        No declared signal keys
+      </span>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      {signals.map((signal) => (
+        <div className="font-mono text-xs" key={signal}>
+          {signal}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const GateTimers = ({
+  satisfactionTimers,
+  timers,
+}: {
+  satisfactionTimers?: WorkflowTaskGateSatisfactionTimer[];
+  timers: WorkflowTaskGateTimer[];
+}) => {
+  if (timers.length === 0) {
+    return (
+      <span className="text-slate-500 dark:text-slate-400">
+        No gate timers declared
+      </span>
+    );
+  }
+
+  const satisfactionTimerByName = new Map(
+    (satisfactionTimers ?? []).map((timer) => [timer.name, timer]),
+  );
+
+  return (
+    <div className="space-y-1">
+      {timers.map((timer) => (
+        <div className="font-mono text-xs" key={timer.name}>
+          <span className="font-semibold">{timer.name}</span>
+          {timer.anchor ? (
+            <span className="ml-2 font-sans text-slate-500 dark:text-slate-400">
+              anchor {timer.anchor.kind}
+              {timer.anchor.task ? `(${timer.anchor.task})` : ""}
+            </span>
+          ) : null}
+          {typeof timer.afterSeconds === "number" ? (
+            <span className="ml-2 font-sans">
+              +{timer.afterSeconds.toFixed(1)}s
+            </span>
+          ) : null}
+          {timer.fireAt ? (
+            <span className="ml-2 font-sans">
+              fire at <RelativeTimeFormatter addSuffix time={timer.fireAt} />
+            </span>
+          ) : null}
+          {satisfactionTimerByName.get(timer.name)?.fired ? (
+            <span className="ml-2 font-sans text-green-700 dark:text-green-300">
+              fired
+            </span>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const GateSatisfactionSummary = ({
+  satisfaction,
+}: {
+  satisfaction?: WorkflowTaskGate["satisfaction"];
+}) => {
+  if (!satisfaction) {
+    return (
+      <span className="text-slate-500 dark:text-slate-400">
+        No satisfaction snapshot yet
+      </span>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="font-mono text-xs">
+        satisfied <RelativeTimeFormatter addSuffix time={satisfaction.asOf} />{" "}
+        on attempt {satisfaction.attempt}
+      </div>
+      {satisfaction.signals.map((signal) => (
+        <div className="font-mono text-xs" key={signal.key}>
+          <span className="font-semibold">{signal.key}</span>
+          <span className="ml-2 font-sans">count {signal.count}</span>
+          {signal.lastSignalId ? (
+            <span className="ml-2 font-sans">
+              last #{signal.lastSignalId.toString()}
+            </span>
+          ) : null}
+        </div>
+      ))}
+    </div>
   );
 };

@@ -1,8 +1,11 @@
 import type { Edge, Node } from "@xyflow/react";
 
+import type { WorkflowNodeData } from "./WorkflowNode";
+
 import {
   nodeHeight,
   sameRowTolerance,
+  switchHandleExtent,
   targetMergePadding,
 } from "./workflowDiagramConstants";
 
@@ -56,8 +59,14 @@ export const withPreferredTargetMergeX = (
     if (!hasSameRowIncoming || offRowEdges.length === 0) return;
 
     // Only off-row incoming edges are nudged to a shared lane. Same-row edges
-    // keep their direct path into the target for readability.
-    const preferredBendX = targetNode.position.x - targetMergePadding;
+    // keep their direct path into the target for readability. Push the lane
+    // further left when the target has a gate switch handle.
+    const targetData = targetNode.data as undefined | WorkflowNodeData;
+    const hasGate = !!targetData?.job?.gate;
+    const padding = hasGate
+      ? targetMergePadding + switchHandleExtent
+      : targetMergePadding;
+    const preferredBendX = targetNode.position.x - padding;
     offRowEdges.forEach((edge) => {
       preferredBendByEdgeID.set(edge.id, preferredBendX);
     });

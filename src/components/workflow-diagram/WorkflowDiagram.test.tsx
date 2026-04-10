@@ -1,5 +1,6 @@
 import type { PropsWithChildren } from "react";
 
+import { JobState } from "@services/types";
 import { workflowJobFactory } from "@test/factories/workflowJob";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,8 +8,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import WorkflowDiagram from "./WorkflowDiagram";
 import * as workflowDiagramLayout from "./workflowDiagramLayout";
 
+type MockEdge = {
+  style?: {
+    stroke?: string;
+  };
+};
+
 type MockReactFlowProps = PropsWithChildren<{
-  edges: unknown[];
+  edges: MockEdge[];
   fitViewOptions?: {
     minZoom?: number;
     padding?: number;
@@ -167,13 +174,9 @@ describe("WorkflowDiagram", () => {
     expect(layoutSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("renders when metadata.deps is missing on a task", () => {
+  it("renders when deps is missing on a task", () => {
     const malformedJob = workflowJobFactory.build({ id: 1, task: "a" });
-    (
-      malformedJob.metadata as unknown as {
-        deps?: string[];
-      }
-    ).deps = undefined;
+    (malformedJob as unknown as { deps?: string[] }).deps = undefined;
 
     render(
       <WorkflowDiagram
@@ -186,5 +189,70 @@ describe("WorkflowDiagram", () => {
     expect(screen.getByTestId("react-flow")).toBeInTheDocument();
     expect(screen.getByTestId("node-count")).toHaveTextContent("1");
     expect(screen.getByTestId("edge-count")).toHaveTextContent("0");
+  });
+
+  it("uses shared edge color tokens for blocked and unblocked edges", () => {
+    const tasks = [
+      workflowJobFactory.build({ id: 1, state: JobState.Completed, task: "a" }),
+      workflowJobFactory.build({
+        deps: ["a"],
+        id: 2,
+        state: JobState.Pending,
+        task: "b",
+        waitReason: "dependencies",
+      }),
+    ];
+
+    const { rerender } = render(
+      <WorkflowDiagram
+        selectedJobId={undefined}
+        setSelectedJobId={vi.fn()}
+        tasks={tasks}
+      />,
+    );
+
+    const lightEdge = latestReactFlowProps?.edges[0]?.style?.stroke;
+    expect(lightEdge).toBe("var(--workflow-diagram-edge-muted)");
+
+    currentTheme = "dark";
+
+    rerender(
+      <WorkflowDiagram
+        selectedJobId={undefined}
+        setSelectedJobId={vi.fn()}
+        tasks={tasks}
+      />,
+    );
+
+    const darkEdge = latestReactFlowProps?.edges[0]?.style?.stroke;
+    expect(darkEdge).toBe("var(--workflow-diagram-edge-muted)");
+  });
+
+  it("uses the failed edge color token for failed dependencies", () => {
+    const tasks = [
+      workflowJobFactory.build({
+        id: 1,
+        state: JobState.Cancelled,
+        task: "failed-source",
+      }),
+      workflowJobFactory.build({
+        deps: ["failed-source"],
+        id: 2,
+        state: JobState.Pending,
+        task: "dependent",
+        waitReason: "dependencies",
+      }),
+    ];
+
+    render(
+      <WorkflowDiagram
+        selectedJobId={undefined}
+        setSelectedJobId={vi.fn()}
+        tasks={tasks}
+      />,
+    );
+
+    const edgeStroke = latestReactFlowProps?.edges[0]?.style?.stroke;
+    expect(edgeStroke).toBe("var(--workflow-diagram-edge-failed)");
   });
 });

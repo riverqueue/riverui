@@ -1,3 +1,4 @@
+import type { WorkflowTask } from "@services/workflows";
 import type {
   EdgeTypes,
   Node,
@@ -6,7 +7,6 @@ import type {
   NodeTypes,
 } from "@xyflow/react";
 
-import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import { Controls, MiniMap, ReactFlow } from "@xyflow/react";
 import { useTheme } from "next-themes";
@@ -16,27 +16,23 @@ import WorkflowDiagramEdge from "./WorkflowDiagramEdge";
 import {
   applyEdgeVisuals,
   buildWorkflowGraphModel,
+  type WorkflowDependencyStatus,
 } from "./workflowDiagramGraphModel";
 import WorkflowNode, { type WorkflowNodeData } from "./WorkflowNode";
 import "./reactflow-base.css";
+import "./workflow-diagram.css";
 
 type WorkflowDiagramProps = {
   selectedJobId?: bigint;
   setSelectedJobId: (id: bigint | undefined) => void;
-  tasks: JobWithKnownMetadata[];
+  tasks: WorkflowTask[];
 };
 
-const edgeColorsLight = {
-  blocked: "#cbd5e1",
-  failed: "#dc2626",
-  unblocked: "#cbd5e1",
-};
-
-const edgeColorsDark = {
-  blocked: "#475569",
-  failed: "#dc2626",
-  unblocked: "#475569",
-};
+const edgeColors = {
+  blocked: "var(--workflow-diagram-edge-muted)",
+  failed: "var(--workflow-diagram-edge-failed)",
+  unblocked: "var(--workflow-diagram-edge-muted)",
+} satisfies Record<WorkflowDependencyStatus, string>;
 
 const nodeTypes: NodeTypes = {
   workflowNode: WorkflowNode,
@@ -88,9 +84,6 @@ export default function WorkflowDiagram({
 }: WorkflowDiagramProps) {
   const { resolvedTheme } = useTheme();
 
-  const edgeColors =
-    resolvedTheme === "dark" ? edgeColorsDark : edgeColorsLight;
-
   const minimapMaskColor =
     resolvedTheme === "dark" ? "rgb(5, 5, 5, 0.5)" : "rgb(250, 250, 250, 0.5)";
 
@@ -98,11 +91,11 @@ export default function WorkflowDiagram({
   // that includes Dagre layout, so it must not depend on selection or theme.
   const model = useMemo(() => buildWorkflowGraphModel(tasks), [tasks]);
 
-  // Theme updates should only restyle existing edges, not recompute topology or
-  // layout. Keeping this in a separate memo avoids unnecessary layout work.
+  // Styling is a separate pass from topology/layout so edge visuals can change
+  // independently from Dagre node positioning.
   const layoutedEdges = useMemo(
     () => applyEdgeVisuals(model.edges, edgeColors),
-    [edgeColors, model.edges],
+    [model.edges],
   );
 
   // Node selection is UI state layered on top of static layout coordinates.
@@ -117,8 +110,7 @@ export default function WorkflowDiagram({
   );
 
   // Use workflow id to scope/reset the ReactFlow instance between navigations.
-  const workflowIdForInstance =
-    tasks[0]?.metadata.workflow_id ?? "unknown-workflow";
+  const workflowIdForInstance = tasks[0]?.workflowID ?? "unknown-workflow";
 
   const onNodesChange = useCallback(
     (changes: NodeChange[]) => {
@@ -135,7 +127,7 @@ export default function WorkflowDiagram({
   );
 
   return (
-    <div className="size-full">
+    <div className="workflow-diagram-root size-full">
       <ReactFlow
         defaultViewport={{ x: 32, y: 32, zoom: 1 }}
         edges={layoutedEdges}

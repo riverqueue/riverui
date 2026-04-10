@@ -4,11 +4,19 @@ import { JobState } from "@services/types";
 import { workflowJobFactory } from "@test/factories/workflowJob";
 import { describe, expect, it } from "vitest";
 
+import { nodeHeight, switchHandleCenterGap } from "./workflowDiagramConstants";
 import {
   applyEdgeVisuals,
   buildWorkflowGraphModel,
   depStatusFromJob,
 } from "./workflowDiagramGraphModel";
+
+const targetAnchorOffsetX = (edgeData: unknown): number | undefined => {
+  if (!edgeData || typeof edgeData !== "object") return undefined;
+  const value = (edgeData as { targetAnchorOffsetX?: unknown })
+    .targetAnchorOffsetX;
+  return typeof value === "number" ? value : undefined;
+};
 
 describe("buildWorkflowGraphModel", () => {
   it("returns one node and zero edges for a single task", () => {
@@ -102,8 +110,20 @@ describe("buildWorkflowGraphModel", () => {
   it("sets upstream and downstream flags on node data", () => {
     const tasks = [
       workflowJobFactory.build({ id: 1, task: "a" }),
-      workflowJobFactory.build({ deps: ["a"], id: 2, task: "b" }),
-      workflowJobFactory.build({ deps: ["b"], id: 3, task: "c" }),
+      workflowJobFactory.build({
+        deps: ["a"],
+        id: 2,
+        state: JobState.Pending,
+        task: "b",
+        waitReason: "dependencies",
+      }),
+      workflowJobFactory.build({
+        deps: ["b"],
+        id: 3,
+        state: JobState.Pending,
+        task: "c",
+        waitReason: "dependencies",
+      }),
     ];
 
     const model = buildWorkflowGraphModel(tasks);
@@ -111,15 +131,18 @@ describe("buildWorkflowGraphModel", () => {
 
     expect(nodeByID.get("1")?.data.hasUpstreamDeps).toBe(false);
     expect(nodeByID.get("1")?.data.hasDownstreamDeps).toBe(true);
+    expect(nodeByID.get("1")?.data.waitReason).toBe("none");
 
     expect(nodeByID.get("2")?.data.hasUpstreamDeps).toBe(true);
     expect(nodeByID.get("2")?.data.hasDownstreamDeps).toBe(true);
+    expect(nodeByID.get("2")?.data.waitReason).toBe("dependencies");
 
     expect(nodeByID.get("3")?.data.hasUpstreamDeps).toBe(true);
     expect(nodeByID.get("3")?.data.hasDownstreamDeps).toBe(false);
+    expect(nodeByID.get("3")?.data.waitReason).toBe("dependencies");
   });
 
-  it("animates only blocked dependencies when downstream job is pending", () => {
+  it("animates only blocked dependencies when downstream wait reason is active", () => {
     const tasks = [
       workflowJobFactory.build({
         id: 1,
@@ -136,18 +159,21 @@ describe("buildWorkflowGraphModel", () => {
         id: 3,
         state: JobState.Pending,
         task: "consumer-pending",
+        waitReason: "dependencies",
       }),
       workflowJobFactory.build({
         deps: ["source-unblocked"],
         id: 4,
         state: JobState.Pending,
         task: "consumer-pending-unblocked",
+        waitReason: "dependencies",
       }),
       workflowJobFactory.build({
         deps: ["source-blocked"],
         id: 5,
-        state: JobState.Cancelled,
+        state: JobState.Pending,
         task: "consumer-not-waiting",
+        waitReason: "none",
       }),
     ];
 
@@ -159,6 +185,68 @@ describe("buildWorkflowGraphModel", () => {
     expect(edgeByID.get("e-1-5")?.animated).toBe(false);
   });
 
+  it("keeps gate-blocked tasks as gate wait reasons on nodes", () => {
+    const tasks = [
+      workflowJobFactory.build({
+        gate: {
+          declaredSignals: [],
+          enabled: true,
+          exprCel: 'signals["approval"].size() > 0',
+          phase: "waiting",
+          timers: [],
+        },
+        id: 1,
+        state: JobState.Pending,
+        task: "gate-wait",
+        waitReason: "gate",
+      }),
+    ];
+
+    const model = buildWorkflowGraphModel(tasks);
+
+    expect(model.nodes[0].data.waitReason).toBe("gate");
+    expect(model.nodes[0].height).toBe(nodeHeight);
+  });
+
+  it("shifts edges to the gate hinge anchor for gated targets", () => {
+    const tasks = [
+      workflowJobFactory.build({ id: 1, task: "upstream" }),
+      workflowJobFactory.build({
+        deps: ["upstream"],
+        gate: {
+          declaredSignals: [],
+          enabled: true,
+          exprCel: 'signals["approval"].size() > 0',
+          phase: "waiting",
+          timers: [],
+        },
+        id: 2,
+        state: JobState.Pending,
+        task: "gated-target",
+        waitReason: "dependencies_and_gate",
+      }),
+    ];
+
+    const model = buildWorkflowGraphModel(tasks);
+
+    expect(targetAnchorOffsetX(model.edges[0].data)).toBe(
+      -switchHandleCenterGap,
+    );
+  });
+
+  it("uses uniform height for all nodes regardless of gate presence", () => {
+    const model = buildWorkflowGraphModel([
+      workflowJobFactory.build({
+        id: 1,
+        state: JobState.Pending,
+        task: "plain-pending",
+        waitReason: "dependencies",
+      }),
+    ]);
+
+    expect(model.nodes[0].height).toBe(nodeHeight);
+  });
+
   it("returns empty arrays for empty input", () => {
     const model = buildWorkflowGraphModel([]);
 
@@ -166,13 +254,9 @@ describe("buildWorkflowGraphModel", () => {
     expect(model.edges).toEqual([]);
   });
 
-  it("treats missing metadata.deps as an empty dependency list", () => {
+  it("treats missing deps as an empty dependency list", () => {
     const malformedJob = workflowJobFactory.build({ id: 1, task: "a" });
-    (
-      malformedJob.metadata as unknown as {
-        deps?: string[];
-      }
-    ).deps = undefined;
+    (malformedJob as unknown as { deps?: string[] }).deps = undefined;
 
     const model = buildWorkflowGraphModel([malformedJob]);
 

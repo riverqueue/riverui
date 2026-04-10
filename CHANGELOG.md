@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON viewer: sort keys alphabetically in rendered and copied output for object payloads. [PR #525](https://github.com/riverqueue/riverui/pull/525).
 - Job state sidebar: only highlight `Running` when the selected jobs state is actually running, even with retained search filters in the URL. [Fixes #526](https://github.com/riverqueue/riverui/issues/526). [PR #527](https://github.com/riverqueue/riverui/pull/527).
 - Job delete actions: require confirmation before deleting a single job or selected jobs in bulk. [Fixes #545](https://github.com/riverqueue/riverui/issues/545). [PR #546](https://github.com/riverqueue/riverui/pull/546).
+- Workflow detail: source gate phase, timers, signal boundaries, and task wait reasons from backend workflow gate metadata instead of frontend-derived placeholders. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
 
 ## [v0.15.0] - 2026-02-26
 
