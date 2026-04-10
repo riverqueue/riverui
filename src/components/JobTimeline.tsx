@@ -1,6 +1,9 @@
 import { DurationCompact } from "@components/DurationCompact";
 import {
-  ArrowPathRoundedSquareIcon,
+  RunningIcon,
+  RunningSpinnerIcon,
+} from "@components/icons/jobStateIcons";
+import {
   CheckCircleIcon,
   CircleStackIcon,
   ClockIcon,
@@ -205,7 +208,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     return (
       <StatusStep
         description="Not yet started"
-        Icon={ArrowPathRoundedSquareIcon}
+        Icon={RunningIcon}
         name="Running"
         status="pending"
       />
@@ -216,7 +219,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     return (
       <StatusStep
         descriptionTitle={job.attemptedAt.toUTCString()}
-        Icon={ArrowPathRoundedSquareIcon}
+        Icon={RunningSpinnerIcon}
         name="Running"
         status="active"
       >
@@ -234,11 +237,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     const cancelledWhileRunning = Boolean(job.attemptedAt);
     const state = cancelledWhileRunning ? "complete" : "pending";
     return (
-      <StatusStep
-        Icon={ArrowPathRoundedSquareIcon}
-        name="Running"
-        status={state}
-      >
+      <StatusStep Icon={RunningIcon} name="Running" status={state}>
         <RelativeTime addSuffix={true} time={job.attemptedAt} /> (
         <DurationCompact
           endTime={job.finalizedAt!}

@@ -1,10 +1,10 @@
+import { RunningSpinnerIcon } from "@components/icons/jobStateIcons";
 import {
   CheckCircleIcon,
   ClockIcon,
   EllipsisHorizontalCircleIcon,
   ExclamationTriangleIcon,
   PauseCircleIcon,
-  PlayCircleIcon,
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from "@heroicons/react/20/solid";
@@ -66,7 +66,7 @@ export const TaskStateIcon = ({
       );
     case JobState.Running:
       return (
-        <PlayCircleIcon
+        <RunningSpinnerIcon
           className={clsx(className, "text-yellow-500 dark:text-yellow-500")}
           {...sharedProps}
         />
