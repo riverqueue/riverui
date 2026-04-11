@@ -187,7 +187,7 @@ func TestProEndpointsExtensions(t *testing.T) {
 	t.Run("WorkflowsDetection", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("NoWorkflowIndexes", func(t *testing.T) {
+		t.Run("WorkflowTablePresentWithoutLegacyIndexes", func(t *testing.T) {
 			t.Parallel()
 
 			bundle := setup(ctx, t)
@@ -195,6 +195,31 @@ func TestProEndpointsExtensions(t *testing.T) {
 			_, err := bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_list_active;`)
 			require.NoError(t, err)
 			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_scheduling;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_active_idx;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_inactive_idx;`)
+			require.NoError(t, err)
+
+			ext, err := bundle.endpoint.Extensions(ctx)
+			require.NoError(t, err)
+			require.True(t, ext["has_workflows"])
+		})
+
+		t.Run("NoWorkflowTableOrIndexes", func(t *testing.T) {
+			t.Parallel()
+
+			bundle := setup(ctx, t)
+
+			_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_workflow CASCADE;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_list_active;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_scheduling;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_active_idx;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_inactive_idx;`)
 			require.NoError(t, err)
 
 			ext, err := bundle.endpoint.Extensions(ctx)

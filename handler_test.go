@@ -62,7 +62,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 		return server
 	}
 
-	testRunner := func(exec riverdriver.Executor, makeAPICall handlertest.APICallFunc) {
+	testRunner := func(exec riverdriver.Executor, _ riverdriver.Driver[pgx.Tx], makeAPICall handlertest.APICallFunc) {
 		ctx := context.Background()
 
 		makeURL := fmt.Sprintf

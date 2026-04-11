@@ -3,6 +3,7 @@ package prohandler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -19,6 +20,7 @@ import (
 
 	"riverqueue.com/riverpro"
 	riverprodriver "riverqueue.com/riverpro/driver"
+	"riverqueue.com/riverpro/riverworkflow"
 
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/riverproui/internal/uitype"
@@ -243,25 +245,40 @@ func (req *workflowGetRequest) ExtractRaw(r *http.Request) error {
 }
 
 type workflowGetResponse struct {
-	Tasks []*riverJobSerializable `json:"tasks"`
+	ID    string                      `json:"id"`
+	Name  string                      `json:"name"`
+	Tasks []*workflowTaskSerializable `json:"tasks"`
 }
 
 func (a *workflowGetEndpoint[TTx]) Execute(ctx context.Context, req *workflowGetRequest) (*workflowGetResponse, error) {
-	jobs, err := a.DB.WorkflowJobList(ctx, &riverprodriver.WorkflowJobListParams{
-		PaginationLimit:  1000,
-		PaginationOffset: 0,
-		WorkflowID:       req.ID,
-	})
+	workflow, err := a.Client.WorkflowFromExistingID(ctx, req.ID, nil)
 	if err != nil {
-		return nil, fmt.Errorf("error getting workflow jobs: %w", err)
+		if errors.Is(err, rivertype.ErrNotFound) {
+			return nil, apierror.NewNotFoundf("Workflow not found: %s.", req.ID)
+		}
+		return nil, fmt.Errorf("error loading workflow: %w", err)
 	}
 
-	if len(jobs) < 1 {
-		return nil, apierror.NewNotFoundf("Workflow not found: %s.", req.ID)
+	loadedTasks, err := workflow.LoadAll(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error loading workflow tasks: %w", err)
+	}
+
+	taskNames := loadedTasks.Names()
+	tasks := make([]*workflowTaskSerializable, 0, len(taskNames))
+	for _, taskName := range taskNames {
+		task := loadedTasks.Get(taskName)
+		serializedTask := internalWorkflowTaskToSerializableTask(task)
+		if serializedTask == nil {
+			continue
+		}
+		tasks = append(tasks, serializedTask)
 	}
 
 	return &workflowGetResponse{
-		Tasks: sliceutil.Map(jobs, internalWorkflowTaskWithJobToSerializableJob),
+		ID:    workflow.ID(),
+		Name:  workflow.Name(),
+		Tasks: tasks,
 	}, nil
 }
 
@@ -472,8 +489,214 @@ func internalJobToSerializableJob(internal *rivertype.JobRow) *riverJobSerializa
 	}
 }
 
-func internalWorkflowTaskWithJobToSerializableJob(internal *riverprodriver.WorkflowTaskWithJob) *riverJobSerializable {
-	return internalJobToSerializableJob(internal.Job)
+const (
+	workflowTaskWaitReasonDependencies        = "dependencies"
+	workflowTaskWaitReasonDependenciesAndGate = "dependencies_and_gate"
+	workflowTaskWaitReasonGate                = "gate"
+	workflowTaskWaitReasonNone                = "none"
+)
+
+type workflowTaskSerializable struct {
+	riverJobSerializable
+
+	Deps                []string          `json:"deps"`
+	Gate                *workflowTaskGate `json:"gate,omitempty"`
+	IgnoreCancelledDeps bool              `json:"ignore_cancelled_deps"`
+	IgnoreDeletedDeps   bool              `json:"ignore_deleted_deps"`
+	IgnoreDiscardedDeps bool              `json:"ignore_discarded_deps"`
+	Name                string            `json:"name"`
+	StagedAt            *time.Time        `json:"staged_at,omitempty"`
+	WaitReason          string            `json:"wait_reason"`
+	WorkflowID          string            `json:"workflow_id"`
+}
+
+type workflowTaskGate struct {
+	ActiveAt        *time.Time                    `json:"active_at,omitempty"`
+	DeclaredSignals []string                      `json:"declared_signals"`
+	Enabled         bool                          `json:"enabled"`
+	ExprCEL         string                        `json:"expr_cel"`
+	Phase           string                        `json:"phase"`
+	Satisfaction    *workflowTaskGateSatisfaction `json:"satisfaction,omitempty"`
+	SatisfiedAt     *time.Time                    `json:"satisfied_at,omitempty"`
+	Timers          []*workflowTaskGateTimer      `json:"timers"`
+}
+
+type workflowTaskGateSatisfaction struct {
+	AsOf    time.Time                             `json:"as_of"`
+	Attempt int                                   `json:"attempt"`
+	Signals []*workflowTaskGateSatisfactionSignal `json:"signals"`
+	Timers  []*workflowTaskGateSatisfactionTimer  `json:"timers"`
+}
+
+type workflowTaskGateSatisfactionSignal struct {
+	Count        int64  `json:"count"`
+	Key          string `json:"key"`
+	LastSignalID int64  `json:"last_signal_id"`
+}
+
+type workflowTaskGateSatisfactionTimer struct {
+	FireAt *time.Time `json:"fire_at,omitempty"`
+	Fired  bool       `json:"fired"`
+	Name   string     `json:"name"`
+}
+
+type workflowTaskGateTimer struct {
+	After        string                       `json:"after,omitempty"`
+	AfterUS      *int64                       `json:"after_us,omitempty"`
+	AfterSeconds *float64                     `json:"after_seconds,omitempty"`
+	Anchor       *workflowTaskGateTimerAnchor `json:"anchor,omitempty"`
+	FireAt       *time.Time                   `json:"fire_at,omitempty"`
+	HasAfter     bool                         `json:"has_after"`
+	HasFireAt    bool                         `json:"has_fire_at"`
+	Name         string                       `json:"name"`
+}
+
+type workflowTaskGateTimerAnchor struct {
+	Kind string `json:"kind"`
+	Task string `json:"task,omitempty"`
+}
+
+func internalWorkflowTaskToSerializableTask(task *riverpro.WorkflowTaskWithJob) *workflowTaskSerializable {
+	if task == nil || task.Job == nil {
+		return nil
+	}
+
+	gateView := task.Gate.View()
+
+	return &workflowTaskSerializable{
+		riverJobSerializable: *internalJobToSerializableJob(task.Job),
+		Deps:                 task.Deps,
+		Gate:                 workflowTaskGateFromInternal(gateView),
+		IgnoreCancelledDeps:  task.IgnoreCancelledDeps,
+		IgnoreDeletedDeps:    task.IgnoreDeletedDeps,
+		IgnoreDiscardedDeps:  task.IgnoreDiscardedDeps,
+		Name:                 task.Name,
+		StagedAt:             workflowTaskStagedAtFromMetadata(task.Job.Metadata),
+		WaitReason:           workflowTaskWaitReasonFromInternal(task.WaitReason),
+		WorkflowID:           task.WorkflowID,
+	}
+}
+
+func workflowTaskWaitReasonFromInternal(waitReason riverpro.WorkflowTaskWaitReason) string {
+	switch {
+	case waitReason == riverpro.WorkflowTaskWaitReasonDependenciesAndGate:
+		return workflowTaskWaitReasonDependenciesAndGate
+	case waitReason == riverpro.WorkflowTaskWaitReasonDependencies:
+		return workflowTaskWaitReasonDependencies
+	case waitReason == riverpro.WorkflowTaskWaitReasonGate:
+		return workflowTaskWaitReasonGate
+	default:
+		return workflowTaskWaitReasonNone
+	}
+}
+
+func workflowTaskGateFromInternal(gateView riverworkflow.GateView) *workflowTaskGate {
+	if !gateView.Enabled {
+		return nil
+	}
+
+	result := &workflowTaskGate{
+		ActiveAt:        gateView.ActiveAt,
+		DeclaredSignals: gateView.DeclaredSignals,
+		Enabled:         gateView.Enabled,
+		ExprCEL:         gateView.ExprCEL,
+		Phase:           gateView.Phase,
+		SatisfiedAt:     gateView.SatisfiedAt,
+		Timers:          make([]*workflowTaskGateTimer, 0, len(gateView.Timers)),
+	}
+
+	for _, timer := range gateView.Timers {
+		if timer == nil {
+			continue
+		}
+
+		serializedTimer := &workflowTaskGateTimer{
+			After:     timer.After,
+			AfterUS:   timer.AfterUS,
+			HasAfter:  timer.HasAfter,
+			HasFireAt: timer.HasFireAt,
+			Name:      timer.Name,
+		}
+
+		if timer.HasAfter && timer.AfterUS != nil {
+			afterSeconds := float64(*timer.AfterUS) / float64(time.Second/time.Microsecond)
+			serializedTimer.AfterSeconds = &afterSeconds
+		}
+		if timer.HasFireAt && timer.FireAt != nil {
+			serializedTimer.FireAt = timer.FireAt
+		}
+		if timer.Anchor != nil {
+			serializedTimer.Anchor = &workflowTaskGateTimerAnchor{
+				Kind: string(timer.Anchor.Kind),
+				Task: timer.Anchor.Task,
+			}
+		}
+
+		result.Timers = append(result.Timers, serializedTimer)
+	}
+
+	if gateView.Satisfaction == nil {
+		return result
+	}
+
+	satisfactionSignals := make([]*workflowTaskGateSatisfactionSignal, 0, len(gateView.Satisfaction.Signals))
+	for _, signal := range gateView.Satisfaction.Signals {
+		if signal == nil {
+			continue
+		}
+		satisfactionSignals = append(satisfactionSignals, &workflowTaskGateSatisfactionSignal{
+			Count:        signal.Count,
+			Key:          signal.Key,
+			LastSignalID: signal.LastSignalID,
+		})
+	}
+
+	satisfactionTimers := make([]*workflowTaskGateSatisfactionTimer, 0, len(gateView.Satisfaction.Timers))
+	for _, timer := range gateView.Satisfaction.Timers {
+		if timer == nil {
+			continue
+		}
+		satisfactionTimers = append(satisfactionTimers, &workflowTaskGateSatisfactionTimer{
+			FireAt: timer.FireAt,
+			Fired:  timer.Fired,
+			Name:   timer.Name,
+		})
+	}
+
+	result.Satisfaction = &workflowTaskGateSatisfaction{
+		AsOf:    gateView.Satisfaction.AsOf,
+		Attempt: gateView.Satisfaction.Attempt,
+		Signals: satisfactionSignals,
+		Timers:  satisfactionTimers,
+	}
+
+	return result
+}
+
+func workflowTaskStagedAtFromMetadata(metadata json.RawMessage) *time.Time {
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	var metadataView struct {
+		WorkflowStagedAt string `json:"workflow_staged_at"`
+	}
+	if err := json.Unmarshal(metadata, &metadataView); err != nil {
+		return nil
+	}
+	if metadataView.WorkflowStagedAt == "" {
+		return nil
+	}
+
+	stagedAt, err := time.Parse(time.RFC3339Nano, metadataView.WorkflowStagedAt)
+	if err != nil {
+		stagedAt, err = time.Parse(time.RFC3339, metadataView.WorkflowStagedAt)
+		if err != nil {
+			return nil
+		}
+	}
+
+	return &stagedAt
 }
 
 type workflowListItem struct {

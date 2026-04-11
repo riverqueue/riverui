@@ -20,7 +20,7 @@ import (
 
 type APICallFunc = func(t *testing.T, testCaseName, method, path string, payload []byte)
 
-func RunIntegrationTest[TClient any](t *testing.T, createClient func(ctx context.Context, tb testing.TB, logger *slog.Logger) (TClient, riverdriver.Driver[pgx.Tx], pgx.Tx), createBundle func(client TClient, tx pgx.Tx) uiendpoints.Bundle, createHandler func(t *testing.T, bundle uiendpoints.Bundle) http.Handler, testRunner func(exec riverdriver.Executor, makeAPICall APICallFunc)) {
+func RunIntegrationTest[TClient any](t *testing.T, createClient func(ctx context.Context, tb testing.TB, logger *slog.Logger) (TClient, riverdriver.Driver[pgx.Tx], pgx.Tx), createBundle func(client TClient, tx pgx.Tx) uiendpoints.Bundle, createHandler func(t *testing.T, bundle uiendpoints.Bundle) http.Handler, testRunner func(exec riverdriver.Executor, dbDriver riverdriver.Driver[pgx.Tx], makeAPICall APICallFunc)) {
 	t.Helper()
 
 	var (
@@ -48,7 +48,7 @@ func RunIntegrationTest[TClient any](t *testing.T, createClient func(ctx context
 				body = bytes.NewBuffer(payload)
 			}
 
-			req := httptest.NewRequestWithContext(ctx, method, path, body)
+			req := httptest.NewRequestWithContext(t.Context(), method, path, body)
 			recorder := httptest.NewRecorder()
 
 			t.Logf("--> %s %s", method, path)
@@ -70,5 +70,5 @@ func RunIntegrationTest[TClient any](t *testing.T, createClient func(ctx context
 		})
 	}
 
-	testRunner(exec, makeAPICall)
+	testRunner(exec, driver, makeAPICall)
 }
