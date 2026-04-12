@@ -29,7 +29,7 @@ const useRelativeFormattedTime = (time: Date, addSuffix: boolean): string => {
   return relative;
 };
 
-type StepStatus = "active" | "complete" | "failed" | "pending";
+type StepStatus = "active" | "complete" | "failed" | "pending" | "waiting";
 
 function RelativeTime({
   addSuffix = false,
@@ -96,6 +96,8 @@ const statusVerticalLineClassesFor = (status: StepStatus): string => {
       return "before:border-red-200 dark:before:border-red-900";
     case "pending":
       return "before:border-gray-200 dark:before:border-gray-700";
+    case "waiting":
+      return "before:border-gray-200 dark:before:border-gray-700";
   }
   return "";
 };
@@ -103,13 +105,15 @@ const statusVerticalLineClassesFor = (status: StepStatus): string => {
 const statusIconClassesFor = (status: StepStatus): string => {
   switch (status) {
     case "active":
-      return "bg-yellow-200 dark:bg-yellow-600";
+      return "bg-blue-200 dark:bg-blue-700";
     case "complete":
       return "bg-green-300 dark:bg-green-700";
     case "failed":
       return "bg-red-200 dark:bg-red-700";
     case "pending":
       return "bg-gray-100 dark:bg-gray-700";
+    case "waiting":
+      return "bg-amber-200 dark:bg-amber-700";
   }
   return "";
 };
@@ -121,7 +125,7 @@ const ScheduledStep = ({ job }: { job: Job }) => {
         descriptionTitle={job.scheduledAt.toUTCString()}
         Icon={ClockIcon}
         name="Scheduled"
-        status="active"
+        status="waiting"
       >
         <RelativeTime time={job.scheduledAt} />
       </StatusStep>
@@ -184,7 +188,7 @@ const WaitStep = ({ job }: { job: Job }) => {
 
   if (job.state === JobState.Available) {
     return (
-      <StatusStep Icon={QueueListIcon} name="Wait" status="active">
+      <StatusStep Icon={QueueListIcon} name="Wait" status="waiting">
         (<DurationCompact startTime={job.scheduledAt} />)
       </StatusStep>
     );
@@ -282,7 +286,7 @@ const RetryableStep = ({ job }: { job: Job }) => {
         descriptionTitle={job.scheduledAt.toUTCString()}
         Icon={ClockIcon}
         name="Awaiting Retry"
-        status="active"
+        status="waiting"
       >
         Job errored, retrying <RelativeTime addSuffix time={job.scheduledAt} />
       </StatusStep>
