@@ -31,7 +31,7 @@ type WorkflowDiagramProps = {
 const edgeColors = {
   blocked: "var(--workflow-diagram-edge-muted)",
   failed: "var(--workflow-diagram-edge-failed)",
-  unblocked: "var(--workflow-diagram-edge-muted)",
+  unblocked: "var(--workflow-diagram-edge-success)",
 } satisfies Record<WorkflowDependencyStatus, string>;
 
 const nodeTypes: NodeTypes = {
@@ -55,17 +55,18 @@ const getMiniMapNodeClassName = (
 
   switch (state) {
     case JobState.Available:
-    case JobState.Pending:
-    case JobState.Retryable:
-    case JobState.Scheduled:
-      return "fill-amber-300/60 stroke-amber-500/60 dark:fill-amber-700/50 dark:stroke-amber-400/50 stroke-1";
+    case JobState.Running:
+      return "fill-blue-300/60 stroke-blue-500/60 dark:fill-blue-700/50 dark:stroke-blue-400/50 stroke-1";
     case JobState.Cancelled:
     case JobState.Discarded:
       return "fill-red-300/60 stroke-red-500/60 dark:fill-red-700/50 dark:stroke-red-400/50 stroke-1";
     case JobState.Completed:
       return "fill-green-300/60 stroke-green-500/60 dark:fill-green-500/70 dark:stroke-green-300/70 stroke-1";
-    case JobState.Running:
-      return "fill-blue-300/60 stroke-blue-500/60 dark:fill-blue-700/50 dark:stroke-blue-400/50 stroke-1";
+    case JobState.Pending:
+    case JobState.Scheduled:
+      return "fill-slate-300/60 stroke-slate-600/60 dark:fill-slate-700/50 dark:stroke-slate-400/50 stroke-1";
+    case JobState.Retryable:
+      return "fill-amber-300/60 stroke-amber-500/60 dark:fill-amber-700/50 dark:stroke-amber-400/50 stroke-1";
     default:
       return "fill-slate-300/60 stroke-slate-600/60 dark:fill-slate-700/50 dark:stroke-slate-400/50 stroke-1";
   }

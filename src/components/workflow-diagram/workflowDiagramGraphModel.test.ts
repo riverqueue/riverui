@@ -142,49 +142,6 @@ describe("buildWorkflowGraphModel", () => {
     expect(nodeByID.get("3")?.data.waitReason).toBe("dependencies");
   });
 
-  it("animates only blocked dependencies when downstream wait reason is active", () => {
-    const tasks = [
-      workflowJobFactory.build({
-        id: 1,
-        state: JobState.Available,
-        task: "source-blocked",
-      }),
-      workflowJobFactory.build({
-        id: 2,
-        state: JobState.Completed,
-        task: "source-unblocked",
-      }),
-      workflowJobFactory.build({
-        deps: ["source-blocked"],
-        id: 3,
-        state: JobState.Pending,
-        task: "consumer-pending",
-        waitReason: "dependencies",
-      }),
-      workflowJobFactory.build({
-        deps: ["source-unblocked"],
-        id: 4,
-        state: JobState.Pending,
-        task: "consumer-pending-unblocked",
-        waitReason: "dependencies",
-      }),
-      workflowJobFactory.build({
-        deps: ["source-blocked"],
-        id: 5,
-        state: JobState.Pending,
-        task: "consumer-not-waiting",
-        waitReason: "none",
-      }),
-    ];
-
-    const model = buildWorkflowGraphModel(tasks);
-    const edgeByID = new Map(model.edges.map((edge) => [edge.id, edge]));
-
-    expect(edgeByID.get("e-1-3")?.animated).toBe(true);
-    expect(edgeByID.get("e-2-4")?.animated).toBe(false);
-    expect(edgeByID.get("e-1-5")?.animated).toBe(false);
-  });
-
   it("keeps gate-blocked tasks as gate wait reasons on nodes", () => {
     const tasks = [
       workflowJobFactory.build({

@@ -123,13 +123,8 @@ export const buildWorkflowGraphModel = (
       if (!dep) return;
 
       const depStatus = depStatusFromJob(dep);
-      // Animate only when the downstream job is currently waiting for upstream
-      // dependencies. This keeps cancelled/discarded downstream jobs visually
-      // static even if their upstream dependency is still blocked.
-      const isActivelyWaiting = job.waitReason !== "none";
 
       acc.push({
-        animated: depStatus === "blocked" && isActivelyWaiting,
         data: { depStatus },
         id: `e-${dep.id}-${job.id}`,
         source: dep.id.toString(),
@@ -165,9 +160,9 @@ export const applyEdgeVisuals = (
   // trigger this cheap map instead of a full Dagre layout pass.
   return edges.map((edge) => {
     const depStatus = depStatusFromEdgeData(edge.data) ?? "blocked";
-    // Keep the prior visual language:
+    // Visual language:
     // - `unblocked`: solid line
-    // - `blocked` / `failed`: dashed line (color distinguishes failure)
+    // - `blocked` / `failed`: dashed line (failure still distinguished by color)
     const strokeDasharray = depStatus === "unblocked" ? "0" : "6 3";
 
     return {
