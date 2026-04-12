@@ -29,6 +29,7 @@ const useRelativeFormattedTime = (time: Date, addSuffix: boolean): string => {
   return relative;
 };
 
+type SnoozedJob = { attemptedAt: Date } & Job;
 type StepStatus = "active" | "complete" | "failed" | "pending" | "waiting";
 
 function RelativeTime({
@@ -118,8 +119,39 @@ const statusIconClassesFor = (status: StepStatus): string => {
   return "";
 };
 
+// River jobs do not expose an explicit snooze flag, so we infer a snoozed job
+// from a scheduled future run that has already been attempted but neither errored
+// nor finalized. Manual retry from the UI transitions jobs to `available`, so it
+// should not hit this path.
+const isSnoozedJob = (job: Job, now: Date): job is SnoozedJob => {
+  return (
+    job.state === JobState.Scheduled &&
+    job.attemptedAt !== undefined &&
+    job.scheduledAt > now &&
+    job.finalizedAt === undefined &&
+    job.errors.length === 0
+  );
+};
+
 const ScheduledStep = ({ job }: { job: Job }) => {
-  if (job.state === JobState.Scheduled && job.scheduledAt > new Date()) {
+  const nowSec = useTime();
+  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
+
+  if (isSnoozedJob(job, now)) {
+    return (
+      <StatusStep
+        descriptionTitle={job.scheduledAt.toUTCString()}
+        Icon={ClockIcon}
+        name="Scheduled"
+        status="complete"
+      >
+        {/* The next retry time is shown on `Snoozed`; the original schedule is lost. */}
+        —
+      </StatusStep>
+    );
+  }
+
+  if (job.state === JobState.Scheduled && job.scheduledAt > now) {
     return (
       <StatusStep
         descriptionTitle={job.scheduledAt.toUTCString()}
@@ -146,10 +178,21 @@ const ScheduledStep = ({ job }: { job: Job }) => {
 
 const WaitStep = ({ job }: { job: Job }) => {
   const nowSec = useTime();
-  const scheduledAtInFuture = useMemo(
-    () => job.scheduledAt >= new Date(nowSec * 1000),
-    [job.scheduledAt, nowSec],
-  );
+  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
+  const scheduledAtInFuture = useMemo(() => job.scheduledAt >= now, [job, now]);
+
+  // A snooze overwrites `scheduledAt` with the next retry time, so the original
+  // wait duration before the prior run is not available anymore.
+  if (isSnoozedJob(job, now)) {
+    return (
+      <StatusStep
+        description="—"
+        Icon={QueueListIcon}
+        name="Wait"
+        status="complete"
+      />
+    );
+  }
 
   if (job.state === JobState.Scheduled && !job.attemptedAt) {
     return (
@@ -203,6 +246,22 @@ const WaitStep = ({ job }: { job: Job }) => {
 };
 
 const RunningStep = ({ job }: { job: Job }) => {
+  const nowSec = useTime();
+  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
+
+  if (isSnoozedJob(job, now)) {
+    return (
+      <StatusStep
+        descriptionTitle={job.attemptedAt.toUTCString()}
+        Icon={RunningIcon}
+        name="Running"
+        status="complete"
+      >
+        <RelativeTime addSuffix={true} time={job.attemptedAt} />
+      </StatusStep>
+    );
+  }
+
   if (
     !job.attemptedAt ||
     job.state === JobState.Available ||
@@ -277,6 +336,24 @@ const RunningStep = ({ job }: { job: Job }) => {
       )}
     </StatusStep>
   );
+};
+
+const SnoozedStep = ({ job }: { job: Job }) => {
+  const nowSec = useTime();
+  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
+
+  if (isSnoozedJob(job, now)) {
+    return (
+      <StatusStep
+        descriptionTitle={job.scheduledAt.toUTCString()}
+        Icon={ClockIcon}
+        name="Snoozed"
+        status="waiting"
+      >
+        Retrying <RelativeTime addSuffix time={job.scheduledAt} />
+      </StatusStep>
+    );
+  }
 };
 
 const RetryableStep = ({ job }: { job: Job }) => {
@@ -362,6 +439,7 @@ export default function JobTimeline({ job }: JobTimelineProps) {
       <ScheduledStep job={job} />
       <WaitStep job={job} />
       <RunningStep job={job} />
+      <SnoozedStep job={job} />
       <RetryableStep job={job} />
       <FinalizedStep job={job} />
     </ol>
