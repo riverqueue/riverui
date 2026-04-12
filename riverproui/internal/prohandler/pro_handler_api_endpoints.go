@@ -578,12 +578,12 @@ func internalWorkflowTaskToSerializableTask(task *riverpro.WorkflowTaskWithJob) 
 }
 
 func workflowTaskWaitReasonFromInternal(waitReason riverpro.WorkflowTaskWaitReason) string {
-	switch {
-	case waitReason == riverpro.WorkflowTaskWaitReasonDependenciesAndGate:
+	switch waitReason {
+	case riverpro.WorkflowTaskWaitReasonDependenciesAndGate:
 		return workflowTaskWaitReasonDependenciesAndGate
-	case waitReason == riverpro.WorkflowTaskWaitReasonDependencies:
+	case riverpro.WorkflowTaskWaitReasonDependencies:
 		return workflowTaskWaitReasonDependencies
-	case waitReason == riverpro.WorkflowTaskWaitReasonGate:
+	case riverpro.WorkflowTaskWaitReasonGate:
 		return workflowTaskWaitReasonGate
 	default:
 		return workflowTaskWaitReasonNone

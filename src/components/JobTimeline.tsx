@@ -11,7 +11,7 @@ import {
   QueueListIcon,
   TrashIcon,
   XCircleIcon,
-} from "@heroicons/react/24/outline";
+} from "@heroicons/react/24/solid";
 import { AttemptError, Job } from "@services/jobs";
 import { Heroicon, JobState } from "@services/types";
 import clsx from "clsx";
@@ -59,6 +59,7 @@ const StatusStep = ({
 }) => {
   const statusVerticalLineClasses = statusVerticalLineClassesFor(status);
   const statusIconClasses = statusIconClassesFor(status);
+  const iconColorClasses = statusIconColorClassesFor(status);
 
   return (
     <li
@@ -70,14 +71,11 @@ const StatusStep = ({
     >
       <span
         className={clsx(
-          "absolute -start-5 flex size-8 items-center justify-center rounded-full ring-4 ring-white dark:ring-gray-900",
+          "absolute -start-5 flex size-8 items-center justify-center rounded-full ring-4 ring-white dark:ring-slate-900",
           statusIconClasses,
         )}
       >
-        <Icon
-          aria-hidden="true"
-          className={clsx("size-5 text-slate-900 dark:text-white")}
-        />
+        <Icon aria-hidden="true" className={clsx("size-5", iconColorClasses)} />
       </span>
       <h3 className="ml-6 pt-1.5 leading-tight font-medium">{name}</h3>
       <p className="ml-6 text-sm" title={descriptionTitle}>
@@ -90,15 +88,15 @@ const StatusStep = ({
 const statusVerticalLineClassesFor = (status: StepStatus): string => {
   switch (status) {
     case "active":
-      return "before:border-gray-200 dark:before:border-gray-700";
+      return "before:border-slate-200 dark:before:border-slate-700";
     case "complete":
-      return "before:border-green-400 dark:before:border-green-900";
+      return "before:border-green-400 dark:before:border-green-800";
     case "failed":
-      return "before:border-red-200 dark:before:border-red-900";
+      return "before:border-red-200 dark:before:border-red-800";
     case "pending":
-      return "before:border-gray-200 dark:before:border-gray-700";
+      return "before:border-slate-200 dark:before:border-slate-700";
     case "waiting":
-      return "before:border-gray-200 dark:before:border-gray-700";
+      return "before:border-slate-200 dark:before:border-slate-700";
   }
   return "";
 };
@@ -112,9 +110,25 @@ const statusIconClassesFor = (status: StepStatus): string => {
     case "failed":
       return "bg-red-200 dark:bg-red-700";
     case "pending":
-      return "bg-gray-100 dark:bg-gray-700";
+      return "bg-slate-100 dark:bg-slate-700";
     case "waiting":
       return "bg-amber-200 dark:bg-amber-700";
+  }
+  return "";
+};
+
+const statusIconColorClassesFor = (status: StepStatus): string => {
+  switch (status) {
+    case "active":
+      return "text-blue-700 dark:text-blue-200";
+    case "complete":
+      return "text-green-800 dark:text-green-200";
+    case "failed":
+      return "text-red-700 dark:text-red-200";
+    case "pending":
+      return "text-slate-500 dark:text-slate-300";
+    case "waiting":
+      return "text-amber-700 dark:text-amber-200";
   }
   return "";
 };
@@ -427,7 +441,7 @@ type JobTimelineProps = {
 
 export default function JobTimeline({ job }: JobTimelineProps) {
   return (
-    <ol className="relative px-2 text-gray-500 sm:px-0 dark:text-gray-400">
+    <ol className="relative px-2 text-slate-500 sm:px-0 dark:text-slate-400">
       <StatusStep
         descriptionTitle={job.createdAt.toUTCString()}
         Icon={CircleStackIcon}
