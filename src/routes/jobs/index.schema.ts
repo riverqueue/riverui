@@ -49,4 +49,8 @@ export const jobSearchSchema = z.object({
     .optional()
     .transform((v) => (Array.isArray(v) ? v : v ? [v] : undefined)),
   state: z.nativeEnum(JobState).default(defaultValues.state),
+  tags: z
+    .union([z.string(), z.array(z.string().min(1))])
+    .optional()
+    .transform((v) => (Array.isArray(v) ? v : v ? [v] : undefined)),
 });
