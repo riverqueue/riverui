@@ -65,6 +65,11 @@ func createBundle() error {
 	if err := os.MkdirAll(vOutputDir, 0o700); err != nil {
 		return err
 	}
+	outputRoot, err := os.OpenRoot(vOutputDir)
+	if err != nil {
+		return err
+	}
+	defer outputRoot.Close()
 
 	version := module.Version{
 		Path:    mod,
@@ -79,11 +84,11 @@ func createBundle() error {
 		return err
 	}
 
-	if err := os.WriteFile(filepath.Join(vOutputDir, modFilename), modFileContents, 0o600); err != nil {
+	if err := outputRoot.WriteFile(modFilename, modFileContents, 0o600); err != nil {
 		return err
 	}
 
-	f, err := os.OpenFile(filepath.Join(vOutputDir, zipFilename), os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := outputRoot.OpenFile(zipFilename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
 	if err != nil {
 		return err
 	}
@@ -98,7 +103,7 @@ func createBundle() error {
 		Time:    timestamp,
 	}
 
-	infoFile, err := os.Create(filepath.Join(vOutputDir, version.Version+".info"))
+	infoFile, err := outputRoot.Create(version.Version + ".info")
 	if err != nil {
 		return err
 	}
