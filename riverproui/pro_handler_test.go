@@ -132,7 +132,7 @@ func TestProFeaturesEndpointResponse(t *testing.T) {
 	}()
 
 	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/features", nil)
 
 	handler.ServeHTTP(recorder, req)
 

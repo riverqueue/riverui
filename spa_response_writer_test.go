@@ -1,6 +1,7 @@
 package riverui
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -137,7 +138,7 @@ func TestServeIndexHTMLTemplateCaching(t *testing.T) {
 }
 
 func performRequest(handler http.Handler, method string, acceptHeaders []string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(method, "/", nil)
+	req := httptest.NewRequestWithContext(context.Background(), method, "/", nil)
 	for _, header := range acceptHeaders {
 		req.Header.Add("Accept", header)
 	}

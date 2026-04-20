@@ -48,7 +48,7 @@ func RunIntegrationTest[TClient any](t *testing.T, createClient func(ctx context
 				body = bytes.NewBuffer(payload)
 			}
 
-			req := httptest.NewRequest(method, path, body)
+			req := httptest.NewRequestWithContext(ctx, method, path, body)
 			recorder := httptest.NewRecorder()
 
 			t.Logf("--> %s %s", method, path)

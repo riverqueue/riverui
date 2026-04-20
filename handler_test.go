@@ -128,7 +128,7 @@ func TestMountStaticFiles(t *testing.T) {
 
 	var (
 		recorder = httptest.NewRecorder()
-		req      = httptest.NewRequest(http.MethodGet, "/robots.txt", nil)
+		req      = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/robots.txt", nil)
 	)
 
 	mux.ServeHTTP(recorder, req)
