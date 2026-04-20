@@ -3,6 +3,7 @@ export enum JobFilterTypeID {
   KIND = "kind",
   PRIORITY = "priority",
   QUEUE = "queue",
+  TAGS = "tags",
 }
 
 export interface FilterType {
@@ -38,5 +39,10 @@ export const AVAILABLE_FILTERS: FilterType[] = [
     id: JobFilterTypeID.QUEUE,
     label: "queue",
     match: "queue:",
+  },
+  {
+    id: JobFilterTypeID.TAGS,
+    label: "tags",
+    match: "tags:",
   },
 ];
