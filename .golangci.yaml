@@ -92,6 +92,8 @@ linters:
 
   exclusions:
     generated: lax
+    paths:
+      - node_modules/
     presets:
       - comments
       - common-false-positives
@@ -107,6 +109,10 @@ formatters:
     - gofmt
     - gofumpt
     - goimports
+
+  exclusions:
+    paths:
+      - node_modules/
 
   settings:
     gci:

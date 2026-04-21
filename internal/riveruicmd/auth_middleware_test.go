@@ -58,7 +58,7 @@ func TestAuthMiddleware(t *testing.T) { //nolint:tparallel
 		t.Parallel()
 
 		handler := setup(t, "/")
-		req := httptest.NewRequest(http.MethodGet, "/api/jobs", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/jobs", nil)
 		recorder := httptest.NewRecorder()
 
 		handler.ServeHTTP(recorder, req)
@@ -70,7 +70,7 @@ func TestAuthMiddleware(t *testing.T) { //nolint:tparallel
 		t.Parallel()
 
 		handler := setup(t, "/")
-		req := httptest.NewRequest(http.MethodGet, "/api/jobs", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/jobs", nil)
 		req.SetBasicAuth(basicAuthUser, basicAuthPassword)
 
 		recorder := httptest.NewRecorder()
@@ -84,7 +84,7 @@ func TestAuthMiddleware(t *testing.T) { //nolint:tparallel
 		t.Parallel()
 
 		handler := setup(t, "/")
-		req := httptest.NewRequest(http.MethodGet, "/api/health-checks/complete", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/health-checks/complete", nil)
 		recorder := httptest.NewRecorder()
 
 		handler.ServeHTTP(recorder, req)
@@ -96,7 +96,7 @@ func TestAuthMiddleware(t *testing.T) { //nolint:tparallel
 		t.Parallel()
 
 		handler := setup(t, "/test-prefix")
-		req := httptest.NewRequest(http.MethodGet, "/test-prefix/api/health-checks/complete", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/test-prefix/api/health-checks/complete", nil)
 		recorder := httptest.NewRecorder()
 
 		handler.ServeHTTP(recorder, req)

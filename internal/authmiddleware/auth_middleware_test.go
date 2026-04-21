@@ -70,7 +70,7 @@ func TestBasicAuth_Middleware(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 			tt.setupRequest(req)
 
 			rec := httptest.NewRecorder()
@@ -112,7 +112,7 @@ func Test_isReqAuthorized(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(http.MethodGet, "/", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", nil)
 			if tt.hasAuth {
 				req.SetBasicAuth(tt.reqUser, tt.reqPass)
 			}

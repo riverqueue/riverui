@@ -89,7 +89,7 @@ func TestInitServer(t *testing.T) { //nolint:tparallel
 			t.Parallel()
 
 			initRes, _ := setup(t)
-			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
 			initRes.uiHandler.ServeHTTP(recorder, req)
 
@@ -106,7 +106,7 @@ func TestInitServer(t *testing.T) { //nolint:tparallel
 			// Cannot be parallelized because of Setenv calls.
 			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "true")
 			initRes, _ := setup(t)
-			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
 			initRes.uiHandler.ServeHTTP(recorder, req)
 
@@ -123,7 +123,7 @@ func TestInitServer(t *testing.T) { //nolint:tparallel
 			// Cannot be parallelized because of Setenv calls.
 			t.Setenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT", "1")
 			initRes, _ := setup(t)
-			req := httptest.NewRequest(http.MethodGet, "/api/features", nil)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/features", nil)
 			recorder := httptest.NewRecorder()
 			initRes.uiHandler.ServeHTTP(recorder, req)
 
@@ -198,12 +198,12 @@ func TestSilentHealthchecks_SuppressesLogs(t *testing.T) {
 	initRes := makeServer(t, "/", true)
 
 	recorder := httptest.NewRecorder()
-	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/health-checks/minimal", nil))
+	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/health-checks/minimal", nil))
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Empty(t, memoryHandler.records)
 
 	recorder = httptest.NewRecorder()
-	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/features", nil))
+	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/features", nil))
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.NotEmpty(t, memoryHandler.records)
 
@@ -212,7 +212,7 @@ func TestSilentHealthchecks_SuppressesLogs(t *testing.T) {
 	initRes = makeServer(t, "/pfx", true)
 
 	recorder = httptest.NewRecorder()
-	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/pfx/api/health-checks/minimal", nil))
+	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/pfx/api/health-checks/minimal", nil))
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Empty(t, memoryHandler.records)
 
@@ -221,7 +221,7 @@ func TestSilentHealthchecks_SuppressesLogs(t *testing.T) {
 	initRes = makeServer(t, "/pfx/", true)
 
 	recorder = httptest.NewRecorder()
-	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/pfx/api/health-checks/minimal", nil))
+	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/pfx/api/health-checks/minimal", nil))
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Empty(t, memoryHandler.records)
 
@@ -230,7 +230,7 @@ func TestSilentHealthchecks_SuppressesLogs(t *testing.T) {
 	initRes = makeServer(t, "/", false)
 
 	recorder = httptest.NewRecorder()
-	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/health-checks/minimal", nil))
+	initRes.httpServer.Handler.ServeHTTP(recorder, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/health-checks/minimal", nil))
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.NotEmpty(t, memoryHandler.records)
 }
