@@ -78,6 +78,7 @@ func createBundle() error {
 
 	modFilename := version.Version + ".mod"
 	zipFilename := version.Version + ".zip"
+	infoFilename := version.Version + ".info"
 
 	modFileContents, err := os.ReadFile(filepath.Join(dir, "go.mod"))
 	if err != nil {
@@ -103,7 +104,7 @@ func createBundle() error {
 		Time:    timestamp,
 	}
 
-	infoFile, err := outputRoot.Create(version.Version + ".info")
+	infoFile, err := outputRoot.Create(infoFilename)
 	if err != nil {
 		return err
 	}
