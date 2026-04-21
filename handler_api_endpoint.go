@@ -146,7 +146,7 @@ func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autoco
 
 			return listResponseFrom(queuePtrs), nil
 
-default:
+		default:
 			return nil, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, job_tag, queue_name", req.Facet)
 		}
 	})
