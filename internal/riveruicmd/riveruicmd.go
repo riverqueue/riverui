@@ -77,10 +77,12 @@ func checkHealth(ctx context.Context, pathPrefix string, healthCheckName string)
 	hostname := net.JoinHostPort(host, port)
 	url := fmt.Sprintf("http://%s%s/api/health-checks/%s", hostname, pathPrefix, healthCheckName)
 
+	//nolint:gosec // `-healthcheck` is an operator-invoked probe of the running River UI server's own HTTP health endpoint.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("error constructing request to health endpoint: %w", err)
 	}
+	//nolint:gosec // `-healthcheck` intentionally reuses the configured River UI endpoint and isn't treated as a security boundary here.
 	response, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error requesting health endpoint: %w", err)
