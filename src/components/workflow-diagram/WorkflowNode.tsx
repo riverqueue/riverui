@@ -19,6 +19,7 @@ export type WorkflowNodeData = {
   hasDownstreamDeps: boolean;
   hasUpstreamDeps: boolean;
   job: WorkflowTask;
+  onSelect?: () => void;
   waitReason: WorkflowTaskWaitReason;
 };
 
@@ -26,7 +27,7 @@ type WorkflowNode = Node<WorkflowNodeData, "workflow">;
 
 const WorkflowNode = memo(
   ({ data, isConnectable, selected }: NodeProps<WorkflowNode>) => {
-    const { hasDownstreamDeps, hasUpstreamDeps, job } = data;
+    const { hasDownstreamDeps, hasUpstreamDeps, job, onSelect } = data;
     const updateNodeInternals = useUpdateNodeInternals();
     const duration = getJobDuration(job);
 
@@ -36,8 +37,18 @@ const WorkflowNode = memo(
 
     const tooltip = job.gate ? getGateTooltipText(job.gate) : undefined;
 
+    const handleSelect = (event: React.PointerEvent<HTMLDivElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+      onSelect?.();
+    };
+
     return (
-      <div className={clsx("relative w-64")} key={job.id}>
+      <div
+        className={clsx("nodrag nopan relative w-64 cursor-pointer")}
+        key={job.id}
+        onPointerDownCapture={handleSelect}
+      >
         {job.gate ? (
           <CircuitSwitchHandle
             gate={job.gate}
@@ -76,6 +87,7 @@ const WorkflowNode = memo(
             selected &&
               "shadow-lg ring-2 ring-brand-primary ring-offset-2 ring-offset-white dark:shadow-white/20 dark:ring-offset-slate-900",
           )}
+          onPointerDownCapture={handleSelect}
         >
           <WorkflowNodeContent duration={duration} job={job} />
         </div>
@@ -97,7 +109,7 @@ const WorkflowNodeContent = ({
   duration: ReturnType<typeof getJobDuration>;
   job: WorkflowTask;
 }) => (
-  <div className="flex items-center px-3 py-3">
+  <div className="pointer-events-none flex items-center px-3 py-3">
     <div className="flex-none">
       <LeadingStateIcon job={job} />
     </div>
@@ -142,16 +154,17 @@ const gateLeverFlashClosedClass = "workflow-gate-lever--flash-closed";
 const gateLeverFlashOpenClass = "workflow-gate-lever--flash-open";
 
 // Open lever angle in degrees (rotated counter-clockwise from horizontal).
-const leverAngleDeg = 40;
+const leverAngleDeg = 34;
 
-// Lever stroke width — 2x edge width for visual distinction from normal edges.
-const leverStrokeWidth = 4;
+// Slightly heavier than dependency edges, but not so heavy that it dominates.
+const leverStrokeWidth = 2.5;
 
 // SVG viewBox: origin at left circle center, line drawn flat to the right.
 // The <g> element is rotated around the origin when the gate is blocking.
 const leverVbWidth = switchGap;
 const leverVbHeight = leverStrokeWidth + 2;
 const leverCy = leverVbHeight / 2;
+const leverLineEndX = switchGap - switchHandleRadius + 1;
 
 const CircuitSwitchHandle = ({
   gate,
@@ -249,7 +262,7 @@ const CircuitSwitchHandle = ({
             strokeLinecap="round"
             strokeWidth={leverStrokeWidth}
             x1="0"
-            x2={switchGap}
+            x2={leverLineEndX}
             y1={leverCy}
             y2={leverCy}
           />

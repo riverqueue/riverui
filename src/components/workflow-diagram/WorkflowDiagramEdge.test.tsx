@@ -29,7 +29,7 @@ describe("WorkflowDiagramEdge", () => {
 
     expect(screen.getByTestId("base-edge")).toHaveAttribute(
       "data-path",
-      "M 100,20 L 248,20 L 248,140 L 268,140",
+      `M 100,20 L ${300 - switchHandleCenterGap - 20},20 L ${300 - switchHandleCenterGap - 20},140 L ${300 - switchHandleCenterGap},140`,
     );
   });
 });

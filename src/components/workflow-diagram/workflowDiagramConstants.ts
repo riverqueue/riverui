@@ -30,7 +30,7 @@ export const minTargetApproach = 20;
 export const bendNudgeStep = 8;
 
 /** Horizontal distance between the two gate switch circle centers (px). */
-export const switchHandleCenterGap = 32;
+export const switchHandleCenterGap = 36;
 
 /**
  * Maximum nudge steps to probe in each direction from the baseline bend lane.
@@ -54,4 +54,4 @@ export const targetMergePadding = 20;
  * Extra horizontal extent of the circuit-switch gate handle beyond the node's
  * left edge (px). Used to push merge lanes further left for gated targets.
  */
-export const switchHandleExtent = 28;
+export const switchHandleExtent = 32;

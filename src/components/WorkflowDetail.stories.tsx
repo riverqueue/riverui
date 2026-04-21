@@ -339,6 +339,7 @@ const meta: Meta<typeof WorkflowDetail> = {
     features: {
       workflowQueries: true,
     },
+    layout: "fullscreen",
     router: {
       initialEntries: ["/"],
       routes: ["/", "/jobs/$jobId"],
@@ -351,21 +352,48 @@ export default meta;
 
 type Story = StoryObj<typeof WorkflowDetail>;
 
-const StatefulRender = (args: Story["args"]) => {
+const normalizeSelectedJobId = (
+  selectedJobId: bigint | number | string | undefined,
+): bigint | undefined => {
+  if (typeof selectedJobId === "bigint") return selectedJobId;
+  if (typeof selectedJobId === "number") return BigInt(selectedJobId);
+  if (typeof selectedJobId === "string" && selectedJobId.length > 0) {
+    try {
+      return BigInt(selectedJobId);
+    } catch {
+      return undefined;
+    }
+  }
+
+  return undefined;
+};
+
+const StatefulStory = ({ args }: { args: Story["args"] }) => {
   const [selectedJobId, setSelectedJobId] = useState<bigint | undefined>(
-    args?.selectedJobId,
+    normalizeSelectedJobId(args?.selectedJobId),
   );
 
   return (
-    <WorkflowDetail
-      cancelPending={args?.cancelPending}
-      loading={false}
-      onCancel={() => {}}
-      onRetry={() => {}}
-      retryPending={args?.retryPending}
-      selectedJobId={selectedJobId}
-      setSelectedJobId={setSelectedJobId}
-      workflow={args?.workflow}
+    <div className="min-h-[1700px] bg-white dark:bg-slate-950">
+      <WorkflowDetail
+        cancelPending={args?.cancelPending}
+        loading={false}
+        onCancel={() => {}}
+        onRetry={() => {}}
+        retryPending={args?.retryPending}
+        selectedJobId={selectedJobId}
+        setSelectedJobId={setSelectedJobId}
+        workflow={args?.workflow}
+      />
+    </div>
+  );
+};
+
+const StatefulRender = (args: Story["args"]) => {
+  return (
+    <StatefulStory
+      args={args}
+      key={`${args?.workflow?.id ?? "workflow"}-${args?.selectedJobId?.toString() ?? "none"}`}
     />
   );
 };

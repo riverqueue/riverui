@@ -2,7 +2,7 @@ import type { Node, NodeProps } from "@xyflow/react";
 
 import { JobState } from "@services/types";
 import { workflowJobFactory } from "@test/factories/workflowJob";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import WorkflowNode, { type WorkflowNodeData } from "./WorkflowNode";
@@ -156,6 +156,55 @@ describe("WorkflowNode wait reason indicators", () => {
     expect(screen.getByTitle("Gate pending")).toBeInTheDocument();
     expect(screen.queryByTestId("gate-row")).toBeNull();
     expect(screen.queryByText("–")).toBeNull();
+  });
+
+  it("selects the task when the node card is clicked", () => {
+    const onSelect = vi.fn();
+    const job = workflowJobFactory.build({
+      id: 99,
+      state: JobState.Pending,
+      task: "compose_draft_response",
+      waitReason: "none",
+    });
+
+    const { container } = renderNode({
+      hasDownstreamDeps: false,
+      hasUpstreamDeps: false,
+      job,
+      onSelect,
+      waitReason: "none",
+    });
+
+    const wrapper = getNodeCard(container).parentElement;
+    if (!(wrapper instanceof HTMLDivElement)) {
+      throw new Error("Expected workflow node wrapper div");
+    }
+
+    fireEvent.pointerDown(wrapper);
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it("selects the task when the card body receives pointer input", () => {
+    const onSelect = vi.fn();
+    const job = workflowJobFactory.build({
+      id: 100,
+      state: JobState.Pending,
+      task: "compose_draft_response",
+      waitReason: "none",
+    });
+
+    const { container } = renderNode({
+      hasDownstreamDeps: false,
+      hasUpstreamDeps: false,
+      job,
+      onSelect,
+      waitReason: "none",
+    });
+
+    fireEvent.pointerDown(getNodeCard(container));
+
+    expect(onSelect).toHaveBeenCalledTimes(1);
   });
 
   it("renders a circuit switch handle when both deps and gate are blocking", () => {

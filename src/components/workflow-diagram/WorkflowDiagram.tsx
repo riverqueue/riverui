@@ -105,9 +105,17 @@ export default function WorkflowDiagram({
     () =>
       model.nodes.map((node) => ({
         ...node,
+        data: {
+          ...node.data,
+          onSelect: () => {
+            setSelectedJobId(
+              selectedJobId === node.data.job.id ? undefined : node.data.job.id,
+            );
+          },
+        },
         selected: selectedJobId === node.data.job.id,
       })),
-    [model.nodes, selectedJobId],
+    [model.nodes, selectedJobId, setSelectedJobId],
   );
 
   // Use workflow id to scope/reset the ReactFlow instance between navigations.

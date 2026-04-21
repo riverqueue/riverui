@@ -2,22 +2,22 @@
   --workflow-diagram-edge-failed: var(--color-red-400);
   --workflow-diagram-edge-muted: var(--color-slate-300);
   --workflow-diagram-edge-success: var(--color-slate-300);
-  --workflow-diagram-gate-satisfied: var(--color-slate-300);
-  --workflow-diagram-gate-waiting: var(--color-slate-300);
+  --workflow-diagram-gate-satisfied: var(--color-slate-400);
+  --workflow-diagram-gate-waiting: var(--color-slate-400);
   --workflow-diagram-gate-flash-duration: 2s;
   --workflow-diagram-gate-flash-easing: ease-in-out;
-  --workflow-diagram-gate-flash-closed: var(--color-slate-200);
-  --workflow-diagram-gate-flash-open: var(--color-slate-200);
+  --workflow-diagram-gate-flash-closed: var(--color-slate-300);
+  --workflow-diagram-gate-flash-open: var(--color-slate-300);
 }
 
 .dark .workflow-diagram-root {
   --workflow-diagram-edge-failed: var(--color-red-500);
   --workflow-diagram-edge-muted: var(--color-slate-600);
   --workflow-diagram-edge-success: var(--color-slate-500);
-  --workflow-diagram-gate-satisfied: var(--color-slate-500);
-  --workflow-diagram-gate-waiting: var(--color-slate-500);
-  --workflow-diagram-gate-flash-closed: var(--color-slate-400);
-  --workflow-diagram-gate-flash-open: var(--color-slate-400);
+  --workflow-diagram-gate-satisfied: var(--color-slate-400);
+  --workflow-diagram-gate-waiting: var(--color-slate-400);
+  --workflow-diagram-gate-flash-closed: var(--color-slate-300);
+  --workflow-diagram-gate-flash-open: var(--color-slate-300);
 }
 
 @keyframes gate-flash-open {
