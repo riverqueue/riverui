@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Workflow detail: source gate phase, timers, signal boundaries, and task wait reasons from backend workflow gate metadata instead of frontend-derived placeholders. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
 - Workflow detail: redesign gate inspection around a denser task-side summary, structured timer/signal cards, reliable full-node selection, and a Storybook workflow detail story that fully renders below the diagram. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
 - Job detail: render a dedicated `Snoozed` timeline step for scheduled jobs with prior attempts so snoozed jobs no longer show negative wait durations. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
+- Workflow detail: show the backend's not-found message instead of crashing when a workflow ID does not exist. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
 
 ## [v0.15.0] - 2026-02-26
 

@@ -28,11 +28,12 @@ export const API = {
 };
 
 type APIError = {
-  msg: string;
+  msg?: string;
 };
 
 type APIErrorResponse = {
-  error: APIError;
+  error?: APIError;
+  message?: string;
 };
 
 export class NotFoundError extends Error {}
@@ -57,7 +58,9 @@ async function request<TResponse>(
     return await response.json();
   } else if (response.status == 404) {
     const json = (await response.json()) as APIErrorResponse;
-    throw new NotFoundError(json.error.msg);
+    throw new NotFoundError(
+      json.message ?? json.error?.msg ?? "Resource not found.",
+    );
   } else {
     throw new Error(`unhandled response with status ${response.status}`);
   }
