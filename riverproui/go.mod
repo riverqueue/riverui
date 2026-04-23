@@ -6,7 +6,7 @@ toolchain go1.25.7
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.9.1
+	github.com/jackc/pgx/v5 v5.9.2
 	github.com/riverqueue/apiframe v0.0.0-20260203020001-b4fe7e4d61bc
 	github.com/riverqueue/river v0.34.0
 	github.com/riverqueue/river/riverdriver v0.34.0
