@@ -31,7 +31,7 @@ const withTargetAnchorOffsets = (
 
   return edges.map((edge) => {
     const targetNode = nodeByID.get(edge.target);
-    if (!targetNode?.data.job.gate) return edge;
+    if (!targetNode?.data.job.wait) return edge;
 
     return {
       ...edge,

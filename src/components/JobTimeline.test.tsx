@@ -28,6 +28,15 @@ const getStepIcon = (name: string): HTMLSpanElement => {
   return stepIcon;
 };
 
+const getStepIconSVG = (name: string): SVGElement => {
+  const stepIconSVG = getStepIcon(name).querySelector("svg");
+  if (!(stepIconSVG instanceof SVGElement)) {
+    throw new Error(`Expected ${name} step icon SVG`);
+  }
+
+  return stepIconSVG;
+};
+
 const getStepNames = (): string[] => {
   return screen
     .getAllByRole("heading", { level: 3 })
@@ -103,5 +112,18 @@ describe("JobTimeline", () => {
 
     expect(screen.getByText("Awaiting Retry")).toBeInTheDocument();
     expect(screen.queryByText("Snoozed")).not.toBeInTheDocument();
+  });
+
+  it("uses distinct icons for completed running and complete steps", () => {
+    const completedJob = jobFactory.completed().build({
+      attemptedAt: new Date("2026-04-11T11:59:50.000Z"),
+      finalizedAt: new Date("2026-04-11T12:00:00.000Z"),
+    });
+
+    render(<JobTimeline job={completedJob} />);
+
+    expect(getStepIconSVG("Running").outerHTML).not.toEqual(
+      getStepIconSVG("Complete").outerHTML,
+    );
   });
 });

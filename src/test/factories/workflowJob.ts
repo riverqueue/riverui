@@ -2,7 +2,7 @@ import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import {
   type WorkflowTask,
-  type WorkflowTaskGate,
+  type WorkflowTaskWaitCondition,
   type WorkflowTaskWaitReason,
 } from "@services/workflows";
 import { Factory } from "fishery";
@@ -14,13 +14,13 @@ const defaultWorkflowID = "wf-1";
 
 type WorkflowJobFactoryParams = {
   deps?: string[];
-  gate?: WorkflowTaskGate;
   id?: bigint | number;
   ignoreCancelledDeps?: boolean;
   ignoreDeletedDeps?: boolean;
   ignoreDiscardedDeps?: boolean;
   state?: JobState;
   task?: string;
+  wait?: WorkflowTaskWaitCondition;
   waitReason?: WorkflowTaskWaitReason;
   workflowID?: string;
   workflowStagedAt?: Date;
@@ -59,26 +59,26 @@ export const workflowJobFactory = Factory.define<
   return {
     ...job,
     deps: params.deps ?? [],
-    gate: params.gate,
     ignoreCancelledDeps: params.ignoreCancelledDeps ?? false,
     ignoreDeletedDeps: params.ignoreDeletedDeps ?? false,
     ignoreDiscardedDeps: params.ignoreDiscardedDeps ?? false,
     name: task,
     stagedAt: workflowStagedAt,
+    wait: params.wait,
     waitReason:
       params.waitReason ??
       (() => {
         if (params.state !== JobState.Pending) return "none";
 
         const hasDependencyBlockers = (params.deps ?? []).length > 0;
-        const hasGateBlocker =
-          params.gate !== undefined && params.gate.phase !== "satisfied";
+        const hasWaitConditionBlocker =
+          params.wait !== undefined && params.wait.phase !== "resolved";
 
-        if (hasDependencyBlockers && hasGateBlocker) {
-          return "dependencies_and_gate";
+        if (hasDependencyBlockers && hasWaitConditionBlocker) {
+          return "dependencies_and_wait_condition";
         }
         if (hasDependencyBlockers) return "dependencies";
-        if (hasGateBlocker) return "gate";
+        if (hasWaitConditionBlocker) return "wait_condition";
 
         return "none";
       })(),

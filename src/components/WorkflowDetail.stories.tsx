@@ -1,431 +1,493 @@
+import type {
+  Workflow,
+  WorkflowTask,
+  WorkflowTaskWaitCondition,
+} from "@services/workflows";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { JobState } from "@services/types";
 import { workflowJobFactory } from "@test/factories/workflowJob";
+import { createFeatures } from "@test/utils/features";
 import { useState } from "react";
 
 import WorkflowDetail from "./WorkflowDetail";
 
-const buildWorkflow = () => {
-  const classify = workflowJobFactory.build({
-    id: 1001,
-    state: JobState.Completed,
-    task: "classify_intake",
-    waitReason: "none",
-  });
-  const compose = workflowJobFactory.build({
+const storyFeatures = createFeatures({
+  hasWorkflows: true,
+  workflowQueries: true,
+});
+
+const buildTask = (
+  task: string,
+  overrides: Partial<WorkflowTask> = {},
+): WorkflowTask => {
+  return {
+    ...workflowJobFactory.build({
+      deps: overrides.deps,
+      id: overrides.id,
+      state: overrides.state,
+      task,
+      wait: overrides.wait,
+      waitReason: overrides.waitReason,
+      workflowID: overrides.workflowID,
+      workflowStagedAt: overrides.stagedAt,
+    }),
+    ...overrides,
+  };
+};
+
+const buildWait = (
+  overrides: Partial<WorkflowTaskWaitCondition>,
+): WorkflowTaskWaitCondition => {
+  return {
+    exprCel: "",
+    phase: "waiting",
+    signals: [],
+    terms: [],
+    timers: [],
+    ...overrides,
+  };
+};
+
+const buildWorkflow = (id: string, name: string, tasks: WorkflowTask[]) => ({
+  id,
+  name,
+  tasks,
+});
+
+const buildWaitingWorkflow = (): Workflow => {
+  const classify = {
+    ...buildTask("classify_intake", {
+      id: 1001n,
+      state: JobState.Completed,
+      waitReason: "none",
+    }),
+    finalizedAt: new Date("2026-01-01T00:34:00.000Z"),
+  };
+
+  const review = buildTask("await_review", {
     deps: ["classify_intake"],
-    gate: {
-      declaredSignals: ["approval.received"],
-      enabled: true,
-      exprCel:
-        'signals["approval.received"].size() > 0 || timers["escalation"].fired',
+    id: 1002n,
+    state: JobState.Pending,
+    wait: buildWait({
+      exprCel: "approval_received || review_timeout_reached",
       phase: "waiting",
-      timers: [
+      signals: [
         {
-          hasAfter: false,
-          hasFireAt: false,
-          name: "escalation",
+          key: "approval.received",
+          matched: false,
+          matchedCount: 0,
+          visibleCount: 0,
         },
       ],
-    },
-    id: 1002,
-    state: JobState.Pending,
-    task: "compose_draft_response",
-    waitReason: "gate",
+      startedAt: new Date("2026-01-01T00:35:00.000Z"),
+      summary: "Waiting for human approval or review timeout.",
+      terms: [
+        {
+          kind: "signal",
+          label: "Human approval received",
+          matched: false,
+          name: "approval_received",
+        },
+        {
+          kind: "timer",
+          label: "Review SLA timeout reached",
+          matched: false,
+          name: "review_timeout_reached",
+        },
+      ],
+      timers: [
+        {
+          afterSeconds: 300,
+          anchor: { kind: "wait_started_at" },
+          fired: false,
+          matched: false,
+          name: "review_timeout",
+        },
+      ],
+    }),
+    waitReason: "wait_condition",
   });
-  const send = workflowJobFactory.build({
-    deps: ["compose_draft_response"],
-    id: 1003,
+
+  const send = buildTask("send_response", {
+    deps: ["await_review"],
+    id: 1003n,
     state: JobState.Pending,
-    task: "send_response",
     waitReason: "dependencies",
   });
 
-  return {
-    id: "wf-story-gate-blocked",
-    name: "Customer Intake Workflow",
-    tasks: [classify, compose, send],
-  };
+  return buildWorkflow("wf-story-wait-blocked", "Customer Intake Workflow", [
+    classify,
+    review,
+    send,
+  ]);
 };
 
-const buildTimerWorkflow = () => {
-  const dependency = workflowJobFactory.build({
-    id: 2001,
-    state: JobState.Completed,
-    task: "fetch_customer_profile",
+const buildDependenciesProgressingWorkflow = (): Workflow => {
+  const fetchAccount = {
+    ...buildTask("fetch_account_context", {
+      id: 3001n,
+      state: JobState.Completed,
+      waitReason: "none",
+    }),
+    finalizedAt: new Date("2026-01-01T00:30:00.000Z"),
+  };
+
+  const fetchEntitlements = buildTask("fetch_entitlements", {
+    attemptedAt: new Date("2026-01-01T00:31:00.000Z"),
+    id: 3002n,
+    state: JobState.Running,
     waitReason: "none",
   });
-  const gated = workflowJobFactory.build({
-    deps: ["fetch_customer_profile"],
-    gate: {
-      declaredSignals: [],
-      enabled: true,
-      exprCel: 'timers["timeout_30m"].fired',
-      phase: "waiting",
-      timers: [
-        {
-          anchor: {
-            kind: "gate_active_at",
-          },
-          fireAt: new Date("2026-01-01T01:00:00.000Z"),
-          hasAfter: false,
-          hasFireAt: true,
-          name: "timeout_30m",
-        },
-      ],
-    },
-    id: 2002,
+
+  const fetchCharges = buildTask("fetch_recent_charges", {
+    id: 3003n,
     state: JobState.Pending,
-    task: "compose_draft_response",
-    waitReason: "gate",
-  });
-
-  return {
-    id: "wf-story-timer-blocked",
-    name: "Timer-Gated Workflow",
-    tasks: [dependency, gated],
-  };
-};
-
-const buildSatisfiedGateWorkflow = () => {
-  const dependency = workflowJobFactory.build({
-    id: 3001,
-    state: JobState.Completed,
-    task: "collect_inputs",
-    waitReason: "none",
-  });
-  const gated = workflowJobFactory.build({
-    deps: ["collect_inputs"],
-    gate: {
-      declaredSignals: ["approval.received"],
-      enabled: true,
-      exprCel: 'signals["approval.received"].size() > 0',
-      phase: "satisfied",
-      satisfaction: {
-        asOf: new Date("2026-01-01T00:45:00.000Z"),
-        attempt: 1,
-        signals: [
-          {
-            count: 1,
-            key: "approval.received",
-            lastSignalId: 901n,
-          },
-        ],
-        timers: [],
-      },
-      satisfiedAt: new Date("2026-01-01T00:45:00.000Z"),
-      timers: [],
-    },
-    id: 3002,
-    state: JobState.Available,
-    task: "compose_draft_response",
     waitReason: "none",
   });
 
-  return {
-    id: "wf-story-gate-satisfied",
-    name: "Satisfied Gate Workflow",
-    tasks: [dependency, gated],
-  };
-};
-
-const buildAgentCustomerResolutionWorkflow = () => {
-  const classify = workflowJobFactory.build({
-    id: 4001,
-    state: JobState.Completed,
-    task: "classify_intake",
-    waitReason: "none",
-  });
-  const fetchAccountContext = workflowJobFactory.build({
-    deps: ["classify_intake"],
-    id: 4002,
-    state: JobState.Completed,
-    task: "fetch_account_context",
-    waitReason: "none",
-  });
-  const fetchEntitlements = workflowJobFactory.build({
-    deps: ["classify_intake"],
-    id: 4003,
-    state: JobState.Completed,
-    task: "fetch_entitlements",
-    waitReason: "none",
-  });
-  const fetchRecentCharges = workflowJobFactory.build({
-    deps: ["classify_intake"],
-    id: 4004,
-    state: JobState.Completed,
-    task: "fetch_recent_charges",
-    waitReason: "none",
-  });
-  const retrieveKnowledge = workflowJobFactory.build({
-    deps: ["classify_intake"],
-    id: 4005,
-    state: JobState.Completed,
-    task: "retrieve_knowledge",
-    waitReason: "none",
-  });
-  const planExecution = workflowJobFactory.build({
+  const promote = buildTask("promote_global", {
     deps: [
-      "classify_intake",
       "fetch_account_context",
       "fetch_entitlements",
       "fetch_recent_charges",
-      "retrieve_knowledge",
     ],
-    id: 4006,
-    state: JobState.Completed,
-    task: "plan_execution",
-    waitReason: "none",
-  });
-  const callBilling = workflowJobFactory.build({
-    deps: ["plan_execution"],
-    id: 4007,
-    state: JobState.Completed,
-    task: "call_billing_tool",
-    waitReason: "none",
-  });
-  const callCRM = workflowJobFactory.build({
-    deps: ["plan_execution"],
-    id: 4008,
-    state: JobState.Completed,
-    task: "call_crm_tool",
-    waitReason: "none",
-  });
-  const callEntitlements = workflowJobFactory.build({
-    deps: ["plan_execution"],
-    id: 4009,
-    state: JobState.Completed,
-    task: "call_entitlements_tool",
-    waitReason: "none",
-  });
-  const callRisk = workflowJobFactory.build({
-    deps: ["plan_execution"],
-    id: 4010,
-    state: JobState.Running,
-    task: "call_risk_tool",
-    waitReason: "none",
-  });
-  const composeDraft = workflowJobFactory.build({
-    deps: ["call_billing_tool", "call_crm_tool", "call_entitlements_tool"],
-    gate: {
-      declaredSignals: [],
-      enabled: true,
-      exprCel: "true",
-      phase: "satisfied",
-      timers: [],
-    },
-    id: 4011,
-    state: JobState.Completed,
-    task: "compose_draft_response",
-    waitReason: "none",
-  });
-  const verifyDraft = workflowJobFactory.build({
-    deps: ["call_risk_tool", "compose_draft_response", "plan_execution"],
-    id: 4012,
-    state: JobState.Completed,
-    task: "verify_draft",
-    waitReason: "none",
-  });
-  const sendResponse = workflowJobFactory.build({
-    deps: ["verify_draft"],
-    gate: {
-      declaredSignals: ["request_human_approval"],
-      enabled: true,
-      exprCel:
-        'signals["request_human_approval"].size() > 0 || timers["review_sla_timeout"].fired',
-      phase: "waiting",
-      timers: [
+    id: 3004n,
+    state: JobState.Pending,
+    wait: buildWait({
+      exprCel: "approval_received || launch_timeout_reached",
+      phase: "not_started",
+      summary: "Waits for approval or timeout after dependency checks finish.",
+      terms: [
         {
-          hasAfter: false,
-          hasFireAt: false,
-          name: "review_sla_timeout",
+          kind: "signal",
+          label: "Approval received",
+          matched: false,
+          name: "approval_received",
+        },
+        {
+          kind: "timer",
+          label: "Launch timeout reached",
+          matched: false,
+          name: "launch_timeout_reached",
         },
       ],
-    },
-    id: 4013,
-    state: JobState.Pending,
-    task: "send_response",
-    waitReason: "gate",
-  });
-  const queueSurvey = workflowJobFactory.build({
-    deps: ["send_response"],
-    gate: {
-      declaredSignals: [],
-      enabled: true,
-      exprCel: 'timers["follow_up_survey_delay"].fired',
-      phase: "waiting",
       timers: [
         {
-          hasAfter: false,
-          hasFireAt: false,
-          name: "follow_up_survey_delay",
+          afterSeconds: 600,
+          anchor: { kind: "task_finalized_at", task: "fetch_recent_charges" },
+          fired: false,
+          matched: false,
+          name: "launch_timeout",
         },
       ],
-    },
-    id: 4014,
-    state: JobState.Pending,
-    task: "queue_follow_up_survey",
-    waitReason: "dependencies_and_gate",
-  });
-  const syncCRMCaseNotes = workflowJobFactory.build({
-    deps: ["send_response"],
-    id: 4015,
-    state: JobState.Pending,
-    task: "sync_crm_case_notes",
-    waitReason: "dependencies",
-  });
-  const writeResolutionAnalytics = workflowJobFactory.build({
-    deps: ["send_response"],
-    id: 4016,
-    state: JobState.Pending,
-    task: "write_resolution_analytics",
-    waitReason: "dependencies",
-  });
-  const closeCase = workflowJobFactory.build({
-    deps: [
-      "send_response",
-      "sync_crm_case_notes",
-      "write_resolution_analytics",
-    ],
-    gate: {
-      declaredSignals: ["request_customer_ack"],
-      enabled: true,
-      exprCel:
-        'signals["request_customer_ack"].size() > 0 || timers["close_case_timeout"].fired',
-      phase: "waiting",
-      timers: [
-        {
-          hasAfter: false,
-          hasFireAt: false,
-          name: "close_case_timeout",
-        },
-      ],
-    },
-    id: 4017,
-    state: JobState.Pending,
-    task: "close_case",
-    waitReason: "dependencies_and_gate",
+    }),
+    waitReason: "dependencies_and_wait_condition",
   });
 
-  return {
-    id: "wf-story-agent-customer-resolution",
-    name: "Agent Customer Resolution Workflow",
-    tasks: [
-      classify,
-      fetchAccountContext,
-      fetchEntitlements,
-      fetchRecentCharges,
-      retrieveKnowledge,
-      planExecution,
-      callBilling,
-      callCRM,
-      callEntitlements,
-      callRisk,
-      composeDraft,
-      verifyDraft,
-      sendResponse,
-      queueSurvey,
-      syncCRMCaseNotes,
-      writeResolutionAnalytics,
-      closeCase,
-    ],
+  return buildWorkflow(
+    "wf-story-dependencies-progressing",
+    "Dependencies Still Progressing",
+    [fetchAccount, fetchEntitlements, fetchCharges, promote],
+  );
+};
+
+const buildResolvedBySignalWorkflow = (): Workflow => {
+  const collect = {
+    ...buildTask("collect_inputs", {
+      id: 2001n,
+      state: JobState.Completed,
+      waitReason: "none",
+    }),
+    finalizedAt: new Date("2026-01-01T00:38:00.000Z"),
   };
+  const safetyReview = {
+    ...buildTask("safety_review", {
+      id: 2002n,
+      state: JobState.Completed,
+      waitReason: "none",
+    }),
+    finalizedAt: new Date("2026-01-01T00:39:00.000Z"),
+  };
+  const approve = {
+    ...buildTask("await_review", {
+      deps: ["collect_inputs", "safety_review"],
+      id: 2003n,
+      state: JobState.Completed,
+      wait: buildWait({
+        asOf: new Date("2026-01-01T00:45:00.000Z"),
+        attempt: 1,
+        exprCel: "approval_received || review_timeout_reached",
+        phase: "resolved",
+        resolvedAt: new Date("2026-01-01T00:45:00.000Z"),
+        signals: [
+          {
+            key: "approval.received",
+            lastMatchedID: 901n,
+            lastVisibleID: 901n,
+            matched: true,
+            matchedCount: 1,
+            visibleCount: 1,
+          },
+        ],
+        startedAt: new Date("2026-01-01T00:40:00.000Z"),
+        summary: "Human approval received",
+        terms: [
+          {
+            kind: "signal",
+            label: "Human approval received",
+            matched: true,
+            name: "approval_received",
+          },
+          {
+            kind: "timer",
+            label: "Review SLA timeout reached",
+            matched: false,
+            name: "review_timeout_reached",
+          },
+        ],
+        timers: [
+          {
+            afterSeconds: 300,
+            anchor: { kind: "wait_started_at" },
+            fireAt: new Date("2026-01-01T00:45:00.000Z"),
+            fired: false,
+            matched: false,
+            name: "review_timeout",
+          },
+        ],
+      }),
+      waitReason: "none",
+    }),
+    attemptedAt: new Date("2026-01-01T00:45:30.000Z"),
+    finalizedAt: new Date("2026-01-01T00:45:42.000Z"),
+    stagedAt: new Date("2026-01-01T00:45:10.000Z"),
+  };
+
+  return buildWorkflow("wf-story-wait-resolved-signal", "Approval Workflow", [
+    collect,
+    safetyReview,
+    approve,
+  ]);
+};
+
+const buildResolvedByTimeoutWorkflow = (): Workflow => {
+  const canaryChecks = [
+    "canary_check_cost",
+    "canary_check_errors",
+    "canary_check_latency",
+    "canary_check_safety",
+    "canary_check_support_quality",
+    "deploy_canary",
+  ].map((taskName, index) => ({
+    ...buildTask(taskName, {
+      id: BigInt(4001 + index),
+      state: JobState.Completed,
+      waitReason: "none",
+    }),
+    finalizedAt: new Date(`2026-01-01T00:${36 + index}:00.000Z`),
+  }));
+
+  const promote = {
+    ...buildTask("promote_global", {
+      deps: canaryChecks.map((task) => task.name),
+      id: 4010n,
+      state: JobState.Completed,
+      wait: buildWait({
+        asOf: new Date("2026-01-01T00:47:00.000Z"),
+        attempt: 1,
+        exprCel: "release_canary_metrics_received || canary_timeout_reached",
+        phase: "resolved",
+        resolvedAt: new Date("2026-01-01T00:47:00.000Z"),
+        signals: [
+          {
+            key: "release_canary_metrics",
+            matched: false,
+            matchedCount: 0,
+            visibleCount: 0,
+          },
+        ],
+        startedAt: new Date("2026-01-01T00:45:49.000Z"),
+        summary: "Canary timeout reached",
+        terms: [
+          {
+            kind: "signal",
+            label: "Release canary metrics received",
+            matched: false,
+            name: "release_canary_metrics_received",
+          },
+          {
+            kind: "timer",
+            label: "Canary timeout reached",
+            matched: true,
+            name: "canary_timeout_reached",
+          },
+        ],
+        timers: [
+          {
+            afterSeconds: 71,
+            anchor: { kind: "task_finalized_at", task: "deploy_canary" },
+            fireAt: new Date("2026-01-01T00:47:00.000Z"),
+            fired: true,
+            matched: true,
+            name: "canary_timeout",
+          },
+        ],
+      }),
+      waitReason: "none",
+    }),
+    attemptedAt: new Date("2026-01-01T00:47:00.760Z"),
+    finalizedAt: new Date("2026-01-01T00:47:06.210Z"),
+    stagedAt: new Date("2026-01-01T00:47:00.000Z"),
+  };
+
+  return buildWorkflow(
+    "wf-story-wait-resolved-timeout",
+    "Timeout-Resolved Workflow",
+    [...canaryChecks, promote],
+  );
+};
+
+const buildDirectWaitWorkflow = (): Workflow => {
+  const task = buildTask("await_external_signal", {
+    id: 5001n,
+    state: JobState.Pending,
+    wait: buildWait({
+      exprCel: "customer_acknowledged || escalation_timeout_reached",
+      phase: "waiting",
+      startedAt: new Date("2026-01-01T00:20:00.000Z"),
+      summary: "Waiting for customer acknowledgement or escalation timeout.",
+      terms: [
+        {
+          kind: "signal",
+          label: "Customer acknowledged",
+          matched: false,
+          name: "customer_acknowledged",
+        },
+        {
+          kind: "timer",
+          label: "Escalation timeout reached",
+          matched: false,
+          name: "escalation_timeout_reached",
+        },
+      ],
+      timers: [
+        {
+          afterSeconds: 900,
+          anchor: { kind: "wait_started_at" },
+          fired: false,
+          matched: false,
+          name: "escalation_timeout",
+        },
+      ],
+    }),
+    waitReason: "wait_condition",
+  });
+
+  return buildWorkflow("wf-story-direct-wait", "Direct Wait Workflow", [task]);
 };
 
 const meta: Meta<typeof WorkflowDetail> = {
   component: WorkflowDetail,
   parameters: {
-    features: {
-      workflowQueries: true,
-    },
     layout: "fullscreen",
-    router: {
-      initialEntries: ["/"],
-      routes: ["/", "/jobs/$jobId"],
-    },
   },
-  title: "Pages/WorkflowDetail",
+  title: "Components/WorkflowDetail",
 };
 
 export default meta;
 
 type Story = StoryObj<typeof WorkflowDetail>;
 
-const normalizeSelectedJobId = (
-  selectedJobId: bigint | number | string | undefined,
-): bigint | undefined => {
-  if (typeof selectedJobId === "bigint") return selectedJobId;
-  if (typeof selectedJobId === "number") return BigInt(selectedJobId);
-  if (typeof selectedJobId === "string" && selectedJobId.length > 0) {
-    try {
-      return BigInt(selectedJobId);
-    } catch {
-      return undefined;
-    }
-  }
-
-  return undefined;
-};
-
-const StatefulStory = ({ args }: { args: Story["args"] }) => {
+const StatefulStory = ({
+  initialSelectedJobId,
+  workflow,
+}: {
+  initialSelectedJobId?: bigint;
+  workflow: undefined | Workflow;
+}) => {
   const [selectedJobId, setSelectedJobId] = useState<bigint | undefined>(
-    normalizeSelectedJobId(args?.selectedJobId),
+    initialSelectedJobId ?? workflow?.tasks[0]?.id,
   );
 
   return (
-    <div className="min-h-[1700px] bg-white dark:bg-slate-950">
-      <WorkflowDetail
-        cancelPending={args?.cancelPending}
-        loading={false}
-        onCancel={() => {}}
-        onRetry={() => {}}
-        retryPending={args?.retryPending}
-        selectedJobId={selectedJobId}
-        setSelectedJobId={setSelectedJobId}
-        workflow={args?.workflow}
-      />
-    </div>
-  );
-};
-
-const StatefulRender = (args: Story["args"]) => {
-  return (
-    <StatefulStory
-      args={args}
-      key={`${args?.workflow?.id ?? "workflow"}-${args?.selectedJobId?.toString() ?? "none"}`}
+    <WorkflowDetail
+      loading={false}
+      selectedJobId={selectedJobId}
+      setSelectedJobId={setSelectedJobId}
+      workflow={workflow}
     />
   );
 };
 
-export const GateBlockedSelectedTask: Story = {
+const renderSelectedTask = (workflow: Workflow, taskName: string) => (
+  <StatefulStory
+    initialSelectedJobId={
+      workflow.tasks.find((task) => task.name === taskName)?.id
+    }
+    workflow={workflow}
+  />
+);
+
+export const DependenciesProgressing: Story = {
   args: {
-    selectedJobId: 1002n,
-    workflow: buildWorkflow(),
+    workflow: buildDependenciesProgressingWorkflow(),
   },
-  render: StatefulRender,
+  parameters: {
+    features: storyFeatures,
+  },
+  render: (args) => renderSelectedTask(args.workflow!, "promote_global"),
 };
 
-export const TimerBlockedSelectedTask: Story = {
+export const Waiting: Story = {
   args: {
-    selectedJobId: 2002n,
-    workflow: buildTimerWorkflow(),
+    workflow: buildWaitingWorkflow(),
   },
-  render: StatefulRender,
+  parameters: {
+    features: storyFeatures,
+  },
+  render: (args) => renderSelectedTask(args.workflow!, "await_review"),
 };
 
-export const GateSatisfiedSelectedTask: Story = {
+export const WaitingWithoutDependencies: Story = {
   args: {
-    selectedJobId: 3002n,
-    workflow: buildSatisfiedGateWorkflow(),
+    workflow: buildDirectWaitWorkflow(),
   },
-  render: StatefulRender,
+  parameters: {
+    features: storyFeatures,
+  },
+  render: (args) => renderSelectedTask(args.workflow!, "await_external_signal"),
 };
 
-export const AgentCustomerResolutionInteractive: Story = {
+export const ResolvedBySignal: Story = {
   args: {
-    selectedJobId: undefined,
-    workflow: buildAgentCustomerResolutionWorkflow(),
+    workflow: buildResolvedBySignalWorkflow(),
   },
-  render: StatefulRender,
+  parameters: {
+    features: storyFeatures,
+  },
+  render: (args) => renderSelectedTask(args.workflow!, "await_review"),
+};
+
+export const ResolvedByTimeout: Story = {
+  args: {
+    workflow: buildResolvedByTimeoutWorkflow(),
+  },
+  parameters: {
+    features: storyFeatures,
+  },
+  render: (args) => renderSelectedTask(args.workflow!, "promote_global"),
+};
+
+export const FeatureDisabled: Story = {
+  args: {
+    workflow: buildWaitingWorkflow(),
+  },
+  parameters: {
+    features: createFeatures({
+      hasWorkflows: false,
+      workflowQueries: false,
+    }),
+  },
+  render: (args) => <StatefulStory workflow={args.workflow} />,
 };

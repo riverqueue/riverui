@@ -2,6 +2,7 @@ import type { Decorator, Preview } from "@storybook/react-vite";
 
 import { withThemeByClassName } from "@storybook/addon-themes";
 import { ReactRenderer } from "@storybook/react-vite";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -82,6 +83,23 @@ export const withThemeProvider: Decorator = (StoryFn) => (
   </ThemeProvider>
 );
 
+const storybookQueryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: false,
+    },
+  },
+});
+
+/**
+ * Decorator that provides a React Query client for stories that use hooks.
+ */
+export const withQueryClient: Decorator = (StoryFn) => (
+  <QueryClientProvider client={storybookQueryClient}>
+    <StoryFn />
+  </QueryClientProvider>
+);
+
 /**
  * Decorator that sets user settings for stories
  * Can be overridden per story using parameters.settings
@@ -113,6 +131,7 @@ declare module "@storybook/react-vite" {
 
 const preview: Preview = {
   decorators: [
+    withQueryClient,
     withFeatures,
     withSettings,
     withRouter,

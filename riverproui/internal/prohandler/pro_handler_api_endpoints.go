@@ -283,6 +283,146 @@ func (a *workflowGetEndpoint[TTx]) Execute(ctx context.Context, req *workflowGet
 }
 
 //
+// workflowTaskSignalsEndpoint
+//
+
+type workflowTaskSignalsEndpoint[TTx any] struct {
+	ProAPIBundle[TTx]
+	apiendpoint.Endpoint[workflowTaskSignalsRequest, workflowTaskSignalsResponse]
+}
+
+func NewWorkflowTaskSignalsEndpoint[TTx any](apiBundle ProAPIBundle[TTx]) *workflowTaskSignalsEndpoint[TTx] {
+	return &workflowTaskSignalsEndpoint[TTx]{ProAPIBundle: apiBundle}
+}
+
+func (*workflowTaskSignalsEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/pro/workflows/{id}/task-signals",
+		StatusCode: http.StatusOK,
+	}
+}
+
+const (
+	workflowTaskSignalsLimitDefault = 20
+	workflowTaskSignalsLimitMax     = 100
+)
+
+type workflowTaskSignalsRequest struct {
+	CursorID *int64 `json:"-" validate:"omitempty"`       // from ExtractRaw
+	Desc     *bool  `json:"-" validate:"omitempty"`       // from ExtractRaw
+	ID       string `json:"-" validate:"required"`        // from ExtractRaw
+	Key      string `json:"-" validate:"omitempty"`       // from ExtractRaw
+	Limit    *int   `json:"-" validate:"omitempty,min=1"` // from ExtractRaw
+	Scope    string `json:"-" validate:"omitempty"`       // from ExtractRaw
+	TaskName string `json:"-" validate:"required"`        // from ExtractRaw
+}
+
+func (req *workflowTaskSignalsRequest) ExtractRaw(r *http.Request) error {
+	req.ID = r.PathValue("id")
+	req.TaskName = r.URL.Query().Get("task_name")
+	req.Key = r.URL.Query().Get("key")
+
+	if cursorIDStr := r.URL.Query().Get("cursor_id"); cursorIDStr != "" {
+		cursorID, err := strconv.ParseInt(cursorIDStr, 10, 64)
+		if err != nil {
+			return apierror.NewBadRequestf("Couldn't convert `cursor_id` to integer: %s.", err)
+		}
+		req.CursorID = &cursorID
+	}
+
+	if descStr := r.URL.Query().Get("desc"); descStr != "" {
+		desc, err := strconv.ParseBool(descStr)
+		if err != nil {
+			return apierror.NewBadRequestf("Couldn't convert `desc` to bool: %s.", err)
+		}
+		req.Desc = &desc
+	}
+
+	if limitStr := r.URL.Query().Get("limit"); limitStr != "" {
+		limit, err := strconv.Atoi(limitStr)
+		if err != nil {
+			return apierror.NewBadRequestf("Couldn't convert `limit` to integer: %s.", err)
+		}
+		req.Limit = &limit
+	}
+
+	req.Scope = r.URL.Query().Get("scope")
+
+	return nil
+}
+
+type workflowTaskSignalsResponse struct {
+	HasMore      bool                     `json:"has_more"`
+	NextCursorID *int64                   `json:"next_cursor_id,omitempty"`
+	Scope        workflowTaskSignalsScope `json:"scope"`
+	Signals      []*workflowTaskSignal    `json:"signals"`
+}
+
+type workflowTaskSignalsScope struct {
+	Attempt int    `json:"attempt"`
+	Scope   string `json:"scope"`
+}
+
+type workflowTaskSignal struct {
+	Attempt   int             `json:"attempt"`
+	CreatedAt time.Time       `json:"created_at"`
+	ID        int64           `json:"id"`
+	Key       string          `json:"key"`
+	Payload   json.RawMessage `json:"payload"`
+	Source    json.RawMessage `json:"source"`
+}
+
+func (a *workflowTaskSignalsEndpoint[TTx]) Execute(ctx context.Context, req *workflowTaskSignalsRequest) (*workflowTaskSignalsResponse, error) {
+	workflow, err := a.Client.WorkflowFromExistingID(ctx, req.ID, nil)
+	if err != nil {
+		if errors.Is(err, rivertype.ErrNotFound) {
+			return nil, apierror.NewNotFoundf("Workflow not found: %s.", req.ID)
+		}
+		return nil, fmt.Errorf("error loading workflow: %w", err)
+	}
+
+	result, err := workflow.SignalListForTask(ctx, req.TaskName, &riverpro.WorkflowSignalListForTaskParams{
+		CursorID: ptrutil.ValOrDefault(req.CursorID, 0),
+		Desc:     ptrutil.ValOrDefault(req.Desc, true),
+		Key:      req.Key,
+		Limit:    min(ptrutil.ValOrDefault(req.Limit, workflowTaskSignalsLimitDefault), workflowTaskSignalsLimitMax),
+		Scope:    riverpro.WorkflowTaskSignalReadScope(req.Scope),
+	})
+	if err != nil {
+		var signalKeyUndeclaredErr *riverworkflow.SignalKeyUndeclaredError
+		if errors.As(err, &signalKeyUndeclaredErr) {
+			return nil, apierror.NewBadRequestf("%s.", signalKeyUndeclaredErr)
+		}
+
+		var signalTaskDeclaresNoSignalKeysErr *riverworkflow.SignalTaskDeclaresNoSignalKeysError
+		if errors.As(err, &signalTaskDeclaresNoSignalKeysErr) {
+			return nil, apierror.NewBadRequestf("%s.", signalTaskDeclaresNoSignalKeysErr)
+		}
+
+		var signalUnknownTaskErr *riverworkflow.SignalUnknownTaskError
+		if errors.As(err, &signalUnknownTaskErr) {
+			return nil, apierror.NewNotFoundf("%s.", signalUnknownTaskErr)
+		}
+
+		return nil, fmt.Errorf("error loading task-visible workflow signals: %w", err)
+	}
+
+	if result.TaskScope == nil {
+		return nil, fmt.Errorf("task-visible workflow signal list missing scope metadata")
+	}
+
+	return &workflowTaskSignalsResponse{
+		HasMore:      result.HasMore,
+		NextCursorID: result.NextCursorID,
+		Scope: workflowTaskSignalsScope{
+			Attempt: result.TaskScope.Attempt,
+			Scope:   string(result.TaskScope.Scope),
+		},
+		Signals: sliceutil.Map(result.Signals, workflowTaskSignalFromInternal),
+	}, nil
+}
+
+//
 // workflowListEndpoint
 //
 
@@ -490,68 +630,67 @@ func internalJobToSerializableJob(internal *rivertype.JobRow) *riverJobSerializa
 }
 
 const (
-	workflowTaskWaitReasonDependencies        = "dependencies"
-	workflowTaskWaitReasonDependenciesAndGate = "dependencies_and_gate"
-	workflowTaskWaitReasonGate                = "gate"
-	workflowTaskWaitReasonNone                = "none"
+	workflowTaskWaitReasonDependencies                 = "dependencies"
+	workflowTaskWaitReasonDependenciesAndWaitCondition = "dependencies_and_wait_condition"
+	workflowTaskWaitReasonNone                         = "none"
+	workflowTaskWaitReasonWaitCondition                = "wait_condition"
 )
 
 type workflowTaskSerializable struct {
 	riverJobSerializable
 
-	Deps                []string          `json:"deps"`
-	Gate                *workflowTaskGate `json:"gate,omitempty"`
-	IgnoreCancelledDeps bool              `json:"ignore_cancelled_deps"`
-	IgnoreDeletedDeps   bool              `json:"ignore_deleted_deps"`
-	IgnoreDiscardedDeps bool              `json:"ignore_discarded_deps"`
-	Name                string            `json:"name"`
-	StagedAt            *time.Time        `json:"staged_at,omitempty"`
-	WaitReason          string            `json:"wait_reason"`
-	WorkflowID          string            `json:"workflow_id"`
+	Deps                []string                   `json:"deps"`
+	IgnoreCancelledDeps bool                       `json:"ignore_cancelled_deps"`
+	IgnoreDeletedDeps   bool                       `json:"ignore_deleted_deps"`
+	IgnoreDiscardedDeps bool                       `json:"ignore_discarded_deps"`
+	Name                string                     `json:"name"`
+	StagedAt            *time.Time                 `json:"staged_at,omitempty"`
+	Wait                *workflowTaskWaitCondition `json:"wait,omitempty"`
+	WaitReason          string                     `json:"wait_reason"`
+	WorkflowID          string                     `json:"workflow_id"`
 }
 
-type workflowTaskGate struct {
-	ActiveAt        *time.Time                    `json:"active_at,omitempty"`
-	DeclaredSignals []string                      `json:"declared_signals"`
-	Enabled         bool                          `json:"enabled"`
-	ExprCEL         string                        `json:"expr_cel"`
-	Phase           string                        `json:"phase"`
-	Satisfaction    *workflowTaskGateSatisfaction `json:"satisfaction,omitempty"`
-	SatisfiedAt     *time.Time                    `json:"satisfied_at,omitempty"`
-	Timers          []*workflowTaskGateTimer      `json:"timers"`
+type workflowTaskWaitCondition struct {
+	AsOf       *time.Time                    `json:"as_of,omitempty"`
+	Attempt    *int                          `json:"attempt,omitempty"`
+	ExprCEL    string                        `json:"expr_cel"`
+	ResolvedAt *time.Time                    `json:"resolved_at,omitempty"`
+	Phase      string                        `json:"phase"`
+	Signals    []*workflowTaskSignalEvidence `json:"signals"`
+	StartedAt  *time.Time                    `json:"started_at,omitempty"`
+	Summary    string                        `json:"summary,omitempty"`
+	Terms      []*workflowTaskWaitTerm       `json:"terms"`
+	Timers     []*workflowTaskWaitTimer      `json:"timers"`
 }
 
-type workflowTaskGateSatisfaction struct {
-	AsOf    time.Time                             `json:"as_of"`
-	Attempt int                                   `json:"attempt"`
-	Signals []*workflowTaskGateSatisfactionSignal `json:"signals"`
-	Timers  []*workflowTaskGateSatisfactionTimer  `json:"timers"`
+type workflowTaskWaitTerm struct {
+	Kind    string `json:"kind"`
+	Label   string `json:"label"`
+	Matched bool   `json:"matched"`
+	Name    string `json:"name"`
 }
 
-type workflowTaskGateSatisfactionSignal struct {
-	Count        int64  `json:"count"`
-	Key          string `json:"key"`
-	LastSignalID int64  `json:"last_signal_id"`
+type workflowTaskSignalEvidence struct {
+	Key           string `json:"key"`
+	LastMatchedID int64  `json:"last_matched_id"`
+	LastVisibleID int64  `json:"last_visible_id"`
+	Matched       bool   `json:"matched"`
+	MatchedCount  int64  `json:"matched_count"`
+	VisibleCount  int64  `json:"visible_count"`
 }
 
-type workflowTaskGateSatisfactionTimer struct {
-	FireAt *time.Time `json:"fire_at,omitempty"`
-	Fired  bool       `json:"fired"`
-	Name   string     `json:"name"`
-}
-
-type workflowTaskGateTimer struct {
+type workflowTaskWaitTimer struct {
 	After        string                       `json:"after,omitempty"`
 	AfterUS      *int64                       `json:"after_us,omitempty"`
 	AfterSeconds *float64                     `json:"after_seconds,omitempty"`
-	Anchor       *workflowTaskGateTimerAnchor `json:"anchor,omitempty"`
+	Anchor       *workflowTaskWaitTimerAnchor `json:"anchor,omitempty"`
 	FireAt       *time.Time                   `json:"fire_at,omitempty"`
-	HasAfter     bool                         `json:"has_after"`
-	HasFireAt    bool                         `json:"has_fire_at"`
+	Fired        bool                         `json:"fired"`
+	Matched      bool                         `json:"matched"`
 	Name         string                       `json:"name"`
 }
 
-type workflowTaskGateTimerAnchor struct {
+type workflowTaskWaitTimerAnchor struct {
 	Kind string `json:"kind"`
 	Task string `json:"task,omitempty"`
 }
@@ -561,17 +700,15 @@ func internalWorkflowTaskToSerializableTask(task *riverpro.WorkflowTaskWithJob) 
 		return nil
 	}
 
-	gateView := task.Gate.View()
-
 	return &workflowTaskSerializable{
 		riverJobSerializable: *internalJobToSerializableJob(task.Job),
 		Deps:                 task.Deps,
-		Gate:                 workflowTaskGateFromInternal(gateView),
 		IgnoreCancelledDeps:  task.IgnoreCancelledDeps,
 		IgnoreDeletedDeps:    task.IgnoreDeletedDeps,
 		IgnoreDiscardedDeps:  task.IgnoreDiscardedDeps,
 		Name:                 task.Name,
 		StagedAt:             workflowTaskStagedAtFromMetadata(task.Job.Metadata),
+		Wait:                 workflowTaskWaitConditionFromInternal(task.Wait),
 		WaitReason:           workflowTaskWaitReasonFromInternal(task.WaitReason),
 		WorkflowID:           task.WorkflowID,
 	}
@@ -579,98 +716,98 @@ func internalWorkflowTaskToSerializableTask(task *riverpro.WorkflowTaskWithJob) 
 
 func workflowTaskWaitReasonFromInternal(waitReason riverpro.WorkflowTaskWaitReason) string {
 	switch waitReason {
-	case riverpro.WorkflowTaskWaitReasonDependenciesAndGate:
-		return workflowTaskWaitReasonDependenciesAndGate
+	case riverpro.WorkflowTaskWaitReasonDependenciesAndWaitCondition:
+		return workflowTaskWaitReasonDependenciesAndWaitCondition
 	case riverpro.WorkflowTaskWaitReasonDependencies:
 		return workflowTaskWaitReasonDependencies
-	case riverpro.WorkflowTaskWaitReasonGate:
-		return workflowTaskWaitReasonGate
+	case riverpro.WorkflowTaskWaitReasonWaitCondition:
+		return workflowTaskWaitReasonWaitCondition
 	default:
 		return workflowTaskWaitReasonNone
 	}
 }
 
-func workflowTaskGateFromInternal(gateView riverworkflow.GateView) *workflowTaskGate {
-	if !gateView.Enabled {
+func workflowTaskWaitConditionFromInternal(waitCondition *riverworkflow.WaitCondition) *workflowTaskWaitCondition {
+	if waitCondition == nil {
 		return nil
 	}
 
-	result := &workflowTaskGate{
-		ActiveAt:        gateView.ActiveAt,
-		DeclaredSignals: gateView.DeclaredSignals,
-		Enabled:         gateView.Enabled,
-		ExprCEL:         gateView.ExprCEL,
-		Phase:           gateView.Phase,
-		SatisfiedAt:     gateView.SatisfiedAt,
-		Timers:          make([]*workflowTaskGateTimer, 0, len(gateView.Timers)),
+	result := &workflowTaskWaitCondition{
+		AsOf:       waitCondition.AsOf,
+		Attempt:    waitCondition.Attempt,
+		ExprCEL:    waitCondition.Expr,
+		ResolvedAt: waitCondition.ResolvedAt,
+		Phase:      waitCondition.Phase.String(),
+		Signals:    make([]*workflowTaskSignalEvidence, 0, len(waitCondition.Signals)),
+		StartedAt:  waitCondition.StartedAt,
+		Summary:    waitCondition.Summary,
+		Terms:      make([]*workflowTaskWaitTerm, 0, len(waitCondition.Terms)),
+		Timers:     make([]*workflowTaskWaitTimer, 0, len(waitCondition.Timers)),
 	}
 
-	for _, timer := range gateView.Timers {
-		if timer == nil {
-			continue
+	for i := range waitCondition.Terms {
+		term := waitCondition.Terms[i]
+		result.Terms = append(result.Terms, &workflowTaskWaitTerm{
+			Kind:    string(term.Kind),
+			Label:   term.Label,
+			Matched: term.Matched,
+			Name:    term.Name,
+		})
+	}
+
+	for i := range waitCondition.Signals {
+		signal := waitCondition.Signals[i]
+		result.Signals = append(result.Signals, &workflowTaskSignalEvidence{
+			Key:           signal.Key,
+			LastMatchedID: signal.LastMatchedID,
+			LastVisibleID: signal.LastVisibleID,
+			Matched:       signal.Matched,
+			MatchedCount:  signal.MatchedCount,
+			VisibleCount:  signal.VisibleCount,
+		})
+	}
+
+	for i := range waitCondition.Timers {
+		timer := waitCondition.Timers[i]
+		serializedTimer := &workflowTaskWaitTimer{
+			Fired:   timer.Fired,
+			Matched: timer.Matched,
+			Name:    timer.Name,
 		}
 
-		serializedTimer := &workflowTaskGateTimer{
-			After:     timer.After,
-			AfterUS:   timer.AfterUS,
-			HasAfter:  timer.HasAfter,
-			HasFireAt: timer.HasFireAt,
-			Name:      timer.Name,
-		}
-
-		if timer.HasAfter && timer.AfterUS != nil {
-			afterSeconds := float64(*timer.AfterUS) / float64(time.Second/time.Microsecond)
+		if timer.After != nil {
+			after := *timer.After
+			afterUS := after.Microseconds()
+			serializedTimer.After = after.String()
+			serializedTimer.AfterUS = &afterUS
+			afterSeconds := float64(afterUS) / float64(time.Second/time.Microsecond)
 			serializedTimer.AfterSeconds = &afterSeconds
 		}
-		if timer.HasFireAt && timer.FireAt != nil {
+		if timer.FireAt != nil {
 			serializedTimer.FireAt = timer.FireAt
 		}
 		if timer.Anchor != nil {
-			serializedTimer.Anchor = &workflowTaskGateTimerAnchor{
+			serializedTimer.Anchor = &workflowTaskWaitTimerAnchor{
 				Kind: string(timer.Anchor.Kind),
-				Task: timer.Anchor.Task,
+				Task: timer.Anchor.TaskName,
 			}
 		}
 
 		result.Timers = append(result.Timers, serializedTimer)
 	}
 
-	if gateView.Satisfaction == nil {
-		return result
-	}
-
-	satisfactionSignals := make([]*workflowTaskGateSatisfactionSignal, 0, len(gateView.Satisfaction.Signals))
-	for _, signal := range gateView.Satisfaction.Signals {
-		if signal == nil {
-			continue
-		}
-		satisfactionSignals = append(satisfactionSignals, &workflowTaskGateSatisfactionSignal{
-			Count:        signal.Count,
-			Key:          signal.Key,
-			LastSignalID: signal.LastSignalID,
-		})
-	}
-
-	satisfactionTimers := make([]*workflowTaskGateSatisfactionTimer, 0, len(gateView.Satisfaction.Timers))
-	for _, timer := range gateView.Satisfaction.Timers {
-		if timer == nil {
-			continue
-		}
-		satisfactionTimers = append(satisfactionTimers, &workflowTaskGateSatisfactionTimer{
-			FireAt: timer.FireAt,
-			Fired:  timer.Fired,
-			Name:   timer.Name,
-		})
-	}
-
-	result.Satisfaction = &workflowTaskGateSatisfaction{
-		AsOf:    gateView.Satisfaction.AsOf,
-		Attempt: gateView.Satisfaction.Attempt,
-		Signals: satisfactionSignals,
-		Timers:  satisfactionTimers,
-	}
-
 	return result
+}
+
+func workflowTaskSignalFromInternal(signal riverworkflow.Signal) *workflowTaskSignal {
+	return &workflowTaskSignal{
+		Attempt:   signal.Attempt,
+		CreatedAt: signal.CreatedAt,
+		ID:        signal.ID,
+		Key:       signal.Key,
+		Payload:   signal.Payload,
+		Source:    signal.Source,
+	}
 }
 
 func workflowTaskStagedAtFromMetadata(metadata json.RawMessage) *time.Time {

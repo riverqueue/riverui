@@ -1,4 +1,4 @@
-import type { WorkflowTaskGate } from "@services/workflows";
+import type { WorkflowTaskWaitCondition } from "@services/workflows";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { add, sub } from "date-fns";
@@ -7,96 +7,168 @@ import WorkflowGateInspector from "./WorkflowGateInspector";
 
 const now = new Date();
 
-const waitingOnSignalGate: WorkflowTaskGate = {
-  activeAt: sub(now, { minutes: 3 }),
-  declaredSignals: [
-    "reviewer.approved",
-    "reviewer.override",
-    "reviewer.escalated",
-  ],
-  enabled: true,
-  exprCel:
-    'signals["reviewer.approved"].size() > 0 || signals["reviewer.override"].size() > 0 || timers["review_timeout"].fired',
+const waitingOnSignals: WorkflowTaskWaitCondition = {
+  exprCel: "approval_received || manager_override || review_timeout_reached",
   phase: "waiting",
+  signals: [
+    {
+      key: "approval.received",
+      matched: false,
+      matchedCount: 0,
+      visibleCount: 0,
+    },
+    {
+      key: "manager.override",
+      matched: false,
+      matchedCount: 0,
+      visibleCount: 0,
+    },
+  ],
+  startedAt: sub(now, { minutes: 3 }),
+  summary: "Waiting for human approval, manager override, or review timeout.",
+  terms: [
+    {
+      kind: "signal",
+      label: "Human approval received",
+      matched: false,
+      name: "approval_received",
+    },
+    {
+      kind: "signal",
+      label: "Manager override received",
+      matched: false,
+      name: "manager_override",
+    },
+    {
+      kind: "timer",
+      label: "Review timeout reached",
+      matched: false,
+      name: "review_timeout_reached",
+    },
+  ],
   timers: [
     {
       afterSeconds: 900,
-      anchor: { kind: "gate_active_at" },
+      anchor: { kind: "wait_started_at" },
       fireAt: add(now, { minutes: 12 }),
-      hasAfter: true,
-      hasFireAt: true,
+      fired: false,
+      matched: false,
       name: "review_timeout",
     },
   ],
 };
 
-const timerHeavyGate: WorkflowTaskGate = {
-  activeAt: sub(now, { minutes: 18 }),
-  declaredSignals: [],
-  enabled: true,
+const timerHeavyWaitCondition: WorkflowTaskWaitCondition = {
   exprCel:
-    'timers["soft_timeout"].fired || timers["hard_timeout"].fired || timers["customer_follow_up"].fired',
+    "soft_timeout_reached || hard_timeout_reached || customer_follow_up_reached",
   phase: "waiting",
+  signals: [],
+  startedAt: sub(now, { minutes: 18 }),
+  terms: [
+    {
+      kind: "timer",
+      label: "Soft timeout reached",
+      matched: true,
+      name: "soft_timeout_reached",
+    },
+    {
+      kind: "timer",
+      label: "Hard timeout reached",
+      matched: false,
+      name: "hard_timeout_reached",
+    },
+    {
+      kind: "timer",
+      label: "Customer follow-up reached",
+      matched: false,
+      name: "customer_follow_up_reached",
+    },
+  ],
   timers: [
     {
       afterSeconds: 300,
-      anchor: { kind: "gate_active_at" },
+      anchor: { kind: "wait_started_at" },
       fireAt: sub(now, { minutes: 13 }),
-      hasAfter: true,
-      hasFireAt: true,
+      fired: true,
+      matched: true,
       name: "soft_timeout",
     },
     {
       afterSeconds: 900,
-      anchor: { kind: "gate_active_at" },
+      anchor: { kind: "wait_started_at" },
       fireAt: add(now, { minutes: 2 }),
-      hasAfter: true,
-      hasFireAt: true,
+      fired: false,
+      matched: false,
       name: "hard_timeout",
     },
     {
       afterSeconds: 1800,
-      anchor: { kind: "dep_finalized_at", task: "send_response" },
-      hasAfter: true,
-      hasFireAt: false,
+      anchor: { kind: "task_finalized_at", task: "send_response" },
+      fired: false,
+      matched: false,
       name: "customer_follow_up",
     },
   ],
 };
 
-const satisfiedGate: WorkflowTaskGate = {
-  activeAt: sub(now, { minutes: 26 }),
-  declaredSignals: ["approval.received", "approval.override"],
-  enabled: true,
+const resolvedWaitCondition: WorkflowTaskWaitCondition = {
+  asOf: sub(now, { minutes: 2 }),
+  attempt: 1,
   exprCel:
-    'signals["approval.received"].size() > 0 || signals["approval.override"].size() > 0 || timers["approval_timeout"].fired',
-  phase: "satisfied",
-  satisfaction: {
-    asOf: sub(now, { minutes: 2 }),
-    attempt: 1,
-    signals: [
-      {
-        count: 2,
-        key: "approval.received",
-        lastSignalId: 9123n,
-      },
-    ],
-    timers: [
-      {
-        fireAt: add(now, { minutes: 4 }),
-        fired: false,
-        name: "approval_timeout",
-      },
-    ],
-  },
-  satisfiedAt: sub(now, { minutes: 2 }),
+    "(risk_checks_clear && approval_received) || approval_override || approval_timeout_reached",
+  phase: "resolved",
+  resolvedAt: sub(now, { minutes: 2 }),
+  signals: [
+    {
+      key: "approval.received",
+      lastMatchedID: 9123n,
+      lastVisibleID: 9123n,
+      matched: true,
+      matchedCount: 2,
+      visibleCount: 2,
+    },
+    {
+      key: "approval.override",
+      matched: false,
+      matchedCount: 0,
+      visibleCount: 0,
+    },
+  ],
+  startedAt: sub(now, { minutes: 26 }),
+  summary: "Risk checks clear and human approval received",
+  terms: [
+    {
+      kind: "dependency_output",
+      label: "Risk checks clear",
+      matched: true,
+      name: "risk_checks_clear",
+    },
+    {
+      kind: "signal",
+      label: "Human approval received",
+      matched: true,
+      name: "approval_received",
+    },
+    {
+      kind: "signal",
+      label: "Approval override received",
+      matched: false,
+      name: "approval_override",
+    },
+    {
+      kind: "timer",
+      label: "Approval timeout reached",
+      matched: false,
+      name: "approval_timeout_reached",
+    },
+  ],
   timers: [
     {
       afterSeconds: 1800,
-      anchor: { kind: "gate_active_at" },
+      anchor: { kind: "wait_started_at" },
       fireAt: add(now, { minutes: 4 }),
-      hasAfter: true,
-      hasFireAt: true,
+      fired: false,
+      matched: false,
       name: "approval_timeout",
     },
   ],
@@ -105,7 +177,7 @@ const satisfiedGate: WorkflowTaskGate = {
 const meta: Meta<typeof WorkflowGateInspector> = {
   component: WorkflowGateInspector,
   parameters: {
-    layout: "centered",
+    layout: "padded",
   },
   title: "Components/WorkflowGateInspector",
 };
@@ -114,34 +186,26 @@ export default meta;
 
 type Story = StoryObj<typeof WorkflowGateInspector>;
 
-const renderCard = (args: Story["args"]) => {
-  return (
-    <div className="w-[720px] rounded-2xl border border-slate-200 bg-white p-5 shadow-xs dark:border-slate-800 dark:bg-slate-900">
-      <WorkflowGateInspector {...args} />
-    </div>
-  );
-};
-
 export const WaitingOnSignals: Story = {
   args: {
-    gate: waitingOnSignalGate,
-    waitReason: "gate",
+    taskName: "await/review",
+    wait: waitingOnSignals,
+    workflowID: "wf-story",
   },
-  render: renderCard,
 };
 
 export const TimerHeavy: Story = {
   args: {
-    gate: timerHeavyGate,
-    waitReason: "dependencies_and_gate",
+    taskName: "queue/follow-up",
+    wait: timerHeavyWaitCondition,
+    workflowID: "wf-story",
   },
-  render: renderCard,
 };
 
-export const SatisfiedSnapshot: Story = {
+export const ResolvedResult: Story = {
   args: {
-    gate: satisfiedGate,
-    waitReason: "none",
+    taskName: "await/review",
+    wait: resolvedWaitCondition,
+    workflowID: "wf-story",
   },
-  render: renderCard,
 };

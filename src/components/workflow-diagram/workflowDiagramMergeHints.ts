@@ -60,9 +60,9 @@ export const withPreferredTargetMergeX = (
 
     // Only off-row incoming edges are nudged to a shared lane. Same-row edges
     // keep their direct path into the target for readability. Push the lane
-    // further left when the target has a gate switch handle.
+    // further left when the target has a wait-condition gate handle.
     const targetData = targetNode.data as undefined | WorkflowNodeData;
-    const hasGate = !!targetData?.job?.gate;
+    const hasGate = !!targetData?.job?.wait;
     const padding = hasGate
       ? targetMergePadding + switchHandleExtent
       : targetMergePadding;

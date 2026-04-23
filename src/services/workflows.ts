@@ -27,73 +27,98 @@ export type WorkflowRetryMode = "all" | "failed_and_downstream" | "failed_only";
 
 export type WorkflowTask = {
   deps: string[];
-  gate?: WorkflowTaskGate;
   ignoreCancelledDeps: boolean;
   ignoreDeletedDeps: boolean;
   ignoreDiscardedDeps: boolean;
   name: string;
   stagedAt?: Date;
+  wait?: WorkflowTaskWaitCondition;
   waitReason: WorkflowTaskWaitReason;
   workflowID: string;
 } & JobWithKnownMetadata;
 
-export type WorkflowTaskGate = {
-  activeAt?: Date;
-  declaredSignals: string[];
-  enabled: boolean;
-  exprCel: string;
-  phase: WorkflowTaskGatePhase;
-  satisfaction?: WorkflowTaskGateSatisfaction;
-  satisfiedAt?: Date;
-  timers: WorkflowTaskGateTimer[];
+export type WorkflowTaskSignal = {
+  attempt: number;
+  createdAt: Date;
+  id: bigint;
+  key: string;
+  payload: unknown;
+  source: unknown;
 };
 
-export type WorkflowTaskGatePhase =
-  | "inactive"
-  | "satisfied"
+export type WorkflowTaskSignalList = {
+  hasMore: boolean;
+  nextCursorID?: bigint;
+  scope: WorkflowTaskSignalScope;
+  signals: WorkflowTaskSignal[];
+};
+
+export type WorkflowTaskSignalReadScope =
+  | ""
+  | "at_wait_condition_resolved"
+  | "current_attempt";
+
+export type WorkflowTaskSignalScope = {
+  attempt: number;
+  scope: WorkflowTaskSignalReadScope;
+};
+
+export type WorkflowTaskWaitCondition = {
+  asOf?: Date;
+  attempt?: number;
+  exprCel: string;
+  phase: WorkflowTaskWaitConditionPhase;
+  resolvedAt?: Date;
+  signals: WorkflowTaskWaitConditionSignal[];
+  startedAt?: Date;
+  summary?: string;
+  terms: WorkflowTaskWaitConditionTerm[];
+  timers: WorkflowTaskWaitConditionTimer[];
+};
+
+export type WorkflowTaskWaitConditionPhase =
+  | "not_started"
+  | "resolved"
   | "unknown"
   | "waiting";
 
-export type WorkflowTaskGateSatisfaction = {
-  asOf: Date;
-  attempt: number;
-  signals: WorkflowTaskGateSatisfactionSignal[];
-  timers: WorkflowTaskGateSatisfactionTimer[];
-};
-
-export type WorkflowTaskGateSatisfactionSignal = {
-  count: number;
+export type WorkflowTaskWaitConditionSignal = {
   key: string;
-  lastSignalId?: bigint;
+  lastMatchedID?: bigint;
+  lastVisibleID?: bigint;
+  matched: boolean;
+  matchedCount: number;
+  visibleCount: number;
 };
 
-export type WorkflowTaskGateSatisfactionTimer = {
-  fireAt?: Date;
-  fired: boolean;
+export type WorkflowTaskWaitConditionTerm = {
+  kind: string;
+  label: string;
+  matched: boolean;
   name: string;
 };
 
-export type WorkflowTaskGateTimer = {
+export type WorkflowTaskWaitConditionTimer = {
   after?: string;
   afterSeconds?: number;
   afterUs?: number;
-  anchor?: WorkflowTaskGateTimerAnchor;
+  anchor?: WorkflowTaskWaitConditionTimerAnchor;
   fireAt?: Date;
-  hasAfter: boolean;
-  hasFireAt: boolean;
+  fired: boolean;
+  matched: boolean;
   name: string;
 };
 
-export type WorkflowTaskGateTimerAnchor = {
+export type WorkflowTaskWaitConditionTimerAnchor = {
   kind: string;
   task?: string;
 };
 
 export type WorkflowTaskWaitReason =
-  | "dependencies_and_gate"
+  | "dependencies_and_wait_condition"
   | "dependencies"
-  | "gate"
-  | "none";
+  | "none"
+  | "wait_condition";
 
 type CancelPayload = {
   workflowID: string;
@@ -118,59 +143,79 @@ type WorkflowFromAPI = {
 
 type WorkflowTaskFromAPI = {
   deps: string[];
-  gate?: WorkflowTaskGateFromAPI;
   ignore_cancelled_deps: boolean;
   ignore_deleted_deps: boolean;
   ignore_discarded_deps: boolean;
   name: string;
   staged_at?: string;
+  wait?: WorkflowTaskWaitConditionFromAPI;
   wait_reason: WorkflowTaskWaitReasonFromAPI;
   workflow_id: string;
 } & JobFromAPI;
 
-type WorkflowTaskGateFromAPI = {
-  active_at?: string;
-  declared_signals: string[];
-  enabled: boolean;
+type WorkflowTaskSignalFromAPI = {
+  attempt: number;
+  created_at: string;
+  id: number | string;
+  key: string;
+  payload: unknown;
+  source: unknown;
+};
+
+type WorkflowTaskSignalListFromAPI = {
+  has_more: boolean;
+  next_cursor_id?: number | string;
+  scope: WorkflowTaskSignalScopeFromAPI;
+  signals: WorkflowTaskSignalFromAPI[];
+};
+
+type WorkflowTaskSignalScopeFromAPI = {
+  attempt: number;
+  scope: WorkflowTaskSignalReadScope;
+};
+
+type WorkflowTaskWaitConditionFromAPI = {
+  as_of?: string;
+  attempt?: number;
   expr_cel: string;
   phase: string;
-  satisfaction?: WorkflowTaskGateSatisfactionFromAPI;
-  satisfied_at?: string;
-  timers: WorkflowTaskGateTimerFromAPI[];
+  resolved_at?: string;
+  signals: WorkflowTaskWaitConditionSignalFromAPI[];
+  started_at?: string;
+  summary?: string;
+  terms: WorkflowTaskWaitConditionTermFromAPI[];
+  timers: WorkflowTaskWaitConditionTimerFromAPI[];
 };
 
-type WorkflowTaskGateSatisfactionFromAPI = {
-  as_of: string;
-  attempt: number;
-  signals: WorkflowTaskGateSatisfactionSignalFromAPI[];
-  timers: WorkflowTaskGateSatisfactionTimerFromAPI[];
-};
-
-type WorkflowTaskGateSatisfactionSignalFromAPI = {
-  count: number;
+type WorkflowTaskWaitConditionSignalFromAPI = {
   key: string;
-  last_signal_id: number | string;
+  last_matched_id?: number | string;
+  last_visible_id?: number | string;
+  matched: boolean;
+  matched_count: number;
+  visible_count: number;
 };
 
-type WorkflowTaskGateSatisfactionTimerFromAPI = {
-  fire_at?: string;
-  fired: boolean;
+type WorkflowTaskWaitConditionTermFromAPI = {
+  kind: string;
+  label: string;
+  matched: boolean;
   name: string;
 };
 
-type WorkflowTaskGateTimerAnchorFromAPI = {
+type WorkflowTaskWaitConditionTimerAnchorFromAPI = {
   kind: string;
   task?: string;
 };
 
-type WorkflowTaskGateTimerFromAPI = {
+type WorkflowTaskWaitConditionTimerFromAPI = {
   after?: string;
   after_seconds?: number;
   after_us?: number;
-  anchor?: WorkflowTaskGateTimerAnchorFromAPI;
+  anchor?: WorkflowTaskWaitConditionTimerAnchorFromAPI;
   fire_at?: string;
-  has_after: boolean;
-  has_fire_at: boolean;
+  fired: boolean;
+  matched: boolean;
   name: string;
 };
 
@@ -241,6 +286,48 @@ export const getWorkflow: QueryFunction<Workflow, GetWorkflowKey> = async ({
   ).then(apiWorkflowToWorkflow);
 };
 
+type GetWorkflowTaskSignalsPayload = {
+  cursorID?: bigint | number | string;
+  desc?: boolean;
+  key?: string;
+  limit?: number;
+  scope?: Exclude<WorkflowTaskSignalReadScope, "">;
+  signal?: AbortSignal;
+  taskName: string;
+  workflowID: string;
+};
+
+export const getWorkflowTaskSignals = async ({
+  cursorID,
+  desc = true,
+  key,
+  limit = 20,
+  scope,
+  signal,
+  taskName,
+  workflowID,
+}: GetWorkflowTaskSignalsPayload): Promise<WorkflowTaskSignalList> => {
+  const query = new URLSearchParams({
+    desc: desc.toString(),
+    limit: limit.toString(),
+    task_name: taskName,
+  });
+  if (key) {
+    query.set("key", key);
+  }
+  if (cursorID !== undefined) {
+    query.set("cursor_id", cursorID.toString());
+  }
+  if (scope) {
+    query.set("scope", scope);
+  }
+
+  return API.get<WorkflowTaskSignalListFromAPI>(
+    { path: `/pro/workflows/${workflowID}/task-signals`, query },
+    { signal },
+  ).then(apiWorkflowTaskSignalListToWorkflowTaskSignalList);
+};
+
 const apiWorkflowToWorkflow = (workflow: WorkflowFromAPI): Workflow => ({
   id: workflow.id,
   name: workflow.name,
@@ -253,120 +340,157 @@ const apiWorkflowTaskToWorkflowTask = (
   return {
     ...(apiJobToJob(taskFromAPI) as JobWithKnownMetadata),
     deps: taskFromAPI.deps,
-    gate: apiWorkflowTaskGateToWorkflowTaskGate(taskFromAPI.gate),
     ignoreCancelledDeps: taskFromAPI.ignore_cancelled_deps,
     ignoreDeletedDeps: taskFromAPI.ignore_deleted_deps,
     ignoreDiscardedDeps: taskFromAPI.ignore_discarded_deps,
     name: taskFromAPI.name,
     stagedAt: parseDate(taskFromAPI.staged_at),
+    wait: apiWorkflowTaskWaitConditionToWorkflowTaskWaitCondition(
+      taskFromAPI.wait,
+    ),
     waitReason: taskFromAPI.wait_reason,
     workflowID: taskFromAPI.workflow_id,
   };
 };
 
-const apiWorkflowTaskGateToWorkflowTaskGate = (
-  gate: undefined | WorkflowTaskGateFromAPI,
-): undefined | WorkflowTaskGate => {
-  if (!gate) return undefined;
+const apiWorkflowTaskWaitConditionToWorkflowTaskWaitCondition = (
+  wait: undefined | WorkflowTaskWaitConditionFromAPI,
+): undefined | WorkflowTaskWaitCondition => {
+  if (!wait) return undefined;
 
   return {
-    activeAt: parseDate(gate.active_at),
-    declaredSignals: gate.declared_signals,
-    enabled: gate.enabled,
-    exprCel: gate.expr_cel,
-    phase: parseWorkflowTaskGatePhase(gate.phase),
-    satisfaction: apiWorkflowTaskGateSatisfactionToWorkflowTaskGateSatisfaction(
-      gate.satisfaction,
+    asOf: parseDate(wait.as_of),
+    attempt: wait.attempt,
+    exprCel: wait.expr_cel,
+    phase: parseWorkflowTaskWaitConditionPhase(wait.phase),
+    resolvedAt: parseDate(wait.resolved_at),
+    signals: wait.signals.map(
+      apiWorkflowTaskWaitConditionSignalToWorkflowTaskWaitConditionSignal,
     ),
-    satisfiedAt: parseDate(gate.satisfied_at),
-    timers: gate.timers.map(apiWorkflowTaskGateTimerToWorkflowTaskGateTimer),
+    startedAt: parseDate(wait.started_at),
+    summary: wait.summary,
+    terms: wait.terms.map(
+      apiWorkflowTaskWaitConditionTermToWorkflowTaskWaitConditionTerm,
+    ),
+    timers: wait.timers.map(
+      apiWorkflowTaskWaitConditionTimerToWorkflowTaskWaitConditionTimer,
+    ),
   };
 };
 
-const parseWorkflowTaskGatePhase = (phase: unknown): WorkflowTaskGatePhase => {
-  if (phase === "inactive" || phase === "waiting" || phase === "satisfied") {
+const parseWorkflowTaskWaitConditionPhase = (
+  phase: unknown,
+): WorkflowTaskWaitConditionPhase => {
+  if (phase === "not_started" || phase === "waiting" || phase === "resolved") {
     return phase;
   }
 
   return "unknown";
 };
 
-const apiWorkflowTaskGateTimerToWorkflowTaskGateTimer = (
-  timer: WorkflowTaskGateTimerFromAPI,
-): WorkflowTaskGateTimer => {
+const apiWorkflowTaskWaitConditionTermToWorkflowTaskWaitConditionTerm = (
+  term: WorkflowTaskWaitConditionTermFromAPI,
+): WorkflowTaskWaitConditionTerm => ({
+  kind: term.kind,
+  label: term.label,
+  matched: term.matched,
+  name: term.name,
+});
+
+const apiWorkflowTaskWaitConditionSignalToWorkflowTaskWaitConditionSignal = (
+  signal: WorkflowTaskWaitConditionSignalFromAPI,
+): WorkflowTaskWaitConditionSignal => ({
+  key: signal.key,
+  lastMatchedID: parseBigInt(signal.last_matched_id),
+  lastVisibleID: parseBigInt(signal.last_visible_id),
+  matched: signal.matched,
+  matchedCount: signal.matched_count,
+  visibleCount: signal.visible_count,
+});
+
+const apiWorkflowTaskWaitConditionTimerToWorkflowTaskWaitConditionTimer = (
+  timer: WorkflowTaskWaitConditionTimerFromAPI,
+): WorkflowTaskWaitConditionTimer => {
   return {
     after: timer.after,
     afterSeconds: timer.after_seconds,
     afterUs: timer.after_us,
-    anchor: apiWorkflowTaskGateTimerAnchorToWorkflowTaskGateTimerAnchor(
-      timer.anchor,
-    ),
+    anchor:
+      apiWorkflowTaskWaitConditionTimerAnchorToWorkflowTaskWaitConditionTimerAnchor(
+        timer.anchor,
+      ),
     fireAt: parseDate(timer.fire_at),
-    hasAfter: timer.has_after,
-    hasFireAt: timer.has_fire_at,
+    fired: timer.fired,
+    matched: timer.matched,
     name: timer.name,
   };
 };
 
-const apiWorkflowTaskGateTimerAnchorToWorkflowTaskGateTimerAnchor = (
-  anchor: undefined | WorkflowTaskGateTimerAnchorFromAPI,
-): undefined | WorkflowTaskGateTimerAnchor => {
-  if (!anchor || !anchor.kind) return undefined;
+const apiWorkflowTaskWaitConditionTimerAnchorToWorkflowTaskWaitConditionTimerAnchor =
+  (
+    anchor: undefined | WorkflowTaskWaitConditionTimerAnchorFromAPI,
+  ): undefined | WorkflowTaskWaitConditionTimerAnchor => {
+    if (!anchor || !anchor.kind) return undefined;
 
-  return {
-    kind: anchor.kind,
-    task: anchor.task,
+    return {
+      kind: anchor.kind,
+      task: anchor.task,
+    };
   };
-};
 
-const apiWorkflowTaskGateSatisfactionToWorkflowTaskGateSatisfaction = (
-  satisfaction: undefined | WorkflowTaskGateSatisfactionFromAPI,
-): undefined | WorkflowTaskGateSatisfaction => {
-  if (!satisfaction) {
-    return undefined;
+const apiWorkflowTaskSignalListToWorkflowTaskSignalList = (
+  signalList: WorkflowTaskSignalListFromAPI,
+): WorkflowTaskSignalList => ({
+  hasMore: signalList.has_more,
+  nextCursorID: parseBigInt(signalList.next_cursor_id),
+  scope: apiWorkflowTaskSignalScopeToWorkflowTaskSignalScope(signalList.scope),
+  signals: signalList.signals.map(apiWorkflowTaskSignalToWorkflowTaskSignal),
+});
+
+const apiWorkflowTaskSignalScopeToWorkflowTaskSignalScope = (
+  scope: WorkflowTaskSignalScopeFromAPI,
+): WorkflowTaskSignalScope => ({
+  attempt: scope.attempt,
+  scope: parseWorkflowTaskSignalReadScope(scope.scope),
+});
+
+const parseWorkflowTaskSignalReadScope = (
+  scope: unknown,
+): WorkflowTaskSignalReadScope => {
+  if (
+    scope === "" ||
+    scope === "at_wait_condition_resolved" ||
+    scope === "current_attempt"
+  ) {
+    return scope;
   }
 
-  const asOf = parseDate(satisfaction.as_of);
-  if (!asOf) return undefined;
-
-  return {
-    asOf,
-    attempt: satisfaction.attempt,
-    signals: satisfaction.signals.map(
-      apiWorkflowTaskGateSatisfactionSignalToWorkflowTaskGateSatisfactionSignal,
-    ),
-    timers: satisfaction.timers.map(
-      apiWorkflowTaskGateSatisfactionTimerToWorkflowTaskGateSatisfactionTimer,
-    ),
-  };
+  return "";
 };
 
-const apiWorkflowTaskGateSatisfactionSignalToWorkflowTaskGateSatisfactionSignal =
-  (
-    signal: WorkflowTaskGateSatisfactionSignalFromAPI,
-  ): WorkflowTaskGateSatisfactionSignal => {
-    return {
-      count: signal.count,
-      key: signal.key,
-      lastSignalId: parseBigInt(signal.last_signal_id),
-    };
-  };
-
-const apiWorkflowTaskGateSatisfactionTimerToWorkflowTaskGateSatisfactionTimer =
-  (
-    timer: WorkflowTaskGateSatisfactionTimerFromAPI,
-  ): WorkflowTaskGateSatisfactionTimer => {
-    return {
-      fireAt: parseDate(timer.fire_at),
-      fired: timer.fired,
-      name: timer.name,
-    };
-  };
+const apiWorkflowTaskSignalToWorkflowTaskSignal = (
+  signal: WorkflowTaskSignalFromAPI,
+): WorkflowTaskSignal => ({
+  attempt: signal.attempt,
+  createdAt: parseDateRequired(signal.created_at, "created_at"),
+  id: parseBigIntRequired(signal.id, "id"),
+  key: signal.key,
+  payload: signal.payload,
+  source: signal.source,
+});
 
 const parseDate = (value: unknown): Date | undefined => {
   if (typeof value !== "string") return undefined;
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+};
+
+const parseDateRequired = (value: unknown, field: string): Date => {
+  const parsed = parseDate(value);
+  if (!parsed) {
+    throw new Error(`Invalid ${field} value in workflow response`);
+  }
+  return parsed;
 };
 
 const parseBigInt = (value: unknown): bigint | undefined => {
@@ -379,6 +503,14 @@ const parseBigInt = (value: unknown): bigint | undefined => {
   } catch {
     return undefined;
   }
+};
+
+const parseBigIntRequired = (value: unknown, field: string): bigint => {
+  const parsed = parseBigInt(value);
+  if (parsed === undefined) {
+    throw new Error(`Invalid ${field} value in workflow response`);
+  }
+  return parsed;
 };
 
 export type ListWorkflowsKey = [

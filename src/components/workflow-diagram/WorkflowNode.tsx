@@ -35,7 +35,9 @@ const WorkflowNode = memo(
       updateNodeInternals(String(job.id));
     }, [job.id, updateNodeInternals]);
 
-    const tooltip = job.gate ? getGateTooltipText(job.gate) : undefined;
+    const tooltip = job.wait
+      ? getWaitConditionTooltipText(job.wait)
+      : undefined;
 
     const handleSelect = (event: React.PointerEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -49,12 +51,12 @@ const WorkflowNode = memo(
         key={job.id}
         onPointerDownCapture={handleSelect}
       >
-        {job.gate ? (
+        {job.wait ? (
           <CircuitSwitchHandle
-            gate={job.gate}
             isConnectable={isConnectable}
             tooltip={tooltip}
             visible={hasUpstreamDeps}
+            wait={job.wait}
           />
         ) : (
           <Handle
@@ -167,17 +169,17 @@ const leverCy = leverVbHeight / 2;
 const leverLineEndX = switchGap - switchHandleRadius + 1;
 
 const CircuitSwitchHandle = ({
-  gate,
   isConnectable,
   tooltip,
   visible,
+  wait,
 }: {
-  gate: NonNullable<WorkflowTask["gate"]>;
   isConnectable: boolean;
   tooltip?: string;
   visible: boolean;
+  wait: NonNullable<WorkflowTask["wait"]>;
 }) => {
-  const blocking = isGateBlocking(gate);
+  const blocking = isWaitConditionBlocking(wait);
   const leftCircleLeft = -(
     switchGap +
     switchHandleRadius -
@@ -185,18 +187,18 @@ const CircuitSwitchHandle = ({
   );
 
   // Brief color flash when the gate phase changes. Flash tone is derived from
-  // gate semantics (blocking vs satisfied), not raw phase labels.
+  // gate semantics (blocking vs resolved), not raw phase labels.
   const leverRef = useRef<SVGSVGElement>(null);
-  const prevPhaseRef = useRef(gate.phase);
+  const prevPhaseRef = useRef(wait.phase);
 
   useEffect(() => {
-    if (prevPhaseRef.current === gate.phase) return;
+    if (prevPhaseRef.current === wait.phase) return;
 
-    prevPhaseRef.current = gate.phase;
+    prevPhaseRef.current = wait.phase;
     const svg = leverRef.current;
     if (!svg) return;
 
-    const flashClass = getGateFlashClass(gate.phase);
+    const flashClass = getGateFlashClass(wait.phase);
     svg.classList.remove(gateLeverFlashClosedClass, gateLeverFlashOpenClass);
     svg.setAttribute("data-test-workflow-gate-transitioning", "false");
     if (!flashClass) return;
@@ -219,7 +221,7 @@ const CircuitSwitchHandle = ({
       svg.classList.remove(gateLeverFlashClosedClass, gateLeverFlashOpenClass);
       svg.setAttribute("data-test-workflow-gate-transitioning", "false");
     };
-  }, [blocking, gate.phase]);
+  }, [blocking, wait.phase]);
 
   return (
     <>
@@ -228,11 +230,11 @@ const CircuitSwitchHandle = ({
         aria-hidden="true"
         className={clsx(
           "workflow-gate-lever absolute",
-          getGateLeverPhaseClass(gate.phase),
+          getGateLeverPhaseClass(wait.phase),
           !visible && "opacity-0",
         )}
         data-test-workflow-gate-lever={blocking ? "open" : "closed"}
-        data-test-workflow-gate-phase={gate.phase}
+        data-test-workflow-gate-phase={wait.phase}
         data-test-workflow-gate-transitioning="false"
         fill="none"
         ref={leverRef}
@@ -312,16 +314,23 @@ const CircuitSwitchHandle = ({
   );
 };
 
-const getGateTooltipText = (
-  gate: NonNullable<WorkflowTask["gate"]>,
+const getWaitConditionTooltipText = (
+  wait: NonNullable<WorkflowTask["wait"]>,
 ): string => {
-  const parts: string[] = [getGateStatusLabel(gate)];
+  const parts: string[] = [getWaitConditionStatusLabel(wait)];
 
-  if (gate.declaredSignals.length > 0) {
-    parts.push(`Signals: ${gate.declaredSignals.join(", ")}`);
+  if (wait.summary) {
+    parts.push(
+      wait.phase === "resolved" ? `Resolved by: ${wait.summary}` : wait.summary,
+    );
   }
-  if (gate.timers.length > 0) {
-    parts.push(`Timers: ${gate.timers.map((t) => t.name).join(", ")}`);
+  if (wait.signals.length > 0) {
+    parts.push(
+      `Signals: ${wait.signals.map((signal) => signal.key).join(", ")}`,
+    );
+  }
+  if (wait.timers.length > 0) {
+    parts.push(`Timers: ${wait.timers.map((timer) => timer.name).join(", ")}`);
   }
 
   return parts.join("\n");
@@ -332,12 +341,12 @@ const LeadingStateIcon = ({ job }: { job: WorkflowTask }) => {
 };
 
 export const GateRow = ({
-  gate,
+  wait,
 }: {
-  gate: NonNullable<WorkflowTask["gate"]>;
+  wait: NonNullable<WorkflowTask["wait"]>;
 }) => {
-  const statusLabel = getGateStatusLabel(gate);
-  const toneClasses = getGateRowToneClasses(gate);
+  const statusLabel = getWaitConditionStatusLabel(wait);
+  const toneClasses = getWaitConditionRowToneClasses(wait);
 
   return (
     <div
@@ -345,53 +354,55 @@ export const GateRow = ({
         "flex h-[24px] items-center border-t px-3 text-[11px] leading-4",
         toneClasses.row,
       )}
-      data-testid="gate-row"
+      data-testid="wait-condition-row"
     >
       <div className="flex items-center gap-1.5">
-        <GateRowIcon gate={gate} />
+        <GateRowIcon wait={wait} />
         <span className="truncate">{statusLabel}</span>
       </div>
     </div>
   );
 };
 
-const GateRowIcon = ({ gate }: { gate: NonNullable<WorkflowTask["gate"]> }) => {
-  if (isGateBlocking(gate)) {
+const GateRowIcon = ({ wait }: { wait: NonNullable<WorkflowTask["wait"]> }) => {
+  if (isWaitConditionBlocking(wait)) {
     return <GateStatusIcon className="size-3.5 shrink-0" />;
   }
 
-  if (gate.phase === "satisfied") {
+  if (wait.phase === "resolved") {
     return <CheckCircleIcon className="size-3.5 shrink-0" />;
   }
 
   return <GateStatusIcon className="size-3.5 shrink-0" />;
 };
 
-const getGateStatusLabel = (
-  gate: NonNullable<WorkflowTask["gate"]>,
+const getWaitConditionStatusLabel = (
+  wait: NonNullable<WorkflowTask["wait"]>,
 ): string => {
-  switch (gate.phase) {
-    case "inactive":
-      return "Gate inactive";
-    case "satisfied":
-      return "Gate satisfied";
+  switch (wait.phase) {
+    case "not_started":
+      return "Wait condition not started";
+    case "resolved":
+      return "Wait condition resolved";
     case "waiting":
-      return "Gate pending";
+      return "Waiting on wait condition";
     default:
-      return isGateBlocking(gate) ? "Gate pending" : "Gate status unknown";
+      return isWaitConditionBlocking(wait)
+        ? "Waiting on wait condition"
+        : "Wait condition status unknown";
   }
 };
 
-const getGateRowToneClasses = (
-  gate: NonNullable<WorkflowTask["gate"]>,
+const getWaitConditionRowToneClasses = (
+  wait: NonNullable<WorkflowTask["wait"]>,
 ): { row: string } => {
-  if (isGateBlocking(gate)) {
+  if (isWaitConditionBlocking(wait)) {
     return {
       row: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200",
     };
   }
 
-  if (gate.phase === "satisfied") {
+  if (wait.phase === "resolved") {
     return {
       row: "border-green-100 bg-green-50/80 text-green-900 dark:border-green-900/50 dark:bg-green-950/20 dark:text-green-100",
     };
@@ -402,25 +413,28 @@ const getGateRowToneClasses = (
   };
 };
 
-const isGateBlocking = (gate: NonNullable<WorkflowTask["gate"]>): boolean => {
-  return gate.phase !== "satisfied";
+const isWaitConditionBlocking = (
+  wait: NonNullable<WorkflowTask["wait"]>,
+): boolean => {
+  return wait.phase !== "resolved";
 };
 
 const getGateFlashMode = (
-  phase: NonNullable<WorkflowTask["gate"]>["phase"],
+  phase: NonNullable<WorkflowTask["wait"]>["phase"],
 ): "closed" | "open" | undefined => {
   switch (phase) {
-    case "satisfied":
-      return "closed";
+    case "not_started":
     case "waiting":
       return "open";
+    case "resolved":
+      return "closed";
     default:
       return undefined;
   }
 };
 
 const getGateFlashClass = (
-  phase: NonNullable<WorkflowTask["gate"]>["phase"],
+  phase: NonNullable<WorkflowTask["wait"]>["phase"],
 ): string | undefined => {
   const flashMode = getGateFlashMode(phase);
 
@@ -435,13 +449,14 @@ const getGateFlashClass = (
 };
 
 const getGateLeverPhaseClass = (
-  phase: NonNullable<WorkflowTask["gate"]>["phase"],
+  phase: NonNullable<WorkflowTask["wait"]>["phase"],
 ): string => {
   switch (phase) {
-    case "satisfied":
-      return "workflow-gate-lever--satisfied";
+    case "not_started":
     case "waiting":
       return "workflow-gate-lever--waiting";
+    case "resolved":
+      return "workflow-gate-lever--satisfied";
     default:
       return "";
   }
