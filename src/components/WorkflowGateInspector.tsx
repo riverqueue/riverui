@@ -15,8 +15,8 @@ import {
   type WorkflowTaskSignal,
   type WorkflowTaskSignalList,
   type WorkflowTaskSignalReadScope,
-  type WorkflowTaskWaitCondition,
-  type WorkflowTaskWaitConditionTimer,
+  type WorkflowTaskWait,
+  type WorkflowTaskWaitTimer,
 } from "@services/workflows";
 import { formatDurationShort } from "@utils/time";
 import clsx from "clsx";
@@ -24,35 +24,35 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import PlaintextPanel from "@/components/PlaintextPanel";
 
-export type WaitConditionFocusRequest = {
+export type WaitFocusRequest = {
   conditionName: string;
   requestID: number;
 };
 
-type WorkflowWaitConditionInspectorProps = {
+type WorkflowWaitInspectorProps = {
   dependencyTasks?: Record<string, WorkflowTask>;
-  focusRequest?: undefined | WaitConditionFocusRequest;
+  focusRequest?: undefined | WaitFocusRequest;
   onSelectCondition?: (conditionName: string) => void;
   taskName: string;
-  wait: WorkflowTaskWaitCondition;
+  wait: WorkflowTaskWait;
   workflowID: string;
 };
 
-export default function WorkflowWaitConditionInspector({
+export default function WorkflowWaitInspector({
   dependencyTasks,
   focusRequest,
   onSelectCondition,
   taskName,
   wait,
   workflowID,
-}: WorkflowWaitConditionInspectorProps) {
+}: WorkflowWaitInspectorProps) {
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [closedFocusRequestID, setClosedFocusRequestID] = useState<number>();
   const [conditionFocusRequest, setConditionFocusRequest] =
-    useState<WaitConditionFocusRequest>();
+    useState<WaitFocusRequest>();
   const matchedConditions = useMemo(
     () =>
-      buildWaitConditionConditions(wait, dependencyTasks).filter(
+      buildWaitTermViews(wait, dependencyTasks).filter(
         (condition) => condition.matched,
       ),
     [dependencyTasks, wait],
@@ -95,15 +95,15 @@ export default function WorkflowWaitConditionInspector({
     <section className="mt-5 border-t border-slate-200 pt-5 dark:border-slate-800">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Subheading className="text-sm/6">Wait condition</Subheading>
-          <WaitConditionStatusPill wait={wait} />
+          <Subheading className="text-sm/6">Wait</Subheading>
+          <WaitStatusPill wait={wait} />
         </div>
-        <WaitConditionSummary
+        <WaitSummary
           matchedConditions={summaryConditions}
           onSelectCondition={handleSelectCondition}
           wait={wait}
         />
-        <WaitConditionFacts wait={wait} />
+        <WaitFacts wait={wait} />
         <button
           aria-expanded={detailsVisible}
           className="inline-flex items-center gap-1 rounded-md text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100"
@@ -121,9 +121,9 @@ export default function WorkflowWaitConditionInspector({
 
       {detailsVisible ? (
         <div className="mt-5 space-y-6">
-          {hasWaitConditionDetails(wait) ? (
-            <WaitConditionSection title="Conditions">
-              <WaitConditionConditions
+          {hasWaitDetails(wait) ? (
+            <WaitSection title="Conditions">
+              <WaitTermViews
                 dependencyTasks={dependencyTasks}
                 focusRequest={activeFocusRequest}
                 key={`${workflowID}:${taskName}:${wait.attempt?.toString() ?? ""}:${wait.phase}`}
@@ -131,31 +131,31 @@ export default function WorkflowWaitConditionInspector({
                 wait={wait}
                 workflowID={workflowID}
               />
-            </WaitConditionSection>
+            </WaitSection>
           ) : null}
 
-          <WaitConditionSection title="Wait condition expression">
+          <WaitSection title="Wait expression">
             <PlaintextPanel
               codeClassName="whitespace-pre-wrap break-all"
               content={wait.exprCel || "No CEL expression declared"}
-              copyTitle="Wait condition expression"
+              copyTitle="Wait expression"
               rawText={wait.exprCel || "No CEL expression declared"}
             />
-          </WaitConditionSection>
+          </WaitSection>
         </div>
       ) : null}
     </section>
   );
 }
 
-const WaitConditionSummary = ({
+const WaitSummary = ({
   matchedConditions,
   onSelectCondition,
   wait,
 }: {
-  matchedConditions: WaitConditionCondition[];
+  matchedConditions: WaitTermView[];
   onSelectCondition: (conditionName: string) => void;
-  wait: WorkflowTaskWaitCondition;
+  wait: WorkflowTaskWait;
 }) => {
   if (wait.phase === "resolved" && matchedConditions.length > 0) {
     return (
@@ -172,7 +172,7 @@ const WaitConditionSummary = ({
 
   return (
     <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-300">
-      {getWaitConditionSummary(wait)}
+      {getWaitSummary(wait)}
     </p>
   );
 };
@@ -181,7 +181,7 @@ const InlineConditionList = ({
   conditions,
   onSelectCondition,
 }: {
-  conditions: WaitConditionCondition[];
+  conditions: WaitTermView[];
   onSelectCondition: (conditionName: string) => void;
 }) => {
   return (
@@ -190,7 +190,7 @@ const InlineConditionList = ({
         <span key={`${condition.kind}:${condition.technicalName}`}>
           {index > 0 ? ", " : null}
           <button
-            className="text-brand-primary hover:text-blue-700 hover:underline dark:hover:text-blue-300"
+            className="cursor-pointer text-brand-primary hover:text-blue-700 hover:underline dark:text-blue-300 dark:hover:text-blue-200"
             onClick={() => onSelectCondition(condition.technicalName)}
             type="button"
           >
@@ -202,11 +202,7 @@ const InlineConditionList = ({
   );
 };
 
-export const WaitConditionStatusPill = ({
-  wait,
-}: {
-  wait: WorkflowTaskWaitCondition;
-}) => {
+export const WaitStatusPill = ({ wait }: { wait: WorkflowTaskWait }) => {
   const color =
     wait.phase === "resolved"
       ? "green"
@@ -215,13 +211,13 @@ export const WaitConditionStatusPill = ({
         : "amber";
 
   return (
-    <Badge color={color} title={getWaitConditionStatusLabel(wait.phase)}>
-      {getWaitConditionStatusLabel(wait.phase)}
+    <Badge color={color} title={getWaitStatusLabel(wait.phase)}>
+      {getWaitStatusLabel(wait.phase)}
     </Badge>
   );
 };
 
-const WaitConditionSection = ({
+const WaitSection = ({
   children,
   title,
 }: {
@@ -238,7 +234,7 @@ const WaitConditionSection = ({
   );
 };
 
-const WaitConditionFacts = ({ wait }: { wait: WorkflowTaskWaitCondition }) => {
+const WaitFacts = ({ wait }: { wait: WorkflowTaskWait }) => {
   const items = [
     wait.startedAt
       ? {
@@ -290,18 +286,19 @@ const WaitConditionFacts = ({ wait }: { wait: WorkflowTaskWaitCondition }) => {
   );
 };
 
-type WaitConditionCondition = {
+type WaitTermView = {
   dependencyTask?: WorkflowTask;
+  exprCel?: string;
   kind: string;
   label: string;
   matched: boolean;
-  signal?: WorkflowTaskWaitCondition["signals"][number];
+  signal?: WorkflowTaskWait["signals"][number];
   sortIndex: number;
   technicalName: string;
-  timer?: WorkflowTaskWaitCondition["timers"][number];
+  timer?: WorkflowTaskWait["timers"][number];
 };
 
-const WaitConditionConditions = ({
+const WaitTermViews = ({
   dependencyTasks,
   focusRequest,
   taskName,
@@ -309,20 +306,20 @@ const WaitConditionConditions = ({
   workflowID,
 }: {
   dependencyTasks: Record<string, WorkflowTask> | undefined;
-  focusRequest: undefined | WaitConditionFocusRequest;
+  focusRequest: undefined | WaitFocusRequest;
   taskName: string;
-  wait: WorkflowTaskWaitCondition;
+  wait: WorkflowTaskWait;
   workflowID: string;
 }) => {
   const defaultScope = getDefaultTaskSignalScope(wait);
   const conditions = useMemo(
-    () => buildWaitConditionConditions(wait, dependencyTasks),
+    () => buildWaitTermViews(wait, dependencyTasks),
     [dependencyTasks, wait],
   );
   const matchedConditions = conditions.filter((condition) => condition.matched);
   const latestConditionsRef = useRef(conditions);
   const conditionRowRefs = useRef(new Map<string, HTMLDivElement>());
-  const handledFocusRequestIDRef = useRef<number>();
+  const handledFocusRequestIDRef = useRef<number | undefined>(undefined);
   const [expandedSignalKey, setExpandedSignalKey] = useState<string>();
   const [selectedScope, setSelectedScope] =
     useState<WorkflowTaskSignalReadScope>(defaultScope);
@@ -381,7 +378,7 @@ const WaitConditionConditions = ({
   }, [focusRequest]);
 
   const registerConditionRow = (
-    condition: WaitConditionCondition,
+    condition: WaitTermView,
     node: HTMLDivElement | null,
   ) => {
     const key = getConditionFocusKey(condition);
@@ -504,25 +501,30 @@ const ConditionRow = ({
   signalListState,
   wait,
 }: {
-  condition: WaitConditionCondition;
+  condition: WaitTermView;
   expandedSignalKey: string | undefined;
   focused: boolean;
   onLoadMore: () => void;
-  onRegisterRow: (
-    condition: WaitConditionCondition,
-    node: HTMLDivElement | null,
-  ) => void;
+  onRegisterRow: (condition: WaitTermView, node: HTMLDivElement | null) => void;
   onScopeChange: (scope: WorkflowTaskSignalReadScope) => void;
   onToggleInspect: (signalKey: string) => void;
   selectedScope: WorkflowTaskSignalReadScope;
   signalListState: SignalInspectorState;
-  wait: WorkflowTaskWaitCondition;
+  wait: WorkflowTaskWait;
 }) => {
   const stateTone = getConditionStateTone(condition, wait.phase);
+  const signal = condition.signal;
+  const timer = condition.timer;
   const hasEvidence =
     condition.dependencyTask !== undefined ||
-    condition.signal !== undefined ||
-    condition.timer !== undefined;
+    signal !== undefined ||
+    timer !== undefined;
+  const showRawTechnicalName = Boolean(condition.exprCel || timer);
+  const metadataContent: ReactNode = timer ? (
+    <TimerConditionDefinition timer={timer} />
+  ) : (
+    (condition.exprCel ?? condition.technicalName)
+  );
 
   return (
     <div
@@ -532,7 +534,7 @@ const ConditionRow = ({
         stateTone.rowClassName,
         focused && "ring-1 ring-brand-primary/40 ring-inset",
       )}
-      data-testid="wait-condition-term-row"
+      data-testid="wait-term-row"
       ref={(node) => onRegisterRow(condition, node)}
       tabIndex={-1}
     >
@@ -563,26 +565,39 @@ const ConditionRow = ({
           >
             {condition.label}
           </div>
+          {showRawTechnicalName ? (
+            <div className="mt-0.5 min-w-0 font-mono text-xs leading-5 break-all text-slate-500 dark:text-slate-400">
+              {condition.technicalName}
+            </div>
+          ) : null}
           <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-xs leading-5 text-slate-500 dark:text-slate-400">
             <ConditionKindLabel kind={condition.kind} />
             <span
               aria-hidden="true"
-              className="size-1 rounded-full bg-slate-300 dark:bg-slate-600"
-            />
-            <span className="font-mono break-all">
-              {condition.technicalName}
+              className="text-slate-400 dark:text-slate-500"
+            >
+              &bull;
             </span>
+            {timer ? (
+              <span className="min-w-0 break-words">{metadataContent}</span>
+            ) : condition.exprCel ? (
+              <code className="rounded border border-slate-200 bg-slate-50 box-decoration-clone px-1 py-0.5 font-mono break-all text-slate-700 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200">
+                {metadataContent}
+              </code>
+            ) : (
+              <span className="font-mono break-all">{metadataContent}</span>
+            )}
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2 md:justify-self-end">
-          {condition.signal ? (
+          {signal ? (
             <button
               className="text-sm font-medium text-brand-primary hover:text-blue-700 dark:hover:text-blue-300"
-              onClick={() => onToggleInspect(condition.signal.key)}
+              onClick={() => onToggleInspect(signal.key)}
               type="button"
             >
-              {expandedSignalKey === condition.signal.key
+              {expandedSignalKey === signal.key
                 ? "Hide signals"
                 : "View signals"}
             </button>
@@ -596,7 +611,7 @@ const ConditionRow = ({
         ) : null}
       </div>
 
-      {condition.signal && expandedSignalKey === condition.signal.key ? (
+      {signal && expandedSignalKey === signal.key ? (
         <SignalHistoryPanel
           canUseResolvedScope={wait.resolvedAt !== undefined}
           onLoadMore={onLoadMore}
@@ -613,45 +628,66 @@ const ConditionEvidence = ({
   condition,
   wait,
 }: {
-  condition: WaitConditionCondition;
-  wait: WorkflowTaskWaitCondition;
+  condition: WaitTermView;
+  wait: WorkflowTaskWait;
 }) => {
-  if (condition.timer) {
-    return <TimerConditionEvidence condition={condition} />;
+  const timer = condition.timer;
+  if (timer) {
+    return <TimerConditionEvidence timer={timer} />;
   }
 
-  if (condition.signal) {
-    return <SignalConditionEvidence condition={condition} wait={wait} />;
+  const signal = condition.signal;
+  if (signal) {
+    return (
+      <SignalConditionEvidence
+        condition={{ ...condition, signal }}
+        wait={wait}
+      />
+    );
   }
 
-  if (condition.dependencyTask) {
-    return <DependencyConditionEvidence condition={condition} wait={wait} />;
+  const dependencyTask = condition.dependencyTask;
+  if (dependencyTask) {
+    return (
+      <DependencyConditionEvidence
+        condition={{ ...condition, dependencyTask }}
+        wait={wait}
+      />
+    );
   }
 
   return null;
 };
 
-const TimerConditionEvidence = ({
-  condition,
+const TimerConditionDefinition = ({
+  timer,
 }: {
-  condition: {
-    timer: WorkflowTaskWaitCondition["timers"][number];
-  } & WaitConditionCondition;
+  timer: WorkflowTaskWait["timers"][number];
 }) => {
-  const anchor = condition.timer.anchor
-    ? formatInlineTimerAnchor(condition.timer.anchor)
+  const anchor = timer.anchor
+    ? formatInlineTimerAnchor(timer.anchor)
     : "immediate";
 
   return (
+    <>
+      delay {getTimerDelayLabel(timer) ?? "none"}
+      <span className="px-1 text-slate-400 dark:text-slate-500">&bull;</span>
+      anchor {anchor}
+    </>
+  );
+};
+
+const TimerConditionEvidence = ({
+  timer,
+}: {
+  timer: WorkflowTaskWait["timers"][number];
+}) => {
+  return (
     <p className="min-w-0 text-xs leading-5 text-slate-600 dark:text-slate-300">
       <span className="font-medium text-slate-700 dark:text-slate-200">
-        {condition.timer.fired || condition.timer.matched ? "Fired" : "Fires"}
+        {timer.fired || timer.matched ? "Fired" : "Fires"}
       </span>{" "}
-      <TimerTiming timer={condition.timer} />
-      <span className="text-slate-400 dark:text-slate-500">, </span>
-      delay {getTimerDelayLabel(condition.timer) ?? "none"}
-      <span className="text-slate-400 dark:text-slate-500">, </span>
-      anchor {anchor}
+      <TimerTiming timer={timer} />
     </p>
   );
 };
@@ -662,8 +698,8 @@ const DependencyConditionEvidence = ({
 }: {
   condition: {
     dependencyTask: WorkflowTask;
-  } & WaitConditionCondition;
-  wait: WorkflowTaskWaitCondition;
+  } & WaitTermView;
+  wait: WorkflowTaskWait;
 }) => {
   if (condition.dependencyTask.finalizedAt) {
     return (
@@ -693,9 +729,9 @@ const SignalConditionEvidence = ({
   wait,
 }: {
   condition: {
-    signal: WorkflowTaskWaitCondition["signals"][number];
-  } & WaitConditionCondition;
-  wait: WorkflowTaskWaitCondition;
+    signal: WorkflowTaskWait["signals"][number];
+  } & WaitTermView;
+  wait: WorkflowTaskWait;
 }) => {
   return (
     <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
@@ -740,7 +776,7 @@ const ConditionSnapshotTiming = ({
 }: {
   label: string;
   resolvedLabel: string;
-  wait: WorkflowTaskWaitCondition;
+  wait: WorkflowTaskWait;
 }) => {
   const time = wait.resolvedAt ?? wait.asOf;
   if (!time) return null;
@@ -777,7 +813,7 @@ const ConditionKindLabel = ({ kind }: { kind: string }) => {
   return (
     <span className="inline-flex min-w-0 items-center gap-1">
       <ConditionKindIcon kind={kind} />
-      <span className="truncate">{getWaitConditionTermKindLabel(kind)}</span>
+      <span className="truncate">{getWaitTermKindLabel(kind)}</span>
     </span>
   );
 };
@@ -813,7 +849,7 @@ export const ConditionKindIcon = ({
 const TimerTiming = ({
   timer,
 }: {
-  timer: WorkflowTaskWaitCondition["timers"][number];
+  timer: WorkflowTaskWait["timers"][number];
 }) => {
   if (!timer.fireAt) {
     return <span>when anchor is available</span>;
@@ -839,19 +875,19 @@ const emptySignalInspectorState: SignalInspectorState = {
   signals: [],
 };
 
-const hasWaitConditionDetails = (wait: WorkflowTaskWaitCondition): boolean => {
+const hasWaitDetails = (wait: WorkflowTaskWait): boolean => {
   return (
     wait.terms.length > 0 || wait.signals.length > 0 || wait.timers.length > 0
   );
 };
 
-const buildWaitConditionConditions = (
-  wait: WorkflowTaskWaitCondition,
+const buildWaitTermViews = (
+  wait: WorkflowTaskWait,
   dependencyTasks?: Record<string, WorkflowTask>,
-): WaitConditionCondition[] => {
+): WaitTermView[] => {
   const usedSignalKeys = new Set<string>();
   const usedTimerNames = new Set<string>();
-  const conditions: WaitConditionCondition[] = wait.terms.map((term, index) => {
+  const conditions: WaitTermView[] = wait.terms.map((term, index) => {
     const signal = findSignalForTerm(term.name, wait.signals);
     const timer = findTimerForTerm(term.name, wait.timers);
     const dependencyTask =
@@ -868,8 +904,9 @@ const buildWaitConditionConditions = (
 
     return {
       dependencyTask,
+      exprCel: term.exprCel,
       kind: term.kind,
-      label: getWaitConditionTermDisplayLabel(term),
+      label: getWaitTermDisplayLabel(term),
       matched: term.matched,
       signal,
       sortIndex: index,
@@ -933,7 +970,7 @@ const findDependencyTaskForTerm = (
 
 const findSignalForTerm = (
   termName: string,
-  signals: WorkflowTaskWaitCondition["signals"],
+  signals: WorkflowTaskWait["signals"],
 ) => {
   const normalizedTermName = normalizeConditionName(termName);
 
@@ -949,7 +986,7 @@ const findSignalForTerm = (
 
 const findTimerForTerm = (
   termName: string,
-  timers: WorkflowTaskWaitCondition["timers"],
+  timers: WorkflowTaskWait["timers"],
 ) => {
   const normalizedTermName = normalizeConditionName(termName);
 
@@ -964,9 +1001,9 @@ const findTimerForTerm = (
 };
 
 const compareConditions = (
-  leftCondition: WaitConditionCondition,
-  rightCondition: WaitConditionCondition,
-  phase: WorkflowTaskWaitCondition["phase"],
+  leftCondition: WaitTermView,
+  rightCondition: WaitTermView,
+  phase: WorkflowTaskWait["phase"],
 ): number => {
   const leftRank = getConditionSortRank(leftCondition, phase);
   const rightRank = getConditionSortRank(rightCondition, phase);
@@ -985,8 +1022,8 @@ const compareConditions = (
 };
 
 const getConditionSortRank = (
-  condition: WaitConditionCondition,
-  phase: WorkflowTaskWaitCondition["phase"],
+  condition: WaitTermView,
+  phase: WorkflowTaskWait["phase"],
 ): number => {
   if (condition.matched) return 0;
 
@@ -999,8 +1036,8 @@ const getConditionSortRank = (
 };
 
 const getConditionStateLabel = (
-  condition: WaitConditionCondition,
-  phase: WorkflowTaskWaitCondition["phase"],
+  condition: WaitTermView,
+  phase: WorkflowTaskWait["phase"],
 ): string => {
   if (condition.matched) return "Matched";
   if (condition.timer?.fired) return "Fired";
@@ -1015,8 +1052,8 @@ const getConditionStateLabel = (
 };
 
 const getConditionStateTone = (
-  condition: WaitConditionCondition,
-  phase: WorkflowTaskWaitCondition["phase"],
+  condition: WaitTermView,
+  phase: WorkflowTaskWait["phase"],
 ): {
   borderClassName: string;
   dotClassName: string;
@@ -1067,12 +1104,12 @@ const getConditionStateTone = (
   };
 };
 
-const getConditionFocusKey = (condition: WaitConditionCondition): string => {
+const getConditionFocusKey = (condition: WaitTermView): string => {
   return `${condition.kind}:${condition.technicalName}`;
 };
 
 const conditionMatchesName = (
-  condition: WaitConditionCondition,
+  condition: WaitTermView,
   conditionName: string,
 ): boolean => {
   const normalizedConditionName = normalizeConditionName(conditionName);
@@ -1091,8 +1128,8 @@ const conditionMatchesName = (
 
 const orderConditionsForSummary = (
   summary: string | undefined,
-  conditions: WaitConditionCondition[],
-): WaitConditionCondition[] => {
+  conditions: WaitTermView[],
+): WaitTermView[] => {
   if (!summary) return conditions;
 
   const normalizedSummary = summary.toLowerCase();
@@ -1131,9 +1168,9 @@ const SignalHistoryPanel = ({
       <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
         {canUseResolvedScope ? (
           <ScopeButton
-            active={selectedScope === "at_wait_condition_resolved"}
-            label="At wait condition resolved"
-            onClick={() => onScopeChange("at_wait_condition_resolved")}
+            active={selectedScope === "at_wait_result"}
+            label="At wait result"
+            onClick={() => onScopeChange("at_wait_result")}
           />
         ) : null}
         <ScopeButton
@@ -1261,18 +1298,16 @@ const signalInspectorStateFromSignalList = (
 });
 
 const getDefaultTaskSignalScope = (
-  wait: WorkflowTaskWaitCondition,
+  wait: WorkflowTaskWait,
 ): WorkflowTaskSignalReadScope =>
-  wait.resolvedAt !== undefined
-    ? "at_wait_condition_resolved"
-    : "current_attempt";
+  wait.resolvedAt !== undefined ? "at_wait_result" : "current_attempt";
 
 const getTaskSignalsScopeBanner = (
   scope: WorkflowTaskSignalList["scope"],
 ): string => {
   switch (scope.scope) {
-    case "at_wait_condition_resolved":
-      return `Showing signals visible when the wait condition resolved for attempt ${scope.attempt.toString()}.`;
+    case "at_wait_result":
+      return `Showing signals visible at the wait result for attempt ${scope.attempt.toString()}.`;
     case "current_attempt":
       return `Showing signals from the current visible rows for attempt ${scope.attempt.toString()}.`;
     default:
@@ -1280,9 +1315,7 @@ const getTaskSignalsScopeBanner = (
   }
 };
 
-const getWaitConditionStatusLabel = (
-  phase: WorkflowTaskWaitCondition["phase"],
-): string => {
+const getWaitStatusLabel = (phase: WorkflowTaskWait["phase"]): string => {
   switch (phase) {
     case "not_started":
       return "Not started";
@@ -1295,7 +1328,7 @@ const getWaitConditionStatusLabel = (
   }
 };
 
-const getWaitConditionSummary = (wait: WorkflowTaskWaitCondition): string => {
+const getWaitSummary = (wait: WorkflowTaskWait): string => {
   if (wait.summary) {
     return wait.phase === "resolved"
       ? `Resolved by: ${wait.summary}.`
@@ -1304,17 +1337,17 @@ const getWaitConditionSummary = (wait: WorkflowTaskWaitCondition): string => {
 
   switch (wait.phase) {
     case "not_started":
-      return "Wait condition has not started because dependencies are still incomplete.";
+      return "Wait has not started because dependencies are still incomplete.";
     case "resolved":
-      return "Wait condition resolved.";
+      return "Wait resolved.";
     case "waiting":
-      return "This task is waiting for its wait condition.";
+      return "This task is waiting for its wait.";
     default:
-      return "Wait condition state is unavailable.";
+      return "Wait state is unavailable.";
   }
 };
 
-const getWaitConditionTermKindLabel = (kind: string): string => {
+const getWaitTermKindLabel = (kind: string): string => {
   switch (kind) {
     case "dependency_output":
       return "Dependency";
@@ -1327,9 +1360,7 @@ const getWaitConditionTermKindLabel = (kind: string): string => {
   }
 };
 
-const getWaitConditionTermLabel = (
-  term: WorkflowTaskWaitCondition["terms"][number],
-): string => {
+const getWaitTermLabel = (term: WorkflowTaskWait["terms"][number]): string => {
   if (!term.label || term.label === term.name) {
     return "—";
   }
@@ -1337,10 +1368,10 @@ const getWaitConditionTermLabel = (
   return term.label;
 };
 
-const getWaitConditionTermDisplayLabel = (
-  term: WorkflowTaskWaitCondition["terms"][number],
+const getWaitTermDisplayLabel = (
+  term: WorkflowTaskWait["terms"][number],
 ): string => {
-  const label = getWaitConditionTermLabel(term);
+  const label = getWaitTermLabel(term);
   return label === "—" ? humanizeIdentifier(term.name) : label;
 };
 
@@ -1356,7 +1387,7 @@ const humanizeIdentifier = (value: string): string => {
 };
 
 const formatTimerAnchor = (
-  anchor: NonNullable<WorkflowTaskWaitConditionTimer["anchor"]>,
+  anchor: NonNullable<WorkflowTaskWaitTimer["anchor"]>,
 ): string => {
   switch (anchor.kind) {
     case "task_finalized_at":
@@ -1375,14 +1406,14 @@ const formatTimerAnchor = (
 };
 
 const formatInlineTimerAnchor = (
-  anchor: NonNullable<WorkflowTaskWaitConditionTimer["anchor"]>,
+  anchor: NonNullable<WorkflowTaskWaitTimer["anchor"]>,
 ): string => {
   const label = formatTimerAnchor(anchor);
   return `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
 };
 
 const getTimerDelayLabel = (
-  timer: WorkflowTaskWaitCondition["timers"][number],
+  timer: WorkflowTaskWait["timers"][number],
 ): string | undefined => {
   if (typeof timer.afterSeconds !== "number") return undefined;
 

@@ -1,7 +1,7 @@
 import type {
   Workflow,
   WorkflowTask,
-  WorkflowTaskWaitCondition,
+  WorkflowTaskWait,
 } from "@services/workflows";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
@@ -36,9 +36,7 @@ const buildTask = (
   };
 };
 
-const buildWait = (
-  overrides: Partial<WorkflowTaskWaitCondition>,
-): WorkflowTaskWaitCondition => {
+const buildWait = (overrides: Partial<WorkflowTaskWait>): WorkflowTaskWait => {
   return {
     exprCel: "",
     phase: "waiting",
@@ -106,7 +104,7 @@ const buildWaitingWorkflow = (): Workflow => {
         },
       ],
     }),
-    waitReason: "wait_condition",
+    waitReason: "wait",
   });
 
   const send = buildTask("send_response", {
@@ -182,7 +180,7 @@ const buildDependenciesProgressingWorkflow = (): Workflow => {
         },
       ],
     }),
-    waitReason: "dependencies_and_wait_condition",
+    waitReason: "dependencies_and_wait",
   });
 
   return buildWorkflow(
@@ -381,7 +379,7 @@ const buildDirectWaitWorkflow = (): Workflow => {
         },
       ],
     }),
-    waitReason: "wait_condition",
+    waitReason: "wait",
   });
 
   return buildWorkflow("wf-story-direct-wait", "Direct Wait Workflow", [task]);

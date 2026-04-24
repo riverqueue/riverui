@@ -146,7 +146,7 @@ const buildResolvedAndWaitingTasks = (): WorkflowTask[] => {
         ],
         timers: [],
       },
-      waitReason: "wait_condition",
+      waitReason: "wait",
       workflowStagedAt: startedAt,
     }),
   ];
@@ -300,7 +300,7 @@ const buildAgentCustomerResolutionTasks = (): WorkflowTask[] => {
           },
         ],
       },
-      waitReason: "dependencies_and_wait_condition",
+      waitReason: "dependencies_and_wait",
       workflowStagedAt: startedAt,
     }),
     workflowJobFactory.build({
@@ -330,7 +330,7 @@ const buildAgentCustomerResolutionTasks = (): WorkflowTask[] => {
           },
         ],
       },
-      waitReason: "dependencies_and_wait_condition",
+      waitReason: "dependencies_and_wait",
       workflowStagedAt: startedAt,
     }),
     workflowJobFactory.build({
@@ -433,7 +433,7 @@ const buildAgentCustomerResolutionTasks = (): WorkflowTask[] => {
           },
         ],
       },
-      waitReason: "dependencies_and_wait_condition",
+      waitReason: "dependencies_and_wait",
       workflowStagedAt: startedAt,
     }),
   ];
@@ -529,7 +529,7 @@ const buildToggleTasks = (resolved: boolean): WorkflowTask[] => {
             ],
             timers: [],
           },
-          waitReason: "wait_condition",
+          waitReason: "wait",
           workflowStagedAt: startedAt,
         }),
     workflowJobFactory.build({
@@ -577,7 +577,7 @@ const StatefulRender = ({
   );
 };
 
-const WaitConditionToggleRender = () => {
+const WaitToggleRender = () => {
   const [resolved, setResolved] = useState(false);
   const [selectedJobId, setSelectedJobId] = useState<bigint | undefined>(42n);
 
@@ -592,7 +592,7 @@ const WaitConditionToggleRender = () => {
   return (
     <div className="h-[680px] w-full">
       <div className="mb-2 px-4 text-sm text-slate-500 dark:text-slate-400">
-        Wait condition is{" "}
+        Wait is{" "}
         <span className="font-semibold">
           {resolved ? "resolved" : "waiting"}
         </span>{" "}
@@ -613,7 +613,7 @@ export const Baseline: Story = {
   ),
 };
 
-export const WaitingOnWaitCondition: Story = {
+export const WaitingOnWait: Story = {
   render: () => (
     <StatefulRender
       initialSelectedJobId={33n}
@@ -631,7 +631,7 @@ export const Resolved: Story = {
   ),
 };
 
-export const WaitConditionsResolvedAndWaiting: Story = {
+export const WaitsResolvedAndWaiting: Story = {
   render: () => (
     <StatefulRender
       initialSelectedJobId={33n}
@@ -649,7 +649,7 @@ export const AgentCustomerResolutionLarge: Story = {
   ),
 };
 
-export const WaitConditionTransitionAnimation: Story = {
-  name: "Wait Condition Transition Animation",
-  render: WaitConditionToggleRender,
+export const WaitTransitionAnimation: Story = {
+  name: "Wait Transition Animation",
+  render: WaitToggleRender,
 };

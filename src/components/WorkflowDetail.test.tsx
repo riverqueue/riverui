@@ -95,8 +95,8 @@ const renderWorkflowDetail = async (
   return rendered!;
 };
 
-describe("WorkflowDetail wait condition inspector", () => {
-  it("shows structured wait-condition details in selected task inspector", async () => {
+describe("WorkflowDetail wait inspector", () => {
+  it("shows structured wait details in selected task inspector", async () => {
     const dependency = workflowJobFactory.build({
       id: 1,
       state: JobState.Completed,
@@ -144,7 +144,7 @@ describe("WorkflowDetail wait condition inspector", () => {
           },
         ],
       },
-      waitReason: "wait_condition",
+      waitReason: "wait",
     });
 
     await renderWorkflowDetail(
@@ -156,9 +156,7 @@ describe("WorkflowDetail wait condition inspector", () => {
       waitingTask.id,
     );
 
-    expect(
-      screen.getByRole("heading", { name: "Wait condition" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Wait" })).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Timeline" }),
     ).toBeInTheDocument();
@@ -172,14 +170,12 @@ describe("WorkflowDetail wait condition inspector", () => {
     expect(screen.getByText("Finalized")).toBeInTheDocument();
     expect(screen.getAllByText("approval.received")).not.toHaveLength(0);
     expect(screen.getAllByText("escalation")).not.toHaveLength(0);
-    expect(screen.getAllByText("Waiting on wait condition")).not.toHaveLength(
-      0,
-    );
-    expect(screen.queryByText("Wait condition started")).toBeNull();
-    expect(screen.queryByText("Wait")).toBeNull();
+    expect(screen.getAllByText("Waiting on wait")).not.toHaveLength(0);
+    expect(screen.queryByText("Wait started")).toBeNull();
+    expect(screen.queryByText("Task staged")).toBeNull();
   });
 
-  it("does not render wait-condition section when selected task has no wait condition", async () => {
+  it("does not render wait section when selected task has no wait", async () => {
     const task = workflowJobFactory.build({
       id: 1,
       state: JobState.Completed,
@@ -192,9 +188,7 @@ describe("WorkflowDetail wait condition inspector", () => {
       task.id,
     );
 
-    expect(
-      screen.queryByRole("heading", { name: "Wait condition" }),
-    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Wait" })).toBeNull();
     expect(screen.getByText("Not waiting")).toBeInTheDocument();
   });
 
@@ -231,7 +225,7 @@ describe("WorkflowDetail wait condition inspector", () => {
         ],
         timers: [],
       },
-      waitReason: "wait_condition",
+      waitReason: "wait",
     });
 
     const rootRoute = createRootRoute({
@@ -282,17 +276,13 @@ describe("WorkflowDetail wait condition inspector", () => {
       render(<RouterProvider router={router} />);
     });
 
-    expect(
-      screen.queryByRole("heading", { name: "Wait condition" }),
-    ).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Wait" })).toBeNull();
 
     await act(async () => {
       screen.getByRole("button", { name: "Select send_response" }).click();
     });
 
-    expect(
-      screen.getByRole("heading", { name: "Wait condition" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Wait" })).toBeInTheDocument();
     expect(screen.getAllByText("Waiting")).not.toHaveLength(0);
   });
 
@@ -366,13 +356,15 @@ describe("WorkflowDetail wait condition inspector", () => {
     expect(screen.getByText("Dependencies completed")).toBeInTheDocument();
     expect(screen.getAllByText("collect_inputs")).not.toHaveLength(0);
     expect(screen.getAllByText("safety_review")).not.toHaveLength(0);
-    expect(screen.getByText("Wait condition resolved")).toBeInTheDocument();
-    expect(screen.queryByText("Wait condition started")).toBeNull();
+    expect(screen.getByText("Wait resolved")).toBeInTheDocument();
+    expect(screen.queryByText("Wait started")).toBeNull();
     expect(
       screen.getByText(
         "2 terms matched and the wait expression evaluated true.",
       ),
     ).toBeInTheDocument();
+    expect(screen.getAllByText("Launch override received")).not.toHaveLength(0);
+    expect(screen.getAllByText("Release timeout reached")).not.toHaveLength(0);
     expect(screen.getAllByText("launch_override_received")).not.toHaveLength(0);
     expect(screen.getAllByText("release_timeout_reached")).not.toHaveLength(0);
     expect(screen.getByRole("button", { name: "Details" })).toHaveAttribute(
@@ -382,7 +374,9 @@ describe("WorkflowDetail wait condition inspector", () => {
 
     await act(async () => {
       fireEvent.click(
-        screen.getByRole("button", { name: "launch_override_received" }),
+        screen.getByRole("button", {
+          name: "Launch override received (launch_override_received)",
+        }),
       );
     });
 
@@ -391,7 +385,7 @@ describe("WorkflowDetail wait condition inspector", () => {
       "true",
     );
     expect(screen.getByText("2 of 2 conditions matched")).toBeInTheDocument();
-    expect(screen.getByText("Wait")).toBeInTheDocument();
+    expect(screen.getByText("Task staged")).toBeInTheDocument();
     expect(screen.getByText("Task started")).toBeInTheDocument();
     expect(screen.getByText("Task completed")).toBeInTheDocument();
   });
@@ -436,7 +430,7 @@ describe("WorkflowDetail wait condition inspector", () => {
         ],
         timers: [],
       },
-      waitReason: "wait_condition",
+      waitReason: "wait",
     });
 
     await renderWorkflowDetail(
@@ -455,7 +449,64 @@ describe("WorkflowDetail wait condition inspector", () => {
     ).toHaveAttribute("href", "/?selected=100");
   });
 
-  it("previews a not-started wait condition from the dependency milestone", async () => {
+  it("keeps dependency timeline tasks alphabetized across mixed states", async () => {
+    const completedDep = {
+      ...workflowJobFactory.build({
+        id: 501n,
+        state: JobState.Completed,
+        task: "alpha_cleanup",
+        waitReason: "none",
+      }),
+      finalizedAt: new Date("2026-04-21T17:58:00Z"),
+    };
+    const pendingDep = workflowJobFactory.build({
+      id: 502n,
+      state: JobState.Pending,
+      task: "beta_collect",
+      waitReason: "none",
+    });
+    const runningDep = {
+      ...workflowJobFactory.build({
+        id: 503n,
+        state: JobState.Running,
+        task: "gamma_check",
+        waitReason: "none",
+      }),
+      attemptedAt: new Date("2026-04-21T17:59:00Z"),
+    };
+
+    const blockedTask = workflowJobFactory.build({
+      deps: ["gamma_check", "alpha_cleanup", "beta_collect"],
+      id: 504n,
+      state: JobState.Pending,
+      task: "promote_global",
+      waitReason: "dependencies",
+    });
+
+    await renderWorkflowDetail(
+      {
+        id: "wf-test-dependency-order",
+        name: "Workflow Test",
+        tasks: [runningDep, completedDep, pendingDep, blockedTask],
+      },
+      blockedTask.id,
+    );
+
+    const alphaLink = screen.getByRole("link", { name: "alpha_cleanup" });
+    const betaLink = screen.getByRole("link", { name: "beta_collect" });
+    const gammaLink = screen.getByRole("link", { name: "gamma_check" });
+
+    expect(
+      alphaLink.compareDocumentPosition(betaLink) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      betaLink.compareDocumentPosition(gammaLink) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("does not preview a not-started wait from dependency progress", async () => {
     const completedDep = {
       ...workflowJobFactory.build({
         id: 401n,
@@ -514,7 +565,7 @@ describe("WorkflowDetail wait condition inspector", () => {
         ],
         timers: [],
       },
-      waitReason: "dependencies_and_wait_condition",
+      waitReason: "dependencies_and_wait",
     });
 
     await renderWorkflowDetail(
@@ -528,12 +579,12 @@ describe("WorkflowDetail wait condition inspector", () => {
 
     expect(screen.getByText("Dependencies progressing")).toBeInTheDocument();
     expect(
-      screen.getByText(
+      screen.queryByText(
         "Then waits for approval or timeout after dependency checks finish.",
       ),
-    ).toBeInTheDocument();
-    expect(screen.queryByText("Waiting on wait condition")).toBeNull();
-    expect(screen.queryByText("Wait")).toBeNull();
+    ).toBeNull();
+    expect(screen.queryByText("Waiting on wait")).toBeNull();
+    expect(screen.queryByText("Task staged")).toBeNull();
   });
 
   it("shows long matched-term lists without collapsing", async () => {

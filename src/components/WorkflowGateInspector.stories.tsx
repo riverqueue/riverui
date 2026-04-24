@@ -1,4 +1,4 @@
-import type { WorkflowTaskWaitCondition } from "@services/workflows";
+import type { WorkflowTaskWait } from "@services/workflows";
 import type { Meta, StoryObj } from "@storybook/react-vite";
 
 import { add, sub } from "date-fns";
@@ -7,7 +7,7 @@ import WorkflowGateInspector from "./WorkflowGateInspector";
 
 const now = new Date();
 
-const waitingOnSignals: WorkflowTaskWaitCondition = {
+const waitingOnSignals: WorkflowTaskWait = {
   exprCel: "approval_received || manager_override || review_timeout_reached",
   phase: "waiting",
   signals: [
@@ -28,12 +28,14 @@ const waitingOnSignals: WorkflowTaskWaitCondition = {
   summary: "Waiting for human approval, manager override, or review timeout.",
   terms: [
     {
+      exprCel: `payload.approved == true`,
       kind: "signal",
       label: "Human approval received",
       matched: false,
       name: "approval_received",
     },
     {
+      exprCel: `payload.manager_override == true`,
       kind: "signal",
       label: "Manager override received",
       matched: false,
@@ -58,7 +60,7 @@ const waitingOnSignals: WorkflowTaskWaitCondition = {
   ],
 };
 
-const timerHeavyWaitCondition: WorkflowTaskWaitCondition = {
+const timerHeavyWait: WorkflowTaskWait = {
   exprCel:
     "soft_timeout_reached || hard_timeout_reached || customer_follow_up_reached",
   phase: "waiting",
@@ -111,7 +113,7 @@ const timerHeavyWaitCondition: WorkflowTaskWaitCondition = {
   ],
 };
 
-const resolvedWaitCondition: WorkflowTaskWaitCondition = {
+const resolvedWait: WorkflowTaskWait = {
   asOf: sub(now, { minutes: 2 }),
   attempt: 1,
   exprCel:
@@ -138,18 +140,21 @@ const resolvedWaitCondition: WorkflowTaskWaitCondition = {
   summary: "Risk checks clear and human approval received",
   terms: [
     {
+      exprCel: `output.risk == "clear"`,
       kind: "dependency_output",
       label: "Risk checks clear",
       matched: true,
       name: "risk_checks_clear",
     },
     {
+      exprCel: `payload.approved == true`,
       kind: "signal",
       label: "Human approval received",
       matched: true,
       name: "approval_received",
     },
     {
+      exprCel: `payload.override == true`,
       kind: "signal",
       label: "Approval override received",
       matched: false,
@@ -197,7 +202,7 @@ export const WaitingOnSignals: Story = {
 export const TimerHeavy: Story = {
   args: {
     taskName: "queue/follow-up",
-    wait: timerHeavyWaitCondition,
+    wait: timerHeavyWait,
     workflowID: "wf-story",
   },
 };
@@ -205,7 +210,7 @@ export const TimerHeavy: Story = {
 export const ResolvedResult: Story = {
   args: {
     taskName: "await/review",
-    wait: resolvedWaitCondition,
+    wait: resolvedWait,
     workflowID: "wf-story",
   },
 };

@@ -630,27 +630,27 @@ func internalJobToSerializableJob(internal *rivertype.JobRow) *riverJobSerializa
 }
 
 const (
-	workflowTaskWaitReasonDependencies                 = "dependencies"
-	workflowTaskWaitReasonDependenciesAndWaitCondition = "dependencies_and_wait_condition"
-	workflowTaskWaitReasonNone                         = "none"
-	workflowTaskWaitReasonWaitCondition                = "wait_condition"
+	workflowTaskWaitReasonDependencies        = "dependencies"
+	workflowTaskWaitReasonDependenciesAndWait = "dependencies_and_wait"
+	workflowTaskWaitReasonNone                = "none"
+	workflowTaskWaitReasonWait                = "wait"
 )
 
 type workflowTaskSerializable struct {
 	riverJobSerializable
 
-	Deps                []string                   `json:"deps"`
-	IgnoreCancelledDeps bool                       `json:"ignore_cancelled_deps"`
-	IgnoreDeletedDeps   bool                       `json:"ignore_deleted_deps"`
-	IgnoreDiscardedDeps bool                       `json:"ignore_discarded_deps"`
-	Name                string                     `json:"name"`
-	StagedAt            *time.Time                 `json:"staged_at,omitempty"`
-	Wait                *workflowTaskWaitCondition `json:"wait,omitempty"`
-	WaitReason          string                     `json:"wait_reason"`
-	WorkflowID          string                     `json:"workflow_id"`
+	Deps                []string          `json:"deps"`
+	IgnoreCancelledDeps bool              `json:"ignore_cancelled_deps"`
+	IgnoreDeletedDeps   bool              `json:"ignore_deleted_deps"`
+	IgnoreDiscardedDeps bool              `json:"ignore_discarded_deps"`
+	Name                string            `json:"name"`
+	StagedAt            *time.Time        `json:"staged_at,omitempty"`
+	Wait                *workflowTaskWait `json:"wait,omitempty"`
+	WaitReason          string            `json:"wait_reason"`
+	WorkflowID          string            `json:"workflow_id"`
 }
 
-type workflowTaskWaitCondition struct {
+type workflowTaskWait struct {
 	AsOf       *time.Time                    `json:"as_of,omitempty"`
 	Attempt    *int                          `json:"attempt,omitempty"`
 	ExprCEL    string                        `json:"expr_cel"`
@@ -664,6 +664,7 @@ type workflowTaskWaitCondition struct {
 }
 
 type workflowTaskWaitTerm struct {
+	ExprCEL string `json:"expr_cel,omitempty"`
 	Kind    string `json:"kind"`
 	Label   string `json:"label"`
 	Matched bool   `json:"matched"`
@@ -708,7 +709,7 @@ func internalWorkflowTaskToSerializableTask(task *riverpro.WorkflowTaskWithJob) 
 		IgnoreDiscardedDeps:  task.IgnoreDiscardedDeps,
 		Name:                 task.Name,
 		StagedAt:             workflowTaskStagedAtFromMetadata(task.Job.Metadata),
-		Wait:                 workflowTaskWaitConditionFromInternal(task.Wait),
+		Wait:                 workflowTaskWaitFromInternal(task.Wait),
 		WaitReason:           workflowTaskWaitReasonFromInternal(task.WaitReason),
 		WorkflowID:           task.WorkflowID,
 	}
@@ -716,38 +717,39 @@ func internalWorkflowTaskToSerializableTask(task *riverpro.WorkflowTaskWithJob) 
 
 func workflowTaskWaitReasonFromInternal(waitReason riverpro.WorkflowTaskWaitReason) string {
 	switch waitReason {
-	case riverpro.WorkflowTaskWaitReasonDependenciesAndWaitCondition:
-		return workflowTaskWaitReasonDependenciesAndWaitCondition
+	case riverpro.WorkflowTaskWaitReasonDependenciesAndWait:
+		return workflowTaskWaitReasonDependenciesAndWait
 	case riverpro.WorkflowTaskWaitReasonDependencies:
 		return workflowTaskWaitReasonDependencies
-	case riverpro.WorkflowTaskWaitReasonWaitCondition:
-		return workflowTaskWaitReasonWaitCondition
+	case riverpro.WorkflowTaskWaitReasonWait:
+		return workflowTaskWaitReasonWait
 	default:
 		return workflowTaskWaitReasonNone
 	}
 }
 
-func workflowTaskWaitConditionFromInternal(waitCondition *riverworkflow.WaitCondition) *workflowTaskWaitCondition {
-	if waitCondition == nil {
+func workflowTaskWaitFromInternal(wait *riverworkflow.Wait) *workflowTaskWait {
+	if wait == nil {
 		return nil
 	}
 
-	result := &workflowTaskWaitCondition{
-		AsOf:       waitCondition.AsOf,
-		Attempt:    waitCondition.Attempt,
-		ExprCEL:    waitCondition.Expr,
-		ResolvedAt: waitCondition.ResolvedAt,
-		Phase:      waitCondition.Phase.String(),
-		Signals:    make([]*workflowTaskSignalEvidence, 0, len(waitCondition.Signals)),
-		StartedAt:  waitCondition.StartedAt,
-		Summary:    waitCondition.Summary,
-		Terms:      make([]*workflowTaskWaitTerm, 0, len(waitCondition.Terms)),
-		Timers:     make([]*workflowTaskWaitTimer, 0, len(waitCondition.Timers)),
+	result := &workflowTaskWait{
+		AsOf:       wait.AsOf,
+		Attempt:    wait.Attempt,
+		ExprCEL:    wait.Expr,
+		ResolvedAt: wait.ResolvedAt,
+		Phase:      wait.Phase.String(),
+		Signals:    make([]*workflowTaskSignalEvidence, 0, len(wait.Signals)),
+		StartedAt:  wait.StartedAt,
+		Summary:    wait.Summary,
+		Terms:      make([]*workflowTaskWaitTerm, 0, len(wait.Terms)),
+		Timers:     make([]*workflowTaskWaitTimer, 0, len(wait.Timers)),
 	}
 
-	for i := range waitCondition.Terms {
-		term := waitCondition.Terms[i]
+	for i := range wait.Terms {
+		term := wait.Terms[i]
 		result.Terms = append(result.Terms, &workflowTaskWaitTerm{
+			ExprCEL: term.Expr,
 			Kind:    string(term.Kind),
 			Label:   term.Label,
 			Matched: term.Matched,
@@ -755,8 +757,8 @@ func workflowTaskWaitConditionFromInternal(waitCondition *riverworkflow.WaitCond
 		})
 	}
 
-	for i := range waitCondition.Signals {
-		signal := waitCondition.Signals[i]
+	for i := range wait.Signals {
+		signal := wait.Signals[i]
 		result.Signals = append(result.Signals, &workflowTaskSignalEvidence{
 			Key:           signal.Key,
 			LastMatchedID: signal.LastMatchedID,
@@ -767,8 +769,8 @@ func workflowTaskWaitConditionFromInternal(waitCondition *riverworkflow.WaitCond
 		})
 	}
 
-	for i := range waitCondition.Timers {
-		timer := waitCondition.Timers[i]
+	for i := range wait.Timers {
+		timer := wait.Timers[i]
 		serializedTimer := &workflowTaskWaitTimer{
 			Fired:   timer.Fired,
 			Matched: timer.Matched,

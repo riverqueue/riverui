@@ -1,4 +1,4 @@
-import type { WorkflowTaskWaitCondition } from "@services/workflows";
+import type { WorkflowTaskWait } from "@services/workflows";
 
 import {
   act,
@@ -11,7 +11,7 @@ import { add } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkflowGateInspector, {
-  type WaitConditionFocusRequest,
+  type WaitFocusRequest,
 } from "./WorkflowGateInspector";
 
 describe("WorkflowGateInspector", () => {
@@ -27,8 +27,8 @@ describe("WorkflowGateInspector", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders summary, terms, signals, and timers from wait-condition data", async () => {
-    const wait: WorkflowTaskWaitCondition = {
+  it("renders summary, terms, signals, and timers from wait data", async () => {
+    const wait: WorkflowTaskWait = {
       asOf: new Date("2026-04-21T17:59:00Z"),
       attempt: 2,
       exprCel: "approval_received || review_sla_timeout_reached",
@@ -48,6 +48,7 @@ describe("WorkflowGateInspector", () => {
       summary: "Human approval received",
       terms: [
         {
+          exprCel: `payload.approved == true`,
           kind: "signal",
           label: "Human approval received",
           matched: true,
@@ -103,6 +104,7 @@ describe("WorkflowGateInspector", () => {
     );
     expect(screen.getAllByText("Signal")).not.toHaveLength(0);
     expect(screen.getAllByText("Timer")).not.toHaveLength(0);
+    expect(screen.getByText("payload.approved == true")).toBeInTheDocument();
     expect(screen.getByText("Visible")).toBeInTheDocument();
     expect(screen.getByText("Last visible")).toBeInTheDocument();
     expect(screen.getAllByText("#9001")).not.toHaveLength(0);
@@ -127,8 +129,43 @@ describe("WorkflowGateInspector", () => {
     ).toBeInTheDocument();
   });
 
+  it("renders dependency and signal CEL terms", async () => {
+    const wait: WorkflowTaskWait = {
+      exprCel: "classify_intake_done && approval_received",
+      phase: "waiting",
+      signals: [],
+      terms: [
+        {
+          exprCel: `output.category == "launch"`,
+          kind: "dependency_output",
+          label: "Classify intake done",
+          matched: true,
+          name: "classify_intake_done",
+        },
+        {
+          exprCel: `payload.approved == true`,
+          kind: "signal",
+          label: "Approval received",
+          matched: false,
+          name: "approval_received",
+        },
+      ],
+      timers: [],
+    };
+
+    renderInspector(wait);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    });
+
+    expect(screen.queryByText("Definition")).not.toBeInTheDocument();
+    expect(screen.getByText(`output.category == "launch"`)).toBeInTheDocument();
+    expect(screen.getByText("payload.approved == true")).toBeInTheDocument();
+  });
+
   it("uses phase-aware fallback copy when no summary is available", () => {
-    const wait: WorkflowTaskWaitCondition = {
+    const wait: WorkflowTaskWait = {
       exprCel: "approval_received",
       phase: "not_started",
       signals: [],
@@ -140,7 +177,7 @@ describe("WorkflowGateInspector", () => {
 
     expect(
       screen.getByText(
-        "Wait condition has not started because dependencies are still incomplete.",
+        "Wait has not started because dependencies are still incomplete.",
       ),
     ).toBeInTheDocument();
   });
@@ -156,7 +193,7 @@ describe("WorkflowGateInspector", () => {
     });
     vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(focus);
 
-    const wait: WorkflowTaskWaitCondition = {
+    const wait: WorkflowTaskWait = {
       asOf: new Date("2026-04-21T17:59:00Z"),
       exprCel: "approval_received",
       phase: "resolved",
@@ -173,7 +210,7 @@ describe("WorkflowGateInspector", () => {
       ],
       timers: [],
     };
-    const focusRequest: WaitConditionFocusRequest = {
+    const focusRequest: WaitFocusRequest = {
       conditionName: "approval_received",
       requestID: 1,
     };
@@ -213,7 +250,7 @@ describe("WorkflowGateInspector", () => {
     expect(focus).toHaveBeenCalledTimes(2);
   });
 
-  it("fetches task-visible signals lazily using the wait-condition-resolved scope when resolved", async () => {
+  it("fetches task-visible signals lazily using the wait-result scope when resolved", async () => {
     vi.useRealTimers();
 
     const fetchMock = mockTaskSignalsFetch([
@@ -222,7 +259,7 @@ describe("WorkflowGateInspector", () => {
           has_more: false,
           scope: {
             attempt: 2,
-            scope: "at_wait_condition_resolved",
+            scope: "at_wait_result",
           },
           signals: [
             {
@@ -238,7 +275,7 @@ describe("WorkflowGateInspector", () => {
       },
     ]);
 
-    const wait: WorkflowTaskWaitCondition = {
+    const wait: WorkflowTaskWait = {
       exprCel: "approval_received",
       phase: "resolved",
       resolvedAt: new Date("2026-04-21T17:59:00Z"),
@@ -269,12 +306,10 @@ describe("WorkflowGateInspector", () => {
     expect(
       screen.getByRole("button", { name: "Hide signals" }),
     ).toBeInTheDocument();
-    expect(fetchMock.mock.calls[0]?.[0]).toContain(
-      "scope=at_wait_condition_resolved",
-    );
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("scope=at_wait_result");
     expect(
       await screen.findByText(
-        "Showing signals visible when the wait condition resolved for attempt 2.",
+        "Showing signals visible at the wait result for attempt 2.",
       ),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/decision/)).not.toHaveLength(0);
@@ -297,7 +332,7 @@ describe("WorkflowGateInspector", () => {
       },
     ]);
 
-    const wait: WorkflowTaskWaitCondition = {
+    const wait: WorkflowTaskWait = {
       exprCel: "approval_received",
       phase: "waiting",
       signals: [
@@ -335,9 +370,9 @@ describe("WorkflowGateInspector", () => {
 });
 
 const renderInspector = (
-  wait: WorkflowTaskWaitCondition,
+  wait: WorkflowTaskWait,
   props: {
-    focusRequest?: WaitConditionFocusRequest;
+    focusRequest?: WaitFocusRequest;
   } = {},
 ) => {
   return render(

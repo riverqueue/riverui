@@ -52,7 +52,7 @@ const renderNode = (data: WorkflowNodeData) => {
   return render(<WorkflowNode {...buildNodeProps(data)} />);
 };
 
-const buildWaitConditionData = ({
+const buildWaitData = ({
   id,
   phase,
 }: {
@@ -79,44 +79,38 @@ const buildWaitConditionData = ({
       terms: [],
       timers: [],
     },
-    waitReason: resolved ? "none" : "wait_condition",
+    waitReason: resolved ? "none" : "wait",
   });
 
   return {
     hasDownstreamDeps: false,
     hasUpstreamDeps: true,
     job,
-    waitReason: resolved ? "none" : "wait_condition",
+    waitReason: resolved ? "none" : "wait",
   };
 };
 
 describe("WorkflowNode", () => {
-  it("renders a physical gate handle for tasks with wait conditions", () => {
+  it("renders a physical gate handle for tasks with waits", () => {
     const { container } = renderNode(
-      buildWaitConditionData({ id: 11, phase: "waiting" }),
+      buildWaitData({ id: 11, phase: "waiting" }),
     );
 
-    const lever = container.querySelector("[data-test-workflow-gate-lever]");
-    expect(lever).not.toBeNull();
-    expect(lever?.getAttribute("data-test-workflow-gate-lever")).toBe("open");
-    expect(lever?.getAttribute("data-test-workflow-gate-phase")).toBe(
-      "waiting",
-    );
+    const arm = container.querySelector("[data-test-workflow-gate-phase]");
+    expect(arm).not.toBeNull();
+    expect(arm?.getAttribute("data-test-workflow-gate-phase")).toBe("waiting");
   });
 
-  it("opens the gate when the wait condition is resolved", () => {
+  it("opens the gate when the wait is resolved", () => {
     const { container } = renderNode(
-      buildWaitConditionData({ id: 12, phase: "resolved" }),
+      buildWaitData({ id: 12, phase: "resolved" }),
     );
 
-    const lever = container.querySelector("[data-test-workflow-gate-lever]");
-    expect(lever?.getAttribute("data-test-workflow-gate-lever")).toBe("closed");
-    expect(lever?.getAttribute("data-test-workflow-gate-phase")).toBe(
-      "resolved",
-    );
+    const arm = container.querySelector("[data-test-workflow-gate-phase]");
+    expect(arm?.getAttribute("data-test-workflow-gate-phase")).toBe("resolved");
   });
 
-  it("renders plain pending nodes without wait-condition UI", () => {
+  it("renders plain pending nodes without wait UI", () => {
     const job = workflowJobFactory.build({
       deps: ["classify_intake"],
       id: 13,
@@ -132,13 +126,13 @@ describe("WorkflowNode", () => {
       waitReason: "dependencies",
     });
 
-    expect(screen.queryByTestId("wait-condition-row")).toBeNull();
+    expect(screen.queryByTestId("wait-row")).toBeNull();
     expect(screen.queryByTestId("target-handle")).toBeInTheDocument();
   });
 
-  it("uses the wait-condition summary in the gate tooltip when available", () => {
+  it("uses the wait summary in the gate tooltip when available", () => {
     const { container } = renderNode(
-      buildWaitConditionData({ id: 14, phase: "resolved" }),
+      buildWaitData({ id: 14, phase: "resolved" }),
     );
 
     const tooltipTarget = container.querySelector(

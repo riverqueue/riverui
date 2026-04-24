@@ -2,7 +2,7 @@ import { JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import {
   type WorkflowTask,
-  type WorkflowTaskWaitCondition,
+  type WorkflowTaskWait,
   type WorkflowTaskWaitReason,
 } from "@services/workflows";
 import { Factory } from "fishery";
@@ -20,7 +20,7 @@ type WorkflowJobFactoryParams = {
   ignoreDiscardedDeps?: boolean;
   state?: JobState;
   task?: string;
-  wait?: WorkflowTaskWaitCondition;
+  wait?: WorkflowTaskWait;
   waitReason?: WorkflowTaskWaitReason;
   workflowID?: string;
   workflowStagedAt?: Date;
@@ -71,14 +71,14 @@ export const workflowJobFactory = Factory.define<
         if (params.state !== JobState.Pending) return "none";
 
         const hasDependencyBlockers = (params.deps ?? []).length > 0;
-        const hasWaitConditionBlocker =
+        const hasWaitBlocker =
           params.wait !== undefined && params.wait.phase !== "resolved";
 
-        if (hasDependencyBlockers && hasWaitConditionBlocker) {
-          return "dependencies_and_wait_condition";
+        if (hasDependencyBlockers && hasWaitBlocker) {
+          return "dependencies_and_wait";
         }
         if (hasDependencyBlockers) return "dependencies";
-        if (hasWaitConditionBlocker) return "wait_condition";
+        if (hasWaitBlocker) return "wait";
 
         return "none";
       })(),

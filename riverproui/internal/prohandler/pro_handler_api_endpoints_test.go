@@ -161,7 +161,7 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 
 	ctx := context.Background()
 
-	t.Run("SuccessIncludesWaitConditionAndWaitReason", func(t *testing.T) {
+	t.Run("SuccessIncludesWaitAndWaitReason", func(t *testing.T) {
 		t.Parallel()
 
 		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowGetEndpoint)
@@ -172,11 +172,12 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 		}))
 
 		now := time.Now().UTC().Truncate(time.Second)
-		waitConditionSpec := &riverworkflow.WaitConditionSpec{
-			Expr: "approval_received || review_sla_reached",
-			Terms: []riverworkflow.WaitConditionTermSpec{
-				riverworkflow.SignalTerm("approval_received", "approval", "true").Label("Approval received"),
-				riverworkflow.TimerTerm(
+		waitSpec := &riverworkflow.WaitSpec{
+			Expr: "collect_inputs_ready && (approval_received || review_sla_reached)",
+			Terms: []riverworkflow.WaitTermSpec{
+				riverworkflow.WaitTermDep("collect_inputs_ready", "collect_inputs", `output.ready == true`).Label("Inputs collected"),
+				riverworkflow.WaitTermSignal("approval_received", "approval", `payload.approved == true`).Label("Approval received"),
+				riverworkflow.WaitTermTimer(
 					"review_sla_reached",
 					riverworkflow.TimerAfterWorkflowCreated("review_sla", 30*time.Minute),
 				).Label("Review SLA reached"),
@@ -190,7 +191,7 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 		})
 
 		waitingJob := jobWithSchema(ctx, t, bundle.execDB, bundle.schema, &testfactory.JobOpts{
-			Metadata: workflowMetadataWithWaitCondition("wf_get", "await_review", []string{"collect_inputs"}, waitConditionSpec, map[string]any{
+			Metadata: workflowMetadataWithWait("wf_get", "await_review", []string{"collect_inputs"}, waitSpec, map[string]any{
 				"started_at": now.Format(time.RFC3339Nano),
 				"timers": map[string]any{
 					"review_sla": map[string]any{
@@ -220,15 +221,21 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 		require.Equal(t, "await_review", waitingTask.Name)
 		require.Equal(t, "wf_get", waitingTask.WorkflowID)
 		require.Equal(t, []string{"collect_inputs"}, waitingTask.Deps)
-		require.Equal(t, workflowTaskWaitReasonWaitCondition, waitingTask.WaitReason)
+		require.Equal(t, workflowTaskWaitReasonWait, waitingTask.WaitReason)
 		require.NotNil(t, waitingTask.Wait)
 		require.Equal(t, "waiting", waitingTask.Wait.Phase)
-		require.Equal(t, waitConditionSpec.Expr, waitingTask.Wait.ExprCEL)
+		require.Equal(t, waitSpec.Expr, waitingTask.Wait.ExprCEL)
 		require.NotNil(t, waitingTask.Wait.StartedAt)
 		require.Nil(t, waitingTask.Wait.ResolvedAt)
-		require.Len(t, waitingTask.Wait.Terms, 2)
+		require.Len(t, waitingTask.Wait.Terms, 3)
 		require.Len(t, waitingTask.Wait.Signals, 1)
 		require.Len(t, waitingTask.Wait.Timers, 1)
+		require.Equal(t, "collect_inputs_ready", waitingTask.Wait.Terms[0].Name)
+		require.Equal(t, `output.ready == true`, waitingTask.Wait.Terms[0].ExprCEL)
+		require.Equal(t, "approval_received", waitingTask.Wait.Terms[1].Name)
+		require.Equal(t, `payload.approved == true`, waitingTask.Wait.Terms[1].ExprCEL)
+		require.Equal(t, "review_sla_reached", waitingTask.Wait.Terms[2].Name)
+		require.Empty(t, waitingTask.Wait.Terms[2].ExprCEL)
 
 		require.Equal(t, "approval", waitingTask.Wait.Signals[0].Key)
 		require.Zero(t, waitingTask.Wait.Signals[0].VisibleCount)
@@ -275,7 +282,7 @@ func TestProAPIHandlerWorkflowTaskSignals(t *testing.T) {
 		require.Equal(t, fixture.firstSignal.ID, *resp.NextCursorID)
 		require.Equal(t, workflowTaskSignalsScope{
 			Attempt: 1,
-			Scope:   string(riverpro.WorkflowTaskSignalReadScopeAtWaitConditionResolved),
+			Scope:   string(riverpro.WorkflowTaskSignalReadScopeAtWaitResult),
 		}, resp.Scope)
 		require.Len(t, resp.Signals, 2)
 		require.Equal(t, []int64{fixture.secondSignal.ID, fixture.firstSignal.ID}, []int64{resp.Signals[0].ID, resp.Signals[1].ID})
@@ -568,7 +575,7 @@ func workflowMetadata(workflowID, taskName string, deps []string) []byte {
 	return buf
 }
 
-func workflowMetadataWithWaitCondition(workflowID, taskName string, deps []string, waitCondition *riverworkflow.WaitConditionSpec, waitConditionState map[string]any) []byte {
+func workflowMetadataWithWait(workflowID, taskName string, deps []string, wait *riverworkflow.WaitSpec, waitState map[string]any) []byte {
 	if deps == nil {
 		deps = []string{}
 	}
@@ -578,11 +585,11 @@ func workflowMetadataWithWaitCondition(workflowID, taskName string, deps []strin
 		"task":        taskName,
 		"deps":        deps,
 	}
-	if waitCondition != nil {
-		meta["river:workflow_wait_condition"] = persistedWaitConditionSpec(waitCondition)
+	if wait != nil {
+		meta["river:workflow_wait"] = persistedWaitSpec(wait)
 	}
-	if waitConditionState != nil {
-		meta["river:workflow_wait_condition_state"] = waitConditionState
+	if waitState != nil {
+		meta["river:workflow_wait_state"] = waitState
 	}
 
 	buf, err := json.Marshal(meta)
@@ -592,12 +599,12 @@ func workflowMetadataWithWaitCondition(workflowID, taskName string, deps []strin
 	return buf
 }
 
-func persistedWaitConditionSpec(waitCondition *riverworkflow.WaitConditionSpec) map[string]any {
-	if waitCondition == nil {
+func persistedWaitSpec(wait *riverworkflow.WaitSpec) map[string]any {
+	if wait == nil {
 		return nil
 	}
 
-	raw, err := json.Marshal(waitCondition)
+	raw, err := json.Marshal(wait)
 	if err != nil {
 		panic(err)
 	}
@@ -624,10 +631,10 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 
 	workflowID := "wf_task_signals_" + time.Now().UTC().Format("150405.000000000")
 
-	waitConditionSpec := &riverworkflow.WaitConditionSpec{
+	waitSpec := &riverworkflow.WaitSpec{
 		Expr: "approval_received",
-		Terms: []riverworkflow.WaitConditionTermSpec{
-			riverworkflow.SignalTerm("approval_received", "approval", "true").Label("Approval received"),
+		Terms: []riverworkflow.WaitTermSpec{
+			riverworkflow.WaitTermSignal("approval_received", "approval", "true").Label("Approval received"),
 		},
 	}
 
@@ -640,14 +647,14 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	workflow.Add("collect_inputs", uicommontest.NoOpArgs{Name: "collect"}, nil, nil)
 	workflow.Add(taskName, uicommontest.NoOpArgs{Name: "gated"}, nil, &riverpro.WorkflowTaskOpts{
 		Deps: []string{"collect_inputs"},
-		Wait: waitConditionSpec,
+		Wait: waitSpec,
 	})
 	workflow.Add(timerOnlyTaskName, uicommontest.NoOpArgs{Name: "timer"}, nil, &riverpro.WorkflowTaskOpts{
 		Deps: []string{"collect_inputs"},
-		Wait: &riverworkflow.WaitConditionSpec{
+		Wait: &riverworkflow.WaitSpec{
 			Expr: "review_timeout_reached",
-			Terms: []riverworkflow.WaitConditionTermSpec{
-				riverworkflow.TimerTerm(
+			Terms: []riverworkflow.WaitTermSpec{
+				riverworkflow.WaitTermTimer(
 					"review_timeout_reached",
 					riverworkflow.TimerAfterWorkflowCreated("review_timeout", 5*time.Minute),
 				),
@@ -691,7 +698,7 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	require.NoError(t, err)
 
 	resultTime := time.Now().UTC().Add(-2 * time.Minute)
-	metadata := workflowMetadataWithWaitCondition(workflowID, taskName, nil, waitConditionSpec, map[string]any{
+	metadata := workflowMetadataWithWait(workflowID, taskName, nil, waitSpec, map[string]any{
 		"started_at":  time.Now().UTC().Add(-10 * time.Minute).Format(time.RFC3339Nano),
 		"resolved_at": resultTime.Format(time.RFC3339Nano),
 		"result": map[string]any{
@@ -716,9 +723,9 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	})
 	err = bundle.execDB.Exec(ctx, `
 		UPDATE `+jobsTable+`
-		SET metadata = jsonb_set(metadata, '{river:workflow_wait_condition_state}', $1::jsonb, true)
+		SET metadata = jsonb_set(metadata, '{river:workflow_wait_state}', $1::jsonb, true)
 		WHERE id = $2
-	`, metadataFieldRaw(t, metadata, "river:workflow_wait_condition_state"), waitingJobID)
+	`, metadataFieldRaw(t, metadata, "river:workflow_wait_state"), waitingJobID)
 	require.NoError(t, err)
 
 	thirdSignal, err := workflow.Signal(ctx, "approval", map[string]any{"approved_by": "director"}, &riverpro.WorkflowSignalOpts{

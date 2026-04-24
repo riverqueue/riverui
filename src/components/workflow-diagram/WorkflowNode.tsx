@@ -7,7 +7,7 @@ import { JobState } from "@services/types";
 import { Handle, Position, useUpdateNodeInternals } from "@xyflow/react";
 import clsx from "clsx";
 import { differenceInSeconds } from "date-fns";
-import { memo, type ReactElement, useEffect, useMemo, useRef } from "react";
+import { memo, type ReactElement, useEffect, useMemo } from "react";
 import { useTime } from "react-time-sync";
 
 import { switchHandleCenterGap } from "./workflowDiagramConstants";
@@ -27,7 +27,8 @@ type WorkflowNode = Node<WorkflowNodeData, "workflow">;
 
 const WorkflowNode = memo(
   ({ data, isConnectable, selected }: NodeProps<WorkflowNode>) => {
-    const { hasDownstreamDeps, hasUpstreamDeps, job, onSelect } = data;
+    const { hasDownstreamDeps, hasUpstreamDeps, job, onSelect, waitReason } =
+      data;
     const updateNodeInternals = useUpdateNodeInternals();
     const duration = getJobDuration(job);
 
@@ -35,9 +36,7 @@ const WorkflowNode = memo(
       updateNodeInternals(String(job.id));
     }, [job.id, updateNodeInternals]);
 
-    const tooltip = job.wait
-      ? getWaitConditionTooltipText(job.wait)
-      : undefined;
+    const tooltip = job.wait ? getWaitTooltipText(job.wait) : undefined;
 
     const handleSelect = (event: React.PointerEvent<HTMLDivElement>) => {
       event.preventDefault();
@@ -53,6 +52,7 @@ const WorkflowNode = memo(
       >
         {job.wait ? (
           <CircuitSwitchHandle
+            activelyBlocking={waitReason === "wait"}
             isConnectable={isConnectable}
             tooltip={tooltip}
             visible={hasUpstreamDeps}
@@ -138,11 +138,15 @@ const WorkflowNodeContent = ({
 );
 
 // ---------------------------------------------------------------------------
-// CircuitSwitchHandle — three sibling elements in the node container:
-//   1. Left circle div (hinge) — absolute-positioned
-//   2. Lever SVG — absolute-positioned between the circles
+// LineWithBarHandle — three sibling elements in the node container:
+//   1. Left circle div (post) — absolute-positioned
+//   2. Line + bar SVG — absolute-positioned between the circles
 //   3. Handle div (right circle) — positioned by ReactFlow on the node edge
-// All use the same classes as standard handles for pixel-perfect matching.
+// When blocking, the line terminates partway across the gap at a short
+// vertical bar; when resolved, the line extends through to the right circle
+// and the bar fades/scales away.
+// All three elements use the same classes as standard handles for
+// pixel-perfect matching.
 // ---------------------------------------------------------------------------
 
 const switchHandleClasses = clsx("left-px", handleStyleClasses);
@@ -152,92 +156,59 @@ const switchGap = switchHandleCenterGap;
 const switchHandleDiameter = 14;
 const switchHandleRadius = switchHandleDiameter / 2;
 const switchHandleAnchorLeftOffset = 1;
-const gateLeverFlashClosedClass = "workflow-gate-lever--flash-closed";
-const gateLeverFlashOpenClass = "workflow-gate-lever--flash-open";
 
-// Open lever angle in degrees (rotated counter-clockwise from horizontal).
-const leverAngleDeg = 34;
+// Matches the dependency-edge stroke so the gate reads as a natural
+// terminal segment of the incoming edge.
+const leverStrokeWidth = 2;
 
-// Slightly heavier than dependency edges, but not so heavy that it dominates.
-const leverStrokeWidth = 2.5;
-
-// SVG viewBox: origin at left circle center, line drawn flat to the right.
-// The <g> element is rotated around the origin when the gate is blocking.
+// SVG viewBox origin at the left circle center. The line spans the visible
+// gap between the two circles, revealed via stroke-dashoffset so its tip
+// tracks the bar marker when blocking.
 const leverVbWidth = switchGap;
 const leverVbHeight = leverStrokeWidth + 2;
 const leverCy = leverVbHeight / 2;
+const leverLineStartX = switchHandleRadius;
 const leverLineEndX = switchGap - switchHandleRadius + 1;
+const linePathLength = leverLineEndX - leverLineStartX;
+
+// Vertical bar sits at ~45% across the visible gap; 12px tall so it reads
+// as a definite marker without dominating the handle circles.
+const barCx = leverLineStartX + linePathLength * 0.45;
+const barHalfHeight = 6;
+const barStroke = 1.75;
+const blockingHiddenLength = leverLineEndX - barCx;
 
 const CircuitSwitchHandle = ({
+  activelyBlocking,
   isConnectable,
   tooltip,
   visible,
   wait,
 }: {
+  activelyBlocking: boolean;
   isConnectable: boolean;
   tooltip?: string;
   visible: boolean;
   wait: NonNullable<WorkflowTask["wait"]>;
 }) => {
-  const blocking = isWaitConditionBlocking(wait);
+  const blocking = isWaitBlocking(wait);
   const leftCircleLeft = -(
     switchGap +
     switchHandleRadius -
     switchHandleAnchorLeftOffset
   );
 
-  // Brief color flash when the gate phase changes. Flash tone is derived from
-  // gate semantics (blocking vs resolved), not raw phase labels.
-  const leverRef = useRef<SVGSVGElement>(null);
-  const prevPhaseRef = useRef(wait.phase);
-
-  useEffect(() => {
-    if (prevPhaseRef.current === wait.phase) return;
-
-    prevPhaseRef.current = wait.phase;
-    const svg = leverRef.current;
-    if (!svg) return;
-
-    const flashClass = getGateFlashClass(wait.phase);
-    svg.classList.remove(gateLeverFlashClosedClass, gateLeverFlashOpenClass);
-    svg.setAttribute("data-test-workflow-gate-transitioning", "false");
-    if (!flashClass) return;
-
-    const animationFrameID = window.requestAnimationFrame(() => {
-      svg.classList.add(flashClass);
-      svg.setAttribute("data-test-workflow-gate-transitioning", "true");
-    });
-
-    const onAnimationEnd = () => {
-      svg.classList.remove(gateLeverFlashClosedClass, gateLeverFlashOpenClass);
-      svg.setAttribute("data-test-workflow-gate-transitioning", "false");
-    };
-
-    svg.addEventListener("animationend", onAnimationEnd);
-
-    return () => {
-      window.cancelAnimationFrame(animationFrameID);
-      svg.removeEventListener("animationend", onAnimationEnd);
-      svg.classList.remove(gateLeverFlashClosedClass, gateLeverFlashOpenClass);
-      svg.setAttribute("data-test-workflow-gate-transitioning", "false");
-    };
-  }, [blocking, wait.phase]);
-
   return (
     <>
-      {/* Lever — rendered first so it layers behind the circles */}
+      {/* Gate arm — rendered first so it layers behind the circles */}
       <svg
         aria-hidden="true"
         className={clsx(
           "workflow-gate-lever absolute",
-          getGateLeverPhaseClass(wait.phase),
           !visible && "opacity-0",
         )}
-        data-test-workflow-gate-lever={blocking ? "open" : "closed"}
         data-test-workflow-gate-phase={wait.phase}
-        data-test-workflow-gate-transitioning="false"
         fill="none"
-        ref={leverRef}
         style={{
           height: leverVbHeight,
           left: leftCircleLeft + switchHandleRadius,
@@ -250,28 +221,45 @@ const CircuitSwitchHandle = ({
         viewBox={`0 0 ${leverVbWidth} ${leverVbHeight}`}
         xmlns="http://www.w3.org/2000/svg"
       >
-        <g
+        <line
+          stroke="currentColor"
+          strokeDasharray={`${linePathLength} ${linePathLength}`}
+          strokeLinecap="round"
+          strokeWidth={leverStrokeWidth}
           style={{
-            transform: blocking
-              ? `rotate(-${leverAngleDeg}deg)`
-              : "rotate(0deg)",
-            transformOrigin: `0px ${leverCy}px`,
-            transition: "transform 0.4s ease-in-out",
+            strokeDashoffset: blocking ? blockingHiddenLength : 0,
+            transition: "stroke-dashoffset 0.35s ease-in-out",
+          }}
+          x1={leverLineStartX}
+          x2={leverLineEndX}
+          y1={leverCy}
+          y2={leverCy}
+        />
+        <g
+          className={clsx(
+            activelyBlocking && "text-amber-500/80 dark:text-amber-400/60",
+          )}
+          style={{
+            opacity: blocking ? 1 : 0,
+            transform: blocking ? "scale(1)" : "scale(0.2)",
+            transformOrigin: `${barCx}px ${leverCy}px`,
+            transition:
+              "opacity 0.25s ease-in-out, transform 0.25s ease-in-out",
           }}
         >
           <line
             stroke="currentColor"
             strokeLinecap="round"
-            strokeWidth={leverStrokeWidth}
-            x1="0"
-            x2={leverLineEndX}
-            y1={leverCy}
-            y2={leverCy}
+            strokeWidth={barStroke}
+            x1={barCx}
+            x2={barCx}
+            y1={leverCy - barHalfHeight}
+            y2={leverCy + barHalfHeight}
           />
         </g>
       </svg>
 
-      {/* Left circle — hinge point */}
+      {/* Left circle — post */}
       <div
         className={clsx(
           "absolute rounded-full",
@@ -287,7 +275,7 @@ const CircuitSwitchHandle = ({
         }}
       />
 
-      {/* Tooltip hover target — spans the full switch area */}
+      {/* Tooltip hover target — spans the full gate area */}
       {tooltip ? (
         <div
           className={clsx("absolute", !visible && "opacity-0")}
@@ -314,10 +302,10 @@ const CircuitSwitchHandle = ({
   );
 };
 
-const getWaitConditionTooltipText = (
+const getWaitTooltipText = (
   wait: NonNullable<WorkflowTask["wait"]>,
 ): string => {
-  const parts: string[] = [getWaitConditionStatusLabel(wait)];
+  const parts: string[] = [getWaitStatusLabel(wait)];
 
   if (wait.summary) {
     parts.push(
@@ -345,8 +333,8 @@ export const GateRow = ({
 }: {
   wait: NonNullable<WorkflowTask["wait"]>;
 }) => {
-  const statusLabel = getWaitConditionStatusLabel(wait);
-  const toneClasses = getWaitConditionRowToneClasses(wait);
+  const statusLabel = getWaitStatusLabel(wait);
+  const toneClasses = getWaitRowToneClasses(wait);
 
   return (
     <div
@@ -354,7 +342,7 @@ export const GateRow = ({
         "flex h-[24px] items-center border-t px-3 text-[11px] leading-4",
         toneClasses.row,
       )}
-      data-testid="wait-condition-row"
+      data-testid="wait-row"
     >
       <div className="flex items-center gap-1.5">
         <GateRowIcon wait={wait} />
@@ -365,7 +353,7 @@ export const GateRow = ({
 };
 
 const GateRowIcon = ({ wait }: { wait: NonNullable<WorkflowTask["wait"]> }) => {
-  if (isWaitConditionBlocking(wait)) {
+  if (isWaitBlocking(wait)) {
     return <GateStatusIcon className="size-3.5 shrink-0" />;
   }
 
@@ -376,27 +364,25 @@ const GateRowIcon = ({ wait }: { wait: NonNullable<WorkflowTask["wait"]> }) => {
   return <GateStatusIcon className="size-3.5 shrink-0" />;
 };
 
-const getWaitConditionStatusLabel = (
+const getWaitStatusLabel = (
   wait: NonNullable<WorkflowTask["wait"]>,
 ): string => {
   switch (wait.phase) {
     case "not_started":
-      return "Wait condition not started";
+      return "Wait not started";
     case "resolved":
-      return "Wait condition resolved";
+      return "Wait resolved";
     case "waiting":
-      return "Waiting on wait condition";
+      return "Waiting on wait";
     default:
-      return isWaitConditionBlocking(wait)
-        ? "Waiting on wait condition"
-        : "Wait condition status unknown";
+      return isWaitBlocking(wait) ? "Waiting on wait" : "Wait status unknown";
   }
 };
 
-const getWaitConditionRowToneClasses = (
+const getWaitRowToneClasses = (
   wait: NonNullable<WorkflowTask["wait"]>,
 ): { row: string } => {
-  if (isWaitConditionBlocking(wait)) {
+  if (isWaitBlocking(wait)) {
     return {
       row: "border-slate-200 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200",
     };
@@ -413,53 +399,8 @@ const getWaitConditionRowToneClasses = (
   };
 };
 
-const isWaitConditionBlocking = (
-  wait: NonNullable<WorkflowTask["wait"]>,
-): boolean => {
+const isWaitBlocking = (wait: NonNullable<WorkflowTask["wait"]>): boolean => {
   return wait.phase !== "resolved";
-};
-
-const getGateFlashMode = (
-  phase: NonNullable<WorkflowTask["wait"]>["phase"],
-): "closed" | "open" | undefined => {
-  switch (phase) {
-    case "not_started":
-    case "waiting":
-      return "open";
-    case "resolved":
-      return "closed";
-    default:
-      return undefined;
-  }
-};
-
-const getGateFlashClass = (
-  phase: NonNullable<WorkflowTask["wait"]>["phase"],
-): string | undefined => {
-  const flashMode = getGateFlashMode(phase);
-
-  switch (flashMode) {
-    case "closed":
-      return gateLeverFlashClosedClass;
-    case "open":
-      return gateLeverFlashOpenClass;
-    default:
-      return undefined;
-  }
-};
-
-const getGateLeverPhaseClass = (
-  phase: NonNullable<WorkflowTask["wait"]>["phase"],
-): string => {
-  switch (phase) {
-    case "not_started":
-    case "waiting":
-      return "workflow-gate-lever--waiting";
-    case "resolved":
-      return "workflow-gate-lever--satisfied";
-    default:
-      return "";
-  }
 };
 
 const getGateHingeClasses = (): string => "";

@@ -10,8 +10,8 @@ import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import WorkflowDiagram from "@components/workflow-diagram/WorkflowDiagram";
 import WorkflowGateInspector, {
   ConditionKindIcon,
-  type WaitConditionFocusRequest,
-  WaitConditionStatusPill,
+  type WaitFocusRequest,
+  WaitStatusPill,
 } from "@components/WorkflowGateInspector";
 import { useFeatures } from "@contexts/Features.hook";
 // (Dialog is now encapsulated in RetryWorkflowDialog)
@@ -46,6 +46,20 @@ import WorkflowListEmptyState from "./WorkflowListEmptyState";
 
 type JobsByTask = {
   [key: string]: WorkflowTask;
+};
+
+const dependencyNameCollator = new Intl.Collator("en", {
+  numeric: true,
+  sensitivity: "base",
+});
+
+const compareDependencyNames = (left: string, right: string): number => {
+  const collatorResult = dependencyNameCollator.compare(left, right);
+  if (collatorResult !== 0) return collatorResult;
+
+  if (left < right) return -1;
+  if (left > right) return 1;
+  return 0;
 };
 
 type WorkflowDetailProps = {
@@ -251,10 +265,9 @@ const SelectedJobDetails = ({
   jobsByTask: JobsByTask;
 }) => {
   const stagedAt = useMemo(() => job.stagedAt, [job.stagedAt]);
-  const [waitConditionFocusRequest, setWaitConditionFocusRequest] =
-    useState<WaitConditionFocusRequest>();
-  const handleSelectWaitCondition = (conditionName: string) => {
-    setWaitConditionFocusRequest((current) => ({
+  const [waitFocusRequest, setWaitFocusRequest] = useState<WaitFocusRequest>();
+  const handleSelectWait = (conditionName: string) => {
+    setWaitFocusRequest((current) => ({
       conditionName,
       requestID: (current?.requestID ?? 0) + 1,
     }));
@@ -330,8 +343,8 @@ const SelectedJobDetails = ({
           />
           {job.wait ? (
             <InspectorRow
-              label="Wait condition"
-              value={<WaitConditionStatusPill wait={job.wait} />}
+              label="Wait status"
+              value={<WaitStatusPill wait={job.wait} />}
             />
           ) : null}
           <InspectorRow
@@ -352,14 +365,14 @@ const SelectedJobDetails = ({
         <TaskTimeline
           job={job}
           jobsByTask={jobsByTask}
-          onSelectWaitCondition={handleSelectWaitCondition}
+          onSelectWait={handleSelectWait}
         />
 
         {job.wait ? (
           <WorkflowGateInspector
             dependencyTasks={jobsByTask}
-            focusRequest={waitConditionFocusRequest}
-            onSelectCondition={handleSelectWaitCondition}
+            focusRequest={waitFocusRequest}
+            onSelectCondition={handleSelectWait}
             taskName={job.name}
             wait={job.wait}
             workflowID={job.workflowID}
@@ -394,7 +407,7 @@ const DependencyItem = ({
 }) => {
   if (!depJob) {
     return (
-      <div className="flex items-center gap-x-2 rounded-md px-0.5 py-0.5 font-mono text-[13px] font-normal text-slate-600 dark:text-slate-300">
+      <div className="flex items-center gap-x-2 py-0.5 font-mono text-[13px] font-normal text-slate-500 dark:text-slate-400">
         <TaskStateIcon className="size-4" jobState={JobState.Discarded} />
         <span className="truncate">{depName}</span>
       </div>
@@ -402,14 +415,16 @@ const DependencyItem = ({
   }
 
   return (
-    <Link
-      className="flex items-center gap-x-2 rounded-md px-0.5 py-0.5 font-mono text-[13px] font-normal text-slate-600 hover:bg-slate-100/80 hover:text-brand-primary dark:text-slate-300 dark:hover:bg-slate-800/60 dark:hover:text-blue-300"
-      search={{ selected: depJob.id }}
-      to="."
-    >
+    <div className="flex items-center gap-x-2 py-0.5 font-mono text-[13px] font-normal text-slate-500 dark:text-slate-400">
       <TaskStateIcon className="size-4" jobState={depJob.state} />
-      <span className="truncate">{depName}</span>
-    </Link>
+      <Link
+        className="truncate font-normal text-slate-500 no-underline hover:text-brand-primary hover:underline dark:text-slate-400 dark:hover:text-blue-300"
+        search={{ selected: depJob.id }}
+        to="."
+      >
+        {depName}
+      </Link>
+    </div>
   );
 };
 
@@ -417,10 +432,10 @@ const formatWaitReason = (waitReason: WorkflowTaskWaitReason): string => {
   switch (waitReason) {
     case "dependencies":
       return "Waiting on dependencies";
-    case "dependencies_and_wait_condition":
-      return "Waiting on dependencies and wait condition";
-    case "wait_condition":
-      return "Waiting on wait condition";
+    case "dependencies_and_wait":
+      return "Waiting on dependencies and wait";
+    case "wait":
+      return "Waiting on wait";
     case "none":
     default:
       return "Not waiting";
@@ -450,20 +465,21 @@ type TaskTimelineEvent = {
 type TaskTimelineListItem = {
   label: string;
   mono?: boolean;
+  rawLabel?: string;
   selectedJobId?: bigint;
   state?: JobState;
-  waitConditionKind?: string;
-  waitConditionName?: string;
+  waitTermKind?: string;
+  waitTermName?: string;
 };
 
 const TaskTimeline = ({
   job,
   jobsByTask,
-  onSelectWaitCondition,
+  onSelectWait,
 }: {
   job: WorkflowTask;
   jobsByTask: JobsByTask;
-  onSelectWaitCondition: (conditionName: string) => void;
+  onSelectWait: (conditionName: string) => void;
 }) => {
   const events = useMemo(
     () => getTaskTimelineEvents(job, jobsByTask),
@@ -480,7 +496,7 @@ const TaskTimeline = ({
       <Subheading className="mb-4 text-sm/6">Timeline</Subheading>
 
       <div className="flow-root">
-        <ol className="-mb-5" role="list">
+        <ol className="-mb-4" role="list">
           {events.map((event, eventIdx) => {
             const toneClasses = getTaskTimelineToneClasses(event.status);
             const collapsibleItems = Boolean(
@@ -504,7 +520,7 @@ const TaskTimeline = ({
 
             return (
               <li key={event.key}>
-                <div className="relative pb-5">
+                <div className="relative pb-4">
                   {eventIdx !== events.length - 1 ? (
                     <span
                       aria-hidden="true"
@@ -560,8 +576,7 @@ const TaskTimeline = ({
                             <div className="mt-2">
                               <ul className="space-y-1.5">
                                 {visibleItems.map((item) => {
-                                  const waitConditionName =
-                                    item.waitConditionName;
+                                  const waitTermName = item.waitTermName;
 
                                   return (
                                     <li
@@ -577,28 +592,40 @@ const TaskTimeline = ({
                                         </div>
                                       ) : (
                                         <span className="flex items-center gap-2">
-                                          {waitConditionName ? (
+                                          {waitTermName ? (
                                             <>
                                               <ConditionKindIcon
                                                 className="shrink-0 text-slate-400 dark:text-slate-500"
-                                                kind={
-                                                  item.waitConditionKind ?? ""
-                                                }
+                                                kind={item.waitTermKind ?? ""}
                                               />
                                               <button
-                                                className={clsx(
-                                                  "min-w-0 text-left break-all hover:text-brand-primary hover:underline",
-                                                  item.mono &&
-                                                    "font-mono text-[13px]",
-                                                )}
+                                                aria-label={
+                                                  item.rawLabel
+                                                    ? `${item.label} (${item.rawLabel})`
+                                                    : item.label
+                                                }
+                                                className="group min-w-0 cursor-pointer text-left hover:underline"
                                                 onClick={() =>
-                                                  onSelectWaitCondition(
-                                                    waitConditionName,
-                                                  )
+                                                  onSelectWait(waitTermName)
                                                 }
                                                 type="button"
                                               >
-                                                {item.label}
+                                                <span className="flex min-w-0 flex-col gap-y-0.5">
+                                                  <span
+                                                    className={clsx(
+                                                      "min-w-0 break-all text-slate-800 group-hover:text-brand-primary dark:text-slate-100 dark:group-hover:text-blue-300",
+                                                      item.mono &&
+                                                        "font-mono text-[13px]",
+                                                    )}
+                                                  >
+                                                    {item.label}
+                                                  </span>
+                                                  {item.rawLabel ? (
+                                                    <span className="min-w-0 font-mono text-[13px] break-all text-slate-500 dark:text-slate-400">
+                                                      {item.rawLabel}
+                                                    </span>
+                                                  ) : null}
+                                                </span>
                                               </button>
                                             </>
                                           ) : (
@@ -720,28 +747,6 @@ const getTaskTimelineToneClasses = (
   }
 };
 
-const getDependencyStateRank = (state: JobState | undefined): number => {
-  switch (state) {
-    case JobState.Available:
-      return 1;
-    case JobState.Cancelled:
-      return 3;
-    case JobState.Completed:
-      return 2;
-    case JobState.Discarded:
-      return 4;
-    case JobState.Pending:
-    case JobState.Retryable:
-      return 1;
-    case JobState.Running:
-      return 0;
-    case JobState.Scheduled:
-      return 1;
-    default:
-      return 5;
-  }
-};
-
 const getDependencyTimelineTime = (
   job: undefined | WorkflowTask,
 ): Date | undefined => {
@@ -766,20 +771,11 @@ const getTaskTimelineEvents = (
 ): TaskTimelineEvent[] => {
   const events: TaskTimelineEvent[] = [];
   const dependencyItems = [...job.deps]
+    .sort(compareDependencyNames)
     .map((depName) => ({
       depJob: jobsByTask[depName],
       label: depName,
-    }))
-    .sort((leftDep, rightDep) => {
-      const leftStateRank = getDependencyStateRank(leftDep.depJob?.state);
-      const rightStateRank = getDependencyStateRank(rightDep.depJob?.state);
-
-      if (leftStateRank !== rightStateRank) {
-        return leftStateRank - rightStateRank;
-      }
-
-      return leftDep.label.localeCompare(rightDep.label);
-    });
+    }));
 
   if (dependencyItems.length > 0) {
     const finalizedDeps = dependencyItems.filter(
@@ -837,7 +833,7 @@ const getTaskTimelineEvents = (
       }),
       status: "waiting",
       time: job.wait.startedAt,
-      title: "Waiting on wait condition",
+      title: "Waiting on wait",
     });
   }
 
@@ -848,10 +844,10 @@ const getTaskTimelineEvents = (
       description: getWaitResolvedTimelineDescription(job.wait),
       icon: CheckCircleIcon,
       items: matchedTerms.map((term) => ({
-        label: term.name,
-        mono: true,
-        waitConditionKind: term.kind,
-        waitConditionName: term.name,
+        label: term.label,
+        rawLabel: term.label === term.name ? undefined : term.name,
+        waitTermKind: term.kind,
+        waitTermName: term.name,
       })),
       key: "wait-resolved",
       metric: job.wait.startedAt
@@ -862,7 +858,7 @@ const getTaskTimelineEvents = (
         : undefined,
       status: "complete",
       time: job.wait.resolvedAt,
-      title: "Wait condition resolved",
+      title: "Wait resolved",
     });
   }
 
@@ -880,7 +876,7 @@ const getTaskTimelineEvents = (
           : undefined,
       status: job.attemptedAt ? "complete" : "waiting",
       time: stagedTime,
-      title: "Wait",
+      title: "Task staged",
     });
   }
 
@@ -944,25 +940,11 @@ const getDependencyTimelineDescription = ({
         ? undefined
         : `${finalizedDependencyCount} of ${job.deps.length} required dependency tasks finished.`;
 
-  const futureWaitDescription =
-    job.wait?.phase === "not_started"
-      ? getFutureWaitTimelinePreview(job.wait)
-      : undefined;
-
-  if (!statusDescription && !futureWaitDescription) {
+  if (!statusDescription) {
     return undefined;
   }
 
-  return (
-    <>
-      {statusDescription ? <p>{statusDescription}</p> : null}
-      {futureWaitDescription ? (
-        <p className="mt-1 text-amber-700 dark:text-amber-300">
-          {futureWaitDescription}
-        </p>
-      ) : null}
-    </>
-  );
+  return <p>{statusDescription}</p>;
 };
 
 const getWaitResolvedTimelineDescription = (
@@ -982,7 +964,7 @@ const getWaitResolvedTimelineDescription = (
     return `Resolved by ${trimTrailingPeriod(matchedTerms[0].label)}.`;
   }
 
-  return "The wait condition no longer blocks this task.";
+  return "The wait no longer blocks this task.";
 };
 
 const getWaitPendingTimelineDescription = (
@@ -992,17 +974,7 @@ const getWaitPendingTimelineDescription = (
     return `${trimTrailingPeriod(wait.summary)}.`;
   }
 
-  return "This task is still blocked by its wait condition.";
-};
-
-const getFutureWaitTimelinePreview = (
-  wait: NonNullable<WorkflowTask["wait"]>,
-): ReactNode => {
-  if (wait.summary) {
-    return `Then ${trimTrailingPeriod(wait.summary).toLowerCase()}.`;
-  }
-
-  return "Then waits on the configured wait condition before staging.";
+  return "This task is still blocked by its wait.";
 };
 
 const trimTrailingPeriod = (value: string): string => value.replace(/\.+$/, "");

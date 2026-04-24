@@ -62,7 +62,7 @@ describe("buildWorkflowGraphModel", () => {
     ).toBe("blocked");
   });
 
-  it("shifts edges to the gate hinge anchor for wait-condition targets", () => {
+  it("shifts edges to the gate hinge anchor for wait targets", () => {
     const tasks = [
       workflowJobFactory.build({ id: 1, task: "upstream" }),
       workflowJobFactory.build({
@@ -77,7 +77,7 @@ describe("buildWorkflowGraphModel", () => {
           terms: [],
           timers: [],
         },
-        waitReason: "dependencies_and_wait_condition",
+        waitReason: "dependencies_and_wait",
       }),
     ];
 
