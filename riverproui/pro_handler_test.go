@@ -116,7 +116,7 @@ func TestProHandlerIntegration(t *testing.T) {
 	handlertest.RunIntegrationTest(t, createClient, createBundle, createHandler, testRunner)
 }
 
-func TestProFeaturesEndpointResponse(t *testing.T) {
+func TestProMountedEndpointResponses(t *testing.T) {
 	t.Parallel()
 
 	type testBundle struct {
@@ -194,4 +194,19 @@ func TestProFeaturesEndpointResponse(t *testing.T) {
 		"workflow_queries":      true, // static
 	}
 	require.Equal(t, expectedExtensions, resp.Extensions)
+
+	recorder = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		"/api/pro/workflows/missing-workflow/task-wait-diagnostics?task_name=await_review",
+		nil,
+	)
+	req.Header.Set("Accept", "*/*")
+
+	bundle.handler.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusNotFound, recorder.Result().StatusCode)
+	require.Contains(t, recorder.Header().Get("Content-Type"), "application/json")
+	require.Contains(t, recorder.Body.String(), "Workflow not found")
 }

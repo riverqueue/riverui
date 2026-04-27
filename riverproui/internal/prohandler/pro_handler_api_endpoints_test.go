@@ -173,14 +173,14 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 
 		now := time.Now().UTC().Truncate(time.Second)
 		waitSpec := &riverworkflow.WaitSpec{
-			Expr: "collect_inputs_ready && (approval_received || review_sla_reached)",
+			Expr: "collect_inputs_ready && (approval_received || review_sla)",
+			Inputs: riverworkflow.WaitInputs{
+				Deps: []string{"collect_inputs"},
+			},
 			Terms: []riverworkflow.WaitTermSpec{
-				riverworkflow.WaitTermDep("collect_inputs_ready", "collect_inputs", `output.ready == true`).Label("Inputs collected"),
+				riverworkflow.WaitTerm("collect_inputs_ready", `deps["collect_inputs"].output.ready == true`).Label("Inputs collected"),
 				riverworkflow.WaitTermSignal("approval_received", "approval", `payload.approved == true`).Label("Approval received"),
-				riverworkflow.WaitTermTimer(
-					"review_sla_reached",
-					riverworkflow.TimerAfterWorkflowCreated("review_sla", 30*time.Minute),
-				).Label("Review SLA reached"),
+				riverworkflow.WaitTermTimer(riverworkflow.TimerAfterWorkflowCreated("review_sla", 30*time.Minute)).Label("Review SLA reached"),
 			},
 		}
 
@@ -228,19 +228,19 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 		require.NotNil(t, waitingTask.Wait.StartedAt)
 		require.Nil(t, waitingTask.Wait.ResolvedAt)
 		require.Len(t, waitingTask.Wait.Terms, 3)
-		require.Len(t, waitingTask.Wait.Signals, 1)
-		require.Len(t, waitingTask.Wait.Timers, 1)
+		require.Len(t, waitingTask.Wait.Inputs.Signals, 1)
+		require.Len(t, waitingTask.Wait.Inputs.Timers, 1)
 		require.Equal(t, "collect_inputs_ready", waitingTask.Wait.Terms[0].Name)
-		require.Equal(t, `output.ready == true`, waitingTask.Wait.Terms[0].ExprCEL)
+		require.Equal(t, `deps["collect_inputs"].output.ready == true`, waitingTask.Wait.Terms[0].ExprCEL)
 		require.Equal(t, "approval_received", waitingTask.Wait.Terms[1].Name)
 		require.Equal(t, `payload.approved == true`, waitingTask.Wait.Terms[1].ExprCEL)
-		require.Equal(t, "review_sla_reached", waitingTask.Wait.Terms[2].Name)
+		require.Equal(t, "review_sla", waitingTask.Wait.Terms[2].Name)
 		require.Empty(t, waitingTask.Wait.Terms[2].ExprCEL)
 
-		require.Equal(t, "approval", waitingTask.Wait.Signals[0].Key)
-		require.Zero(t, waitingTask.Wait.Signals[0].VisibleCount)
+		require.Equal(t, "approval", waitingTask.Wait.Inputs.Signals[0].Key)
+		require.Nil(t, waitingTask.Wait.Inputs.Signals[0].Result)
 
-		timer := waitingTask.Wait.Timers[0]
+		timer := waitingTask.Wait.Inputs.Timers[0]
 		require.Equal(t, "review_sla", timer.Name)
 		require.NotEmpty(t, timer.After)
 		require.NotNil(t, timer.AfterUS)
@@ -249,8 +249,7 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 		require.NotNil(t, timer.Anchor)
 		require.Equal(t, string(riverworkflow.TimerAnchorKindWorkflowCreatedAt), timer.Anchor.Kind)
 		require.NotNil(t, timer.FireAt)
-		require.False(t, timer.Fired)
-		require.False(t, timer.Matched)
+		require.Nil(t, timer.Result)
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -267,7 +266,7 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 func TestProAPIHandlerWorkflowTaskSignals(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("SuccessReturnsTaskVisibleSignalsAndScopeForTaskNamesWithSlash", func(t *testing.T) {
+	t.Run("SuccessReturnsSignalHistoryForTaskNamesWithSlash", func(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
 		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
 
@@ -278,39 +277,250 @@ func TestProAPIHandlerWorkflowTaskSignals(t *testing.T) {
 		})
 		require.NoError(t, err)
 		require.False(t, resp.HasMore)
-		require.NotNil(t, resp.NextCursorID)
-		require.Equal(t, fixture.firstSignal.ID, *resp.NextCursorID)
-		require.Equal(t, workflowTaskSignalsScope{
-			Attempt: 1,
-			Scope:   string(riverpro.WorkflowTaskSignalReadScopeAtWaitResult),
-		}, resp.Scope)
-		require.Len(t, resp.Signals, 2)
-		require.Equal(t, []int64{fixture.secondSignal.ID, fixture.firstSignal.ID}, []int64{resp.Signals[0].ID, resp.Signals[1].ID})
-		require.Equal(t, []int{fixture.secondSignal.Attempt, fixture.firstSignal.Attempt}, []int{resp.Signals[0].Attempt, resp.Signals[1].Attempt})
-		require.Equal(t, []string{"approval", "approval"}, []string{resp.Signals[0].Key, resp.Signals[1].Key})
-		require.JSONEq(t, `{"approved_by":"manager"}`, string(resp.Signals[0].Payload))
-		require.JSONEq(t, `{"actor":"manager","kind":"ui"}`, string(resp.Signals[0].Source))
-		require.JSONEq(t, `{"approved_by":"lead"}`, string(resp.Signals[1].Payload))
-		require.JSONEq(t, `{"actor":"lead","kind":"ui"}`, string(resp.Signals[1].Source))
+		require.Nil(t, resp.NextCursorID)
+		require.Equal(t, workflowTaskSignalScopeHistory, resp.Scope)
+		require.Len(t, resp.Signals, 3)
+		require.Equal(t, []int64{fixture.thirdSignal.ID, fixture.secondSignal.ID, fixture.firstSignal.ID}, []int64{resp.Signals[0].ID, resp.Signals[1].ID, resp.Signals[2].ID})
 	})
 
-	t.Run("CurrentAttemptScopeReturnsSameAttemptWithoutBounding", func(t *testing.T) {
+	t.Run("EvidenceScopeReturnsIncludedSignals", func(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
 		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
 			ID:       fixture.workflowID,
 			Key:      "approval",
-			Scope:    string(riverpro.WorkflowTaskSignalReadScopeCurrentAttempt),
+			Scope:    workflowTaskSignalScopeEvidence,
 			TaskName: fixture.taskName,
 		})
 		require.NoError(t, err)
-		require.Equal(t, workflowTaskSignalsScope{
-			Attempt: 1,
-			Scope:   string(riverpro.WorkflowTaskSignalReadScopeCurrentAttempt),
-		}, resp.Scope)
+		require.Equal(t, workflowTaskSignalScopeEvidence, resp.Scope)
+		require.Len(t, resp.Signals, 2)
+		require.Equal(t, []int64{fixture.secondSignal.ID, fixture.firstSignal.ID}, []int64{resp.Signals[0].ID, resp.Signals[1].ID})
+		require.Equal(t, []int{1, 1}, []int{resp.Signals[0].Attempt, resp.Signals[1].Attempt})
+	})
+
+	t.Run("EvidenceScopeUsesEvidenceAttemptAndBoundary", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+		attemptTwoSignal := signalApprovalOnAttempt(ctx, t, bundle, fixture.workflowID, 2)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Key:      "approval",
+			Scope:    workflowTaskSignalScopeEvidence,
+			TaskName: fixture.taskName,
+		})
+		require.NoError(t, err)
+		require.Equal(t, workflowTaskSignalScopeEvidence, resp.Scope)
+		require.Len(t, resp.Signals, 2)
+		require.Equal(t, []int64{fixture.secondSignal.ID, fixture.firstSignal.ID}, []int64{resp.Signals[0].ID, resp.Signals[1].ID})
+		require.NotContains(t, []int64{resp.Signals[0].ID, resp.Signals[1].ID}, fixture.thirdSignal.ID)
+		require.NotContains(t, []int64{resp.Signals[0].ID, resp.Signals[1].ID}, attemptTwoSignal.ID)
+		require.Equal(t, []int{1, 1}, []int{resp.Signals[0].Attempt, resp.Signals[1].Attempt})
+	})
+
+	t.Run("HistoryScopeDefaultsToCurrentWorkflowAttempt", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+		attemptTwoSignal := signalApprovalOnAttempt(ctx, t, bundle, fixture.workflowID, 2)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Key:      "approval",
+			Scope:    workflowTaskSignalScopeHistory,
+			TaskName: fixture.taskName,
+		})
+		require.NoError(t, err)
+		require.Equal(t, workflowTaskSignalScopeHistory, resp.Scope)
+		require.Len(t, resp.Signals, 1)
+		require.Equal(t, attemptTwoSignal.ID, resp.Signals[0].ID)
+		require.Equal(t, 2, resp.Signals[0].Attempt)
+	})
+
+	t.Run("HistoryScopeUsesRequestedWorkflowAttempt", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+		attempt := 1
+		attemptTwoSignal := signalApprovalOnAttempt(ctx, t, bundle, fixture.workflowID, 2)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:              fixture.workflowID,
+			Key:             "approval",
+			Scope:           workflowTaskSignalScopeHistory,
+			TaskName:        fixture.taskName,
+			WorkflowAttempt: &attempt,
+		})
+		require.NoError(t, err)
+		require.Equal(t, workflowTaskSignalScopeHistory, resp.Scope)
 		require.Len(t, resp.Signals, 3)
 		require.Equal(t, []int64{fixture.thirdSignal.ID, fixture.secondSignal.ID, fixture.firstSignal.ID}, []int64{resp.Signals[0].ID, resp.Signals[1].ID, resp.Signals[2].ID})
+		require.NotContains(t, []int64{resp.Signals[0].ID, resp.Signals[1].ID, resp.Signals[2].ID}, attemptTwoSignal.ID)
+		require.Equal(t, []int{1, 1, 1}, []int{resp.Signals[0].Attempt, resp.Signals[1].Attempt, resp.Signals[2].Attempt})
+	})
+
+	t.Run("HistoryScopeWithoutKeyReturnsAllDeclaredSignals", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Scope:    workflowTaskSignalScopeHistory,
+			TaskName: fixture.taskName,
+		})
+		require.NoError(t, err)
+		require.Equal(t, workflowTaskSignalScopeHistory, resp.Scope)
+		require.Len(t, resp.Signals, 4)
+		require.Equal(t,
+			[]int64{fixture.thirdSignal.ID, fixture.escalationSignal.ID, fixture.secondSignal.ID, fixture.firstSignal.ID},
+			[]int64{resp.Signals[0].ID, resp.Signals[1].ID, resp.Signals[2].ID, resp.Signals[3].ID},
+		)
+		require.Equal(t, []string{"approval", "escalation", "approval", "approval"}, []string{resp.Signals[0].Key, resp.Signals[1].Key, resp.Signals[2].Key, resp.Signals[3].Key})
+		require.Equal(t, []int{1, 1, 1, 1}, []int{resp.Signals[0].Attempt, resp.Signals[1].Attempt, resp.Signals[2].Attempt, resp.Signals[3].Attempt})
+	})
+
+	t.Run("EvidenceScopeWithoutKeyReturnsAllIncludedDeclaredSignals", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Scope:    workflowTaskSignalScopeEvidence,
+			TaskName: fixture.taskName,
+		})
+		require.NoError(t, err)
+		require.Equal(t, workflowTaskSignalScopeEvidence, resp.Scope)
+		require.Len(t, resp.Signals, 3)
+		require.Equal(t,
+			[]int64{fixture.escalationSignal.ID, fixture.secondSignal.ID, fixture.firstSignal.ID},
+			[]int64{resp.Signals[0].ID, resp.Signals[1].ID, resp.Signals[2].ID},
+		)
+		require.Equal(t, []string{"escalation", "approval", "approval"}, []string{resp.Signals[0].Key, resp.Signals[1].Key, resp.Signals[2].Key})
+		require.Equal(t, []int{1, 1, 1}, []int{resp.Signals[0].Attempt, resp.Signals[1].Attempt, resp.Signals[2].Attempt})
+	})
+
+	t.Run("TermNameResolvesSignalKey", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Scope:    workflowTaskSignalScopeEvidence,
+			TaskName: fixture.taskName,
+			TermName: "approval_received",
+		})
+		require.NoError(t, err)
+		require.Equal(t, workflowTaskSignalScopeEvidence, resp.Scope)
+		require.Len(t, resp.Signals, 2)
+		require.Equal(t, []int64{fixture.secondSignal.ID, fixture.firstSignal.ID}, []int64{resp.Signals[0].ID, resp.Signals[1].ID})
+		require.Equal(t, []string{"approval", "approval"}, []string{resp.Signals[0].Key, resp.Signals[1].Key})
+	})
+
+	t.Run("RejectsKeyAndTermNameTogether", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Key:      "approval",
+			TaskName: fixture.taskName,
+			TermName: "approval_received",
+		})
+		require.Nil(t, resp)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "mutually exclusive")
+	})
+
+	t.Run("RejectsInvalidScope", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Scope:    "everything",
+			TaskName: fixture.taskName,
+		})
+		require.Nil(t, resp)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "scope")
+	})
+
+	t.Run("RejectsUnknownTermName", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			TaskName: fixture.taskName,
+			TermName: "missing_term",
+		})
+		require.Nil(t, resp)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not found")
+	})
+
+	t.Run("RejectsNonSignalTermName", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			TaskName: fixture.timerOnlyTaskName,
+			TermName: "review_timeout",
+		})
+		require.Nil(t, resp)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "not signal")
+	})
+
+	t.Run("EvidenceScopeWithoutEvidenceReturnsBadRequest", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Scope:    workflowTaskSignalScopeEvidence,
+			TaskName: fixture.unresolvedTaskName,
+		})
+		require.Nil(t, resp)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "Wait evidence is unavailable")
+	})
+
+	t.Run("WithoutKeyPaginationIsOrderedAcrossDeclaredSignalKeys", func(t *testing.T) {
+		endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowTaskSignalsEndpoint)
+		fixture := setupWorkflowTaskSignalsFixture(ctx, t, bundle)
+		limit := 2
+
+		firstPage, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			ID:       fixture.workflowID,
+			Limit:    &limit,
+			Scope:    workflowTaskSignalScopeHistory,
+			TaskName: fixture.taskName,
+		})
+		require.NoError(t, err)
+		require.True(t, firstPage.HasMore)
+		require.NotNil(t, firstPage.NextCursorID)
+		require.Len(t, firstPage.Signals, 2)
+		require.Equal(t,
+			[]int64{fixture.thirdSignal.ID, fixture.escalationSignal.ID},
+			[]int64{firstPage.Signals[0].ID, firstPage.Signals[1].ID},
+		)
+
+		secondPage, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowTaskSignalsRequest{
+			CursorID: firstPage.NextCursorID,
+			ID:       fixture.workflowID,
+			Limit:    &limit,
+			Scope:    workflowTaskSignalScopeHistory,
+			TaskName: fixture.taskName,
+		})
+		require.NoError(t, err)
+		require.False(t, secondPage.HasMore)
+		require.Len(t, secondPage.Signals, 2)
+		require.Equal(t,
+			[]int64{fixture.secondSignal.ID, fixture.firstSignal.ID},
+			[]int64{secondPage.Signals[0].ID, secondPage.Signals[1].ID},
+		)
 	})
 
 	t.Run("UnknownWorkflowReturnsNotFound", func(t *testing.T) {
@@ -368,7 +578,7 @@ func TestProAPIHandlerWorkflowTaskSignals(t *testing.T) {
 func TestWorkflowTaskSignalsRequestExtractRaw(t *testing.T) {
 	t.Run("ParsesAndCapsLimit", func(t *testing.T) {
 		req := &workflowTaskSignalsRequest{}
-		httpReq := httptest.NewRequest(http.MethodGet, "/api/pro/workflows/wf/task-signals?task_name=await%2Freview&key=approval&cursor_id=42&desc=false&limit=200&scope=current_attempt", nil)
+		httpReq := httptest.NewRequest(http.MethodGet, "/api/pro/workflows/wf/task-signals?task_name=await%2Freview&key=approval&cursor_id=42&desc=false&limit=200&scope=history&workflow_attempt=2", nil)
 		httpReq.SetPathValue("id", "wf")
 
 		err := req.ExtractRaw(httpReq)
@@ -382,7 +592,9 @@ func TestWorkflowTaskSignalsRequestExtractRaw(t *testing.T) {
 		require.False(t, *req.Desc)
 		require.NotNil(t, req.Limit)
 		require.Equal(t, 200, *req.Limit)
-		require.Equal(t, string(riverpro.WorkflowTaskSignalReadScopeCurrentAttempt), req.Scope)
+		require.Equal(t, workflowTaskSignalScopeHistory, req.Scope)
+		require.NotNil(t, req.WorkflowAttempt)
+		require.Equal(t, 2, *req.WorkflowAttempt)
 	})
 
 	t.Run("ReturnsBadRequestForInvalidQueryValues", func(t *testing.T) {
@@ -618,12 +830,14 @@ func persistedWaitSpec(wait *riverworkflow.WaitSpec) map[string]any {
 }
 
 type workflowTaskSignalsFixture struct {
-	firstSignal       *riverpro.WorkflowSignalResult
-	secondSignal      *riverpro.WorkflowSignalResult
-	taskName          string
-	thirdSignal       *riverpro.WorkflowSignalResult
-	timerOnlyTaskName string
-	workflowID        string
+	escalationSignal   *riverpro.WorkflowSignalResult
+	firstSignal        *riverpro.WorkflowSignalResult
+	secondSignal       *riverpro.WorkflowSignalResult
+	taskName           string
+	thirdSignal        *riverpro.WorkflowSignalResult
+	timerOnlyTaskName  string
+	unresolvedTaskName string
+	workflowID         string
 }
 
 func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *setupEndpointTestBundle) *workflowTaskSignalsFixture {
@@ -632,14 +846,16 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	workflowID := "wf_task_signals_" + time.Now().UTC().Format("150405.000000000")
 
 	waitSpec := &riverworkflow.WaitSpec{
-		Expr: "approval_received",
+		Expr: "approval_received || escalation_received",
 		Terms: []riverworkflow.WaitTermSpec{
 			riverworkflow.WaitTermSignal("approval_received", "approval", "true").Label("Approval received"),
+			riverworkflow.WaitTermSignal("escalation_received", "escalation", "true").Label("Escalation received"),
 		},
 	}
 
 	taskName := "await/review"
 	timerOnlyTaskName := "timer/only"
+	unresolvedTaskName := "await/unresolved"
 	workflow := bundle.client.NewWorkflow(&riverpro.WorkflowOpts{
 		ID:   workflowID,
 		Name: "wf_task_signals",
@@ -649,15 +865,16 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 		Deps: []string{"collect_inputs"},
 		Wait: waitSpec,
 	})
+	workflow.Add(unresolvedTaskName, uicommontest.NoOpArgs{Name: "unresolved"}, nil, &riverpro.WorkflowTaskOpts{
+		Deps: []string{"collect_inputs"},
+		Wait: waitSpec,
+	})
 	workflow.Add(timerOnlyTaskName, uicommontest.NoOpArgs{Name: "timer"}, nil, &riverpro.WorkflowTaskOpts{
 		Deps: []string{"collect_inputs"},
 		Wait: &riverworkflow.WaitSpec{
-			Expr: "review_timeout_reached",
+			Expr: "review_timeout",
 			Terms: []riverworkflow.WaitTermSpec{
-				riverworkflow.WaitTermTimer(
-					"review_timeout_reached",
-					riverworkflow.TimerAfterWorkflowCreated("review_timeout", 5*time.Minute),
-				),
+				riverworkflow.WaitTermTimer(riverworkflow.TimerAfterWorkflowCreated("review_timeout", 5*time.Minute)),
 			},
 		},
 	})
@@ -697,6 +914,11 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	})
 	require.NoError(t, err)
 
+	escalationSignal, err := workflow.Signal(ctx, "escalation", map[string]any{"escalated_to": "team_lead"}, &riverpro.WorkflowSignalOpts{
+		Source: map[string]any{"actor": "scheduler", "kind": "automation"},
+	})
+	require.NoError(t, err)
+
 	resultTime := time.Now().UTC().Add(-2 * time.Minute)
 	metadata := workflowMetadataWithWait(workflowID, taskName, nil, waitSpec, map[string]any{
 		"started_at":  time.Now().UTC().Add(-10 * time.Minute).Format(time.RFC3339Nano),
@@ -705,18 +927,34 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 			"as_of":   resultTime.Format(time.RFC3339Nano),
 			"attempt": 1,
 			"summary": "Approval received",
-			"signals": map[string]any{"approval": map[string]any{
-				"last_matched_id": secondSignal.ID,
-				"last_visible_id": secondSignal.ID,
-				"matched":         true,
-				"matched_count":   2,
-				"visible_count":   2,
-			}},
+			"signals": map[string]any{
+				"approval": map[string]any{
+					"included_count":   2,
+					"last_included_id": secondSignal.ID,
+				},
+				"escalation": map[string]any{
+					"included_count":   1,
+					"last_included_id": escalationSignal.ID,
+				},
+			},
 			"terms": []map[string]any{{
-				"kind":    "signal",
-				"label":   "Approval received",
-				"matched": true,
-				"name":    "approval_received",
+				"kind":            "signal",
+				"label":           "Approval received",
+				"last_matched_id": secondSignal.ID,
+				"matched_count":   2,
+				"name":            "approval_received",
+				"required_count":  1,
+				"satisfied":       true,
+				"signal_key":      "approval",
+			}, {
+				"kind":            "signal",
+				"label":           "Escalation received",
+				"last_matched_id": escalationSignal.ID,
+				"matched_count":   1,
+				"name":            "escalation_received",
+				"required_count":  1,
+				"satisfied":       true,
+				"signal_key":      "escalation",
 			}},
 			"timers": map[string]any{},
 		},
@@ -734,13 +972,34 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	require.NoError(t, err)
 
 	return &workflowTaskSignalsFixture{
-		firstSignal:       firstSignal,
-		secondSignal:      secondSignal,
-		taskName:          taskName,
-		thirdSignal:       thirdSignal,
-		timerOnlyTaskName: timerOnlyTaskName,
-		workflowID:        workflowID,
+		escalationSignal:   escalationSignal,
+		firstSignal:        firstSignal,
+		secondSignal:       secondSignal,
+		taskName:           taskName,
+		thirdSignal:        thirdSignal,
+		timerOnlyTaskName:  timerOnlyTaskName,
+		unresolvedTaskName: unresolvedTaskName,
+		workflowID:         workflowID,
 	}
+}
+
+func signalApprovalOnAttempt(ctx context.Context, t *testing.T, bundle *setupEndpointTestBundle, workflowID string, attempt int) *riverpro.WorkflowSignalResult {
+	t.Helper()
+
+	workflowTable := pgx.Identifier{bundle.schema, "river_workflow"}.Sanitize()
+	err := bundle.execDB.Exec(ctx, "UPDATE "+workflowTable+" SET current_attempt = $1 WHERE id = $2", attempt, workflowID)
+	require.NoError(t, err)
+
+	workflow, err := bundle.client.WorkflowFromExistingID(ctx, workflowID, nil)
+	require.NoError(t, err)
+
+	signal, err := workflow.Signal(ctx, "approval", map[string]any{"approved_by": "retry"}, &riverpro.WorkflowSignalOpts{
+		Attempt: &attempt,
+		Source:  map[string]any{"actor": "retry", "kind": "ui"},
+	})
+	require.NoError(t, err)
+
+	return signal
 }
 
 func metadataFieldRaw(t *testing.T, metadata []byte, key string) []byte {

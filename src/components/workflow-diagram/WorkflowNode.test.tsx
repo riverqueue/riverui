@@ -66,18 +66,21 @@ const buildWaitData = ({
     task: "compose_draft_response",
     wait: {
       exprCel: "approval_received",
+      inputs: {
+        deps: [],
+        signals: [
+          {
+            key: "approval",
+            result: resolved
+              ? { includedCount: 1, lastIncludedID: 1n }
+              : undefined,
+          },
+        ],
+        timers: [],
+      },
       phase,
-      signals: [
-        {
-          key: "approval",
-          matched: resolved,
-          matchedCount: resolved ? 1 : 0,
-          visibleCount: resolved ? 1 : 0,
-        },
-      ],
       summary: resolved ? "Human approval received" : undefined,
       terms: [],
-      timers: [],
     },
     waitReason: resolved ? "none" : "wait",
   });

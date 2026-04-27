@@ -305,22 +305,29 @@ func (*workflowTaskSignalsEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 const (
 	workflowTaskSignalsLimitDefault = 20
 	workflowTaskSignalsLimitMax     = 100
+
+	workflowTaskSignalScopeEvidence = "evidence"
+	workflowTaskSignalScopeHistory  = "history"
 )
 
 type workflowTaskSignalsRequest struct {
-	CursorID *int64 `json:"-" validate:"omitempty"`       // from ExtractRaw
-	Desc     *bool  `json:"-" validate:"omitempty"`       // from ExtractRaw
-	ID       string `json:"-" validate:"required"`        // from ExtractRaw
-	Key      string `json:"-" validate:"omitempty"`       // from ExtractRaw
-	Limit    *int   `json:"-" validate:"omitempty,min=1"` // from ExtractRaw
-	Scope    string `json:"-" validate:"omitempty"`       // from ExtractRaw
-	TaskName string `json:"-" validate:"required"`        // from ExtractRaw
+	CursorID        *int64 `json:"-" validate:"omitempty"`       // from ExtractRaw
+	Desc            *bool  `json:"-" validate:"omitempty"`       // from ExtractRaw
+	ID              string `json:"-" validate:"required"`        // from ExtractRaw
+	Key             string `json:"-" validate:"omitempty"`       // from ExtractRaw
+	Limit           *int   `json:"-" validate:"omitempty,min=1"` // from ExtractRaw
+	Scope           string `json:"-" validate:"omitempty"`       // from ExtractRaw
+	TaskName        string `json:"-" validate:"required"`        // from ExtractRaw
+	TermName        string `json:"-" validate:"omitempty"`       // from ExtractRaw
+	WorkflowAttempt *int   `json:"-" validate:"omitempty,min=1"` // from ExtractRaw
 }
 
 func (req *workflowTaskSignalsRequest) ExtractRaw(r *http.Request) error {
 	req.ID = r.PathValue("id")
 	req.TaskName = r.URL.Query().Get("task_name")
 	req.Key = r.URL.Query().Get("key")
+	req.Scope = r.URL.Query().Get("scope")
+	req.TermName = r.URL.Query().Get("term_name")
 
 	if cursorIDStr := r.URL.Query().Get("cursor_id"); cursorIDStr != "" {
 		cursorID, err := strconv.ParseInt(cursorIDStr, 10, 64)
@@ -346,21 +353,23 @@ func (req *workflowTaskSignalsRequest) ExtractRaw(r *http.Request) error {
 		req.Limit = &limit
 	}
 
-	req.Scope = r.URL.Query().Get("scope")
+	if workflowAttemptStr := r.URL.Query().Get("workflow_attempt"); workflowAttemptStr != "" {
+		workflowAttempt, err := strconv.Atoi(workflowAttemptStr)
+		if err != nil {
+			return apierror.NewBadRequestf("Couldn't convert `workflow_attempt` to integer: %s.", err)
+		}
+		req.WorkflowAttempt = &workflowAttempt
+	}
 
 	return nil
 }
 
 type workflowTaskSignalsResponse struct {
-	HasMore      bool                     `json:"has_more"`
-	NextCursorID *int64                   `json:"next_cursor_id,omitempty"`
-	Scope        workflowTaskSignalsScope `json:"scope"`
-	Signals      []*workflowTaskSignal    `json:"signals"`
-}
-
-type workflowTaskSignalsScope struct {
-	Attempt int    `json:"attempt"`
-	Scope   string `json:"scope"`
+	Evidence     *workflowTaskWaitEvidence `json:"evidence,omitempty"`
+	HasMore      bool                      `json:"has_more"`
+	NextCursorID *int64                    `json:"next_cursor_id,omitempty"`
+	Scope        string                    `json:"scope"`
+	Signals      []*workflowTaskSignal     `json:"signals"`
 }
 
 type workflowTaskSignal struct {
@@ -381,13 +390,12 @@ func (a *workflowTaskSignalsEndpoint[TTx]) Execute(ctx context.Context, req *wor
 		return nil, fmt.Errorf("error loading workflow: %w", err)
 	}
 
-	result, err := workflow.SignalListForTask(ctx, req.TaskName, &riverpro.WorkflowSignalListForTaskParams{
-		CursorID: ptrutil.ValOrDefault(req.CursorID, 0),
-		Desc:     ptrutil.ValOrDefault(req.Desc, true),
-		Key:      req.Key,
-		Limit:    min(ptrutil.ValOrDefault(req.Limit, workflowTaskSignalsLimitDefault), workflowTaskSignalsLimitMax),
-		Scope:    riverpro.WorkflowTaskSignalReadScope(req.Scope),
-	})
+	params, evidence, scope, err := a.workflowTaskSignalListParams(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	result, err := workflow.SignalListForTask(ctx, req.TaskName, params)
 	if err != nil {
 		var signalKeyUndeclaredErr *riverworkflow.SignalKeyUndeclaredError
 		if errors.As(err, &signalKeyUndeclaredErr) {
@@ -404,22 +412,204 @@ func (a *workflowTaskSignalsEndpoint[TTx]) Execute(ctx context.Context, req *wor
 			return nil, apierror.NewNotFoundf("%s.", signalUnknownTaskErr)
 		}
 
-		return nil, fmt.Errorf("error loading task-visible workflow signals: %w", err)
-	}
-
-	if result.TaskScope == nil {
-		return nil, fmt.Errorf("task-visible workflow signal list missing scope metadata")
+		return nil, fmt.Errorf("error loading task workflow signals: %w", err)
 	}
 
 	return &workflowTaskSignalsResponse{
+		Evidence:     workflowTaskWaitEvidenceFromInternal(evidence),
 		HasMore:      result.HasMore,
 		NextCursorID: result.NextCursorID,
-		Scope: workflowTaskSignalsScope{
-			Attempt: result.TaskScope.Attempt,
-			Scope:   string(result.TaskScope.Scope),
-		},
-		Signals: sliceutil.Map(result.Signals, workflowTaskSignalFromInternal),
+		Scope:        scope,
+		Signals:      sliceutil.Map(result.Signals, workflowTaskSignalFromInternal),
 	}, nil
+}
+
+func (a *workflowTaskSignalsEndpoint[TTx]) workflowTaskSignalListParams(ctx context.Context, req *workflowTaskSignalsRequest) (*riverpro.WorkflowSignalListForTaskParams, *riverworkflow.WaitEvidence, string, error) {
+	if req.Key != "" && req.TermName != "" {
+		return nil, nil, "", apierror.NewBadRequest("Task signal key and term name are mutually exclusive.")
+	}
+
+	scope := req.Scope
+	if scope == "" {
+		scope = workflowTaskSignalScopeHistory
+	}
+	if scope != workflowTaskSignalScopeEvidence && scope != workflowTaskSignalScopeHistory {
+		return nil, nil, "", apierror.NewBadRequestf("Task signal scope %q is invalid.", scope)
+	}
+
+	key := req.Key
+	var evidence *riverworkflow.WaitEvidence
+	var loadedTask *riverpro.WorkflowTaskWithJob
+	loadTask := func() (*riverpro.WorkflowTaskWithJob, error) {
+		if loadedTask != nil {
+			return loadedTask, nil
+		}
+		workflow, err := a.Client.WorkflowFromExistingID(ctx, req.ID, nil)
+		if err != nil {
+			return nil, fmt.Errorf("error loading workflow: %w", err)
+		}
+		task, err := workflow.LoadTask(ctx, req.TaskName)
+		if err != nil {
+			if errors.Is(err, rivertype.ErrNotFound) {
+				return nil, apierror.NewNotFoundf("task %q not found in workflow %q.", req.TaskName, req.ID)
+			}
+			return nil, fmt.Errorf("error loading workflow task: %w", err)
+		}
+		loadedTask = task
+		return task, nil
+	}
+
+	if req.TermName != "" {
+		task, err := loadTask()
+		if err != nil {
+			return nil, nil, "", err
+		}
+		if task.Wait == nil {
+			return nil, nil, "", apierror.NewBadRequestf("task %q declares no wait in workflow %q.", req.TaskName, req.ID)
+		}
+		term := task.Wait.Term(req.TermName)
+		if term == nil {
+			return nil, nil, "", apierror.NewBadRequestf("task %q wait term %q not found in workflow %q.", req.TaskName, req.TermName, req.ID)
+		}
+		if term.Kind != riverworkflow.WaitTermKindSignal {
+			return nil, nil, "", apierror.NewBadRequestf("task %q wait term %q is %s, not signal.", req.TaskName, req.TermName, term.Kind)
+		}
+		key = term.SignalKey
+	}
+
+	var attempt *int
+	if scope == workflowTaskSignalScopeEvidence {
+		task, err := loadTask()
+		if err != nil {
+			return nil, nil, "", err
+		}
+		if task.Wait == nil || task.Wait.Evidence == nil {
+			return nil, nil, "", apierror.NewBadRequest("Wait evidence is unavailable before the wait resolves. Use diagnostics or signal history instead.")
+		}
+		evidence = task.Wait.Evidence
+		evidenceAttempt := evidence.WorkflowAttempt
+		attempt = &evidenceAttempt
+	} else if req.WorkflowAttempt != nil {
+		attempt = req.WorkflowAttempt
+	} else {
+		workflow, err := a.DB.WorkflowGetByID(ctx, &riverprodriver.WorkflowGetByIDParams{
+			Schema:     a.Client.Schema(),
+			WorkflowID: req.ID,
+		})
+		if err != nil {
+			return nil, nil, "", fmt.Errorf("error loading workflow: %w", err)
+		}
+		currentAttempt := workflow.CurrentAttempt
+		attempt = &currentAttempt
+	}
+
+	return &riverpro.WorkflowSignalListForTaskParams{
+		Attempt:                attempt,
+		CursorID:               ptrutil.ValOrDefault(req.CursorID, 0),
+		Desc:                   ptrutil.ValOrDefault(req.Desc, true),
+		IncludeAfterResolution: scope == workflowTaskSignalScopeHistory,
+		Key:                    key,
+		Limit:                  min(ptrutil.ValOrDefault(req.Limit, workflowTaskSignalsLimitDefault), workflowTaskSignalsLimitMax),
+	}, evidence, scope, nil
+}
+
+//
+// workflowTaskWaitDiagnosticsEndpoint
+//
+
+type workflowTaskWaitDiagnosticsEndpoint[TTx any] struct {
+	ProAPIBundle[TTx]
+	apiendpoint.Endpoint[workflowTaskWaitDiagnosticsRequest, workflowTaskWaitDiagnosticsResponse]
+}
+
+func NewWorkflowTaskWaitDiagnosticsEndpoint[TTx any](apiBundle ProAPIBundle[TTx]) *workflowTaskWaitDiagnosticsEndpoint[TTx] {
+	return &workflowTaskWaitDiagnosticsEndpoint[TTx]{ProAPIBundle: apiBundle}
+}
+
+func (*workflowTaskWaitDiagnosticsEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/pro/workflows/{id}/task-wait-diagnostics",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type workflowTaskWaitDiagnosticsRequest struct {
+	ID       string `json:"-" validate:"required"` // from ExtractRaw
+	TaskName string `json:"-" validate:"required"` // from ExtractRaw
+}
+
+func (req *workflowTaskWaitDiagnosticsRequest) ExtractRaw(r *http.Request) error {
+	req.ID = r.PathValue("id")
+	req.TaskName = r.URL.Query().Get("task_name")
+	return nil
+}
+
+type workflowTaskWaitDiagnosticsResponse struct {
+	EvalError       string                        `json:"eval_error,omitempty"`
+	ExprResult      *bool                         `json:"expr_result,omitempty"`
+	Inputs          workflowWaitInputDiagnostics  `json:"inputs"`
+	InspectedAt     time.Time                     `json:"inspected_at"`
+	Phase           string                        `json:"phase"`
+	SignalScanCount int                           `json:"signal_scan_count"`
+	SignalScanLimit int                           `json:"signal_scan_limit"`
+	Terms           []*workflowWaitTermDiagnostic `json:"terms"`
+	Truncated       bool                          `json:"truncated"`
+	WorkflowAttempt int                           `json:"workflow_attempt"`
+}
+
+type workflowWaitInputDiagnostics struct {
+	Deps    []*workflowWaitDepDiagnostic    `json:"deps"`
+	Signals []*workflowWaitSignalDiagnostic `json:"signals"`
+	Timers  []*workflowWaitTimerDiagnostic  `json:"timers"`
+}
+
+type workflowWaitDepDiagnostic struct {
+	Available   bool       `json:"available"`
+	FinalizedAt *time.Time `json:"finalized_at,omitempty"`
+	State       string     `json:"state,omitempty"`
+	TaskName    string     `json:"task_name"`
+}
+
+type workflowWaitSignalDiagnostic struct {
+	IncludedCount int64  `json:"included_count"`
+	Key           string `json:"key"`
+	LastID        *int64 `json:"last_id,omitempty"`
+}
+
+type workflowWaitTermDiagnostic struct {
+	LastMatchedID *int64 `json:"last_matched_id,omitempty"`
+	MatchedCount  int64  `json:"matched_count"`
+	Name          string `json:"name"`
+	RequiredCount int64  `json:"required_count"`
+	Satisfied     bool   `json:"satisfied"`
+}
+
+type workflowWaitTimerDiagnostic struct {
+	FireAt *time.Time `json:"fire_at,omitempty"`
+	Fired  bool       `json:"fired"`
+	Name   string     `json:"name"`
+}
+
+func (a *workflowTaskWaitDiagnosticsEndpoint[TTx]) Execute(ctx context.Context, req *workflowTaskWaitDiagnosticsRequest) (*workflowTaskWaitDiagnosticsResponse, error) {
+	workflow, err := a.Client.WorkflowFromExistingID(ctx, req.ID, nil)
+	if err != nil {
+		if errors.Is(err, rivertype.ErrNotFound) {
+			return nil, apierror.NewNotFoundf("Workflow not found: %s.", req.ID)
+		}
+		return nil, fmt.Errorf("error loading workflow: %w", err)
+	}
+
+	result, err := workflow.TaskWaitDiagnostics(ctx, req.TaskName, nil)
+	if err != nil {
+		var signalUnknownTaskErr *riverworkflow.SignalUnknownTaskError
+		if errors.As(err, &signalUnknownTaskErr) {
+			return nil, apierror.NewNotFoundf("%s.", signalUnknownTaskErr)
+		}
+
+		return nil, fmt.Errorf("error loading task wait diagnostics: %w", err)
+	}
+
+	return workflowTaskWaitDiagnosticsFromInternal(result), nil
 }
 
 //
@@ -651,33 +841,63 @@ type workflowTaskSerializable struct {
 }
 
 type workflowTaskWait struct {
-	AsOf       *time.Time                    `json:"as_of,omitempty"`
-	Attempt    *int                          `json:"attempt,omitempty"`
-	ExprCEL    string                        `json:"expr_cel"`
-	ResolvedAt *time.Time                    `json:"resolved_at,omitempty"`
-	Phase      string                        `json:"phase"`
-	Signals    []*workflowTaskSignalEvidence `json:"signals"`
-	StartedAt  *time.Time                    `json:"started_at,omitempty"`
-	Summary    string                        `json:"summary,omitempty"`
-	Terms      []*workflowTaskWaitTerm       `json:"terms"`
-	Timers     []*workflowTaskWaitTimer      `json:"timers"`
+	Evidence   *workflowTaskWaitEvidence `json:"evidence,omitempty"`
+	ExprCEL    string                    `json:"expr_cel"`
+	Inputs     workflowTaskWaitInputs    `json:"inputs"`
+	ResolvedAt *time.Time                `json:"resolved_at,omitempty"`
+	Phase      string                    `json:"phase"`
+	StartedAt  *time.Time                `json:"started_at,omitempty"`
+	Summary    string                    `json:"summary,omitempty"`
+	Terms      []*workflowTaskWaitTerm   `json:"terms"`
 }
 
 type workflowTaskWaitTerm struct {
-	ExprCEL string `json:"expr_cel,omitempty"`
-	Kind    string `json:"kind"`
-	Label   string `json:"label"`
-	Matched bool   `json:"matched"`
-	Name    string `json:"name"`
+	ExprCEL   string                      `json:"expr_cel,omitempty"`
+	Kind      string                      `json:"kind"`
+	Label     string                      `json:"label"`
+	Name      string                      `json:"name"`
+	Result    *workflowTaskWaitTermResult `json:"result,omitempty"`
+	SignalKey string                      `json:"signal_key,omitempty"`
+	TimerName string                      `json:"timer_name,omitempty"`
 }
 
-type workflowTaskSignalEvidence struct {
-	Key           string `json:"key"`
-	LastMatchedID int64  `json:"last_matched_id"`
-	LastVisibleID int64  `json:"last_visible_id"`
-	Matched       bool   `json:"matched"`
+type workflowTaskWaitTermResult struct {
+	LastMatchedID *int64 `json:"last_matched_id,omitempty"`
 	MatchedCount  int64  `json:"matched_count"`
-	VisibleCount  int64  `json:"visible_count"`
+	RequiredCount int64  `json:"required_count"`
+	Satisfied     bool   `json:"satisfied"`
+}
+
+type workflowTaskWaitEvidence struct {
+	EvaluatedAt     time.Time `json:"evaluated_at"`
+	WorkflowAttempt int       `json:"workflow_attempt"`
+}
+
+type workflowTaskWaitInputs struct {
+	Deps    []*workflowTaskWaitDepInput    `json:"deps"`
+	Signals []*workflowTaskWaitSignalInput `json:"signals"`
+	Timers  []*workflowTaskWaitTimer       `json:"timers"`
+}
+
+type workflowTaskWaitDepInput struct {
+	Result   *workflowTaskWaitDepInputResult `json:"result,omitempty"`
+	TaskName string                          `json:"task_name"`
+}
+
+type workflowTaskWaitDepInputResult struct {
+	Available   bool       `json:"available"`
+	FinalizedAt *time.Time `json:"finalized_at,omitempty"`
+	State       string     `json:"state,omitempty"`
+}
+
+type workflowTaskWaitSignalInput struct {
+	Key    string                             `json:"key"`
+	Result *workflowTaskWaitSignalInputResult `json:"result,omitempty"`
+}
+
+type workflowTaskWaitSignalInputResult struct {
+	IncludedCount  int64  `json:"included_count"`
+	LastIncludedID *int64 `json:"last_included_id,omitempty"`
 }
 
 type workflowTaskWaitTimer struct {
@@ -686,9 +906,13 @@ type workflowTaskWaitTimer struct {
 	AfterSeconds *float64                     `json:"after_seconds,omitempty"`
 	Anchor       *workflowTaskWaitTimerAnchor `json:"anchor,omitempty"`
 	FireAt       *time.Time                   `json:"fire_at,omitempty"`
-	Fired        bool                         `json:"fired"`
-	Matched      bool                         `json:"matched"`
 	Name         string                       `json:"name"`
+	Result       *workflowTaskWaitTimerResult `json:"result,omitempty"`
+}
+
+type workflowTaskWaitTimerResult struct {
+	FireAt *time.Time `json:"fire_at,omitempty"`
+	Fired  bool       `json:"fired"`
 }
 
 type workflowTaskWaitTimerAnchor struct {
@@ -710,18 +934,18 @@ func internalWorkflowTaskToSerializableTask(task *riverpro.WorkflowTaskWithJob) 
 		Name:                 task.Name,
 		StagedAt:             workflowTaskStagedAtFromMetadata(task.Job.Metadata),
 		Wait:                 workflowTaskWaitFromInternal(task.Wait),
-		WaitReason:           workflowTaskWaitReasonFromInternal(task.WaitReason),
+		WaitReason:           workflowTaskWaitReasonFromInternal(task.PendingReason),
 		WorkflowID:           task.WorkflowID,
 	}
 }
 
-func workflowTaskWaitReasonFromInternal(waitReason riverpro.WorkflowTaskWaitReason) string {
+func workflowTaskWaitReasonFromInternal(waitReason riverpro.WorkflowTaskPendingReason) string {
 	switch waitReason {
-	case riverpro.WorkflowTaskWaitReasonDependenciesAndWait:
+	case riverpro.WorkflowTaskPendingReasonDependenciesAndWait:
 		return workflowTaskWaitReasonDependenciesAndWait
-	case riverpro.WorkflowTaskWaitReasonDependencies:
+	case riverpro.WorkflowTaskPendingReasonDependencies:
 		return workflowTaskWaitReasonDependencies
-	case riverpro.WorkflowTaskWaitReasonWait:
+	case riverpro.WorkflowTaskPendingReasonWait:
 		return workflowTaskWaitReasonWait
 	default:
 		return workflowTaskWaitReasonNone
@@ -734,71 +958,117 @@ func workflowTaskWaitFromInternal(wait *riverworkflow.Wait) *workflowTaskWait {
 	}
 
 	result := &workflowTaskWait{
-		AsOf:       wait.AsOf,
-		Attempt:    wait.Attempt,
+		Evidence:   workflowTaskWaitEvidenceFromInternal(wait.Evidence),
 		ExprCEL:    wait.Expr,
+		Inputs:     workflowTaskWaitInputsFromInternal(wait.Inputs),
 		ResolvedAt: wait.ResolvedAt,
 		Phase:      wait.Phase.String(),
-		Signals:    make([]*workflowTaskSignalEvidence, 0, len(wait.Signals)),
 		StartedAt:  wait.StartedAt,
 		Summary:    wait.Summary,
 		Terms:      make([]*workflowTaskWaitTerm, 0, len(wait.Terms)),
-		Timers:     make([]*workflowTaskWaitTimer, 0, len(wait.Timers)),
 	}
 
 	for i := range wait.Terms {
 		term := wait.Terms[i]
 		result.Terms = append(result.Terms, &workflowTaskWaitTerm{
-			ExprCEL: term.Expr,
-			Kind:    string(term.Kind),
-			Label:   term.Label,
-			Matched: term.Matched,
-			Name:    term.Name,
+			ExprCEL:   term.Expr,
+			Kind:      string(term.Kind),
+			Label:     term.Label,
+			Name:      term.Name,
+			Result:    workflowTaskWaitTermResultFromInternal(term.Result),
+			SignalKey: term.SignalKey,
+			TimerName: term.TimerName,
 		})
-	}
-
-	for i := range wait.Signals {
-		signal := wait.Signals[i]
-		result.Signals = append(result.Signals, &workflowTaskSignalEvidence{
-			Key:           signal.Key,
-			LastMatchedID: signal.LastMatchedID,
-			LastVisibleID: signal.LastVisibleID,
-			Matched:       signal.Matched,
-			MatchedCount:  signal.MatchedCount,
-			VisibleCount:  signal.VisibleCount,
-		})
-	}
-
-	for i := range wait.Timers {
-		timer := wait.Timers[i]
-		serializedTimer := &workflowTaskWaitTimer{
-			Fired:   timer.Fired,
-			Matched: timer.Matched,
-			Name:    timer.Name,
-		}
-
-		if timer.After != nil {
-			after := *timer.After
-			afterUS := after.Microseconds()
-			serializedTimer.After = after.String()
-			serializedTimer.AfterUS = &afterUS
-			afterSeconds := float64(afterUS) / float64(time.Second/time.Microsecond)
-			serializedTimer.AfterSeconds = &afterSeconds
-		}
-		if timer.FireAt != nil {
-			serializedTimer.FireAt = timer.FireAt
-		}
-		if timer.Anchor != nil {
-			serializedTimer.Anchor = &workflowTaskWaitTimerAnchor{
-				Kind: string(timer.Anchor.Kind),
-				Task: timer.Anchor.TaskName,
-			}
-		}
-
-		result.Timers = append(result.Timers, serializedTimer)
 	}
 
 	return result
+}
+
+func workflowTaskWaitEvidenceFromInternal(evidence *riverworkflow.WaitEvidence) *workflowTaskWaitEvidence {
+	if evidence == nil {
+		return nil
+	}
+
+	return &workflowTaskWaitEvidence{
+		EvaluatedAt:     evidence.EvaluatedAt,
+		WorkflowAttempt: evidence.WorkflowAttempt,
+	}
+}
+
+func workflowTaskWaitInputsFromInternal(inputs riverworkflow.WaitInputState) workflowTaskWaitInputs {
+	return workflowTaskWaitInputs{
+		Deps:    sliceutil.Map(inputs.Deps, workflowTaskWaitDepInputFromInternal),
+		Signals: sliceutil.Map(inputs.Signals, workflowTaskWaitSignalInputFromInternal),
+		Timers:  sliceutil.Map(inputs.Timers, workflowTaskWaitTimerFromInternal),
+	}
+}
+
+func workflowTaskWaitDepInputFromInternal(dep riverworkflow.WaitDepInput) *workflowTaskWaitDepInput {
+	result := &workflowTaskWaitDepInput{
+		TaskName: dep.TaskName,
+	}
+	if dep.Result != nil {
+		result.Result = &workflowTaskWaitDepInputResult{
+			Available:   dep.Result.Available,
+			FinalizedAt: dep.Result.FinalizedAt,
+			State:       dep.Result.State,
+		}
+	}
+	return result
+}
+
+func workflowTaskWaitSignalInputFromInternal(signal riverworkflow.WaitSignalInput) *workflowTaskWaitSignalInput {
+	result := &workflowTaskWaitSignalInput{
+		Key: signal.Key,
+	}
+	if signal.Result != nil {
+		result.Result = &workflowTaskWaitSignalInputResult{
+			IncludedCount:  signal.Result.IncludedCount,
+			LastIncludedID: signal.Result.LastIncludedID,
+		}
+	}
+	return result
+}
+
+func workflowTaskWaitTermResultFromInternal(result *riverworkflow.WaitTermStatusResult) *workflowTaskWaitTermResult {
+	if result == nil {
+		return nil
+	}
+
+	return &workflowTaskWaitTermResult{
+		LastMatchedID: result.LastMatchedID,
+		MatchedCount:  result.MatchedCount,
+		RequiredCount: result.RequiredCount,
+		Satisfied:     result.Satisfied,
+	}
+}
+
+func workflowTaskWaitTimerFromInternal(timer riverworkflow.WaitTimerInput) *workflowTaskWaitTimer {
+	serializedTimer := &workflowTaskWaitTimer{Name: timer.Name}
+	if timer.After != nil {
+		after := *timer.After
+		afterUS := after.Microseconds()
+		serializedTimer.After = after.String()
+		serializedTimer.AfterUS = &afterUS
+		afterSeconds := float64(afterUS) / float64(time.Second/time.Microsecond)
+		serializedTimer.AfterSeconds = &afterSeconds
+	}
+	if timer.FireAt != nil {
+		serializedTimer.FireAt = timer.FireAt
+	}
+	if timer.Anchor != nil {
+		serializedTimer.Anchor = &workflowTaskWaitTimerAnchor{
+			Kind: string(timer.Anchor.Kind),
+			Task: timer.Anchor.TaskName,
+		}
+	}
+	if timer.Result != nil {
+		serializedTimer.Result = &workflowTaskWaitTimerResult{
+			FireAt: timer.Result.FireAt,
+			Fired:  timer.Result.Fired,
+		}
+	}
+	return serializedTimer
 }
 
 func workflowTaskSignalFromInternal(signal riverworkflow.Signal) *workflowTaskSignal {
@@ -809,6 +1079,71 @@ func workflowTaskSignalFromInternal(signal riverworkflow.Signal) *workflowTaskSi
 		Key:       signal.Key,
 		Payload:   signal.Payload,
 		Source:    signal.Source,
+	}
+}
+
+func workflowTaskWaitDiagnosticsFromInternal(result *riverworkflow.WaitDiagnostics) *workflowTaskWaitDiagnosticsResponse {
+	if result == nil {
+		return nil
+	}
+
+	response := &workflowTaskWaitDiagnosticsResponse{
+		ExprResult:      result.ExprResult,
+		Inputs:          workflowWaitInputDiagnosticsFromInternal(result.Inputs),
+		InspectedAt:     result.InspectedAt,
+		Phase:           result.Phase.String(),
+		SignalScanCount: result.SignalScanCount,
+		SignalScanLimit: result.SignalScanLimit,
+		Terms:           sliceutil.Map(result.Terms, workflowWaitTermDiagnosticFromInternal),
+		Truncated:       result.Truncated,
+		WorkflowAttempt: result.WorkflowAttempt,
+	}
+	if result.EvalError != nil {
+		response.EvalError = result.EvalError.Error()
+	}
+	return response
+}
+
+func workflowWaitInputDiagnosticsFromInternal(inputs riverworkflow.WaitDiagnosticsInputs) workflowWaitInputDiagnostics {
+	return workflowWaitInputDiagnostics{
+		Deps:    sliceutil.Map(inputs.Deps, workflowWaitDepDiagnosticFromInternal),
+		Signals: sliceutil.Map(inputs.Signals, workflowWaitSignalDiagnosticFromInternal),
+		Timers:  sliceutil.Map(inputs.Timers, workflowWaitTimerDiagnosticFromInternal),
+	}
+}
+
+func workflowWaitDepDiagnosticFromInternal(dep riverworkflow.WaitDepDiagnostic) *workflowWaitDepDiagnostic {
+	return &workflowWaitDepDiagnostic{
+		Available:   dep.Available,
+		FinalizedAt: dep.FinalizedAt,
+		State:       dep.State,
+		TaskName:    dep.TaskName,
+	}
+}
+
+func workflowWaitSignalDiagnosticFromInternal(signal riverworkflow.WaitSignalDiagnostic) *workflowWaitSignalDiagnostic {
+	return &workflowWaitSignalDiagnostic{
+		IncludedCount: signal.IncludedCount,
+		Key:           signal.Key,
+		LastID:        signal.LastID,
+	}
+}
+
+func workflowWaitTermDiagnosticFromInternal(term riverworkflow.WaitTermDiagnostic) *workflowWaitTermDiagnostic {
+	return &workflowWaitTermDiagnostic{
+		LastMatchedID: term.LastMatchedID,
+		MatchedCount:  term.MatchedCount,
+		Name:          term.Name,
+		RequiredCount: term.RequiredCount,
+		Satisfied:     term.Satisfied,
+	}
+}
+
+func workflowWaitTimerDiagnosticFromInternal(timer riverworkflow.WaitTimerDiagnostic) *workflowWaitTimerDiagnostic {
+	return &workflowWaitTimerDiagnostic{
+		FireAt: timer.FireAt,
+		Fired:  timer.Fired,
+		Name:   timer.Name,
 	}
 }
 

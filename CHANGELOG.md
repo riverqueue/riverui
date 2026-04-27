@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Workflow detail: add River Pro Workflow v2 wait/signal inspection with final resolution evidence, waiting diagnostics, declared wait inputs, signal scan truncation status, signal history, raw CEL and structured-term condition views, and clearer task timelines. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
+
 ### Fixed
 
 - Workflow detail: add on-canvas zoom controls for click/touch navigation and improve controls styling for dark mode. [PR #524](https://github.com/riverqueue/riverui/pull/524).
@@ -15,14 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - JSON viewer: sort keys alphabetically in rendered and copied output for object payloads. [PR #525](https://github.com/riverqueue/riverui/pull/525).
 - Job state sidebar: only highlight `Running` when the selected jobs state is actually running, even with retained search filters in the URL. [Fixes #526](https://github.com/riverqueue/riverui/issues/526). [PR #527](https://github.com/riverqueue/riverui/pull/527).
 - Job delete actions: require confirmation before deleting a single job or selected jobs in bulk. [Fixes #545](https://github.com/riverqueue/riverui/issues/545). [PR #546](https://github.com/riverqueue/riverui/pull/546).
-- Workflow detail: source wait phases, timers, signal evidence, and task wait reasons from backend workflow wait metadata instead of frontend-derived placeholders. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
-- Workflow detail: redesign wait inspection around a denser task-side summary, structured term/timer/signal cards, reliable full-node selection, Storybook workflow detail coverage below the diagram, and a tighter details layout that keeps job metadata with the main job card. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
-- Workflow detail: add a task-signal debugger backed by task-scoped River Pro signal reads while keeping workflow detail wait data summary-only. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
-- Workflow detail: clarify wait inspection with a compact condition matrix, phase-aware match summaries, explicit signal scopes, condition-type icons, per-term CEL definitions, and denser timer/dependency/signal evidence. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
-- Workflow detail: replace the flat narrative event list with a task timeline that keeps dependencies in one place, emphasizes wait evidence and durations, avoids showing staged events before a task is actually runnable, and uses a lower-noise milestone hierarchy. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
-- Workflow detail: remove the not-started wait preview from dependency progress milestones. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
 - Job detail: render a dedicated `Snoozed` timeline step for scheduled jobs with prior attempts so snoozed jobs no longer show negative wait durations. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
-- Workflow detail: show the backend's not-found message instead of crashing when a workflow ID does not exist. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
+- Workflow detail: show the server's not-found message instead of crashing when a workflow ID does not exist. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
 
 ## [v0.15.0] - 2026-02-26
 

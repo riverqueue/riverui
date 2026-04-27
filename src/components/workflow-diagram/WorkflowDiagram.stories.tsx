@@ -82,32 +82,32 @@ const buildResolvedAndWaitingTasks = (): WorkflowTask[] => {
         state: JobState.Completed,
         task: "review_ready",
         wait: {
-          asOf: add(startedAt, { seconds: 8 }),
-          attempt: 1,
+          evidence: {
+            evaluatedAt: add(startedAt, { seconds: 8 }),
+            workflowAttempt: 1,
+          },
           exprCel: "approval_received",
+          inputs: {
+            deps: [{ taskName: "compose_draft" }],
+            signals: [
+              {
+                key: "approval.received",
+              },
+            ],
+            timers: [],
+          },
           phase: "resolved",
           resolvedAt: add(startedAt, { seconds: 8 }),
-          signals: [
-            {
-              key: "approval.received",
-              lastMatchedID: 4501n,
-              lastVisibleID: 4501n,
-              matched: true,
-              matchedCount: 1,
-              visibleCount: 1,
-            },
-          ],
           startedAt: add(startedAt, { seconds: 2 }),
           summary: "Human approval received",
           terms: [
             {
               kind: "signal",
               label: "Human approval received",
-              matched: true,
               name: "approval_received",
+              result: { matchedCount: 0, requiredCount: 0, satisfied: true },
             },
           ],
-          timers: [],
         },
         waitReason: "none",
         workflowStagedAt: startedAt,
@@ -125,26 +125,26 @@ const buildResolvedAndWaitingTasks = (): WorkflowTask[] => {
       task: "publish_response",
       wait: {
         exprCel: "final_sign_off_received",
+        inputs: {
+          deps: [],
+          signals: [
+            {
+              key: "final_sign_off.received",
+            },
+          ],
+          timers: [],
+        },
         phase: "waiting",
-        signals: [
-          {
-            key: "final_sign_off.received",
-            matched: false,
-            matchedCount: 0,
-            visibleCount: 0,
-          },
-        ],
         startedAt: add(startedAt, { seconds: 11 }),
         summary: "Waiting for final sign-off.",
         terms: [
           {
             kind: "signal",
             label: "Final sign-off received",
-            matched: false,
             name: "final_sign_off_received",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
         ],
-        timers: [],
       },
       waitReason: "wait",
       workflowStagedAt: startedAt,
@@ -236,23 +236,29 @@ const buildAgentCustomerResolutionTasks = (): WorkflowTask[] => {
       state: JobState.Available,
       task: "compose_draft_response",
       wait: {
-        asOf: add(startedAt, { seconds: 6 }),
-        attempt: 1,
+        evidence: {
+          evaluatedAt: add(startedAt, { seconds: 6 }),
+          workflowAttempt: 1,
+        },
         exprCel: "draft_ready",
+        inputs: {
+          deps: [],
+          signals: [],
+          timers: [],
+        },
         phase: "resolved",
         resolvedAt: add(startedAt, { seconds: 6 }),
-        signals: [],
         startedAt: add(startedAt, { seconds: 4 }),
         summary: "Draft requirements already satisfied",
         terms: [
           {
-            kind: "dependency_output",
+            exprCel: `deps["compose_draft"].output.ready == true`,
+            kind: "generic",
             label: "Draft requirements already satisfied",
-            matched: true,
             name: "draft_ready",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: true },
           },
         ],
-        timers: [],
       },
       waitReason: "none",
       workflowStagedAt: startedAt,
@@ -264,39 +270,37 @@ const buildAgentCustomerResolutionTasks = (): WorkflowTask[] => {
       task: "send_response",
       wait: {
         exprCel: "human_approval_received || review_sla_timeout",
+        inputs: {
+          deps: [],
+          signals: [
+            {
+              key: "request_human_approval",
+            },
+          ],
+          timers: [
+            {
+              afterSeconds: 55,
+              anchor: { kind: "wait_started_at" },
+              fireAt: add(startedAt, { seconds: 61 }),
+              name: "review_sla_timeout",
+            },
+          ],
+        },
         phase: "waiting",
-        signals: [
-          {
-            key: "request_human_approval",
-            matched: false,
-            matchedCount: 0,
-            visibleCount: 0,
-          },
-        ],
         startedAt: add(startedAt, { seconds: 6 }),
         summary: "Waiting for human approval or review SLA timeout.",
         terms: [
           {
             kind: "signal",
             label: "Human approval received",
-            matched: false,
             name: "human_approval_received",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
           {
             kind: "timer",
             label: "Review SLA timeout reached",
-            matched: false,
             name: "review_sla_timeout",
-          },
-        ],
-        timers: [
-          {
-            afterSeconds: 55,
-            anchor: { kind: "wait_started_at" },
-            fireAt: add(startedAt, { seconds: 61 }),
-            fired: false,
-            matched: false,
-            name: "review_sla_timeout",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
         ],
       },
@@ -310,23 +314,24 @@ const buildAgentCustomerResolutionTasks = (): WorkflowTask[] => {
       task: "queue_follow_up_survey",
       wait: {
         exprCel: "follow_up_survey_delay",
+        inputs: {
+          deps: [],
+          signals: [],
+          timers: [
+            {
+              afterSeconds: 1800,
+              anchor: { kind: "wait_started_at" },
+              name: "follow_up_survey_delay",
+            },
+          ],
+        },
         phase: "waiting",
-        signals: [],
         terms: [
           {
             kind: "timer",
             label: "Follow-up survey delay reached",
-            matched: false,
             name: "follow_up_survey_delay",
-          },
-        ],
-        timers: [
-          {
-            afterSeconds: 1800,
-            anchor: { kind: "wait_started_at" },
-            fired: false,
-            matched: false,
-            name: "follow_up_survey_delay",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
         ],
       },
@@ -400,36 +405,34 @@ const buildAgentCustomerResolutionTasks = (): WorkflowTask[] => {
       task: "close_case",
       wait: {
         exprCel: "customer_ack_received || close_case_timeout",
+        inputs: {
+          deps: [],
+          signals: [
+            {
+              key: "request_customer_ack",
+            },
+          ],
+          timers: [
+            {
+              afterSeconds: 1800,
+              anchor: { kind: "wait_started_at" },
+              name: "close_case_timeout",
+            },
+          ],
+        },
         phase: "waiting",
-        signals: [
-          {
-            key: "request_customer_ack",
-            matched: false,
-            matchedCount: 0,
-            visibleCount: 0,
-          },
-        ],
         terms: [
           {
             kind: "signal",
             label: "Customer acknowledgement received",
-            matched: false,
             name: "customer_ack_received",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
           {
             kind: "timer",
             label: "Close case timeout reached",
-            matched: false,
             name: "close_case_timeout",
-          },
-        ],
-        timers: [
-          {
-            afterSeconds: 1800,
-            anchor: { kind: "wait_started_at" },
-            fired: false,
-            matched: false,
-            name: "close_case_timeout",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
         ],
       },
@@ -465,32 +468,36 @@ const buildToggleTasks = (resolved: boolean): WorkflowTask[] => {
             state: JobState.Completed,
             task: "await_review",
             wait: {
-              asOf: add(startedAt, { seconds: 8 }),
-              attempt: 1,
+              evidence: {
+                evaluatedAt: add(startedAt, { seconds: 8 }),
+                workflowAttempt: 1,
+              },
               exprCel: "approval_received",
+              inputs: {
+                deps: [],
+                signals: [
+                  {
+                    key: "approval.received",
+                  },
+                ],
+                timers: [],
+              },
               phase: "resolved",
               resolvedAt: add(startedAt, { seconds: 8 }),
-              signals: [
-                {
-                  key: "approval.received",
-                  lastMatchedID: 901n,
-                  lastVisibleID: 901n,
-                  matched: true,
-                  matchedCount: 1,
-                  visibleCount: 1,
-                },
-              ],
               startedAt: add(startedAt, { seconds: 2 }),
               summary: "Human approval received",
               terms: [
                 {
                   kind: "signal",
                   label: "Human approval received",
-                  matched: true,
                   name: "approval_received",
+                  result: {
+                    matchedCount: 0,
+                    requiredCount: 0,
+                    satisfied: true,
+                  },
                 },
               ],
-              timers: [],
             },
             waitReason: "none",
             workflowStagedAt: startedAt,
@@ -508,26 +515,26 @@ const buildToggleTasks = (resolved: boolean): WorkflowTask[] => {
           task: "await_review",
           wait: {
             exprCel: "approval_received",
+            inputs: {
+              deps: [],
+              signals: [
+                {
+                  key: "approval.received",
+                },
+              ],
+              timers: [],
+            },
             phase: "waiting",
-            signals: [
-              {
-                key: "approval.received",
-                matched: false,
-                matchedCount: 0,
-                visibleCount: 0,
-              },
-            ],
             startedAt: add(startedAt, { seconds: 2 }),
             summary: "Waiting for human approval.",
             terms: [
               {
                 kind: "signal",
                 label: "Human approval received",
-                matched: false,
                 name: "approval_received",
+                result: { matchedCount: 0, requiredCount: 0, satisfied: false },
               },
             ],
-            timers: [],
           },
           waitReason: "wait",
           workflowStagedAt: startedAt,

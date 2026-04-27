@@ -43,8 +43,14 @@ const edgeTypes: EdgeTypes = {
 };
 
 const workflowDiagramMinZoom = 0.2;
-const workflowDiagramFitViewMinZoom = 0.55;
-const workflowDiagramFitViewPadding = 0.08;
+const workflowDiagramFitViewMaxZoom = 0.85;
+const workflowDiagramFitViewMinZoom = 0.35;
+const workflowDiagramFitViewPadding = 0.18;
+const workflowDiagramFitViewOptions = {
+  maxZoom: workflowDiagramFitViewMaxZoom,
+  minZoom: workflowDiagramFitViewMinZoom,
+  padding: workflowDiagramFitViewPadding,
+};
 
 type NodeTypeKey = Extract<keyof typeof nodeTypes, string>;
 
@@ -142,10 +148,7 @@ export default function WorkflowDiagram({
         edges={layoutedEdges}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={{
-          minZoom: workflowDiagramFitViewMinZoom,
-          padding: workflowDiagramFitViewPadding,
-        }}
+        fitViewOptions={workflowDiagramFitViewOptions}
         id={`workflow-diagram-${workflowIdForInstance}`}
         key={`workflow-diagram-${workflowIdForInstance}`}
         minZoom={workflowDiagramMinZoom}
@@ -158,6 +161,7 @@ export default function WorkflowDiagram({
       >
         <Controls
           className="workflow-diagram-controls"
+          fitViewOptions={workflowDiagramFitViewOptions}
           position="bottom-left"
           showInteractive={false}
         />

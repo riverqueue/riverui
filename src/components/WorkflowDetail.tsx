@@ -10,6 +10,8 @@ import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import WorkflowDiagram from "@components/workflow-diagram/WorkflowDiagram";
 import WorkflowGateInspector, {
   ConditionKindIcon,
+  type TaskSignalLoader,
+  type TaskWaitDiagnosticsLoader,
   type WaitFocusRequest,
   WaitStatusPill,
 } from "@components/WorkflowGateInspector";
@@ -65,6 +67,8 @@ const compareDependencyNames = (left: string, right: string): number => {
 type WorkflowDetailProps = {
   cancelPending?: boolean;
   loading: boolean;
+  loadTaskSignals?: TaskSignalLoader;
+  loadTaskWaitDiagnostics?: TaskWaitDiagnosticsLoader;
   onCancel?: () => void;
   onRetry?: (mode: WorkflowRetryMode, resetHistory: boolean) => void;
   retryPending?: boolean;
@@ -76,6 +80,8 @@ type WorkflowDetailProps = {
 export default function WorkflowDetail({
   cancelPending,
   loading,
+  loadTaskSignals,
+  loadTaskWaitDiagnostics,
   onCancel,
   onRetry,
   retryPending,
@@ -231,7 +237,12 @@ export default function WorkflowDetail({
       </div>
       <div className="mx-7 my-4">
         {selectedJob && (
-          <SelectedJobDetails job={selectedJob} jobsByTask={jobsByTask} />
+          <SelectedJobDetails
+            job={selectedJob}
+            jobsByTask={jobsByTask}
+            loadTaskSignals={loadTaskSignals}
+            loadTaskWaitDiagnostics={loadTaskWaitDiagnostics}
+          />
         )}
       </div>
 
@@ -260,9 +271,13 @@ const inspectorValueClasses =
 const SelectedJobDetails = ({
   job,
   jobsByTask,
+  loadTaskSignals,
+  loadTaskWaitDiagnostics,
 }: {
   job: WorkflowTask;
   jobsByTask: JobsByTask;
+  loadTaskSignals?: TaskSignalLoader;
+  loadTaskWaitDiagnostics?: TaskWaitDiagnosticsLoader;
 }) => {
   const stagedAt = useMemo(() => job.stagedAt, [job.stagedAt]);
   const [waitFocusRequest, setWaitFocusRequest] = useState<WaitFocusRequest>();
@@ -304,7 +319,7 @@ const SelectedJobDetails = ({
             value={<span className="font-mono">{job.kind}</span>}
           />
           <InspectorRow
-            label="Attempt"
+            label="Job attempt"
             value={`${job.attempt.toString()} / ${job.maxAttempts.toString()}`}
           />
           <InspectorRow
@@ -372,6 +387,8 @@ const SelectedJobDetails = ({
           <WorkflowGateInspector
             dependencyTasks={jobsByTask}
             focusRequest={waitFocusRequest}
+            loadTaskSignals={loadTaskSignals}
+            loadTaskWaitDiagnostics={loadTaskWaitDiagnostics}
             onSelectCondition={handleSelectWait}
             taskName={job.name}
             wait={job.wait}
@@ -431,11 +448,11 @@ const DependencyItem = ({
 const formatWaitReason = (waitReason: WorkflowTaskWaitReason): string => {
   switch (waitReason) {
     case "dependencies":
-      return "Waiting on dependencies";
+      return "Blocked by dependencies";
     case "dependencies_and_wait":
-      return "Waiting on dependencies and wait";
+      return "Blocked by dependencies and wait condition";
     case "wait":
-      return "Waiting on wait";
+      return "Blocked by wait condition";
     case "none":
     default:
       return "Not waiting";
@@ -833,12 +850,14 @@ const getTaskTimelineEvents = (
       }),
       status: "waiting",
       time: job.wait.startedAt,
-      title: "Waiting on wait",
+      title: "Wait condition pending",
     });
   }
 
   if (job.wait?.resolvedAt) {
-    const matchedTerms = job.wait.terms.filter((term) => term.matched);
+    const matchedTerms = job.wait.terms.filter(
+      (term) => term.result?.satisfied,
+    );
 
     events.push({
       description: getWaitResolvedTimelineDescription(job.wait),
@@ -950,10 +969,10 @@ const getDependencyTimelineDescription = ({
 const getWaitResolvedTimelineDescription = (
   wait: NonNullable<WorkflowTask["wait"]>,
 ): ReactNode => {
-  const matchedTerms = wait.terms.filter((term) => term.matched);
+  const matchedTerms = wait.terms.filter((term) => term.result?.satisfied);
 
   if (matchedTerms.length > 1) {
-    return `${matchedTerms.length} terms matched and the wait expression evaluated true.`;
+    return `${matchedTerms.length} terms satisfied and the wait expression evaluated true.`;
   }
 
   if (wait.summary) {

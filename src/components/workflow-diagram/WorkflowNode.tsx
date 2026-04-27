@@ -312,13 +312,15 @@ const getWaitTooltipText = (
       wait.phase === "resolved" ? `Resolved by: ${wait.summary}` : wait.summary,
     );
   }
-  if (wait.signals.length > 0) {
+  if (wait.inputs.signals.length > 0) {
     parts.push(
-      `Signals: ${wait.signals.map((signal) => signal.key).join(", ")}`,
+      `Signals: ${wait.inputs.signals.map((signal) => signal.key).join(", ")}`,
     );
   }
-  if (wait.timers.length > 0) {
-    parts.push(`Timers: ${wait.timers.map((timer) => timer.name).join(", ")}`);
+  if (wait.inputs.timers.length > 0) {
+    parts.push(
+      `Timers: ${wait.inputs.timers.map((timer) => timer.name).join(", ")}`,
+    );
   }
 
   return parts.join("\n");
@@ -373,9 +375,11 @@ const getWaitStatusLabel = (
     case "resolved":
       return "Wait resolved";
     case "waiting":
-      return "Waiting on wait";
+      return "Wait condition pending";
     default:
-      return isWaitBlocking(wait) ? "Waiting on wait" : "Wait status unknown";
+      return isWaitBlocking(wait)
+        ? "Wait condition pending"
+        : "Wait status unknown";
   }
 };
 

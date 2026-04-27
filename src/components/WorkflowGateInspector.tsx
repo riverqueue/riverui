@@ -3,19 +3,21 @@ import { Subheading } from "@components/Heading";
 import JSONView from "@components/JSONView";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import {
-  BellAlertIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   ClockIcon,
+  InboxIcon,
   LinkIcon,
 } from "@heroicons/react/24/outline";
 import {
   getWorkflowTaskSignals,
+  getWorkflowTaskWaitDiagnostics,
   type WorkflowTask,
   type WorkflowTaskSignal,
   type WorkflowTaskSignalList,
-  type WorkflowTaskSignalReadScope,
+  type WorkflowTaskSignalListScope,
   type WorkflowTaskWait,
+  type WorkflowTaskWaitDiagnostics,
   type WorkflowTaskWaitTimer,
 } from "@services/workflows";
 import { formatDurationShort } from "@utils/time";
@@ -23,6 +25,9 @@ import clsx from "clsx";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 
 import PlaintextPanel from "@/components/PlaintextPanel";
+
+export type TaskSignalLoader = typeof getWorkflowTaskSignals;
+export type TaskWaitDiagnosticsLoader = typeof getWorkflowTaskWaitDiagnostics;
 
 export type WaitFocusRequest = {
   conditionName: string;
@@ -32,6 +37,8 @@ export type WaitFocusRequest = {
 type WorkflowWaitInspectorProps = {
   dependencyTasks?: Record<string, WorkflowTask>;
   focusRequest?: undefined | WaitFocusRequest;
+  loadTaskSignals?: TaskSignalLoader;
+  loadTaskWaitDiagnostics?: TaskWaitDiagnosticsLoader;
   onSelectCondition?: (conditionName: string) => void;
   taskName: string;
   wait: WorkflowTaskWait;
@@ -41,6 +48,8 @@ type WorkflowWaitInspectorProps = {
 export default function WorkflowWaitInspector({
   dependencyTasks,
   focusRequest,
+  loadTaskSignals = getWorkflowTaskSignals,
+  loadTaskWaitDiagnostics = getWorkflowTaskWaitDiagnostics,
   onSelectCondition,
   taskName,
   wait,
@@ -50,22 +59,172 @@ export default function WorkflowWaitInspector({
   const [closedFocusRequestID, setClosedFocusRequestID] = useState<number>();
   const [conditionFocusRequest, setConditionFocusRequest] =
     useState<WaitFocusRequest>();
+  const [diagnosticsState, setDiagnosticsState] =
+    useState<WaitDiagnosticsState>(emptyWaitDiagnosticsState);
+  const conditions = useMemo(
+    () => buildWaitTermViews(wait, dependencyTasks, diagnosticsState.value),
+    [dependencyTasks, diagnosticsState.value, wait],
+  );
   const matchedConditions = useMemo(
-    () =>
-      buildWaitTermViews(wait, dependencyTasks).filter(
-        (condition) => condition.matched,
-      ),
-    [dependencyTasks, wait],
+    () => conditions.filter((condition) => condition.matched),
+    [conditions],
   );
   const summaryConditions = useMemo(
     () => orderConditionsForSummary(wait.summary, matchedConditions),
     [matchedConditions, wait.summary],
+  );
+  const conditionSignalScope = getConditionSignalScope(wait);
+  const allTaskSignalsScope = getAllTaskSignalsScope();
+  const hasSignals = wait.inputs.signals.length > 0;
+  const signalHistoryKey = `${workflowID}:${taskName}:${wait.evidence?.workflowAttempt.toString() ?? ""}:${wait.phase}`;
+  const autoOpenSignalSurfaceCandidate = useMemo(
+    () => getAutoOpenSignalEvidenceSurface(conditions),
+    [conditions],
   );
   const focusDetailsOpen =
     focusRequest !== undefined &&
     closedFocusRequestID !== focusRequest.requestID;
   const detailsVisible = detailsOpen || focusDetailsOpen;
   const activeFocusRequest = focusRequest ?? conditionFocusRequest;
+  const [openSignalSurfaceContextKey, setOpenSignalSurfaceContextKey] =
+    useState<string>();
+  const [openSignalSurface, setOpenSignalSurface] =
+    useState<SignalHistorySurface>();
+  const [dismissedAutoOpenSignalKey, setDismissedAutoOpenSignalKey] =
+    useState<string>();
+  const [conditionSignalStates, setConditionSignalStates] = useState<
+    Record<string, SignalInspectorState>
+  >({});
+  const [allSignalListState, setAllSignalListState] =
+    useState<SignalInspectorState>(emptySignalInspectorState);
+  const storedOpenSignalSurface =
+    openSignalSurfaceContextKey === signalHistoryKey
+      ? openSignalSurface
+      : undefined;
+  const autoOpenSignalSurface = useMemo<
+    SignalHistorySurface | undefined
+  >(() => {
+    if (
+      !detailsVisible ||
+      !autoOpenSignalSurfaceCandidate ||
+      dismissedAutoOpenSignalKey ===
+        getSignalSurfaceStateKey(autoOpenSignalSurfaceCandidate) ||
+      openSignalSurfaceContextKey === signalHistoryKey
+    ) {
+      return undefined;
+    }
+
+    return autoOpenSignalSurfaceCandidate;
+  }, [
+    autoOpenSignalSurfaceCandidate,
+    detailsVisible,
+    dismissedAutoOpenSignalKey,
+    openSignalSurfaceContextKey,
+    signalHistoryKey,
+  ]);
+  const currentOpenSignalSurface =
+    storedOpenSignalSurface ?? autoOpenSignalSurface;
+  const currentAllSignalListState =
+    openSignalSurfaceContextKey === signalHistoryKey
+      ? allSignalListState
+      : emptySignalInspectorState;
+
+  useEffect(() => {
+    if (!detailsVisible || wait.phase === "resolved") return;
+
+    const abortController = new AbortController();
+    queueMicrotask(() => {
+      if (abortController.signal.aborted) return;
+      setDiagnosticsState({ isLoading: true });
+    });
+    void loadTaskWaitDiagnostics({
+      signal: abortController.signal,
+      taskName,
+      workflowID,
+    }).then(
+      (diagnostics) => {
+        if (abortController.signal.aborted) return;
+        setDiagnosticsState({ isLoading: false, value: diagnostics });
+      },
+      (error) => {
+        if (abortController.signal.aborted) return;
+        setDiagnosticsState({
+          error: waitDiagnosticsErrorMessage(error),
+          isLoading: false,
+        });
+      },
+    );
+
+    return () => abortController.abort();
+  }, [
+    detailsVisible,
+    loadTaskWaitDiagnostics,
+    taskName,
+    wait.phase,
+    workflowID,
+  ]);
+
+  useEffect(() => {
+    if (!currentOpenSignalSurface) return;
+
+    const abortController = new AbortController();
+    const signalKey = getSignalSurfaceKey(currentOpenSignalSurface);
+    const termName = getSignalSurfaceTermName(currentOpenSignalSurface);
+    const scope =
+      currentOpenSignalSurface.kind === "condition"
+        ? conditionSignalScope
+        : allTaskSignalsScope;
+
+    void loadTaskSignals({
+      desc: true,
+      key: signalKey,
+      limit: 20,
+      scope,
+      signal: abortController.signal,
+      taskName,
+      termName,
+      workflowID,
+    }).then(
+      (signalList) => {
+        if (abortController.signal.aborted) return;
+        const nextState = signalInspectorStateFromSignalList(signalList);
+        if (currentOpenSignalSurface.kind === "condition") {
+          setConditionSignalStates((current) => ({
+            ...current,
+            [getSignalSurfaceStateKey(currentOpenSignalSurface)]: nextState,
+          }));
+          return;
+        }
+
+        setAllSignalListState(nextState);
+      },
+      () => {
+        if (abortController.signal.aborted) return;
+        const nextState = {
+          ...emptySignalInspectorState,
+          error: "Unable to load signal history.",
+        };
+        if (currentOpenSignalSurface.kind === "condition") {
+          setConditionSignalStates((current) => ({
+            ...current,
+            [getSignalSurfaceStateKey(currentOpenSignalSurface)]: nextState,
+          }));
+          return;
+        }
+
+        setAllSignalListState(nextState);
+      },
+    );
+
+    return () => abortController.abort();
+  }, [
+    allTaskSignalsScope,
+    conditionSignalScope,
+    currentOpenSignalSurface,
+    loadTaskSignals,
+    taskName,
+    workflowID,
+  ]);
 
   const handleSelectCondition = (conditionName: string) => {
     if (onSelectCondition) {
@@ -91,11 +250,138 @@ export default function WorkflowWaitInspector({
     setClosedFocusRequestID(undefined);
   };
 
+  const handleToggleConditionSignals = (surface: SignalHistorySurface) => {
+    if (surface.kind !== "condition") return;
+    const stateKey = getSignalSurfaceStateKey(surface);
+    if (
+      currentOpenSignalSurface?.kind === "condition" &&
+      getSignalSurfaceStateKey(currentOpenSignalSurface) === stateKey
+    ) {
+      setOpenSignalSurface(undefined);
+      setDismissedAutoOpenSignalKey(stateKey);
+      return;
+    }
+
+    setOpenSignalSurfaceContextKey(signalHistoryKey);
+    setOpenSignalSurface(surface);
+    setConditionSignalStates((current) => ({
+      ...current,
+      [stateKey]: {
+        ...emptySignalInspectorState,
+        isLoading: true,
+      },
+    }));
+  };
+
+  const handleToggleAllTaskSignals = () => {
+    if (currentOpenSignalSurface?.kind === "all") {
+      setOpenSignalSurface(undefined);
+      return;
+    }
+
+    setOpenSignalSurfaceContextKey(signalHistoryKey);
+    setOpenSignalSurface({ kind: "all" });
+    setAllSignalListState({
+      ...emptySignalInspectorState,
+      isLoading: true,
+    });
+  };
+
+  const handleLoadMoreSignals = async (surface: SignalHistorySurface) => {
+    const currentState =
+      surface.kind === "condition"
+        ? (conditionSignalStates[getSignalSurfaceStateKey(surface)] ??
+          emptySignalInspectorState)
+        : currentAllSignalListState;
+
+    if (
+      !currentState.hasMore ||
+      !currentState.nextCursorID ||
+      currentState.isLoadingMore
+    ) {
+      return;
+    }
+
+    if (surface.kind === "condition") {
+      const stateKey = getSignalSurfaceStateKey(surface);
+      setConditionSignalStates((current) => ({
+        ...current,
+        [stateKey]: {
+          ...(current[stateKey] ?? emptySignalInspectorState),
+          error: undefined,
+          isLoadingMore: true,
+        },
+      }));
+    } else {
+      setAllSignalListState((current) => ({
+        ...current,
+        error: undefined,
+        isLoadingMore: true,
+      }));
+    }
+
+    try {
+      const nextPage = await loadTaskSignals({
+        cursorID: currentState.nextCursorID,
+        desc: true,
+        key: getSignalSurfaceKey(surface),
+        limit: 20,
+        scope:
+          surface.kind === "condition"
+            ? conditionSignalScope
+            : allTaskSignalsScope,
+        taskName,
+        termName: getSignalSurfaceTermName(surface),
+        workflowID,
+      });
+
+      const buildNextState = (current: SignalInspectorState) => ({
+        error: undefined,
+        hasMore: nextPage.hasMore,
+        isLoading: false,
+        isLoadingMore: false,
+        nextCursorID: nextPage.nextCursorID,
+        scope: nextPage.scope,
+        signals: [...current.signals, ...nextPage.signals],
+      });
+
+      if (surface.kind === "condition") {
+        const stateKey = getSignalSurfaceStateKey(surface);
+        setConditionSignalStates((current) => ({
+          ...current,
+          [stateKey]: buildNextState(
+            current[stateKey] ?? emptySignalInspectorState,
+          ),
+        }));
+      } else {
+        setAllSignalListState(buildNextState);
+      }
+    } catch {
+      if (surface.kind === "condition") {
+        const stateKey = getSignalSurfaceStateKey(surface);
+        setConditionSignalStates((current) => ({
+          ...current,
+          [stateKey]: {
+            ...(current[stateKey] ?? emptySignalInspectorState),
+            error: "Unable to load more signal history.",
+            isLoadingMore: false,
+          },
+        }));
+      } else {
+        setAllSignalListState((current) => ({
+          ...current,
+          error: "Unable to load more signal history.",
+          isLoadingMore: false,
+        }));
+      }
+    }
+  };
+
   return (
     <section className="mt-5 border-t border-slate-200 pt-5 dark:border-slate-800">
       <div className="space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Subheading className="text-sm/6">Wait</Subheading>
+          <Subheading className="text-sm/6">Wait condition</Subheading>
           <WaitStatusPill wait={wait} />
         </div>
         <WaitSummary
@@ -124,14 +410,20 @@ export default function WorkflowWaitInspector({
           {hasWaitDetails(wait) ? (
             <WaitSection title="Conditions">
               <WaitTermViews
-                dependencyTasks={dependencyTasks}
+                conditions={conditions}
                 focusRequest={activeFocusRequest}
-                key={`${workflowID}:${taskName}:${wait.attempt?.toString() ?? ""}:${wait.phase}`}
-                taskName={taskName}
+                key={`${workflowID}:${taskName}:${wait.evidence?.workflowAttempt.toString() ?? ""}:${wait.phase}`}
+                onLoadMore={handleLoadMoreSignals}
+                onToggleConditionSignals={handleToggleConditionSignals}
+                openSignalSurface={currentOpenSignalSurface}
+                signalListStates={conditionSignalStates}
                 wait={wait}
-                workflowID={workflowID}
               />
             </WaitSection>
+          ) : null}
+
+          {wait.phase !== "resolved" ? (
+            <WaitDiagnosticsPanel diagnosticsState={diagnosticsState} />
           ) : null}
 
           <WaitSection title="Wait expression">
@@ -142,6 +434,17 @@ export default function WorkflowWaitInspector({
               rawText={wait.exprCel || "No CEL expression declared"}
             />
           </WaitSection>
+        </div>
+      ) : null}
+
+      {hasSignals ? (
+        <div className="mt-5 border-t border-slate-200 pt-4 dark:border-slate-800">
+          <AllTaskSignalsPanel
+            onLoadMore={handleLoadMoreSignals}
+            onToggle={handleToggleAllTaskSignals}
+            open={currentOpenSignalSurface?.kind === "all"}
+            signalListState={currentAllSignalListState}
+          />
         </div>
       ) : null}
     </section>
@@ -234,6 +537,133 @@ const WaitSection = ({
   );
 };
 
+const waitDiagnosticsErrorMessage = (error: unknown): string => {
+  if (error instanceof Error && error.message) {
+    return `Unable to load waiting diagnostics: ${error.message}`;
+  }
+
+  return "Unable to load waiting diagnostics.";
+};
+
+const WaitDiagnosticsPanel = ({
+  diagnosticsState,
+}: {
+  diagnosticsState: WaitDiagnosticsState;
+}) => {
+  if (diagnosticsState.isLoading) {
+    return (
+      <WaitSection title="Waiting diagnostics">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
+          Loading current wait diagnostics…
+        </p>
+      </WaitSection>
+    );
+  }
+
+  if (diagnosticsState.error) {
+    return (
+      <WaitSection title="Waiting diagnostics">
+        <p className="text-sm text-red-600 dark:text-red-400">
+          {diagnosticsState.error}
+        </p>
+      </WaitSection>
+    );
+  }
+
+  const diagnostics = diagnosticsState.value;
+  if (!diagnostics) return null;
+  const evalMessage = getDiagnosticsEvalMessage(diagnostics);
+
+  return (
+    <WaitSection title="Waiting diagnostics">
+      <div className="space-y-3 text-sm text-slate-600 dark:text-slate-300">
+        <p>Current status for declared wait inputs.</p>
+        <dl className="grid gap-x-5 gap-y-2 sm:grid-cols-3">
+          <CompactDiagnosticsField
+            label="Workflow attempt"
+            value={diagnostics.workflowAttempt.toString()}
+          />
+          <CompactDiagnosticsField
+            label="Inspected"
+            value={
+              <RelativeTimeFormatter addSuffix time={diagnostics.inspectedAt} />
+            }
+          />
+          <CompactDiagnosticsField
+            label="Expression"
+            value={
+              diagnostics.exprResult === undefined
+                ? "Not evaluated"
+                : diagnostics.exprResult
+                  ? "Satisfied"
+                  : "Waiting"
+            }
+          />
+          <CompactDiagnosticsField
+            label="Signal scan"
+            value={`${diagnostics.signalScanCount.toLocaleString()} / ${diagnostics.signalScanLimit.toLocaleString()}`}
+          />
+        </dl>
+        {diagnostics.truncated ? (
+          <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200">
+            Signal diagnostics reached the scan limit, so expression and match
+            counts are best effort.
+          </p>
+        ) : null}
+        {evalMessage ? (
+          <p
+            className={
+              evalMessage.tone === "neutral"
+                ? "text-sm text-slate-600 dark:text-slate-300"
+                : "rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-200"
+            }
+          >
+            {evalMessage.message}
+          </p>
+        ) : null}
+      </div>
+    </WaitSection>
+  );
+};
+
+const CompactDiagnosticsField = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) => (
+  <div className="min-w-0">
+    <dt className="text-xs font-medium text-slate-500 dark:text-slate-400">
+      {label}
+    </dt>
+    <dd className="mt-0.5 min-w-0 text-sm text-slate-900 dark:text-slate-100">
+      {value}
+    </dd>
+  </div>
+);
+
+const getDiagnosticsEvalMessage = (
+  diagnostics: WorkflowTaskWaitDiagnostics,
+): { message: string; tone: "neutral" | "warning" } | undefined => {
+  if (!diagnostics.evalError) return undefined;
+
+  const hasUnavailableDepOutput = diagnostics.inputs.deps.some(
+    (dep) => !dep.available,
+  );
+  if (diagnostics.phase === "not_started" && hasUnavailableDepOutput) {
+    return {
+      message: "Waiting for dependency output.",
+      tone: "neutral",
+    };
+  }
+
+  return {
+    message: diagnostics.evalError,
+    tone: "warning",
+  };
+};
+
 const WaitFacts = ({ wait }: { wait: WorkflowTaskWait }) => {
   const items = [
     wait.startedAt
@@ -254,16 +684,18 @@ const WaitFacts = ({ wait }: { wait: WorkflowTaskWait }) => {
           value: formatDurationShort(wait.resolvedAt, wait.startedAt, false),
         }
       : undefined,
-    wait.asOf
+    wait.evidence
       ? {
           label: "Evaluated",
-          value: <RelativeTimeFormatter addSuffix time={wait.asOf} />,
+          value: (
+            <RelativeTimeFormatter addSuffix time={wait.evidence.evaluatedAt} />
+          ),
         }
       : undefined,
-    typeof wait.attempt === "number"
+    wait.evidence
       ? {
-          label: "Attempt",
-          value: wait.attempt.toString(),
+          label: "Workflow attempt",
+          value: wait.evidence.workflowAttempt.toString(),
         }
       : undefined,
   ].filter((item) => item !== undefined);
@@ -292,69 +724,37 @@ type WaitTermView = {
   kind: string;
   label: string;
   matched: boolean;
-  signal?: WorkflowTaskWait["signals"][number];
+  matchedCount?: number;
+  requiredCount?: number;
+  result?: WorkflowTaskWait["terms"][number]["result"];
+  signal?: WorkflowTaskWait["inputs"]["signals"][number];
+  signalTermName?: string;
   sortIndex: number;
   technicalName: string;
-  timer?: WorkflowTaskWait["timers"][number];
+  timer?: WorkflowTaskWait["inputs"]["timers"][number];
 };
 
 const WaitTermViews = ({
-  dependencyTasks,
+  conditions,
   focusRequest,
-  taskName,
+  onLoadMore,
+  onToggleConditionSignals,
+  openSignalSurface,
+  signalListStates,
   wait,
-  workflowID,
 }: {
-  dependencyTasks: Record<string, WorkflowTask> | undefined;
+  conditions: WaitTermView[];
   focusRequest: undefined | WaitFocusRequest;
-  taskName: string;
+  onLoadMore: (surface: SignalHistorySurface) => void;
+  onToggleConditionSignals: (surface: SignalHistorySurface) => void;
+  openSignalSurface: SignalHistorySurface | undefined;
+  signalListStates: Record<string, SignalInspectorState>;
   wait: WorkflowTaskWait;
-  workflowID: string;
 }) => {
-  const defaultScope = getDefaultTaskSignalScope(wait);
-  const conditions = useMemo(
-    () => buildWaitTermViews(wait, dependencyTasks),
-    [dependencyTasks, wait],
-  );
   const matchedConditions = conditions.filter((condition) => condition.matched);
   const latestConditionsRef = useRef(conditions);
   const conditionRowRefs = useRef(new Map<string, HTMLDivElement>());
   const handledFocusRequestIDRef = useRef<number | undefined>(undefined);
-  const [expandedSignalKey, setExpandedSignalKey] = useState<string>();
-  const [selectedScope, setSelectedScope] =
-    useState<WorkflowTaskSignalReadScope>(defaultScope);
-  const [signalListState, setSignalListState] = useState<SignalInspectorState>(
-    emptySignalInspectorState,
-  );
-
-  useEffect(() => {
-    if (!expandedSignalKey) return;
-
-    const abortController = new AbortController();
-    void getWorkflowTaskSignals({
-      desc: true,
-      key: expandedSignalKey,
-      limit: 20,
-      scope: selectedScope === "" ? undefined : selectedScope,
-      signal: abortController.signal,
-      taskName,
-      workflowID,
-    }).then(
-      (signalList) => {
-        if (abortController.signal.aborted) return;
-        setSignalListState(signalInspectorStateFromSignalList(signalList));
-      },
-      () => {
-        if (abortController.signal.aborted) return;
-        setSignalListState({
-          ...emptySignalInspectorState,
-          error: "Unable to load signal history.",
-        });
-      },
-    );
-
-    return () => abortController.abort();
-  }, [expandedSignalKey, selectedScope, taskName, workflowID]);
 
   useEffect(() => {
     latestConditionsRef.current = conditions;
@@ -390,99 +790,51 @@ const WaitTermViews = ({
     conditionRowRefs.current.delete(key);
   };
 
-  const handleToggleInspect = (signalKey: string) => {
-    if (expandedSignalKey === signalKey) {
-      setExpandedSignalKey(undefined);
-      setSelectedScope(defaultScope);
-      setSignalListState(emptySignalInspectorState);
-      return;
-    }
-
-    setExpandedSignalKey(signalKey);
-    setSelectedScope(defaultScope);
-    setSignalListState({
-      ...emptySignalInspectorState,
-      isLoading: true,
-    });
-  };
-
-  const handleLoadMore = async () => {
-    if (
-      !expandedSignalKey ||
-      !signalListState.hasMore ||
-      !signalListState.nextCursorID ||
-      signalListState.isLoadingMore
-    ) {
-      return;
-    }
-
-    setSignalListState((current) => ({
-      ...current,
-      error: undefined,
-      isLoadingMore: true,
-    }));
-
-    try {
-      const nextPage = await getWorkflowTaskSignals({
-        cursorID: signalListState.nextCursorID,
-        desc: true,
-        key: expandedSignalKey,
-        limit: 20,
-        scope: selectedScope === "" ? undefined : selectedScope,
-        taskName,
-        workflowID,
-      });
-
-      setSignalListState((current) => ({
-        error: undefined,
-        hasMore: nextPage.hasMore,
-        isLoading: false,
-        isLoadingMore: false,
-        nextCursorID: nextPage.nextCursorID,
-        scope: nextPage.scope,
-        signals: [...current.signals, ...nextPage.signals],
-      }));
-    } catch {
-      setSignalListState((current) => ({
-        ...current,
-        error: "Unable to load more signal history.",
-        isLoadingMore: false,
-      }));
-    }
-  };
-
   return (
     <div className="space-y-2">
       <p className="text-sm text-slate-600 dark:text-slate-300">
         {matchedConditions.length.toString()} of {conditions.length.toString()}{" "}
-        conditions matched
+        conditions satisfied
       </p>
 
       <div className="overflow-hidden rounded-lg border border-slate-200 dark:border-slate-800">
-        <div className="hidden gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500 md:grid md:grid-cols-[5.75rem_minmax(0,1fr)_7rem] dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+        <div className="hidden gap-3 border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500 md:grid md:grid-cols-[5.75rem_minmax(0,1fr)] dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
           <span>Status</span>
           <span>Condition</span>
-          <span aria-hidden="true" />
         </div>
         <div className="divide-y divide-slate-200 dark:divide-slate-800">
-          {conditions.map((condition) => (
-            <ConditionRow
-              condition={condition}
-              expandedSignalKey={expandedSignalKey}
-              focused={Boolean(
-                focusRequest &&
-                conditionMatchesName(condition, focusRequest.conditionName),
-              )}
-              key={`${condition.kind}:${condition.technicalName}`}
-              onLoadMore={handleLoadMore}
-              onRegisterRow={registerConditionRow}
-              onScopeChange={setSelectedScope}
-              onToggleInspect={handleToggleInspect}
-              selectedScope={selectedScope}
-              signalListState={signalListState}
-              wait={wait}
-            />
-          ))}
+          {conditions.map((condition) => {
+            const conditionSignalState = condition.signal
+              ? signalListStates[getConditionSignalStateKey(condition)]
+              : undefined;
+            const conditionSignalsOpen =
+              condition.signal !== undefined &&
+              openSignalSurface?.kind === "condition" &&
+              getSignalSurfaceStateKey(openSignalSurface) ===
+                getConditionSignalStateKey(condition);
+
+            return (
+              <ConditionRow
+                condition={condition}
+                focused={Boolean(
+                  focusRequest &&
+                  conditionMatchesName(condition, focusRequest.conditionName),
+                )}
+                key={`${condition.kind}:${condition.technicalName}`}
+                onLoadMore={onLoadMore}
+                onRegisterRow={registerConditionRow}
+                onToggleConditionSignals={onToggleConditionSignals}
+                openSignalSurface={openSignalSurface}
+                signalListState={
+                  conditionSignalState ??
+                  (conditionSignalsOpen
+                    ? loadingSignalInspectorState
+                    : emptySignalInspectorState)
+                }
+                wait={wait}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
@@ -491,24 +843,20 @@ const WaitTermViews = ({
 
 const ConditionRow = ({
   condition,
-  expandedSignalKey,
   focused,
   onLoadMore,
   onRegisterRow,
-  onScopeChange,
-  onToggleInspect,
-  selectedScope,
+  onToggleConditionSignals,
+  openSignalSurface,
   signalListState,
   wait,
 }: {
   condition: WaitTermView;
-  expandedSignalKey: string | undefined;
   focused: boolean;
-  onLoadMore: () => void;
+  onLoadMore: (surface: SignalHistorySurface) => void;
   onRegisterRow: (condition: WaitTermView, node: HTMLDivElement | null) => void;
-  onScopeChange: (scope: WorkflowTaskSignalReadScope) => void;
-  onToggleInspect: (signalKey: string) => void;
-  selectedScope: WorkflowTaskSignalReadScope;
+  onToggleConditionSignals: (surface: SignalHistorySurface) => void;
+  openSignalSurface: SignalHistorySurface | undefined;
   signalListState: SignalInspectorState;
   wait: WorkflowTaskWait;
 }) => {
@@ -538,7 +886,7 @@ const ConditionRow = ({
       ref={(node) => onRegisterRow(condition, node)}
       tabIndex={-1}
     >
-      <div className="grid gap-x-3 gap-y-1 md:grid-cols-[5.75rem_minmax(0,1fr)_7rem] md:items-start">
+      <div className="grid gap-x-3 gap-y-1 md:grid-cols-[5.75rem_minmax(0,1fr)] md:items-start">
         <div className="flex items-center gap-2">
           <span
             aria-hidden="true"
@@ -590,34 +938,28 @@ const ConditionRow = ({
           </div>
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 md:justify-self-end">
-          {signal ? (
-            <button
-              className="text-sm font-medium text-brand-primary hover:text-blue-700 dark:hover:text-blue-300"
-              onClick={() => onToggleInspect(signal.key)}
-              type="button"
-            >
-              {expandedSignalKey === signal.key
-                ? "Hide signals"
-                : "View signals"}
-            </button>
-          ) : null}
-        </div>
-
         {hasEvidence ? (
-          <div className="min-w-0 md:col-span-2 md:col-start-2">
+          <div className="min-w-0 md:col-start-2">
             <ConditionEvidence condition={condition} wait={wait} />
           </div>
         ) : null}
       </div>
 
-      {signal && expandedSignalKey === signal.key ? (
-        <SignalHistoryPanel
-          canUseResolvedScope={wait.resolvedAt !== undefined}
+      {signal ? (
+        <ConditionSignalEvidenceDisclosure
           onLoadMore={onLoadMore}
-          onScopeChange={onScopeChange}
-          selectedScope={selectedScope}
+          onToggle={() =>
+            onToggleConditionSignals(signalSurfaceForCondition(condition))
+          }
+          open={
+            openSignalSurface?.kind === "condition" &&
+            getSignalSurfaceStateKey(openSignalSurface) ===
+              getConditionSignalStateKey(condition)
+          }
+          phase={wait.phase}
+          signal={signal}
           signalListState={signalListState}
+          surface={signalSurfaceForCondition(condition)}
         />
       ) : null}
     </div>
@@ -662,30 +1004,82 @@ const ConditionEvidence = ({
 const TimerConditionDefinition = ({
   timer,
 }: {
-  timer: WorkflowTaskWait["timers"][number];
+  timer: WorkflowTaskWait["inputs"]["timers"][number];
 }) => {
-  const anchor = timer.anchor
-    ? formatInlineTimerAnchor(timer.anchor)
-    : "immediate";
+  const delay = getTimerDelayLabel(timer);
+  const anchor = timer.anchor;
 
-  return (
-    <>
-      delay {getTimerDelayLabel(timer) ?? "none"}
-      <span className="px-1 text-slate-400 dark:text-slate-500">&bull;</span>
-      anchor {anchor}
-    </>
-  );
+  if (!delay) {
+    if (!anchor) return <>Immediate</>;
+    switch (anchor.kind) {
+      case "task_finalized_at":
+        return anchor.task ? (
+          <>
+            When <TimerTaskName taskName={anchor.task} /> finalizes
+          </>
+        ) : (
+          <>When dependency finalizes</>
+        );
+      case "wait_started_at":
+        return <>When wait starts</>;
+      case "workflow_created_at":
+        return <>When workflow starts</>;
+      default:
+        return anchor.task ? (
+          <>
+            {anchor.kind.replaceAll("_", " ")} (
+            <TimerTaskName taskName={anchor.task} />)
+          </>
+        ) : (
+          <>{anchor.kind.replaceAll("_", " ")}</>
+        );
+    }
+  }
+
+  if (!anchor) return <>After {delay}</>;
+  switch (anchor.kind) {
+    case "task_finalized_at":
+      return anchor.task ? (
+        <>
+          {delay} after <TimerTaskName taskName={anchor.task} /> finalizes
+        </>
+      ) : (
+        <>{delay} after dependency finalizes</>
+      );
+    case "wait_started_at":
+      return <>{delay} after wait starts</>;
+    case "workflow_created_at":
+      return <>{delay} after workflow starts</>;
+    default:
+      return anchor.task ? (
+        <>
+          {delay} after {anchor.kind.replaceAll("_", " ")} (
+          <TimerTaskName taskName={anchor.task} />)
+        </>
+      ) : (
+        <>
+          {delay} after {anchor.kind.replaceAll("_", " ")}
+        </>
+      );
+  }
 };
+
+const TimerTaskName = ({ taskName }: { taskName: string }) => (
+  <span className="font-mono text-slate-700 dark:text-slate-200">
+    {taskName}
+  </span>
+);
 
 const TimerConditionEvidence = ({
   timer,
 }: {
-  timer: WorkflowTaskWait["timers"][number];
+  timer: WorkflowTaskWait["inputs"]["timers"][number];
 }) => {
+  const fired = timer.result?.fired ?? false;
   return (
     <p className="min-w-0 text-xs leading-5 text-slate-600 dark:text-slate-300">
       <span className="font-medium text-slate-700 dark:text-slate-200">
-        {timer.fired || timer.matched ? "Fired" : "Fires"}
+        {fired ? "Fired" : "Fires"}
       </span>{" "}
       <TimerTiming timer={timer} />
     </p>
@@ -729,38 +1123,42 @@ const SignalConditionEvidence = ({
   wait,
 }: {
   condition: {
-    signal: WorkflowTaskWait["signals"][number];
+    signal: WorkflowTaskWait["inputs"]["signals"][number];
   } & WaitTermView;
   wait: WorkflowTaskWait;
 }) => {
+  const signalResult = condition.signal.result;
+  const termResult = condition.result ?? undefined;
   return (
     <div className="flex min-w-0 flex-wrap gap-x-4 gap-y-1 text-xs leading-5 text-slate-600 dark:text-slate-300">
       <dl className="contents">
         <CompactEvidenceField label="Key" value={condition.signal.key} />
         <CompactEvidenceField
-          label="Visible"
-          value={condition.signal.visibleCount.toString()}
+          label="Included"
+          value={(signalResult?.includedCount ?? 0).toString()}
         />
-        <CompactEvidenceField
-          label="Matched"
-          value={condition.signal.matchedCount.toString()}
-        />
-        {condition.signal.lastVisibleID ? (
+        {termResult ? (
           <CompactEvidenceField
-            label="Last visible"
-            value={`#${condition.signal.lastVisibleID.toString()}`}
+            label="Matched"
+            value={termResult.matchedCount.toString()}
           />
         ) : null}
-        {condition.signal.lastMatchedID ? (
+        {signalResult?.lastIncludedID ? (
+          <CompactEvidenceField
+            label="Last included"
+            value={`#${signalResult.lastIncludedID.toString()}`}
+          />
+        ) : null}
+        {termResult?.lastMatchedID ? (
           <CompactEvidenceField
             label="Last matched"
-            value={`#${condition.signal.lastMatchedID.toString()}`}
+            value={`#${termResult.lastMatchedID.toString()}`}
           />
         ) : null}
       </dl>
       {condition.matched ? (
         <ConditionSnapshotTiming
-          label="Matched"
+          label="Satisfied"
           resolvedLabel="by resolution"
           wait={wait}
         />
@@ -778,7 +1176,7 @@ const ConditionSnapshotTiming = ({
   resolvedLabel: string;
   wait: WorkflowTaskWait;
 }) => {
-  const time = wait.resolvedAt ?? wait.asOf;
+  const time = wait.resolvedAt ?? wait.evidence?.evaluatedAt;
   if (!time) return null;
 
   return (
@@ -826,18 +1224,18 @@ export const ConditionKindIcon = ({
   kind: string;
 }) => {
   switch (kind) {
-    case "dependency_output":
+    case "dep_input":
+    case "generic":
       return (
         <LinkIcon aria-hidden="true" className={clsx("size-3.5", className)} />
       );
     case "signal":
+    case "signal_input":
       return (
-        <BellAlertIcon
-          aria-hidden="true"
-          className={clsx("size-3.5", className)}
-        />
+        <InboxIcon aria-hidden="true" className={clsx("size-3.5", className)} />
       );
     case "timer":
+    case "timer_input":
       return (
         <ClockIcon aria-hidden="true" className={clsx("size-3.5", className)} />
       );
@@ -849,14 +1247,24 @@ export const ConditionKindIcon = ({
 const TimerTiming = ({
   timer,
 }: {
-  timer: WorkflowTaskWait["timers"][number];
+  timer: WorkflowTaskWait["inputs"]["timers"][number];
 }) => {
   if (!timer.fireAt) {
-    return <span>when anchor is available</span>;
+    return <span>{formatTimerAnchorWait(timer.anchor)}</span>;
   }
 
   return <RelativeTimeFormatter addSuffix time={timer.fireAt} />;
 };
+
+type SignalHistorySurface =
+  | {
+      kind: "all";
+    }
+  | {
+      kind: "condition";
+      signalKey: string;
+      termName?: string;
+    };
 
 type SignalInspectorState = {
   error?: string;
@@ -868,6 +1276,18 @@ type SignalInspectorState = {
   signals: WorkflowTaskSignal[];
 };
 
+type SignalReadScope = WorkflowTaskSignalListScope;
+
+type WaitDiagnosticsState = {
+  error?: string;
+  isLoading: boolean;
+  value?: WorkflowTaskWaitDiagnostics;
+};
+
+const emptyWaitDiagnosticsState: WaitDiagnosticsState = {
+  isLoading: false,
+};
+
 const emptySignalInspectorState: SignalInspectorState = {
   hasMore: false,
   isLoading: false,
@@ -875,25 +1295,68 @@ const emptySignalInspectorState: SignalInspectorState = {
   signals: [],
 };
 
+const loadingSignalInspectorState: SignalInspectorState = {
+  ...emptySignalInspectorState,
+  isLoading: true,
+};
+
+const getSignalSurfaceKey = (
+  surface: SignalHistorySurface,
+): string | undefined =>
+  surface.kind === "condition" && !surface.termName
+    ? surface.signalKey
+    : undefined;
+
+const getSignalSurfaceTermName = (
+  surface: SignalHistorySurface,
+): string | undefined =>
+  surface.kind === "condition" ? surface.termName : undefined;
+
+const getSignalSurfaceStateKey = (surface: SignalHistorySurface): string =>
+  surface.kind === "condition"
+    ? (surface.termName ?? surface.signalKey)
+    : surface.kind;
+
+const getConditionSignalStateKey = (condition: WaitTermView): string =>
+  condition.signalTermName ?? condition.signal?.key ?? condition.technicalName;
+
+const signalSurfaceForCondition = (
+  condition: WaitTermView,
+): SignalHistorySurface => ({
+  kind: "condition",
+  signalKey: condition.signal?.key ?? condition.technicalName,
+  termName: condition.signalTermName,
+});
+
 const hasWaitDetails = (wait: WorkflowTaskWait): boolean => {
   return (
-    wait.terms.length > 0 || wait.signals.length > 0 || wait.timers.length > 0
+    wait.terms.length > 0 ||
+    wait.inputs.signals.length > 0 ||
+    wait.inputs.timers.length > 0 ||
+    wait.inputs.deps.length > 0
   );
 };
 
 const buildWaitTermViews = (
   wait: WorkflowTaskWait,
   dependencyTasks?: Record<string, WorkflowTask>,
+  diagnostics?: WorkflowTaskWaitDiagnostics,
 ): WaitTermView[] => {
+  const inputs = wait.inputs;
   const usedSignalKeys = new Set<string>();
   const usedTimerNames = new Set<string>();
+  const usedDepTasks = new Set<string>();
+  const diagnosticsByTerm = new Map(
+    diagnostics?.terms.map((term) => [term.name, term]) ?? [],
+  );
   const conditions: WaitTermView[] = wait.terms.map((term, index) => {
-    const signal = findSignalForTerm(term.name, wait.signals);
-    const timer = findTimerForTerm(term.name, wait.timers);
-    const dependencyTask =
-      term.kind === "dependency_output"
-        ? findDependencyTaskForTerm(term.name, dependencyTasks)
-        : undefined;
+    const diagnostic = diagnosticsByTerm.get(term.name);
+    const signal = term.signalKey
+      ? inputs.signals.find((input) => input.key === term.signalKey)
+      : undefined;
+    const timer = term.timerName
+      ? inputs.timers.find((input) => input.name === term.timerName)
+      : undefined;
 
     if (signal) {
       usedSignalKeys.add(signal.key);
@@ -903,101 +1366,77 @@ const buildWaitTermViews = (
     }
 
     return {
-      dependencyTask,
       exprCel: term.exprCel,
       kind: term.kind,
       label: getWaitTermDisplayLabel(term),
-      matched: term.matched,
+      matched: term.result?.satisfied ?? diagnostic?.satisfied ?? false,
+      matchedCount: term.result?.matchedCount ?? diagnostic?.matchedCount,
+      requiredCount: term.result?.requiredCount ?? diagnostic?.requiredCount,
+      result: term.result,
       signal,
+      signalTermName: signal ? term.name : undefined,
       sortIndex: index,
       technicalName: term.name,
       timer,
     };
   });
 
-  wait.signals.forEach((signal, index) => {
+  inputs.signals.forEach((signal, index) => {
     if (usedSignalKeys.has(signal.key)) return;
 
+    const diagnostic = diagnostics?.inputs.signals.find(
+      (input) => input.key === signal.key,
+    );
     conditions.push({
-      kind: "signal",
+      kind: "signal_input",
       label: signal.key,
-      matched: signal.matched,
+      matched:
+        (signal.result?.includedCount ?? diagnostic?.includedCount ?? 0) > 0,
       signal,
       sortIndex: wait.terms.length + index,
       technicalName: signal.key,
     });
   });
 
-  wait.timers.forEach((timer, index) => {
+  inputs.timers.forEach((timer, index) => {
     if (usedTimerNames.has(timer.name)) return;
 
+    const diagnostic = diagnostics?.inputs.timers.find(
+      (input) => input.name === timer.name,
+    );
     conditions.push({
-      kind: "timer",
+      kind: "timer_input",
       label: humanizeIdentifier(timer.name),
-      matched: timer.matched,
-      sortIndex: wait.terms.length + wait.signals.length + index,
+      matched: timer.result?.fired ?? diagnostic?.fired ?? false,
+      sortIndex: wait.terms.length + inputs.signals.length + index,
       technicalName: timer.name,
       timer,
+    });
+  });
+
+  inputs.deps.forEach((dep, index) => {
+    if (usedDepTasks.has(dep.taskName)) return;
+    usedDepTasks.add(dep.taskName);
+    const diagnostic = diagnostics?.inputs.deps.find(
+      (input) => input.taskName === dep.taskName,
+    );
+    conditions.push({
+      dependencyTask: dependencyTasks?.[dep.taskName],
+      kind: "dep_input",
+      label: dep.taskName,
+      matched: dep.result?.available ?? diagnostic?.available ?? false,
+      sortIndex:
+        wait.terms.length +
+        inputs.signals.length +
+        inputs.timers.length +
+        index,
+      technicalName: dep.taskName,
     });
   });
 
   return conditions.sort((leftCondition, rightCondition) =>
     compareConditions(leftCondition, rightCondition, wait.phase),
   );
-};
-
-const findDependencyTaskForTerm = (
-  termName: string,
-  dependencyTasks: Record<string, WorkflowTask> | undefined,
-): undefined | WorkflowTask => {
-  if (!dependencyTasks) return undefined;
-
-  const normalizedTermName = normalizeConditionName(termName);
-  const candidates = Object.values(dependencyTasks)
-    .filter((task) => {
-      const normalizedTaskName = normalizeConditionName(task.name);
-      return (
-        normalizedTermName === normalizedTaskName ||
-        normalizedTermName.startsWith(`${normalizedTaskName}_`)
-      );
-    })
-    .sort(
-      (leftTask, rightTask) => rightTask.name.length - leftTask.name.length,
-    );
-
-  return candidates[0];
-};
-
-const findSignalForTerm = (
-  termName: string,
-  signals: WorkflowTaskWait["signals"],
-) => {
-  const normalizedTermName = normalizeConditionName(termName);
-
-  return signals.find((signal) => {
-    const normalizedSignalKey = normalizeConditionName(signal.key);
-    return (
-      normalizedTermName === normalizedSignalKey ||
-      normalizedTermName.startsWith(`${normalizedSignalKey}_`) ||
-      normalizedSignalKey.startsWith(`${normalizedTermName}_`)
-    );
-  });
-};
-
-const findTimerForTerm = (
-  termName: string,
-  timers: WorkflowTaskWait["timers"],
-) => {
-  const normalizedTermName = normalizeConditionName(termName);
-
-  return timers.find((timer) => {
-    const normalizedTimerName = normalizeConditionName(timer.name);
-    return (
-      normalizedTermName === normalizedTimerName ||
-      normalizedTermName.startsWith(`${normalizedTimerName}_`) ||
-      normalizedTimerName.startsWith(`${normalizedTermName}_`)
-    );
-  });
 };
 
 const compareConditions = (
@@ -1039,8 +1478,8 @@ const getConditionStateLabel = (
   condition: WaitTermView,
   phase: WorkflowTaskWait["phase"],
 ): string => {
-  if (condition.matched) return "Matched";
-  if (condition.timer?.fired) return "Fired";
+  if (condition.matched) return "Satisfied";
+  if (condition.timer?.result?.fired) return "Fired";
   if (phase === "not_started") {
     return condition.timer?.fireAt ? "Scheduled" : "Pending";
   }
@@ -1048,7 +1487,7 @@ const getConditionStateLabel = (
     return condition.timer?.fireAt ? "Scheduled" : "Waiting";
   }
 
-  return "Not matched";
+  return "Not satisfied";
 };
 
 const getConditionStateTone = (
@@ -1069,7 +1508,7 @@ const getConditionStateTone = (
     };
   }
 
-  if (condition.timer?.fired) {
+  if (condition.timer?.result?.fired) {
     return {
       borderClassName: "border-l-amber-400",
       dotClassName: "bg-amber-500",
@@ -1150,41 +1589,162 @@ const orderConditionsForSummary = (
   });
 };
 
-const SignalHistoryPanel = ({
-  canUseResolvedScope,
+const ConditionSignalEvidenceDisclosure = ({
   onLoadMore,
-  onScopeChange,
-  selectedScope,
+  onToggle,
+  open,
+  phase,
+  signal,
+  signalListState,
+  surface,
+}: {
+  onLoadMore: (surface: SignalHistorySurface) => void;
+  onToggle: () => void;
+  open: boolean;
+  phase: WorkflowTaskWait["phase"];
+  signal: WorkflowTaskWait["inputs"]["signals"][number];
+  signalListState: SignalInspectorState;
+  surface: SignalHistorySurface;
+}) => {
+  const scopeLabel =
+    phase === "resolved" ? "Resolution evidence" : "Signal history";
+  const signalSummary = getSignalEvidenceSummary(signal);
+
+  return (
+    <div className="mt-3 md:ml-[calc(5.75rem+0.75rem)]">
+      <button
+        aria-expanded={open}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-md text-left text-sm text-slate-900 hover:text-brand-primary dark:text-slate-100 dark:hover:text-blue-300"
+        onClick={onToggle}
+        type="button"
+      >
+        <ChevronRightIcon
+          aria-hidden="true"
+          className={clsx(
+            "size-4 shrink-0 transition-transform",
+            open && "rotate-90",
+          )}
+        />
+        <span className="font-medium">{scopeLabel}</span>
+        <span className="text-sm text-slate-500 dark:text-slate-400">
+          {signalSummary}
+        </span>
+      </button>
+
+      {open ? (
+        <SignalHistoryPanel
+          emptyText={
+            phase === "resolved"
+              ? "No signals found in the final resolution evidence."
+              : "No signals found in the current workflow attempt."
+          }
+          helperText={
+            phase === "resolved"
+              ? "Signals included when this wait resolved."
+              : "Workflow signals declared by this wait."
+          }
+          onLoadMore={() => onLoadMore(surface)}
+          signalListState={signalListState}
+        />
+      ) : null}
+    </div>
+  );
+};
+
+const autoOpenSignalEvidenceLimit = 3;
+
+const getAutoOpenSignalEvidenceSurface = (
+  conditions: WaitTermView[],
+): SignalHistorySurface | undefined => {
+  const condition = conditions.find(
+    (condition) =>
+      condition.signal &&
+      (condition.signal.result?.includedCount ?? 0) > 0 &&
+      (condition.signal.result?.includedCount ?? 0) <=
+        autoOpenSignalEvidenceLimit &&
+      condition.matched,
+  );
+  return condition ? signalSurfaceForCondition(condition) : undefined;
+};
+
+const getSignalEvidenceSummary = (
+  signal: WorkflowTaskWait["inputs"]["signals"][number],
+): string => {
+  const includedCount = signal.result?.includedCount ?? 0;
+  const availableSignals =
+    includedCount === 1
+      ? "1 signal included"
+      : `${includedCount.toString()} signals included`;
+
+  return availableSignals;
+};
+
+const AllTaskSignalsPanel = ({
+  onLoadMore,
+  onToggle,
+  open,
   signalListState,
 }: {
-  canUseResolvedScope: boolean;
-  onLoadMore: () => void;
-  onScopeChange: (scope: WorkflowTaskSignalReadScope) => void;
-  selectedScope: WorkflowTaskSignalReadScope;
+  onLoadMore: (surface: SignalHistorySurface) => void;
+  onToggle: () => void;
+  open: boolean;
   signalListState: SignalInspectorState;
 }) => {
-  return (
-    <div className="mt-2 border-t border-slate-200 py-3 dark:border-slate-800">
-      <div className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-950">
-        {canUseResolvedScope ? (
-          <ScopeButton
-            active={selectedScope === "at_wait_result"}
-            label="At wait result"
-            onClick={() => onScopeChange("at_wait_result")}
-          />
-        ) : null}
-        <ScopeButton
-          active={selectedScope === "current_attempt"}
-          label="Current attempt"
-          onClick={() => onScopeChange("current_attempt")}
-        />
-      </div>
+  const signalSummary = getLoadedSignalHistorySummary(signalListState);
 
-      {signalListState.scope ? (
-        <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-          {getTaskSignalsScopeBanner(signalListState.scope)}
-        </p>
+  return (
+    <div className="space-y-3">
+      <button
+        aria-expanded={open}
+        className="inline-flex cursor-pointer items-center gap-2 rounded-md text-left text-sm text-slate-900 hover:text-brand-primary dark:text-slate-100 dark:hover:text-blue-300"
+        onClick={onToggle}
+        type="button"
+      >
+        <ChevronRightIcon
+          aria-hidden="true"
+          className={clsx(
+            "size-4 shrink-0 transition-transform",
+            open && "rotate-90",
+          )}
+        />
+        <span className="font-medium">All task signals</span>
+        {signalSummary ? (
+          <span className="text-sm text-slate-500 dark:text-slate-400">
+            {signalSummary}
+          </span>
+        ) : null}
+      </button>
+
+      {open ? (
+        <div className="ml-6">
+          <SignalHistoryPanel
+            emptyText="No declared signal history found for the current workflow attempt."
+            helperText="Workflow signals declared by this wait."
+            onLoadMore={() => onLoadMore({ kind: "all" })}
+            signalListState={signalListState}
+          />
+        </div>
       ) : null}
+    </div>
+  );
+};
+
+const SignalHistoryPanel = ({
+  emptyText,
+  helperText,
+  onLoadMore,
+  signalListState,
+}: {
+  emptyText: string;
+  helperText: string;
+  onLoadMore: () => void;
+  signalListState: SignalInspectorState;
+}) => {
+  const signalCount = signalListState.signals.length;
+
+  return (
+    <div className="mt-3">
+      <p className="text-sm text-slate-600 dark:text-slate-300">{helperText}</p>
 
       {signalListState.error ? (
         <p className="mt-3 text-sm text-red-600 dark:text-red-400">
@@ -1200,42 +1760,21 @@ const SignalHistoryPanel = ({
 
       {!signalListState.isLoading && signalListState.signals.length === 0 ? (
         <p className="mt-3 text-sm text-slate-600 dark:text-slate-300">
-          No signals found for this scope.
+          {emptyText}
         </p>
       ) : null}
 
-      <div className="mt-3 space-y-3">
-        {signalListState.signals.map((signal) => (
-          <div
-            className="rounded-lg border border-slate-200 bg-slate-50/70 px-3 py-3 dark:border-slate-800 dark:bg-slate-950/40"
-            key={signal.id.toString()}
-          >
-            <div className="flex flex-wrap items-center gap-2 text-sm">
-              <Badge color="light">#{signal.id.toString()}</Badge>
-              <span className="font-mono break-all text-slate-900 dark:text-slate-100">
-                {signal.key}
-              </span>
-              <span className="text-slate-500 dark:text-slate-400">
-                attempt {signal.attempt.toString()}
-              </span>
-              <span className="text-slate-500 dark:text-slate-400">
-                <RelativeTimeFormatter addSuffix time={signal.createdAt} />
-              </span>
-            </div>
-
-            <div className="mt-3 grid gap-3 lg:grid-cols-2">
-              <SignalPayloadPanel
-                copyTitle="Signal payload"
-                data={signal.payload}
-              />
-              <SignalPayloadPanel
-                copyTitle="Signal source"
-                data={signal.source}
-              />
-            </div>
-          </div>
-        ))}
-      </div>
+      {signalCount > 0 ? (
+        <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950/20">
+          {signalListState.signals.map((signal) => (
+            <SignalHistoryItem
+              defaultOpen={signalListState.signals.length === 1}
+              key={signal.id.toString()}
+              signal={signal}
+            />
+          ))}
+        </div>
+      ) : null}
 
       {signalListState.hasMore ? (
         <button
@@ -1243,45 +1782,92 @@ const SignalHistoryPanel = ({
           onClick={onLoadMore}
           type="button"
         >
-          {signalListState.isLoadingMore ? "Loading more…" : "Load more"}
+          {signalListState.isLoadingMore
+            ? "Loading older signals…"
+            : "Load older signals"}
         </button>
       ) : null}
     </div>
   );
 };
 
+const getLoadedSignalHistorySummary = (
+  signalListState: SignalInspectorState,
+): string | undefined => {
+  const signalCount = signalListState.signals.length;
+  if (signalCount === 0) return undefined;
+
+  return `${signalCount.toString()} shown${
+    signalListState.hasMore ? " · older signals available" : ""
+  }`;
+};
+
+const SignalHistoryItem = ({
+  defaultOpen,
+  signal,
+}: {
+  defaultOpen: boolean;
+  signal: WorkflowTaskSignal;
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <details
+      className="group border-t border-slate-200 first:border-t-0 dark:border-slate-800"
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+      open={open}
+    >
+      <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2 px-3 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-900/60 [&::-webkit-details-marker]:hidden">
+        <ChevronRightIcon
+          aria-hidden="true"
+          className="size-4 shrink-0 text-slate-400 transition-transform group-open:rotate-90 dark:text-slate-500"
+        />
+        <Badge color="light">#{signal.id.toString()}</Badge>
+        <span className="font-mono break-all text-slate-900 dark:text-slate-100">
+          {signal.key}
+        </span>
+        <span className="text-slate-500 dark:text-slate-400">
+          workflow attempt {signal.attempt.toString()}
+        </span>
+        <span className="text-slate-500 dark:text-slate-400">
+          <RelativeTimeFormatter addSuffix time={signal.createdAt} />
+        </span>
+      </summary>
+
+      <div className="border-t border-slate-200 px-3 py-3 dark:border-slate-800">
+        <div className="grid gap-3 lg:grid-cols-2">
+          <SignalPayloadPanel
+            copyTitle="Signal payload"
+            data={signal.payload}
+            title="Payload"
+          />
+          <SignalPayloadPanel
+            copyTitle="Signal source"
+            data={signal.source}
+            title="Source"
+          />
+        </div>
+      </div>
+    </details>
+  );
+};
+
 const SignalPayloadPanel = ({
   copyTitle,
   data,
+  title,
 }: {
   copyTitle: string;
   data: unknown;
-}) => {
-  return <JSONView copyTitle={copyTitle} data={data} defaultExpandDepth={1} />;
-};
-
-const ScopeButton = ({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
+  title: string;
 }) => {
   return (
-    <button
-      className={clsx(
-        "border-r border-slate-200 px-3 py-1.5 text-xs font-medium last:border-r-0 dark:border-slate-700",
-        active
-          ? "bg-brand-primary/10 text-brand-primary"
-          : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100",
-      )}
-      onClick={onClick}
-      type="button"
-    >
-      {label}
-    </button>
+    <div className="min-w-0 space-y-1">
+      <h6 className="text-xs font-medium text-slate-600 dark:text-slate-300">
+        {title}
+      </h6>
+      <JSONView copyTitle={copyTitle} data={data} defaultExpandDepth={1} />
+    </div>
   );
 };
 
@@ -1297,23 +1883,10 @@ const signalInspectorStateFromSignalList = (
   signals: signalList.signals,
 });
 
-const getDefaultTaskSignalScope = (
-  wait: WorkflowTaskWait,
-): WorkflowTaskSignalReadScope =>
-  wait.resolvedAt !== undefined ? "at_wait_result" : "current_attempt";
+const getConditionSignalScope = (wait: WorkflowTaskWait): SignalReadScope =>
+  wait.phase === "resolved" ? "evidence" : "history";
 
-const getTaskSignalsScopeBanner = (
-  scope: WorkflowTaskSignalList["scope"],
-): string => {
-  switch (scope.scope) {
-    case "at_wait_result":
-      return `Showing signals visible at the wait result for attempt ${scope.attempt.toString()}.`;
-    case "current_attempt":
-      return `Showing signals from the current visible rows for attempt ${scope.attempt.toString()}.`;
-    default:
-      return `Showing task-visible signals for attempt ${scope.attempt.toString()}.`;
-  }
-};
+const getAllTaskSignalsScope = (): SignalReadScope => "history";
 
 const getWaitStatusLabel = (phase: WorkflowTaskWait["phase"]): string => {
   switch (phase) {
@@ -1322,7 +1895,7 @@ const getWaitStatusLabel = (phase: WorkflowTaskWait["phase"]): string => {
     case "resolved":
       return "Resolved";
     case "waiting":
-      return "Waiting";
+      return "Pending";
     default:
       return "Unknown";
   }
@@ -1341,7 +1914,7 @@ const getWaitSummary = (wait: WorkflowTaskWait): string => {
     case "resolved":
       return "Wait resolved.";
     case "waiting":
-      return "This task is waiting for its wait.";
+      return "Waiting diagnostics are available for this task.";
     default:
       return "Wait state is unavailable.";
   }
@@ -1349,11 +1922,15 @@ const getWaitSummary = (wait: WorkflowTaskWait): string => {
 
 const getWaitTermKindLabel = (kind: string): string => {
   switch (kind) {
-    case "dependency_output":
+    case "dep_input":
       return "Dependency";
+    case "generic":
+      return "Generic CEL";
     case "signal":
+    case "signal_input":
       return "Signal";
     case "timer":
+    case "timer_input":
       return "Timer";
     default:
       return kind.replaceAll("_", " ");
@@ -1386,45 +1963,40 @@ const humanizeIdentifier = (value: string): string => {
   return normalizeConditionName(value).replaceAll("_", " ");
 };
 
-const formatTimerAnchor = (
-  anchor: NonNullable<WorkflowTaskWaitTimer["anchor"]>,
+const formatTimerAnchorWait = (
+  anchor: WorkflowTaskWaitTimer["anchor"],
 ): string => {
+  if (!anchor) return "Waiting to schedule";
+
   switch (anchor.kind) {
     case "task_finalized_at":
-      return anchor.task
-        ? `After ${anchor.task} finalized`
-        : "After dependency finalized";
+      return anchor.task ? `Waiting for ${anchor.task}` : "Waiting for task";
     case "wait_started_at":
-      return "Wait started";
+      return "Waiting for wait to start";
     case "workflow_created_at":
-      return "After workflow created";
+      return "Waiting for workflow start";
     default:
-      return anchor.task
-        ? `${anchor.kind.replaceAll("_", " ")} (${anchor.task})`
-        : anchor.kind.replaceAll("_", " ");
+      return "Waiting to schedule";
   }
 };
 
-const formatInlineTimerAnchor = (
-  anchor: NonNullable<WorkflowTaskWaitTimer["anchor"]>,
-): string => {
-  const label = formatTimerAnchor(anchor);
-  return `${label.charAt(0).toLowerCase()}${label.slice(1)}`;
-};
-
 const getTimerDelayLabel = (
-  timer: WorkflowTaskWait["timers"][number],
+  timer: WorkflowTaskWait["inputs"]["timers"][number],
 ): string | undefined => {
   if (typeof timer.afterSeconds !== "number") return undefined;
 
   if (Number.isInteger(timer.afterSeconds)) {
     if (timer.afterSeconds % 3600 === 0) {
-      return `+${(timer.afterSeconds / 3600).toString()}h`;
+      return `${(timer.afterSeconds / 3600).toString()}h`;
     }
     if (timer.afterSeconds % 60 === 0) {
-      return `+${(timer.afterSeconds / 60).toString()}m`;
+      return `${(timer.afterSeconds / 60).toString()}m`;
     }
   }
 
-  return `+${formatDurationShort(new Date(timer.afterSeconds * 1000), new Date(0), false)}`;
+  return formatDurationShort(
+    new Date(timer.afterSeconds * 1000),
+    new Date(0),
+    false,
+  );
 };

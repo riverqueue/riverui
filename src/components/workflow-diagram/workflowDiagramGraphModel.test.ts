@@ -72,10 +72,9 @@ describe("buildWorkflowGraphModel", () => {
         task: "await_review",
         wait: {
           exprCel: "approval_received",
+          inputs: { deps: [], signals: [], timers: [] },
           phase: "waiting",
-          signals: [],
           terms: [],
-          timers: [],
         },
         waitReason: "dependencies_and_wait",
       }),

@@ -70,6 +70,25 @@ const renderWorkflowDetail = async (
       <FeaturesContext.Provider value={{ features }}>
         <WorkflowDetail
           loading={false}
+          loadTaskSignals={async () => ({
+            hasMore: false,
+            scope: "history",
+            signals: [],
+          })}
+          loadTaskWaitDiagnostics={async () => ({
+            inputs: {
+              deps: [],
+              signals: [],
+              timers: [],
+            },
+            inspectedAt: new Date("2026-04-21T18:00:00Z"),
+            phase: "waiting",
+            signalScanCount: 0,
+            signalScanLimit: 10000,
+            terms: [],
+            truncated: false,
+            workflowAttempt: 1,
+          })}
           selectedJobId={selectedJobId}
           setSelectedJobId={vi.fn()}
           workflow={workflow}
@@ -111,36 +130,39 @@ describe("WorkflowDetail wait inspector", () => {
       task: "compose_draft_response",
       wait: {
         exprCel: "classify_intake_done && approval_received",
+        inputs: {
+          deps: [
+            {
+              taskName: "classify_intake",
+            },
+          ],
+          signals: [
+            {
+              key: "approval.received",
+              result: undefined,
+            },
+          ],
+          timers: [
+            {
+              name: "escalation",
+            },
+          ],
+        },
         phase: "waiting",
-        signals: [
-          {
-            key: "approval.received",
-            matched: false,
-            matchedCount: 0,
-            visibleCount: 0,
-          },
-        ],
         startedAt: new Date("2026-04-21T17:58:00Z"),
         summary: "Waiting for approval.received.",
         terms: [
           {
-            kind: "dependency_output",
+            exprCel: `deps["classify_intake"].output.category == "launch"`,
+            kind: "generic",
             label: "Classify intake done",
-            matched: true,
             name: "classify_intake_done",
           },
           {
             kind: "signal",
             label: "Approval received",
-            matched: false,
             name: "approval_received",
-          },
-        ],
-        timers: [
-          {
-            fired: false,
-            matched: false,
-            name: "escalation",
+            signalKey: "approval.received",
           },
         ],
       },
@@ -156,21 +178,25 @@ describe("WorkflowDetail wait inspector", () => {
       waitingTask.id,
     );
 
-    expect(screen.getByRole("heading", { name: "Wait" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Wait condition" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Timeline" }),
     ).toBeInTheDocument();
-    expect(screen.getAllByText("Waiting")).not.toHaveLength(0);
+    expect(screen.getAllByText("Pending")).not.toHaveLength(0);
     expect(screen.getByText("Not yet staged")).toBeInTheDocument();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Details" }));
     });
     expect(screen.getByText("Dependency")).toBeInTheDocument();
-    expect(screen.queryByText("Dependency output")).toBeNull();
-    expect(screen.getByText("Finalized")).toBeInTheDocument();
+    expect(screen.getAllByText("classify_intake")).not.toHaveLength(0);
     expect(screen.getAllByText("approval.received")).not.toHaveLength(0);
     expect(screen.getAllByText("escalation")).not.toHaveLength(0);
-    expect(screen.getAllByText("Waiting on wait")).not.toHaveLength(0);
+    expect(screen.getAllByText("Blocked by wait condition")).not.toHaveLength(
+      0,
+    );
+    expect(screen.getByText("Wait condition pending")).toBeInTheDocument();
     expect(screen.queryByText("Wait started")).toBeNull();
     expect(screen.queryByText("Task staged")).toBeNull();
   });
@@ -188,7 +214,9 @@ describe("WorkflowDetail wait inspector", () => {
       task.id,
     );
 
-    expect(screen.queryByRole("heading", { name: "Wait" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: "Wait condition" }),
+    ).toBeNull();
     expect(screen.getByText("Not waiting")).toBeInTheDocument();
   });
 
@@ -206,24 +234,24 @@ describe("WorkflowDetail wait inspector", () => {
       task: "send_response",
       wait: {
         exprCel: "approval_received",
+        inputs: {
+          deps: [],
+          signals: [
+            {
+              key: "approval.received",
+            },
+          ],
+          timers: [],
+        },
         phase: "waiting",
-        signals: [
-          {
-            key: "approval.received",
-            matched: false,
-            matchedCount: 0,
-            visibleCount: 0,
-          },
-        ],
         terms: [
           {
             kind: "signal",
             label: "Approval received",
-            matched: false,
             name: "approval_received",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
         ],
-        timers: [],
       },
       waitReason: "wait",
     });
@@ -276,14 +304,18 @@ describe("WorkflowDetail wait inspector", () => {
       render(<RouterProvider router={router} />);
     });
 
-    expect(screen.queryByRole("heading", { name: "Wait" })).toBeNull();
+    expect(
+      screen.queryByRole("heading", { name: "Wait condition" }),
+    ).toBeNull();
 
     await act(async () => {
       screen.getByRole("button", { name: "Select send_response" }).click();
     });
 
-    expect(screen.getByRole("heading", { name: "Wait" })).toBeInTheDocument();
-    expect(screen.getAllByText("Waiting")).not.toHaveLength(0);
+    expect(
+      screen.getByRole("heading", { name: "Wait condition" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText("Pending")).not.toHaveLength(0);
   });
 
   it("renders grouped timeline milestones instead of a flat event dump", async () => {
@@ -313,26 +345,29 @@ describe("WorkflowDetail wait inspector", () => {
         task: "launch_release",
         wait: {
           exprCel: "launch_override_received || release_timeout_reached",
+          inputs: {
+            deps: [],
+            signals: [],
+            timers: [],
+          },
           phase: "resolved" as const,
           resolvedAt: new Date("2026-04-21T18:01:00Z"),
-          signals: [],
           startedAt: new Date("2026-04-21T18:00:00Z"),
           summary: "Launch override received",
           terms: [
             {
               kind: "signal",
               label: "Launch override received",
-              matched: true,
               name: "launch_override_received",
+              result: { matchedCount: 0, requiredCount: 0, satisfied: true },
             },
             {
               kind: "timer",
               label: "Release timeout reached",
-              matched: true,
               name: "release_timeout_reached",
+              result: { matchedCount: 0, requiredCount: 0, satisfied: true },
             },
           ],
-          timers: [],
         },
         waitReason: "none",
       }),
@@ -360,7 +395,7 @@ describe("WorkflowDetail wait inspector", () => {
     expect(screen.queryByText("Wait started")).toBeNull();
     expect(
       screen.getByText(
-        "2 terms matched and the wait expression evaluated true.",
+        "2 terms satisfied and the wait expression evaluated true.",
       ),
     ).toBeInTheDocument();
     expect(screen.getAllByText("Launch override received")).not.toHaveLength(0);
@@ -384,7 +419,7 @@ describe("WorkflowDetail wait inspector", () => {
       "aria-expanded",
       "true",
     );
-    expect(screen.getByText("2 of 2 conditions matched")).toBeInTheDocument();
+    expect(screen.getByText("2 of 2 conditions satisfied")).toBeInTheDocument();
     expect(screen.getByText("Task staged")).toBeInTheDocument();
     expect(screen.getByText("Task started")).toBeInTheDocument();
     expect(screen.getByText("Task completed")).toBeInTheDocument();
@@ -416,19 +451,22 @@ describe("WorkflowDetail wait inspector", () => {
       task: "launch_release",
       wait: {
         exprCel: "launch_timeout_reached",
+        inputs: {
+          deps: [],
+          signals: [],
+          timers: [],
+        },
         phase: "waiting",
-        signals: [],
         startedAt: new Date("2026-04-21T18:02:00Z"),
         summary: "Waiting for launch timeout.",
         terms: [
           {
             kind: "timer",
             label: "Launch timeout reached",
-            matched: false,
             name: "launch_timeout_reached",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
         ],
-        timers: [],
       },
       waitReason: "wait",
     });
@@ -545,25 +583,24 @@ describe("WorkflowDetail wait inspector", () => {
       task: "promote_global",
       wait: {
         exprCel: "approval_received || launch_timeout_reached",
+        inputs: { deps: [], signals: [], timers: [] },
         phase: "not_started",
-        signals: [],
         summary:
           "Waits for approval or timeout after dependency checks finish.",
         terms: [
           {
             kind: "signal",
             label: "Approval received",
-            matched: false,
             name: "approval_received",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
           {
             kind: "timer",
             label: "Launch timeout reached",
-            matched: false,
             name: "launch_timeout_reached",
+            result: { matchedCount: 0, requiredCount: 0, satisfied: false },
           },
         ],
-        timers: [],
       },
       waitReason: "dependencies_and_wait",
     });
@@ -583,7 +620,7 @@ describe("WorkflowDetail wait inspector", () => {
         "Then waits for approval or timeout after dependency checks finish.",
       ),
     ).toBeNull();
-    expect(screen.queryByText("Waiting on wait")).toBeNull();
+    expect(screen.queryByText("Wait condition pending")).toBeNull();
     expect(screen.queryByText("Task staged")).toBeNull();
   });
 
@@ -596,43 +633,46 @@ describe("WorkflowDetail wait inspector", () => {
         wait: {
           exprCel:
             "term_one || term_two || term_three || term_four || term_five",
+          inputs: {
+            deps: [],
+            signals: [],
+            timers: [],
+          },
           phase: "resolved" as const,
           resolvedAt: new Date("2026-04-21T18:05:00Z"),
-          signals: [],
           startedAt: new Date("2026-04-21T18:04:00Z"),
           terms: [
             {
               kind: "signal",
               label: "Term one",
-              matched: true,
               name: "term_one",
+              result: { matchedCount: 0, requiredCount: 0, satisfied: true },
             },
             {
               kind: "signal",
               label: "Term two",
-              matched: true,
               name: "term_two",
+              result: { matchedCount: 0, requiredCount: 0, satisfied: true },
             },
             {
               kind: "signal",
               label: "Term three",
-              matched: true,
               name: "term_three",
+              result: { matchedCount: 0, requiredCount: 0, satisfied: true },
             },
             {
               kind: "signal",
               label: "Term four",
-              matched: true,
               name: "term_four",
+              result: { matchedCount: 0, requiredCount: 0, satisfied: true },
             },
             {
               kind: "signal",
               label: "Term five",
-              matched: true,
               name: "term_five",
+              result: { matchedCount: 0, requiredCount: 0, satisfied: true },
             },
           ],
-          timers: [],
         },
         waitReason: "none",
       }),

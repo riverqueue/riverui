@@ -11,6 +11,7 @@ import { add } from "date-fns";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import WorkflowGateInspector, {
+  type TaskWaitDiagnosticsLoader,
   type WaitFocusRequest,
 } from "./WorkflowGateInspector";
 
@@ -29,21 +30,37 @@ describe("WorkflowGateInspector", () => {
 
   it("renders summary, terms, signals, and timers from wait data", async () => {
     const wait: WorkflowTaskWait = {
-      asOf: new Date("2026-04-21T17:59:00Z"),
-      attempt: 2,
-      exprCel: "approval_received || review_sla_timeout_reached",
+      evidence: {
+        evaluatedAt: new Date("2026-04-21T17:59:00Z"),
+        workflowAttempt: 2,
+      },
+      exprCel: "approval_received || review_sla_timeout",
+      inputs: {
+        deps: [],
+        signals: [
+          {
+            key: "approval.received",
+            result: {
+              includedCount: 1,
+              lastIncludedID: 9001n,
+            },
+          },
+        ],
+        timers: [
+          {
+            afterSeconds: 1200,
+            anchor: { kind: "wait_started_at" },
+            fireAt: add(new Date("2026-04-21T17:50:00Z"), { minutes: 20 }),
+            name: "review_sla_timeout",
+            result: {
+              fireAt: add(new Date("2026-04-21T17:50:00Z"), { minutes: 20 }),
+              fired: false,
+            },
+          },
+        ],
+      },
       phase: "resolved",
       resolvedAt: new Date("2026-04-21T17:59:00Z"),
-      signals: [
-        {
-          key: "approval.received",
-          lastMatchedID: 9001n,
-          lastVisibleID: 9001n,
-          matched: true,
-          matchedCount: 1,
-          visibleCount: 1,
-        },
-      ],
       startedAt: new Date("2026-04-21T17:50:00Z"),
       summary: "Human approval received",
       terms: [
@@ -51,24 +68,21 @@ describe("WorkflowGateInspector", () => {
           exprCel: `payload.approved == true`,
           kind: "signal",
           label: "Human approval received",
-          matched: true,
           name: "approval_received",
+          result: {
+            lastMatchedID: 9001n,
+            matchedCount: 1,
+            requiredCount: 1,
+            satisfied: true,
+          },
+          signalKey: "approval.received",
         },
         {
           kind: "timer",
           label: "Review SLA timeout reached",
-          matched: false,
-          name: "review_sla_timeout_reached",
-        },
-      ],
-      timers: [
-        {
-          afterSeconds: 1200,
-          anchor: { kind: "wait_started_at" },
-          fireAt: add(new Date("2026-04-21T17:50:00Z"), { minutes: 20 }),
-          fired: false,
-          matched: false,
           name: "review_sla_timeout",
+          result: { matchedCount: 0, requiredCount: 0, satisfied: false },
+          timerName: "review_sla_timeout",
         },
       ],
     };
@@ -95,9 +109,9 @@ describe("WorkflowGateInspector", () => {
       "aria-expanded",
       "true",
     );
-    expect(screen.getByText("1 of 2 conditions matched")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 conditions satisfied")).toBeInTheDocument();
     expect(screen.getByText("approval_received")).toBeInTheDocument();
-    expect(screen.getByText("review_sla_timeout_reached")).toBeInTheDocument();
+    expect(screen.getByText("review_sla_timeout")).toBeInTheDocument();
     expect(screen.getAllByText("Human approval received")).not.toHaveLength(0);
     expect(screen.getAllByText("Review SLA timeout reached")).not.toHaveLength(
       0,
@@ -105,52 +119,51 @@ describe("WorkflowGateInspector", () => {
     expect(screen.getAllByText("Signal")).not.toHaveLength(0);
     expect(screen.getAllByText("Timer")).not.toHaveLength(0);
     expect(screen.getByText("payload.approved == true")).toBeInTheDocument();
-    expect(screen.getByText("Visible")).toBeInTheDocument();
-    expect(screen.getByText("Last visible")).toBeInTheDocument();
+    expect(screen.getByText("Included")).toBeInTheDocument();
+    expect(screen.getByText("Last included")).toBeInTheDocument();
     expect(screen.getAllByText("#9001")).not.toHaveLength(0);
     expect(
       screen.getAllByText((_, element) =>
-        Boolean(element?.textContent?.includes("Matched by resolution")),
+        Boolean(element?.textContent?.includes("Satisfied by resolution")),
       ),
     ).not.toHaveLength(0);
     expect(screen.getByText("Fires")).toBeInTheDocument();
     expect(
       screen.getAllByText((_, element) =>
-        Boolean(element?.textContent?.includes("delay +20m")),
+        Boolean(element?.textContent?.includes("20m after wait starts")),
       ),
     ).not.toHaveLength(0);
     expect(
-      screen.getAllByText((_, element) =>
-        Boolean(element?.textContent?.includes("anchor wait started")),
-      ),
-    ).not.toHaveLength(0);
-    expect(
-      screen.getByRole("button", { name: "View signals" }),
+      screen.getByRole("button", { name: /Resolution evidence/ }),
     ).toBeInTheDocument();
   });
 
   it("renders dependency and signal CEL terms", async () => {
     const wait: WorkflowTaskWait = {
       exprCel: "classify_intake_done && approval_received",
+      inputs: {
+        deps: [],
+        signals: [],
+        timers: [],
+      },
       phase: "waiting",
-      signals: [],
       terms: [
         {
-          exprCel: `output.category == "launch"`,
-          kind: "dependency_output",
+          exprCel: `deps["classify_intake"].output.category == "launch"`,
+          kind: "generic",
           label: "Classify intake done",
-          matched: true,
           name: "classify_intake_done",
+          result: { matchedCount: 0, requiredCount: 0, satisfied: true },
         },
         {
           exprCel: `payload.approved == true`,
           kind: "signal",
           label: "Approval received",
-          matched: false,
           name: "approval_received",
+          result: { matchedCount: 0, requiredCount: 0, satisfied: false },
+          signalKey: "approval.received",
         },
       ],
-      timers: [],
     };
 
     renderInspector(wait);
@@ -160,17 +173,22 @@ describe("WorkflowGateInspector", () => {
     });
 
     expect(screen.queryByText("Definition")).not.toBeInTheDocument();
-    expect(screen.getByText(`output.category == "launch"`)).toBeInTheDocument();
+    expect(
+      screen.getByText(`deps["classify_intake"].output.category == "launch"`),
+    ).toBeInTheDocument();
     expect(screen.getByText("payload.approved == true")).toBeInTheDocument();
   });
 
   it("uses phase-aware fallback copy when no summary is available", () => {
     const wait: WorkflowTaskWait = {
       exprCel: "approval_received",
+      inputs: {
+        deps: [],
+        signals: [],
+        timers: [],
+      },
       phase: "not_started",
-      signals: [],
       terms: [],
-      timers: [],
     };
 
     renderInspector(wait);
@@ -194,21 +212,27 @@ describe("WorkflowGateInspector", () => {
     vi.spyOn(HTMLElement.prototype, "focus").mockImplementation(focus);
 
     const wait: WorkflowTaskWait = {
-      asOf: new Date("2026-04-21T17:59:00Z"),
+      evidence: {
+        evaluatedAt: new Date("2026-04-21T17:59:00Z"),
+        workflowAttempt: 1,
+      },
       exprCel: "approval_received",
+      inputs: {
+        deps: [],
+        signals: [],
+        timers: [],
+      },
       phase: "resolved",
       resolvedAt: new Date("2026-04-21T17:59:00Z"),
-      signals: [],
       summary: "Human approval received",
       terms: [
         {
           kind: "signal",
           label: "Human approval received",
-          matched: true,
           name: "approval_received",
+          result: { matchedCount: 0, requiredCount: 0, satisfied: true },
         },
       ],
-      timers: [],
     };
     const focusRequest: WaitFocusRequest = {
       conditionName: "approval_received",
@@ -226,7 +250,10 @@ describe("WorkflowGateInspector", () => {
           taskName="task/alpha"
           wait={{
             ...wait,
-            asOf: new Date("2026-04-21T18:00:00Z"),
+            evidence: {
+              evaluatedAt: new Date("2026-04-21T18:00:00Z"),
+              workflowAttempt: 1,
+            },
           }}
           workflowID="wf-123"
         />,
@@ -250,17 +277,18 @@ describe("WorkflowGateInspector", () => {
     expect(focus).toHaveBeenCalledTimes(2);
   });
 
-  it("fetches task-visible signals lazily using the wait-result scope when resolved", async () => {
+  it("fetches task signal signals lazily using the evidence scope when resolved", async () => {
     vi.useRealTimers();
 
     const fetchMock = mockTaskSignalsFetch([
       {
         body: {
-          has_more: false,
-          scope: {
-            attempt: 2,
-            scope: "at_wait_result",
+          evidence: {
+            evaluated_at: "2026-04-21T17:59:00Z",
+            workflow_attempt: 2,
           },
+          has_more: false,
+          scope: "evidence",
           signals: [
             {
               attempt: 2,
@@ -277,19 +305,19 @@ describe("WorkflowGateInspector", () => {
 
     const wait: WorkflowTaskWait = {
       exprCel: "approval_received",
+      inputs: {
+        deps: [],
+        signals: [
+          {
+            key: "approval.received",
+          },
+        ],
+        timers: [],
+      },
       phase: "resolved",
       resolvedAt: new Date("2026-04-21T17:59:00Z"),
-      signals: [
-        {
-          key: "approval.received",
-          matched: true,
-          matchedCount: 1,
-          visibleCount: 1,
-        },
-      ],
       summary: "Human approval received",
       terms: [],
-      timers: [],
     };
 
     renderInspector(wait);
@@ -299,34 +327,31 @@ describe("WorkflowGateInspector", () => {
     });
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "View signals" }));
+      fireEvent.click(
+        screen.getByRole("button", { name: /Resolution evidence/ }),
+      );
     });
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(
-      screen.getByRole("button", { name: "Hide signals" }),
+      screen.getByRole("button", { name: /Resolution evidence/ }),
     ).toBeInTheDocument();
-    expect(fetchMock.mock.calls[0]?.[0]).toContain("scope=at_wait_result");
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("scope=evidence");
     expect(
-      await screen.findByText(
-        "Showing signals visible at the wait result for attempt 2.",
-      ),
+      await screen.findByText("Signals included when this wait resolved."),
     ).toBeInTheDocument();
     expect(screen.getAllByText(/decision/)).not.toHaveLength(0);
     expect(screen.getAllByText(/manager/)).not.toHaveLength(0);
   });
 
-  it("uses current-attempt scope by default when still waiting", async () => {
+  it("uses history scope by default when still waiting", async () => {
     vi.useRealTimers();
 
     const fetchMock = mockTaskSignalsFetch([
       {
         body: {
           has_more: false,
-          scope: {
-            attempt: 3,
-            scope: "current_attempt",
-          },
+          scope: "history",
           signals: [],
         },
       },
@@ -334,17 +359,17 @@ describe("WorkflowGateInspector", () => {
 
     const wait: WorkflowTaskWait = {
       exprCel: "approval_received",
+      inputs: {
+        deps: [],
+        signals: [
+          {
+            key: "approval.received",
+          },
+        ],
+        timers: [],
+      },
       phase: "waiting",
-      signals: [
-        {
-          key: "approval.received",
-          matched: false,
-          matchedCount: 0,
-          visibleCount: 0,
-        },
-      ],
       terms: [],
-      timers: [],
     };
 
     renderInspector(wait);
@@ -353,19 +378,159 @@ describe("WorkflowGateInspector", () => {
       fireEvent.click(screen.getByRole("button", { name: "Details" }));
     });
 
-    expect(screen.getByText("0 of 1 conditions matched")).toBeInTheDocument();
+    expect(screen.getByText("0 of 1 conditions satisfied")).toBeInTheDocument();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "View signals" }));
+      fireEvent.click(screen.getByRole("button", { name: /Signal history/ }));
     });
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
-    expect(fetchMock.mock.calls[0]?.[0]).toContain("scope=current_attempt");
+    expect(fetchMock.mock.calls[0]?.[0]).toContain("scope=history");
     expect(
       await screen.findByText(
-        "Showing signals from the current visible rows for attempt 3.",
+        "No signals found in the current workflow attempt.",
       ),
     ).toBeInTheDocument();
+  });
+
+  it("shows diagnostics load failures instead of masking them", async () => {
+    vi.useRealTimers();
+
+    const wait: WorkflowTaskWait = {
+      exprCel: "approval_received",
+      inputs: {
+        deps: [],
+        signals: [],
+        timers: [],
+      },
+      phase: "waiting",
+      terms: [],
+    };
+
+    renderInspector(wait, {
+      loadTaskWaitDiagnostics: async () => {
+        throw new Error(
+          "Expected JSON response from /api/pro/workflows/wf-123/task-wait-diagnostics, received text/html; charset=utf-8.",
+        );
+      },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    });
+
+    expect(
+      await screen.findByText(
+        "Unable to load waiting diagnostics: Expected JSON response from /api/pro/workflows/wf-123/task-wait-diagnostics, received text/html; charset=utf-8.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("shows when signal diagnostics are truncated", async () => {
+    vi.useRealTimers();
+
+    const wait: WorkflowTaskWait = {
+      exprCel: "approval_received",
+      inputs: {
+        deps: [],
+        signals: [{ key: "approval.received" }],
+        timers: [],
+      },
+      phase: "waiting",
+      terms: [],
+    };
+
+    renderInspector(wait, {
+      loadTaskWaitDiagnostics: async () => ({
+        exprResult: false,
+        inputs: {
+          deps: [],
+          signals: [
+            {
+              includedCount: 10000,
+              key: "approval.received",
+              lastID: 9001n,
+            },
+          ],
+          timers: [],
+        },
+        inspectedAt: new Date("2026-04-21T18:00:00Z"),
+        phase: "waiting",
+        signalScanCount: 10000,
+        signalScanLimit: 10000,
+        terms: [],
+        truncated: true,
+        workflowAttempt: 1,
+      }),
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    });
+
+    expect(await screen.findByText("10,000 / 10,000")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Signal diagnostics reached the scan limit, so expression and match counts are best effort.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("explains unavailable dependency outputs before a wait starts", async () => {
+    vi.useRealTimers();
+
+    const wait: WorkflowTaskWait = {
+      exprCel: "draft_ready_to_send",
+      inputs: {
+        deps: [{ taskName: "verify_draft" }],
+        signals: [],
+        timers: [],
+      },
+      phase: "not_started",
+      terms: [
+        {
+          exprCel: `deps["verify_draft"].output.needs_human_review == false`,
+          kind: "generic",
+          label: "draft ready to send",
+          name: "draft_ready_to_send",
+        },
+      ],
+    };
+
+    renderInspector(wait, {
+      loadTaskWaitDiagnostics: async () => ({
+        evalError: "no such key: needs_human_review",
+        inputs: {
+          deps: [
+            {
+              available: false,
+              state: "pending",
+              taskName: "verify_draft",
+            },
+          ],
+          signals: [],
+          timers: [],
+        },
+        inspectedAt: new Date("2026-04-21T18:00:00Z"),
+        phase: "not_started",
+        signalScanCount: 0,
+        signalScanLimit: 10000,
+        terms: [],
+        truncated: false,
+        workflowAttempt: 1,
+      }),
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Details" }));
+    });
+
+    expect(
+      await screen.findByText("Waiting for dependency output."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("no such key: needs_human_review"),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -373,11 +538,29 @@ const renderInspector = (
   wait: WorkflowTaskWait,
   props: {
     focusRequest?: WaitFocusRequest;
+    loadTaskWaitDiagnostics?: TaskWaitDiagnosticsLoader;
   } = {},
 ) => {
   return render(
     <WorkflowGateInspector
       focusRequest={props.focusRequest}
+      loadTaskWaitDiagnostics={
+        props.loadTaskWaitDiagnostics ??
+        (async () => ({
+          inputs: {
+            deps: [],
+            signals: [],
+            timers: [],
+          },
+          inspectedAt: new Date("2026-04-21T18:00:00Z"),
+          phase: wait.phase,
+          signalScanCount: 0,
+          signalScanLimit: 10000,
+          terms: [],
+          truncated: false,
+          workflowAttempt: 1,
+        }))
+      }
       taskName="task/alpha"
       wait={wait}
       workflowID="wf-123"
