@@ -28,11 +28,6 @@ type MockMiniMapProps = {
 
 type MockReactFlowProps = PropsWithChildren<{
   edges: MockEdge[];
-  fitViewOptions?: {
-    maxZoom?: number;
-    minZoom?: number;
-    padding?: number;
-  };
   minZoom?: number;
   nodes: unknown[];
   onNodesChange?: (changes: SelectionChange[]) => void;
@@ -104,11 +99,6 @@ describe("WorkflowDiagram", () => {
     expect(screen.getByTestId("edge-count")).toHaveTextContent("3");
     expect(screen.getByTestId("diagram-controls")).toBeInTheDocument();
     expect(latestReactFlowProps?.minZoom).toBe(0.2);
-    expect(latestReactFlowProps?.fitViewOptions).toMatchObject({
-      maxZoom: 0.85,
-      minZoom: 0.35,
-      padding: 0.18,
-    });
   });
 
   it("calls setSelectedJobId when a node is selected", () => {

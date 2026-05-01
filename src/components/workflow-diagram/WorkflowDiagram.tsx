@@ -44,11 +44,16 @@ const edgeTypes: EdgeTypes = {
 
 const workflowDiagramMinZoom = 0.2;
 const workflowDiagramFitViewMaxZoom = 0.85;
-const workflowDiagramFitViewMinZoom = 0.35;
-const workflowDiagramFitViewPadding = 0.18;
-const workflowDiagramFitViewOptions = {
+const workflowDiagramInitialFitViewMinZoom = 0.6;
+const workflowDiagramFitViewPadding = { x: "32px", y: "48px" } as const;
+const workflowDiagramInitialFitViewOptions = {
   maxZoom: workflowDiagramFitViewMaxZoom,
-  minZoom: workflowDiagramFitViewMinZoom,
+  minZoom: workflowDiagramInitialFitViewMinZoom,
+  padding: workflowDiagramFitViewPadding,
+};
+const workflowDiagramOverviewFitViewOptions = {
+  maxZoom: workflowDiagramFitViewMaxZoom,
+  minZoom: workflowDiagramMinZoom,
   padding: workflowDiagramFitViewPadding,
 };
 
@@ -144,11 +149,10 @@ export default function WorkflowDiagram({
   return (
     <div className="workflow-diagram-root size-full">
       <ReactFlow
-        defaultViewport={{ x: 32, y: 32, zoom: 1 }}
         edges={layoutedEdges}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={workflowDiagramFitViewOptions}
+        fitViewOptions={workflowDiagramInitialFitViewOptions}
         id={`workflow-diagram-${workflowIdForInstance}`}
         key={`workflow-diagram-${workflowIdForInstance}`}
         minZoom={workflowDiagramMinZoom}
@@ -161,7 +165,7 @@ export default function WorkflowDiagram({
       >
         <Controls
           className="workflow-diagram-controls"
-          fitViewOptions={workflowDiagramFitViewOptions}
+          fitViewOptions={workflowDiagramOverviewFitViewOptions}
           position="bottom-left"
           showInteractive={false}
         />
