@@ -18,12 +18,25 @@ export default defineConfig({
     rollupOptions: {
       input: "src/main.tsx",
       output: {
-        manualChunks: {
+        manualChunks(id) {
           // use vite-bundle-visualizer to find good candidates for manual chunks:
-          dagrejs: ["@dagrejs/dagre"],
-          headlessui: ["@headlessui/react"],
-          "react-dom": ["react-dom"],
-          reactflow: ["@xyflow/react"],
+          const normalizedId = id.replaceAll("\\", "/");
+
+          if (normalizedId.includes("/node_modules/@dagrejs/dagre/")) {
+            return "dagrejs";
+          }
+
+          if (normalizedId.includes("/node_modules/@headlessui/react/")) {
+            return "headlessui";
+          }
+
+          if (normalizedId.includes("/node_modules/react-dom/")) {
+            return "react-dom";
+          }
+
+          if (normalizedId.includes("/node_modules/@xyflow/react/")) {
+            return "reactflow";
+          }
         },
       },
     },
