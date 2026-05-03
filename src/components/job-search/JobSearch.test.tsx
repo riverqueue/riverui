@@ -10,6 +10,47 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Filter, FilterTypeId, JobSearch } from "./JobSearch";
 
+vi.mock("./api", () => ({
+  fetchSuggestions: async (
+    filterTypeId: string,
+    query: string,
+    selectedValues: string[],
+  ) => {
+    if (filterTypeId === "kind") {
+      const mockKinds = [
+        "batch",
+        "stream",
+        "scheduled",
+        "one-time",
+        "recurring",
+        "Chaos",
+        "AITrainingBatch",
+        "UtilizeNewModel",
+      ];
+      return mockKinds
+        .filter((kind) => kind.toLowerCase().includes(query.toLowerCase()))
+        .filter((kind) => !selectedValues.includes(kind));
+    } else if (filterTypeId === "queue") {
+      const mockQueues = [
+        "default",
+        "high-priority",
+        "low-priority",
+        "batch",
+        "realtime",
+      ];
+      return mockQueues
+        .filter((queue) => queue.includes(query.toLowerCase()))
+        .filter((queue) => !selectedValues.includes(queue));
+    } else if (filterTypeId === "priority") {
+      const priorities = ["1", "2", "3", "4"];
+      return priorities
+        .filter((priority) => priority.includes(query))
+        .filter((priority) => !selectedValues.includes(priority));
+    }
+    return [];
+  },
+}));
+
 // Add type declarations for test functions
 declare module "vitest" {
   interface Assertion<T> {
@@ -20,46 +61,6 @@ declare module "vitest" {
 describe("JobSearch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mock("./api", () => ({
-      fetchSuggestions: async (
-        filterTypeId: string,
-        query: string,
-        selectedValues: string[],
-      ) => {
-        if (filterTypeId === "kind") {
-          const mockKinds = [
-            "batch",
-            "stream",
-            "scheduled",
-            "one-time",
-            "recurring",
-            "Chaos",
-            "AITrainingBatch",
-            "UtilizeNewModel",
-          ];
-          return mockKinds
-            .filter((kind) => kind.toLowerCase().includes(query.toLowerCase()))
-            .filter((kind) => !selectedValues.includes(kind));
-        } else if (filterTypeId === "queue") {
-          const mockQueues = [
-            "default",
-            "high-priority",
-            "low-priority",
-            "batch",
-            "realtime",
-          ];
-          return mockQueues
-            .filter((queue) => queue.includes(query.toLowerCase()))
-            .filter((queue) => !selectedValues.includes(queue));
-        } else if (filterTypeId === "priority") {
-          const priorities = ["1", "2", "3", "4"];
-          return priorities
-            .filter((priority) => priority.includes(query))
-            .filter((priority) => !selectedValues.includes(priority));
-        }
-        return [];
-      },
-    }));
   });
 
   describe("Basic Rendering & Props", () => {

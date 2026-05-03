@@ -3,7 +3,6 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "node:path";
 import { defineConfig } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 const dagreCjsPath = path.resolve(
   process.cwd(),
@@ -49,11 +48,11 @@ export default defineConfig({
     tanstackRouter({
       routeFileIgnorePattern: ".(const|schema|test).(ts|tsx)",
     }),
-    tsconfigPaths(),
   ],
   resolve: {
     alias: {
       "@dagrejs/dagre": dagreCjsPath,
     },
+    tsconfigPaths: true,
   },
 });
