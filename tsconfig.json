@@ -21,9 +21,8 @@
     "noFallthroughCasesInSwitch": true,
 
     // allow importing services by @services:
-    "baseUrl": "./src",
     "paths": {
-      "@*": ["./*"]
+      "@*": ["./src/*"]
     },
     "typeRoots": ["../../node_modules/@heroicons/**/*.d.ts"]
   },
