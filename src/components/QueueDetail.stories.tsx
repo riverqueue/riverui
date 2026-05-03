@@ -1,6 +1,6 @@
 import { useFeatures } from "@contexts/Features.hook";
 import { type Producer } from "@services/producers";
-import { type ConcurrencyConfig } from "@services/queues";
+import { type ConcurrencyConfig, type Queue } from "@services/queues";
 import { Meta, StoryObj } from "@storybook/react-vite";
 import { producerFactory } from "@test/factories/producer";
 import { queueFactory } from "@test/factories/queue";
@@ -56,6 +56,59 @@ const createProducers = (
     return producer;
   });
 };
+
+const visualQueue: Queue = {
+  concurrency: {
+    global_limit: 10,
+    local_limit: 5,
+    partition: {
+      by_args: ["customer_id", "region"],
+      by_kind: null,
+    },
+  },
+  countAvailable: 27,
+  countRunning: 9,
+  createdAt: new Date("2025-02-20T10:00:00.000Z"),
+  name: "payments",
+  pausedAt: undefined,
+  updatedAt: new Date("2025-02-28T10:30:00.000Z"),
+};
+
+const visualProducers: Producer[] = [
+  {
+    clientId: "worker-a",
+    concurrency: visualQueue.concurrency,
+    createdAt: new Date("2025-02-20T10:00:00.000Z"),
+    id: 1,
+    maxWorkers: 20,
+    pausedAt: undefined,
+    queueName: "payments",
+    running: 4,
+    updatedAt: new Date("2025-02-28T10:31:00.000Z"),
+  },
+  {
+    clientId: "worker-b",
+    concurrency: visualQueue.concurrency,
+    createdAt: new Date("2025-02-20T10:05:00.000Z"),
+    id: 2,
+    maxWorkers: 20,
+    pausedAt: undefined,
+    queueName: "payments",
+    running: 3,
+    updatedAt: new Date("2025-02-28T10:31:00.000Z"),
+  },
+  {
+    clientId: "worker-c",
+    concurrency: visualQueue.concurrency,
+    createdAt: new Date("2025-02-20T10:10:00.000Z"),
+    id: 3,
+    maxWorkers: 20,
+    pausedAt: undefined,
+    queueName: "payments",
+    running: 2,
+    updatedAt: new Date("2025-02-28T10:31:00.000Z"),
+  },
+];
 
 const meta: Meta<typeof QueueDetail> = {
   args: {
@@ -265,4 +318,19 @@ export const WithoutPro: Story = {
       hasProducerTable: false,
     }),
   },
+};
+
+export const VisualRegression: Story = {
+  args: {
+    name: "payments",
+    producers: visualProducers,
+    queue: visualQueue,
+  },
+  parameters: {
+    features: createFeatures({
+      hasProducerTable: true,
+      producerQueries: true,
+    }),
+  },
+  tags: ["visual"],
 };

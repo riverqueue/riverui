@@ -1,5 +1,8 @@
 name: Package and Release
 
+env:
+  NODE_VERSION: "24.14.1"
+
 on:
   workflow_call:
     inputs:
@@ -42,7 +45,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
@@ -55,11 +58,11 @@ jobs:
           arch: amd64
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
-          node-version: "22.18.0"
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Install dependencies
         run: npm install

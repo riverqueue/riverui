@@ -206,6 +206,7 @@ export const Simple: Story = {
     data: simpleObject,
     defaultExpandDepth: 5,
   },
+  tags: ["visual"],
 };
 
 export const Nested: Story = {
@@ -222,6 +223,7 @@ export const NestedCollapsed: Story = {
     data: nestedObject,
     defaultExpandDepth: 0,
   },
+  tags: ["visual"],
 };
 
 export const NestedCollapsedHiddenKeys: Story = {
@@ -254,6 +256,7 @@ export const LongStrings: Story = {
     data: longStringExample,
     defaultExpandDepth: 3,
   },
+  tags: ["visual"],
 };
 
 export const LargeJSON: Story = {

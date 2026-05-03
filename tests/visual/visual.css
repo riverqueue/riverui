@@ -1,0 +1,11 @@
+html[data-visual-test="true"] *,
+html[data-visual-test="true"] *::before,
+html[data-visual-test="true"] *::after {
+  animation: none !important;
+  caret-color: transparent !important;
+  transition: none !important;
+}
+
+html[data-visual-test="true"] {
+  scroll-behavior: auto !important;
+}

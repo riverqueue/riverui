@@ -32,6 +32,7 @@ export const Empty: Story = {
     showHelpText: false,
     tags: [],
   },
+  tags: ["visual"],
 };
 
 export const EmptyWithHelp: Story = {
@@ -41,6 +42,7 @@ export const EmptyWithHelp: Story = {
     showHelpText: true,
     tags: [],
   },
+  tags: ["visual"],
 };
 
 export const WithTags: Story = {
@@ -50,6 +52,7 @@ export const WithTags: Story = {
     showHelpText: false,
     tags: ["customer_id", "region", "user_id"],
   },
+  tags: ["visual"],
 };
 
 export const WithTagsAndHelp: Story = {
@@ -74,6 +77,7 @@ export const WithManyTags: Story = {
       "long_key_name_with_many_characters",
     ],
   },
+  tags: ["visual"],
 };
 
 export const BlueBadges: Story = {
@@ -97,6 +101,7 @@ export const Disabled: Story = {
     disabled: true,
     tags: ["customer_id", "region"],
   },
+  tags: ["visual"],
 };
 
 export const DisabledEmpty: Story = {
