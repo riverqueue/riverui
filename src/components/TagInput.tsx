@@ -1,5 +1,5 @@
 import { XMarkIcon } from "@heroicons/react/20/solid";
-import { KeyboardEvent, useEffect, useState } from "react";
+import { KeyboardEvent, useState } from "react";
 
 import { Badge, type BadgeColor } from "./Badge";
 
@@ -28,26 +28,18 @@ const TagInput = ({
   tags = [],
 }: TagInputProps) => {
   const [inputValue, setInputValue] = useState("");
-  const [internalTags, setInternalTags] = useState<string[]>(tags);
-
-  // Update internal tags when external tags change
-  useEffect(() => {
-    setInternalTags(tags);
-  }, [tags]);
 
   const addTag = (tag: string) => {
     const trimmedTag = tag.trim();
-    if (trimmedTag && !internalTags.includes(trimmedTag)) {
-      const newTags = [...internalTags, trimmedTag];
-      setInternalTags(newTags);
+    if (trimmedTag && !tags.includes(trimmedTag)) {
+      const newTags = [...tags, trimmedTag];
       onChange(newTags);
     }
     setInputValue("");
   };
 
   const removeTag = (tagToRemove: string) => {
-    const newTags = internalTags.filter((tag) => tag !== tagToRemove);
-    setInternalTags(newTags);
+    const newTags = tags.filter((tag) => tag !== tagToRemove);
     onChange(newTags);
   };
 
@@ -55,15 +47,10 @@ const TagInput = ({
     if (e.key === "Enter" && inputValue) {
       e.preventDefault();
       addTag(inputValue);
-    } else if (
-      e.key === "Backspace" &&
-      !inputValue &&
-      internalTags.length > 0
-    ) {
+    } else if (e.key === "Backspace" && !inputValue && tags.length > 0) {
       // Remove the last tag when backspace is pressed and input is empty
-      const newTags = [...internalTags];
+      const newTags = [...tags];
       newTags.pop();
-      setInternalTags(newTags);
       onChange(newTags);
     }
   };
@@ -76,7 +63,7 @@ const TagInput = ({
         } dark:border-slate-600 dark:bg-slate-700`}
         style={{ minHeight: "38px" }}
       >
-        {internalTags.map((tag) => (
+        {tags.map((tag) => (
           <div className="flex items-center" key={tag}>
             <Badge className="flex items-center gap-1" color={badgeColor}>
               <span className="py-0.5">{tag}</span>
@@ -100,7 +87,7 @@ const TagInput = ({
           name={name}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder={internalTags.length === 0 ? placeholder : ""}
+          placeholder={tags.length === 0 ? placeholder : ""}
           type="text"
           value={inputValue}
         />
