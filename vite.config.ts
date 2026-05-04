@@ -3,7 +3,6 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "node:path";
 import { defineConfig } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
 
 const dagreCjsPath = path.resolve(
   process.cwd(),
@@ -18,12 +17,25 @@ export default defineConfig({
     rollupOptions: {
       input: "src/main.tsx",
       output: {
-        manualChunks: {
+        manualChunks(id) {
           // use vite-bundle-visualizer to find good candidates for manual chunks:
-          dagrejs: ["@dagrejs/dagre"],
-          headlessui: ["@headlessui/react"],
-          "react-dom": ["react-dom"],
-          reactflow: ["@xyflow/react"],
+          const normalizedId = id.replaceAll("\\", "/");
+
+          if (normalizedId.includes("/node_modules/@dagrejs/dagre/")) {
+            return "dagrejs";
+          }
+
+          if (normalizedId.includes("/node_modules/@headlessui/react/")) {
+            return "headlessui";
+          }
+
+          if (normalizedId.includes("/node_modules/react-dom/")) {
+            return "react-dom";
+          }
+
+          if (normalizedId.includes("/node_modules/@xyflow/react/")) {
+            return "reactflow";
+          }
         },
       },
     },
@@ -36,11 +48,11 @@ export default defineConfig({
     tanstackRouter({
       routeFileIgnorePattern: ".(const|schema|test).(ts|tsx)",
     }),
-    tsconfigPaths(),
   ],
   resolve: {
     alias: {
       "@dagrejs/dagre": dagreCjsPath,
     },
+    tsconfigPaths: true,
   },
 });

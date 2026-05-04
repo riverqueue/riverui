@@ -15,6 +15,13 @@ class ResizeObserverMock {
 
 global.ResizeObserver = ResizeObserverMock;
 
+// JSDOM does not implement scrolling APIs used by router and focus helpers.
+Object.defineProperty(window, "scrollTo", {
+  configurable: true,
+  value: () => {},
+  writable: true,
+});
+
 // Headless UI relies on the Web Animations API for transitions. JSDOM doesn't
 // implement it, and Headless UI will polyfill with warnings (and may behave
 // differently across versions). Provide a minimal stable polyfill.
