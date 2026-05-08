@@ -1,13 +1,11 @@
 import { DurationCompact } from "@components/DurationCompact";
-import {
-  RunningIcon,
-  RunningSpinnerIcon,
-} from "@components/icons/jobStateIcons";
+import { RunningSpinnerIcon } from "@components/icons/jobStateIcons";
 import {
   CheckCircleIcon,
   CircleStackIcon,
   ClockIcon,
   ExclamationCircleIcon,
+  PlayCircleIcon,
   QueueListIcon,
   TrashIcon,
   XCircleIcon,
@@ -267,7 +265,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     return (
       <StatusStep
         descriptionTitle={job.attemptedAt.toUTCString()}
-        Icon={RunningIcon}
+        Icon={PlayCircleIcon}
         name="Running"
         status="complete"
       >
@@ -285,7 +283,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     return (
       <StatusStep
         description="Not yet started"
-        Icon={RunningIcon}
+        Icon={PlayCircleIcon}
         name="Running"
         status="pending"
       />
@@ -314,7 +312,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     const cancelledWhileRunning = Boolean(job.attemptedAt);
     const state = cancelledWhileRunning ? "complete" : "pending";
     return (
-      <StatusStep Icon={RunningIcon} name="Running" status={state}>
+      <StatusStep Icon={PlayCircleIcon} name="Running" status={state}>
         <RelativeTime addSuffix={true} time={job.attemptedAt} /> (
         <DurationCompact
           endTime={job.finalizedAt!}
@@ -336,7 +334,7 @@ const RunningStep = ({ job }: { job: Job }) => {
       descriptionTitle={
         errored ? lastError?.at.toUTCString() : job.attemptedAt.toUTCString()
       }
-      Icon={errored ? ExclamationCircleIcon : CheckCircleIcon}
+      Icon={errored ? ExclamationCircleIcon : PlayCircleIcon}
       name={errored ? "Errored" : "Running"}
       status={errored ? "failed" : "complete"}
     >
