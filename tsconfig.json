@@ -13,6 +13,7 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
+    "ignoreDeprecations": "6.0",
 
     /* Linting */
     "strict": true,
@@ -21,8 +22,9 @@
     "noFallthroughCasesInSwitch": true,
 
     // allow importing services by @services:
+    "baseUrl": "./src",
     "paths": {
-      "@*": ["./src/*"]
+      "@*": ["./*"]
     },
     "typeRoots": ["../../node_modules/@heroicons/**/*.d.ts"]
   },
