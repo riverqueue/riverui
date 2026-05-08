@@ -11,3 +11,4 @@ src/routeTree.gen.ts
 
 # Other files to ignore
 package-lock.json 
+.claude/settings.local.json

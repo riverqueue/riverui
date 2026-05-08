@@ -7,12 +7,18 @@ import {
   type WorkflowDiagramNodeRect,
 } from "./workflowDiagramEdgePath";
 
-type WorkflowDiagramEdgeData = {
+export type WorkflowDiagramEdgeData = {
   dagrePoints?: Array<{ x: number; y: number }>;
   depStatus?: "blocked" | "failed" | "unblocked";
   nodeRects?: WorkflowDiagramNodeRect[];
   preferredBendX?: number;
+  targetAnchorOffsetX?: number;
 };
+
+export type WorkflowDiagramEdgeProps = Pick<
+  EdgeProps,
+  "data" | "markerEnd" | "sourceX" | "sourceY" | "style" | "targetX" | "targetY"
+>;
 
 export default function WorkflowDiagramEdge({
   data,
@@ -22,7 +28,7 @@ export default function WorkflowDiagramEdge({
   style,
   targetX,
   targetY,
-}: EdgeProps) {
+}: WorkflowDiagramEdgeProps) {
   const edgeData = data as undefined | WorkflowDiagramEdgeData;
 
   const path = buildWorkflowDiagramEdgePath({
@@ -31,7 +37,7 @@ export default function WorkflowDiagramEdge({
     preferredBendX: edgeData?.preferredBendX,
     sourceX,
     sourceY,
-    targetX,
+    targetX: targetX + (edgeData?.targetAnchorOffsetX ?? 0),
     targetY,
   });
 

@@ -33,6 +33,8 @@ import (
 func TestProHandlerIntegration(t *testing.T) {
 	t.Parallel()
 
+	var schema string
+
 	createBundle := func(client *riverpro.Client[pgx.Tx], tx pgx.Tx) uiendpoints.Bundle {
 		return NewEndpoints(client, &EndpointsOpts[pgx.Tx]{Tx: &tx})
 	}
@@ -44,11 +46,13 @@ func TestProHandlerIntegration(t *testing.T) {
 		river.AddWorker(workers, &uicommontest.NoOpWorker{})
 
 		driver := riverpropgxv5.New(riversharedtest.DBPool(ctx, tb))
-		tx, _ := riverdbtest.TestTxPgxDriver(ctx, tb, driver, nil)
+		tx, testSchema := riverdbtest.TestTxPgxDriver(ctx, tb, driver, nil)
+		schema = testSchema
 
 		client, err := riverpro.NewClient(driver, &riverpro.Config{
 			Config: river.Config{
 				Logger:  logger,
+				Schema:  testSchema,
 				Workers: workers,
 			},
 		})
@@ -72,10 +76,12 @@ func TestProHandlerIntegration(t *testing.T) {
 		return handler
 	}
 
-	testRunner := func(exec riverdriver.Executor, makeAPICall handlertest.APICallFunc) {
+	testRunner := func(exec riverdriver.Executor, dbDriver riverdriver.Driver[pgx.Tx], makeAPICall handlertest.APICallFunc) {
 		ctx := context.Background()
 
 		proExec, ok := exec.(driver.ProExecutor)
+		require.True(t, ok)
+		proDriver, ok := dbDriver.(driver.ProDriver[pgx.Tx])
 		require.True(t, ok)
 
 		_ = protestfactory.PeriodicJob(ctx, t, proExec, nil)
@@ -83,8 +89,18 @@ func TestProHandlerIntegration(t *testing.T) {
 		queue := testfactory.Queue(ctx, t, exec, nil)
 
 		workflowID := uuid.New()
+		require.NoError(t, proDriver.GetProExecutor().WorkflowInsertMany(ctx, &driver.WorkflowInsertManyParams{
+			IDs:    []string{workflowID.String()},
+			Names:  []string{workflowID.String()},
+			Schema: schema,
+		}))
 		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: uicommontest.MustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
 		workflowID2 := uuid.New()
+		require.NoError(t, proDriver.GetProExecutor().WorkflowInsertMany(ctx, &driver.WorkflowInsertManyParams{
+			IDs:    []string{workflowID2.String()},
+			Names:  []string{workflowID2.String()},
+			Schema: schema,
+		}))
 		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: uicommontest.MustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID2})})
 
 		// Verify OSS features endpoint is mounted and returns success even w/ Pro bundle:
@@ -100,41 +116,57 @@ func TestProHandlerIntegration(t *testing.T) {
 	handlertest.RunIntegrationTest(t, createClient, createBundle, createHandler, testRunner)
 }
 
-func TestProFeaturesEndpointResponse(t *testing.T) {
+func TestProMountedEndpointResponses(t *testing.T) {
 	t.Parallel()
 
-	ctx := t.Context()
-	logger := riversharedtest.Logger(t)
+	type testBundle struct {
+		client  *riverpro.Client[pgx.Tx]
+		handler http.Handler
+		logger  *slog.Logger
+		schema  string
+		tx      pgx.Tx
+	}
 
-	driver := riverpropgxv5.New(riversharedtest.DBPool(ctx, t))
-	tx, _ := riverdbtest.TestTxPgxDriver(ctx, t, driver, &riverdbtest.TestTxOpts{DisableSchemaSharing: true})
-	client, err := riverpro.NewClient(driver, &riverpro.Config{
-		Config: river.Config{
-			Logger: logger,
-		},
-	})
-	require.NoError(t, err)
+	setup := func(ctx context.Context, t *testing.T) *testBundle {
+		t.Helper()
 
-	bundle := NewEndpoints(client, &EndpointsOpts[pgx.Tx]{Tx: &tx})
-
-	// Reuse the same handler creation pattern as integration tests
-	handler := func() http.Handler {
 		logger := riversharedtest.Logger(t)
-		opts := &riverui.HandlerOpts{
+		driver := riverpropgxv5.New(riversharedtest.DBPool(ctx, t))
+		tx, schema := riverdbtest.TestTxPgxDriver(ctx, t, driver, &riverdbtest.TestTxOpts{DisableSchemaSharing: true})
+		client, err := riverpro.NewClient(driver, &riverpro.Config{
+			Config: river.Config{
+				Logger: logger,
+				Schema: schema,
+			},
+		})
+		require.NoError(t, err)
+
+		bundle := NewEndpoints(client, &EndpointsOpts[pgx.Tx]{Tx: &tx})
+
+		handler, err := riverui.NewHandler(&riverui.HandlerOpts{
 			DevMode:   true,
 			Endpoints: bundle,
 			LiveFS:    false,
 			Logger:    logger,
-		}
-		h, err := riverui.NewHandler(opts)
+		})
 		require.NoError(t, err)
-		return h
-	}()
+
+		return &testBundle{
+			client:  client,
+			handler: handler,
+			logger:  logger,
+			schema:  schema,
+			tx:      tx,
+		}
+	}
+
+	ctx := context.Background()
+	bundle := setup(ctx, t)
 
 	recorder := httptest.NewRecorder()
-	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/features", nil)
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/features", nil)
 
-	handler.ServeHTTP(recorder, req)
+	bundle.handler.ServeHTTP(recorder, req)
 
 	status := recorder.Result().StatusCode
 	require.Equal(t, http.StatusOK, status)
@@ -157,9 +189,23 @@ func TestProFeaturesEndpointResponse(t *testing.T) {
 		"has_client_table":      true, // dynamic
 		"has_producer_table":    true, // dynamic
 		"has_sequence_table":    true, // dynamic
-		"has_workflows":         true, // dynamic
 		"producer_queries":      true, // static
-		"workflow_queries":      true, // static
+		"workflow_queries":      true, // dynamic
 	}
 	require.Equal(t, expectedExtensions, resp.Extensions)
+
+	recorder = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		"/api/pro/workflows/missing-workflow/task-wait-diagnostics?task_name=await_review",
+		nil,
+	)
+	req.Header.Set("Accept", "*/*")
+
+	bundle.handler.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusNotFound, recorder.Result().StatusCode)
+	require.Contains(t, recorder.Header().Get("Content-Type"), "application/json")
+	require.Contains(t, recorder.Body.String(), "Workflow not found")
 }

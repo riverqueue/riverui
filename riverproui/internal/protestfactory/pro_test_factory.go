@@ -17,6 +17,7 @@ import (
 type PeriodicJobOpts struct {
 	ID        *string
 	NextRunAt *time.Time
+	Schema    string
 	UpdatedAt *time.Time
 }
 
@@ -31,7 +32,7 @@ func PeriodicJob(ctx context.Context, tb testing.TB, exec driver.ProExecutor, op
 		ID:        ptrutil.ValOrDefaultFunc(opts.ID, func() string { return fmt.Sprintf("periodic_job_%05d", nextSeq()) }),
 		NextRunAt: ptrutil.ValOrDefaultFunc(opts.NextRunAt, time.Now),
 		UpdatedAt: opts.UpdatedAt,
-		Schema:    "",
+		Schema:    opts.Schema,
 	})
 	require.NoError(tb, err)
 	return periodicJob

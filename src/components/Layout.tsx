@@ -35,7 +35,12 @@ const Layout = ({ children }: LayoutProps) => {
           search: {},
         },
         { href: "/queues", icon: InboxStackIcon, name: "Queues" },
-        { href: "/workflows", icon: RectangleGroupIcon, name: "Workflows" },
+        {
+          hidden: !features.workflowQueries,
+          href: "/workflows",
+          icon: RectangleGroupIcon,
+          name: "Workflows",
+        },
         {
           hidden: !features.durablePeriodicJobs,
           href: "/periodic-jobs",
@@ -43,7 +48,7 @@ const Layout = ({ children }: LayoutProps) => {
           name: "Periodic Jobs",
         },
       ].filter((item) => item.hidden === undefined || item.hidden === false),
-    [features.durablePeriodicJobs],
+    [features.durablePeriodicJobs, features.workflowQueries],
   );
 
   return (

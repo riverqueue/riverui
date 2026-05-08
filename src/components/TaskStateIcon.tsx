@@ -4,10 +4,10 @@ import {
   ClockIcon,
   EllipsisHorizontalCircleIcon,
   ExclamationTriangleIcon,
-  PauseCircleIcon,
+  PlayCircleIcon,
   QuestionMarkCircleIcon,
   XCircleIcon,
-} from "@heroicons/react/20/solid";
+} from "@heroicons/react/24/outline";
 import { JobState } from "@services/types";
 import { capitalize } from "@utils/string";
 import clsx from "clsx";
@@ -24,8 +24,8 @@ export const TaskStateIcon = ({
   switch (jobState) {
     case JobState.Available:
       return (
-        <PauseCircleIcon
-          className={clsx(className, "text-slate-500 dark:text-slate-400")}
+        <PlayCircleIcon
+          className={clsx(className, "text-blue-500")}
           {...sharedProps}
         />
       );
@@ -60,14 +60,14 @@ export const TaskStateIcon = ({
     case JobState.Retryable:
       return (
         <ExclamationTriangleIcon
-          className={clsx(className, "text-orange-500")}
+          className={clsx(className, "text-amber-500")}
           {...sharedProps}
         />
       );
     case JobState.Running:
       return (
         <RunningSpinnerIcon
-          className={clsx(className, "text-yellow-500 dark:text-yellow-500")}
+          className={clsx(className, "text-blue-500")}
           {...sharedProps}
         />
       );
