@@ -122,41 +122,18 @@ func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error
 		return nil, err
 	}
 
-	hasWorkflowTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
-		Schema: schema,
-		Table:  "river_workflow",
-	})
+	hasWorkflowV2Tables, err := prohandler.HasWorkflowV2Tables(ctx, execTx, schema)
 	if err != nil {
 		return nil, err
 	}
-
-	indexResults, err := execTx.IndexesExist(ctx, &riverdriver.IndexesExistParams{
-		IndexNames: []string{
-			"river_job_workflow_list_active",
-			"river_job_workflow_scheduling",
-			"river_job_workflow_active_idx",
-			"river_job_workflow_inactive_idx",
-		},
-		Schema: schema,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	hasWorkflows := hasWorkflowTable ||
-		indexResults["river_job_workflow_list_active"] ||
-		indexResults["river_job_workflow_scheduling"] ||
-		indexResults["river_job_workflow_active_idx"] ||
-		indexResults["river_job_workflow_inactive_idx"]
 
 	return map[string]bool{
 		"durable_periodic_jobs": hasPeriodicJobTable,
 		"producer_queries":      true,
-		"workflow_queries":      true,
+		"workflow_queries":      hasWorkflowV2Tables,
 		"has_client_table":      hasClientTable,
 		"has_producer_table":    hasProducerTable,
 		"has_sequence_table":    hasSequenceTable,
-		"has_workflows":         hasWorkflows,
 	}, nil
 }
 

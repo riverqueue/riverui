@@ -21,7 +21,6 @@ import type {
 import WorkflowDetail from "./WorkflowDetail";
 
 const storyFeatures = createFeatures({
-  hasWorkflows: true,
   workflowQueries: true,
 });
 
@@ -733,7 +732,6 @@ export const FeatureDisabled: Story = {
   },
   parameters: {
     features: createFeatures({
-      hasWorkflows: false,
       workflowQueries: false,
     }),
   },

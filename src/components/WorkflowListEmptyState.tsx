@@ -6,12 +6,14 @@ import { listWorkflows, listWorkflowsKey } from "@services/workflows";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
 export default function WorkflowListEmptyState({
+  probeForExistingWorkflows = true,
   showingAll,
 }: {
+  probeForExistingWorkflows?: boolean;
   showingAll: boolean;
 }) {
   const opts = queryOptions({
-    enabled: !showingAll,
+    enabled: probeForExistingWorkflows && !showingAll,
     queryFn: listWorkflows,
     queryKey: listWorkflowsKey({ limit: 1, state: undefined }),
     refetchInterval: 60000,
@@ -20,7 +22,9 @@ export default function WorkflowListEmptyState({
   const anyWorkflowsQuery = useQuery(opts);
   const hasExistingWorkflows =
     anyWorkflowsQuery.isLoading ||
-    (!showingAll && (anyWorkflowsQuery.data || []).length > 0);
+    (probeForExistingWorkflows &&
+      !showingAll &&
+      (anyWorkflowsQuery.data || []).length > 0);
 
   return (
     <>

@@ -33,6 +33,42 @@ type ProAPIBundle[TTx any] struct {
 	DB     riverprodriver.ProExecutor
 }
 
+var WorkflowV2TableNames = []string{ //nolint:gochecknoglobals
+	"river_workflow",
+	"river_workflow_attempt",
+	"river_workflow_attempt_task",
+	"river_workflow_signal",
+	"river_workflow_timer",
+	"river_workflow_worklist",
+}
+
+func HasWorkflowV2Tables(ctx context.Context, exec riverdriver.Executor, schema string) (bool, error) {
+	for _, table := range WorkflowV2TableNames {
+		exists, err := exec.TableExists(ctx, &riverdriver.TableExistsParams{
+			Schema: schema,
+			Table:  table,
+		})
+		if err != nil {
+			return false, err
+		}
+		if !exists {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+func (a *ProAPIBundle[TTx]) requireWorkflowQueries(ctx context.Context) error {
+	hasWorkflowV2Tables, err := HasWorkflowV2Tables(ctx, a.DB, a.Client.Schema())
+	if err != nil {
+		return fmt.Errorf("error checking workflow schema support: %w", err)
+	}
+	if !hasWorkflowV2Tables {
+		return apierror.NewBadRequest("Workflow queries require River Pro migrations version 6 or newer.")
+	}
+	return nil
+}
+
 type listResponse[T any] struct {
 	Data []*T `json:"data"`
 }
@@ -196,6 +232,10 @@ type workflowCancelResponse struct {
 }
 
 func (a *workflowCancelEndpoint[TTx]) Execute(ctx context.Context, req *workflowCancelRequest) (*workflowCancelResponse, error) {
+	if err := a.requireWorkflowQueries(ctx); err != nil {
+		return nil, err
+	}
+
 	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*workflowCancelResponse, error) {
 		tx := a.Driver.UnwrapTx(execTx)
 
@@ -251,6 +291,10 @@ type workflowGetResponse struct {
 }
 
 func (a *workflowGetEndpoint[TTx]) Execute(ctx context.Context, req *workflowGetRequest) (*workflowGetResponse, error) {
+	if err := a.requireWorkflowQueries(ctx); err != nil {
+		return nil, err
+	}
+
 	workflow, err := a.Client.WorkflowFromExistingID(ctx, req.ID, nil)
 	if err != nil {
 		if errors.Is(err, rivertype.ErrNotFound) {
@@ -382,6 +426,10 @@ type workflowTaskSignal struct {
 }
 
 func (a *workflowTaskSignalsEndpoint[TTx]) Execute(ctx context.Context, req *workflowTaskSignalsRequest) (*workflowTaskSignalsResponse, error) {
+	if err := a.requireWorkflowQueries(ctx); err != nil {
+		return nil, err
+	}
+
 	workflow, err := a.Client.WorkflowFromExistingID(ctx, req.ID, nil)
 	if err != nil {
 		if errors.Is(err, rivertype.ErrNotFound) {
@@ -592,6 +640,10 @@ type workflowWaitTimerDiagnostic struct {
 }
 
 func (a *workflowTaskWaitDiagnosticsEndpoint[TTx]) Execute(ctx context.Context, req *workflowTaskWaitDiagnosticsRequest) (*workflowTaskWaitDiagnosticsResponse, error) {
+	if err := a.requireWorkflowQueries(ctx); err != nil {
+		return nil, err
+	}
+
 	workflow, err := a.Client.WorkflowFromExistingID(ctx, req.ID, nil)
 	if err != nil {
 		if errors.Is(err, rivertype.ErrNotFound) {
@@ -661,6 +713,10 @@ func (req *workflowListRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *workflowListEndpoint[TTx]) Execute(ctx context.Context, req *workflowListRequest) (*listResponse[workflowListItem], error) {
+	if err := a.requireWorkflowQueries(ctx); err != nil {
+		return nil, err
+	}
+
 	switch req.State {
 	case "active":
 		workflows, err := a.DB.WorkflowListActive(ctx, &riverprodriver.WorkflowListParams{
@@ -729,6 +785,10 @@ type workflowRetryResponse struct {
 }
 
 func (a *workflowRetryEndpoint[TTx]) Execute(ctx context.Context, req *workflowRetryRequest) (*workflowRetryResponse, error) {
+	if err := a.requireWorkflowQueries(ctx); err != nil {
+		return nil, err
+	}
+
 	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*workflowRetryResponse, error) {
 		tx := a.Driver.UnwrapTx(execTx)
 

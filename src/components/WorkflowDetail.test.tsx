@@ -45,7 +45,6 @@ const features: Features = {
   hasClientTable: false,
   hasProducerTable: true,
   hasSequenceTable: false,
-  hasWorkflows: true,
   jobListHideArgsByDefault: false,
   producerQueries: true,
   workflowQueries: true,

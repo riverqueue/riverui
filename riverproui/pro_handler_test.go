@@ -189,9 +189,8 @@ func TestProMountedEndpointResponses(t *testing.T) {
 		"has_client_table":      true, // dynamic
 		"has_producer_table":    true, // dynamic
 		"has_sequence_table":    true, // dynamic
-		"has_workflows":         true, // dynamic
 		"producer_queries":      true, // static
-		"workflow_queries":      true, // static
+		"workflow_queries":      true, // dynamic
 	}
 	require.Equal(t, expectedExtensions, resp.Extensions)
 

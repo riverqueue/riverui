@@ -7,7 +7,6 @@ export const createFeatures = (
   hasClientTable: false,
   hasProducerTable: false,
   hasSequenceTable: false,
-  hasWorkflows: false,
   jobListHideArgsByDefault: false,
   producerQueries: false,
   workflowQueries: false,

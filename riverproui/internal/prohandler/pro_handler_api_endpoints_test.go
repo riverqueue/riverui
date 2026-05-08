@@ -51,7 +51,6 @@ func setupEndpoint[TEndpoint any](ctx context.Context, t *testing.T, initFunc fu
 		schema    = riverdbtest.TestSchema(ctx, t, proDriver, &riverdbtest.TestSchemaOpts{DisableReuse: true})
 		exec      = proDriver.GetProExecutor()
 	)
-
 	client, err := riverpro.NewClient(proDriver, &riverpro.Config{
 		Config: river.Config{
 			Logger: logger,
@@ -254,6 +253,20 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "Workflow not found")
 	})
+}
+
+func TestProAPIHandlerWorkflowListRequiresV2Tables(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowListEndpoint)
+	dropWorkflowV2Tables(ctx, t, bundle)
+
+	resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{})
+	require.Nil(t, resp)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "River Pro migrations version 6")
 }
 
 func TestProAPIHandlerWorkflowTaskSignals(t *testing.T) {
@@ -806,6 +819,16 @@ func jobWithSchema(ctx context.Context, t *testing.T, exec riverdriver.Executor,
 	job, err := exec.JobInsertFull(ctx, params)
 	require.NoError(t, err)
 	return job
+}
+
+func dropWorkflowV2Tables(ctx context.Context, t *testing.T, bundle *setupEndpointTestBundle) {
+	t.Helper()
+
+	for _, table := range WorkflowV2TableNames {
+		qualifiedTable := pgx.Identifier{bundle.schema, table}.Sanitize()
+		err := bundle.exec.Exec(ctx, "DROP TABLE IF EXISTS "+qualifiedTable+" CASCADE")
+		require.NoError(t, err)
+	}
 }
 
 func workflowMetadata(workflowID, taskName string, deps []string) []byte {
