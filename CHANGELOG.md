@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.16.0-rc.1] - 2026-05-08
+
+Version 0.16.0 includes support for the all new workflow engine in River Pro v0.24.0, including signals, timers, and greater introspection capabilities.
+
+⚠️ Workflow features in v0.16.0 rely on new workflow-related tables that are part of the riverpro v0.24.0 release. River UI's workflow queries may be disabled or poorly performing until the River Pro migration v006 has been applied in your database.
+
 ### Added
 
 - Workflow detail: add support for new River Pro workflow features, including signals and timers. [PR #567](https://github.com/riverqueue/riverui/pull/567).
