@@ -1,14 +1,15 @@
 import { DurationCompact } from "@components/DurationCompact";
+import { RunningSpinnerIcon } from "@components/icons/jobStateIcons";
 import {
-  ArrowPathRoundedSquareIcon,
   CheckCircleIcon,
   CircleStackIcon,
   ClockIcon,
   ExclamationCircleIcon,
+  PlayCircleIcon,
   QueueListIcon,
   TrashIcon,
   XCircleIcon,
-} from "@heroicons/react/24/outline";
+} from "@heroicons/react/24/solid";
 import { AttemptError, Job } from "@services/jobs";
 import { Heroicon, JobState } from "@services/types";
 import clsx from "clsx";
@@ -26,7 +27,8 @@ const useRelativeFormattedTime = (time: Date, addSuffix: boolean): string => {
   return relative;
 };
 
-type StepStatus = "active" | "complete" | "failed" | "pending";
+type SnoozedJob = { attemptedAt: Date } & Job;
+type StepStatus = "active" | "complete" | "failed" | "pending" | "waiting";
 
 function RelativeTime({
   addSuffix = false,
@@ -55,6 +57,7 @@ const StatusStep = ({
 }) => {
   const statusVerticalLineClasses = statusVerticalLineClassesFor(status);
   const statusIconClasses = statusIconClassesFor(status);
+  const iconColorClasses = statusIconColorClassesFor(status);
 
   return (
     <li
@@ -66,14 +69,11 @@ const StatusStep = ({
     >
       <span
         className={clsx(
-          "absolute -start-5 flex size-8 items-center justify-center rounded-full ring-4 ring-white dark:ring-gray-900",
+          "absolute -start-5 flex size-8 items-center justify-center rounded-full ring-4 ring-white dark:ring-slate-900",
           statusIconClasses,
         )}
       >
-        <Icon
-          aria-hidden="true"
-          className={clsx("size-5 text-slate-900 dark:text-white")}
-        />
+        <Icon aria-hidden="true" className={clsx("size-5", iconColorClasses)} />
       </span>
       <h3 className="ml-6 pt-1.5 leading-tight font-medium">{name}</h3>
       <p className="ml-6 text-sm" title={descriptionTitle}>
@@ -86,13 +86,15 @@ const StatusStep = ({
 const statusVerticalLineClassesFor = (status: StepStatus): string => {
   switch (status) {
     case "active":
-      return "before:border-gray-200 dark:before:border-gray-700";
+      return "before:border-slate-200 dark:before:border-slate-700";
     case "complete":
-      return "before:border-green-400 dark:before:border-green-900";
+      return "before:border-green-400 dark:before:border-green-800";
     case "failed":
-      return "before:border-red-200 dark:before:border-red-900";
+      return "before:border-red-200 dark:before:border-red-800";
     case "pending":
-      return "before:border-gray-200 dark:before:border-gray-700";
+      return "before:border-slate-200 dark:before:border-slate-700";
+    case "waiting":
+      return "before:border-slate-200 dark:before:border-slate-700";
   }
   return "";
 };
@@ -100,25 +102,74 @@ const statusVerticalLineClassesFor = (status: StepStatus): string => {
 const statusIconClassesFor = (status: StepStatus): string => {
   switch (status) {
     case "active":
-      return "bg-yellow-200 dark:bg-yellow-600";
+      return "bg-blue-200 dark:bg-blue-700";
     case "complete":
       return "bg-green-300 dark:bg-green-700";
     case "failed":
       return "bg-red-200 dark:bg-red-700";
     case "pending":
-      return "bg-gray-100 dark:bg-gray-700";
+      return "bg-slate-100 dark:bg-slate-700";
+    case "waiting":
+      return "bg-amber-200 dark:bg-amber-700";
   }
   return "";
 };
 
+const statusIconColorClassesFor = (status: StepStatus): string => {
+  switch (status) {
+    case "active":
+      return "text-blue-700 dark:text-blue-200";
+    case "complete":
+      return "text-green-800 dark:text-green-200";
+    case "failed":
+      return "text-red-700 dark:text-red-200";
+    case "pending":
+      return "text-slate-500 dark:text-slate-300";
+    case "waiting":
+      return "text-amber-700 dark:text-amber-200";
+  }
+  return "";
+};
+
+// River jobs do not expose an explicit snooze flag, so we infer a snoozed job
+// from a scheduled future run that has already been attempted but neither errored
+// nor finalized. Manual retry from the UI transitions jobs to `available`, so it
+// should not hit this path.
+const isSnoozedJob = (job: Job, now: Date): job is SnoozedJob => {
+  return (
+    job.state === JobState.Scheduled &&
+    job.attemptedAt !== undefined &&
+    job.scheduledAt > now &&
+    job.finalizedAt === undefined &&
+    job.errors.length === 0
+  );
+};
+
 const ScheduledStep = ({ job }: { job: Job }) => {
-  if (job.state === JobState.Scheduled && job.scheduledAt > new Date()) {
+  const nowSec = useTime();
+  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
+
+  if (isSnoozedJob(job, now)) {
     return (
       <StatusStep
         descriptionTitle={job.scheduledAt.toUTCString()}
         Icon={ClockIcon}
         name="Scheduled"
-        status="active"
+        status="complete"
+      >
+        {/* The next retry time is shown on `Snoozed`; the original schedule is lost. */}
+        —
+      </StatusStep>
+    );
+  }
+
+  if (job.state === JobState.Scheduled && job.scheduledAt > now) {
+    return (
+      <StatusStep
+        descriptionTitle={job.scheduledAt.toUTCString()}
+        Icon={ClockIcon}
+        name="Scheduled"
+        status="waiting"
       >
         <RelativeTime time={job.scheduledAt} />
       </StatusStep>
@@ -139,10 +190,21 @@ const ScheduledStep = ({ job }: { job: Job }) => {
 
 const WaitStep = ({ job }: { job: Job }) => {
   const nowSec = useTime();
-  const scheduledAtInFuture = useMemo(
-    () => job.scheduledAt >= new Date(nowSec * 1000),
-    [job.scheduledAt, nowSec],
-  );
+  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
+  const scheduledAtInFuture = useMemo(() => job.scheduledAt >= now, [job, now]);
+
+  // A snooze overwrites `scheduledAt` with the next retry time, so the original
+  // wait duration before the prior run is not available anymore.
+  if (isSnoozedJob(job, now)) {
+    return (
+      <StatusStep
+        description="—"
+        Icon={QueueListIcon}
+        name="Wait"
+        status="complete"
+      />
+    );
+  }
 
   if (job.state === JobState.Scheduled && !job.attemptedAt) {
     return (
@@ -181,7 +243,7 @@ const WaitStep = ({ job }: { job: Job }) => {
 
   if (job.state === JobState.Available) {
     return (
-      <StatusStep Icon={QueueListIcon} name="Wait" status="active">
+      <StatusStep Icon={QueueListIcon} name="Wait" status="waiting">
         (<DurationCompact startTime={job.scheduledAt} />)
       </StatusStep>
     );
@@ -196,6 +258,22 @@ const WaitStep = ({ job }: { job: Job }) => {
 };
 
 const RunningStep = ({ job }: { job: Job }) => {
+  const nowSec = useTime();
+  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
+
+  if (isSnoozedJob(job, now)) {
+    return (
+      <StatusStep
+        descriptionTitle={job.attemptedAt.toUTCString()}
+        Icon={PlayCircleIcon}
+        name="Running"
+        status="complete"
+      >
+        <RelativeTime addSuffix={true} time={job.attemptedAt} />
+      </StatusStep>
+    );
+  }
+
   if (
     !job.attemptedAt ||
     job.state === JobState.Available ||
@@ -205,7 +283,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     return (
       <StatusStep
         description="Not yet started"
-        Icon={ArrowPathRoundedSquareIcon}
+        Icon={PlayCircleIcon}
         name="Running"
         status="pending"
       />
@@ -216,7 +294,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     return (
       <StatusStep
         descriptionTitle={job.attemptedAt.toUTCString()}
-        Icon={ArrowPathRoundedSquareIcon}
+        Icon={RunningSpinnerIcon}
         name="Running"
         status="active"
       >
@@ -234,11 +312,7 @@ const RunningStep = ({ job }: { job: Job }) => {
     const cancelledWhileRunning = Boolean(job.attemptedAt);
     const state = cancelledWhileRunning ? "complete" : "pending";
     return (
-      <StatusStep
-        Icon={ArrowPathRoundedSquareIcon}
-        name="Running"
-        status={state}
-      >
+      <StatusStep Icon={PlayCircleIcon} name="Running" status={state}>
         <RelativeTime addSuffix={true} time={job.attemptedAt} /> (
         <DurationCompact
           endTime={job.finalizedAt!}
@@ -260,7 +334,7 @@ const RunningStep = ({ job }: { job: Job }) => {
       descriptionTitle={
         errored ? lastError?.at.toUTCString() : job.attemptedAt.toUTCString()
       }
-      Icon={errored ? ExclamationCircleIcon : CheckCircleIcon}
+      Icon={errored ? ExclamationCircleIcon : PlayCircleIcon}
       name={errored ? "Errored" : "Running"}
       status={errored ? "failed" : "complete"}
     >
@@ -276,6 +350,24 @@ const RunningStep = ({ job }: { job: Job }) => {
   );
 };
 
+const SnoozedStep = ({ job }: { job: Job }) => {
+  const nowSec = useTime();
+  const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
+
+  if (isSnoozedJob(job, now)) {
+    return (
+      <StatusStep
+        descriptionTitle={job.scheduledAt.toUTCString()}
+        Icon={ClockIcon}
+        name="Snoozed"
+        status="waiting"
+      >
+        Retrying <RelativeTime addSuffix time={job.scheduledAt} />
+      </StatusStep>
+    );
+  }
+};
+
 const RetryableStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Retryable) {
     return (
@@ -283,7 +375,7 @@ const RetryableStep = ({ job }: { job: Job }) => {
         descriptionTitle={job.scheduledAt.toUTCString()}
         Icon={ClockIcon}
         name="Awaiting Retry"
-        status="active"
+        status="waiting"
       >
         Job errored, retrying <RelativeTime addSuffix time={job.scheduledAt} />
       </StatusStep>
@@ -347,7 +439,7 @@ type JobTimelineProps = {
 
 export default function JobTimeline({ job }: JobTimelineProps) {
   return (
-    <ol className="relative px-2 text-gray-500 sm:px-0 dark:text-gray-400">
+    <ol className="relative px-2 text-slate-500 sm:px-0 dark:text-slate-400">
       <StatusStep
         descriptionTitle={job.createdAt.toUTCString()}
         Icon={CircleStackIcon}
@@ -359,6 +451,7 @@ export default function JobTimeline({ job }: JobTimelineProps) {
       <ScheduledStep job={job} />
       <WaitStep job={job} />
       <RunningStep job={job} />
+      <SnoozedStep job={job} />
       <RetryableStep job={job} />
       <FinalizedStep job={job} />
     </ol>
