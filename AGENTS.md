@@ -9,6 +9,12 @@
 
 ## Rules
 - No `any`; use `unknown` or specific types.
+- Avoid `as unknown as X` casts; prefer fixing the underlying type
+  (narrow props, export a type, add missing fields). If a cast is
+  truly necessary (e.g. testing malformed data, third-party type
+  workarounds), add a comment explaining why.
+- Prefer precise types over broad ones (`unknown[]`, `Record<string, unknown>`)
+  followed by casts at each access site. Type the data correctly at the source.
 - Tests live beside components (`.test.tsx`).
 - Prefix unused variables with `_`.
 
