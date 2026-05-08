@@ -30,7 +30,10 @@ export const getLayoutedElements = (
   });
 
   nodes.forEach((node) => {
-    dagreGraph.setNode(node.id, { height: nodeHeight, width: nodeWidth });
+    dagreGraph.setNode(node.id, {
+      height: node.height ?? node.measured?.height ?? nodeHeight,
+      width: node.width ?? node.measured?.width ?? nodeWidth,
+    });
   });
 
   edges.forEach((edge) => {
@@ -41,13 +44,15 @@ export const getLayoutedElements = (
 
   const layoutedNodes = nodes.map((node) => {
     const nodeWithPosition = dagreGraph.node(node.id);
+    const renderedHeight = node.height ?? node.measured?.height ?? nodeHeight;
+    const renderedWidth = node.width ?? node.measured?.width ?? nodeWidth;
 
     return {
       ...node,
       // Dagre positions nodes by center; React Flow expects top-left coordinates.
       position: {
-        x: nodeWithPosition.x - nodeWidth / 2,
-        y: nodeWithPosition.y - nodeHeight / 2,
+        x: nodeWithPosition.x - renderedWidth / 2,
+        y: nodeWithPosition.y - renderedHeight / 2,
       },
       sourcePosition: (isHorizontal ? "right" : "bottom") as Position,
       targetPosition: (isHorizontal ? "left" : "top") as Position,

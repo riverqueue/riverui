@@ -1,0 +1,15 @@
+.workflow-diagram-root {
+  --workflow-diagram-edge-failed: var(--color-red-400);
+  --workflow-diagram-edge-muted: var(--color-slate-300);
+  --workflow-diagram-edge-success: var(--color-slate-300);
+}
+
+.dark .workflow-diagram-root {
+  --workflow-diagram-edge-failed: var(--color-red-500);
+  --workflow-diagram-edge-muted: var(--color-slate-600);
+  --workflow-diagram-edge-success: var(--color-slate-500);
+}
+
+.workflow-gate-lever {
+  color: var(--workflow-diagram-edge-muted);
+}
