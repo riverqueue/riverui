@@ -126,10 +126,7 @@ export default function WorkflowDetail({
   if (!features.workflowQueries) {
     return (
       <div>
-        <WorkflowListEmptyState
-          probeForExistingWorkflows={false}
-          showingAll={false}
-        />
+        <WorkflowListEmptyState workflowQueriesEnabled={false} />
       </div>
     );
   }
