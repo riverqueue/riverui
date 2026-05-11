@@ -48,8 +48,7 @@ export const Route = createFileRoute("/workflows/")({
 function WorkflowsIndexComponent() {
   const refreshSettings = useRefreshSetting();
   const refetchInterval = refreshSettings.intervalMs;
-  const { workflowsQueryOptions } = Route.useRouteContext();
-  const loaderDeps = Route.useLoaderDeps();
+  const { features, workflowsQueryOptions } = Route.useRouteContext();
   const workflowsQuery = useQuery({
     ...workflowsQueryOptions,
     refetchInterval,
@@ -58,8 +57,8 @@ function WorkflowsIndexComponent() {
   return (
     <WorkflowList
       loading={workflowsQuery.isLoading}
-      showingAll={!loaderDeps.state}
       workflowItems={workflowsQuery.data || []}
+      workflowQueriesEnabled={features.workflowQueries}
     />
   );
 }

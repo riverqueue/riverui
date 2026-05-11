@@ -12,8 +12,8 @@ type StateTab = { name: string; state: undefined | WorkflowState };
 
 type WorkflowListProps = {
   loading: boolean;
-  showingAll: boolean;
   workflowItems: WorkflowListItem[];
+  workflowQueriesEnabled: boolean;
 };
 const tabs: StateTab[] = [
   { name: "All", state: undefined },
@@ -203,8 +203,8 @@ const WorkflowTable = ({
 
 const WorkflowList = ({
   loading,
-  showingAll,
   workflowItems,
+  workflowQueriesEnabled,
 }: WorkflowListProps) => {
   return (
     <div className="size-full">
@@ -225,7 +225,9 @@ const WorkflowList = ({
           ) : workflowItems.length > 0 ? (
             <WorkflowTable workflowItems={workflowItems} />
           ) : (
-            <WorkflowListEmptyState showingAll={showingAll} />
+            <WorkflowListEmptyState
+              workflowQueriesEnabled={workflowQueriesEnabled}
+            />
           )}
         </div>
       </div>
