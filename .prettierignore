@@ -10,4 +10,5 @@ public/**
 src/routeTree.gen.ts
 
 # Other files to ignore
-package-lock.json 
+package-lock.json
+.npmrc

@@ -20,6 +20,8 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 10
     labels:
       - "dependencies"
@@ -35,6 +37,21 @@ updates:
       - dependency-name: "golang"
         update-types:
           ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: "docker-compose"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "docker"
+    allow:
+      - dependency-type: "direct"
 
   - package-ecosystem: "gomod"
     directories:
@@ -84,3 +101,15 @@ updates:
       tanstack:
         patterns:
           - "@tanstack/*"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+    cooldown:
+      default-days: 7
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "github-actions"

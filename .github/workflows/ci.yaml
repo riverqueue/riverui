@@ -133,7 +133,7 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "22.18.0"
+          - "24.14.1"
       fail-fast: false
     timeout-minutes: 5
 
@@ -155,7 +155,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         shell: sh
 
       - name: Test 🧪
@@ -170,7 +170,7 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "22.18.0"
+          - "24.14.1"
       fail-fast: false
     timeout-minutes: 5
 
@@ -189,7 +189,7 @@ jobs:
           node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         shell: sh
 
       - name: Cache ESLint
@@ -231,10 +231,10 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
-          node-version: "22.18.0"
+          node-version: "24.14.1"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         shell: sh
 
       - name: Build UI bundle
