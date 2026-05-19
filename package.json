@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=24.14.1",
+    "npm": ">=11.10.0"
+  },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
     "@headlessui/react": "^2.2.10",

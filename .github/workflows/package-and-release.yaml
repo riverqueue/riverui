@@ -59,10 +59,10 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
-          node-version: "22.18.0"
+          node-version: "24.14.1"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         shell: sh
 
       - name: Build JS 🏗️
