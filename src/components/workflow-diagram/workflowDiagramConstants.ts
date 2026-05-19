@@ -1,8 +1,17 @@
 /** Rendered width of each workflow node card (px). */
 export const nodeWidth = 256;
 
-/** Rendered height of each workflow node card (px). */
-export const nodeHeight = 44;
+/** Rendered height of the main workflow node content row (px). */
+export const nodeBaseHeight = 44;
+
+/** Rendered height of the optional gate status row (px). */
+export const nodeGateRowHeight = 24;
+
+/** Default rendered height of a workflow node card without gate UI (px). */
+export const nodeHeight = nodeBaseHeight;
+
+/** Rendered height of a workflow node card with a gate status row (px). */
+export const nodeHeightWithGate = nodeBaseHeight + nodeGateRowHeight;
 
 /**
  * Extra padding around each node card where edge turns are forbidden (px).
@@ -19,6 +28,9 @@ export const minTargetApproach = 20;
 
 /** Horizontal distance between successive candidate bend lanes (px). */
 export const bendNudgeStep = 8;
+
+/** Horizontal distance between the two gate switch circle centers (px). */
+export const switchHandleCenterGap = 36;
 
 /**
  * Maximum nudge steps to probe in each direction from the baseline bend lane.
@@ -37,3 +49,9 @@ export const sameRowTolerance = 1;
  * lane is placed (px).
  */
 export const targetMergePadding = 20;
+
+/**
+ * Extra horizontal extent of the circuit-switch gate handle beyond the node's
+ * left edge (px). Used to push merge lanes further left for gated targets.
+ */
+export const switchHandleExtent = 32;

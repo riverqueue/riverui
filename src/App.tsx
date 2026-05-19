@@ -31,7 +31,6 @@ const router = createRouter({
     features: {
       hasClientTable: false,
       hasProducerTable: false,
-      hasWorkflows: false,
       producerQueries: false,
       workflowQueries: false,
     } as Features,

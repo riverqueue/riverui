@@ -16,6 +16,7 @@ import (
 	"riverqueue.com/riverpro/driver/riverpropgxv5"
 
 	"riverqueue.com/riverui/internal/uicommontest"
+	"riverqueue.com/riverui/riverproui/internal/prohandler"
 )
 
 func TestProEndpointsExtensions(t *testing.T) {
@@ -184,26 +185,64 @@ func TestProEndpointsExtensions(t *testing.T) {
 		})
 	})
 
-	t.Run("WorkflowsDetection", func(t *testing.T) {
+	t.Run("WorkflowQueryDetection", func(t *testing.T) {
 		t.Parallel()
 
-		t.Run("NoWorkflowIndexes", func(t *testing.T) {
+		t.Run("WorkflowV2TablesPresent", func(t *testing.T) {
 			t.Parallel()
 
 			bundle := setup(ctx, t)
 
-			_, err := bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_list_active;`)
+			ext, err := bundle.endpoint.Extensions(ctx)
 			require.NoError(t, err)
-			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_scheduling;`)
+			require.True(t, ext["workflow_queries"])
+		})
+
+		t.Run("LegacyIndexesWithoutV2Tables", func(t *testing.T) {
+			t.Parallel()
+
+			bundle := setup(ctx, t)
+
+			for _, table := range prohandler.WorkflowV2TableNames {
+				_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS `+table+` CASCADE;`)
+				require.NoError(t, err)
+			}
+			_, err := bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_active_idx;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `CREATE INDEX river_job_workflow_active_idx ON river_job (workflow_id) WHERE workflow_id IS NOT NULL;`)
 			require.NoError(t, err)
 
 			ext, err := bundle.endpoint.Extensions(ctx)
 			require.NoError(t, err)
-			require.False(t, ext["has_workflows"])
+			require.False(t, ext["workflow_queries"])
+		})
+
+		t.Run("NoWorkflowV2Tables", func(t *testing.T) {
+			t.Parallel()
+
+			bundle := setup(ctx, t)
+
+			var err error
+			for _, table := range prohandler.WorkflowV2TableNames {
+				_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS `+table+` CASCADE;`)
+				require.NoError(t, err)
+			}
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_list_active;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_scheduling;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_active_idx;`)
+			require.NoError(t, err)
+			_, err = bundle.tx.Exec(ctx, `DROP INDEX IF EXISTS river_job_workflow_inactive_idx;`)
+			require.NoError(t, err)
+
+			ext, err := bundle.endpoint.Extensions(ctx)
+			require.NoError(t, err)
+			require.False(t, ext["workflow_queries"])
 		})
 	})
 
-	t.Run("StaticAttributesAlwaysTrue", func(t *testing.T) {
+	t.Run("QueryAttributes", func(t *testing.T) {
 		t.Parallel()
 
 		bundle := setup(ctx, t)

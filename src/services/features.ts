@@ -23,7 +23,6 @@ const KNOWN_EXTENSIONS = [
   "has_client_table",
   "has_producer_table",
   "has_sequence_table",
-  "has_workflows",
 ] as const;
 type KnownExtensionKey = (typeof KNOWN_EXTENSIONS)[number];
 
