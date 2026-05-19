@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [v0.16.0-rc.1] - 2026-05-08
+## [v0.16.0] - 2026-05-19
 
 Version 0.16.0 includes support for the all new workflow engine in River Pro v0.24.0, including signals, timers, and greater introspection capabilities.
 
