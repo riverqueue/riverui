@@ -443,7 +443,7 @@ func (a *workflowTaskSignalsEndpoint[TTx]) Execute(ctx context.Context, req *wor
 		return nil, err
 	}
 
-	result, err := workflow.SignalListForTask(ctx, req.TaskName, params)
+	result, err := workflow.Signals().ListForTask(ctx, req.TaskName, params)
 	if err != nil {
 		var signalKeyUndeclaredErr *riverworkflow.SignalKeyUndeclaredError
 		if errors.As(err, &signalKeyUndeclaredErr) {
@@ -652,7 +652,7 @@ func (a *workflowTaskWaitDiagnosticsEndpoint[TTx]) Execute(ctx context.Context, 
 		return nil, fmt.Errorf("error loading workflow: %w", err)
 	}
 
-	result, err := workflow.TaskWaitDiagnostics(ctx, req.TaskName, nil)
+	result, err := workflow.WaitDiagnostics(ctx, req.TaskName, nil)
 	if err != nil {
 		var signalUnknownTaskErr *riverworkflow.SignalUnknownTaskError
 		if errors.As(err, &signalUnknownTaskErr) {

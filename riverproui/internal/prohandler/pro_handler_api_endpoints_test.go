@@ -892,11 +892,11 @@ func persistedWaitSpec(wait *riverworkflow.WaitSpec) map[string]any {
 }
 
 type workflowTaskSignalsFixture struct {
-	escalationSignal   *riverpro.WorkflowSignalResult
-	firstSignal        *riverpro.WorkflowSignalResult
-	secondSignal       *riverpro.WorkflowSignalResult
+	escalationSignal   *riverpro.WorkflowSignalEmitResult
+	firstSignal        *riverpro.WorkflowSignalEmitResult
+	secondSignal       *riverpro.WorkflowSignalEmitResult
 	taskName           string
-	thirdSignal        *riverpro.WorkflowSignalResult
+	thirdSignal        *riverpro.WorkflowSignalEmitResult
 	timerOnlyTaskName  string
 	unresolvedTaskName string
 	workflowID         string
@@ -966,17 +966,17 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	`, workflowID, taskName).Scan(&waitingJobID)
 	require.NoError(t, err)
 
-	firstSignal, err := workflow.Signal(ctx, "approval", map[string]any{"approved_by": "lead"}, &riverpro.WorkflowSignalOpts{
+	firstSignal, err := workflow.Signals().Emit(ctx, "approval", map[string]any{"approved_by": "lead"}, &riverpro.WorkflowSignalEmitOpts{
 		Source: map[string]any{"actor": "lead", "kind": "ui"},
 	})
 	require.NoError(t, err)
 
-	secondSignal, err := workflow.Signal(ctx, "approval", map[string]any{"approved_by": "manager"}, &riverpro.WorkflowSignalOpts{
+	secondSignal, err := workflow.Signals().Emit(ctx, "approval", map[string]any{"approved_by": "manager"}, &riverpro.WorkflowSignalEmitOpts{
 		Source: map[string]any{"actor": "manager", "kind": "ui"},
 	})
 	require.NoError(t, err)
 
-	escalationSignal, err := workflow.Signal(ctx, "escalation", map[string]any{"escalated_to": "team_lead"}, &riverpro.WorkflowSignalOpts{
+	escalationSignal, err := workflow.Signals().Emit(ctx, "escalation", map[string]any{"escalated_to": "team_lead"}, &riverpro.WorkflowSignalEmitOpts{
 		Source: map[string]any{"actor": "scheduler", "kind": "automation"},
 	})
 	require.NoError(t, err)
@@ -1028,7 +1028,7 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	`, metadataFieldRaw(t, metadata, "river:workflow_wait_state"), waitingJobID)
 	require.NoError(t, err)
 
-	thirdSignal, err := workflow.Signal(ctx, "approval", map[string]any{"approved_by": "director"}, &riverpro.WorkflowSignalOpts{
+	thirdSignal, err := workflow.Signals().Emit(ctx, "approval", map[string]any{"approved_by": "director"}, &riverpro.WorkflowSignalEmitOpts{
 		Source: map[string]any{"actor": "director", "kind": "ui"},
 	})
 	require.NoError(t, err)
@@ -1045,7 +1045,7 @@ func setupWorkflowTaskSignalsFixture(ctx context.Context, t *testing.T, bundle *
 	}
 }
 
-func signalApprovalOnAttempt(ctx context.Context, t *testing.T, bundle *setupEndpointTestBundle, workflowID string, attempt int) *riverpro.WorkflowSignalResult {
+func signalApprovalOnAttempt(ctx context.Context, t *testing.T, bundle *setupEndpointTestBundle, workflowID string, attempt int) *riverpro.WorkflowSignalEmitResult {
 	t.Helper()
 
 	workflowTable := pgx.Identifier{bundle.schema, "river_workflow"}.Sanitize()
@@ -1055,7 +1055,7 @@ func signalApprovalOnAttempt(ctx context.Context, t *testing.T, bundle *setupEnd
 	workflow, err := bundle.client.WorkflowFromExistingID(ctx, workflowID, nil)
 	require.NoError(t, err)
 
-	signal, err := workflow.Signal(ctx, "approval", map[string]any{"approved_by": "retry"}, &riverpro.WorkflowSignalOpts{
+	signal, err := workflow.Signals().Emit(ctx, "approval", map[string]any{"approved_by": "retry"}, &riverpro.WorkflowSignalEmitOpts{
 		Attempt: &attempt,
 		Source:  map[string]any{"actor": "retry", "kind": "ui"},
 	})

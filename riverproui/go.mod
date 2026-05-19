@@ -8,14 +8,14 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.9.2
 	github.com/riverqueue/apiframe v0.0.0-20260428012848-22cd8d31a740
-	github.com/riverqueue/river v0.35.1
-	github.com/riverqueue/river/riverdriver v0.35.1
-	github.com/riverqueue/river/rivershared v0.35.1
-	github.com/riverqueue/river/rivertype v0.35.1
+	github.com/riverqueue/river v0.37.1
+	github.com/riverqueue/river/riverdriver v0.37.1
+	github.com/riverqueue/river/rivershared v0.37.1
+	github.com/riverqueue/river/rivertype v0.37.1
 	github.com/stretchr/testify v1.11.1
-	riverqueue.com/riverpro v0.24.0-rc.1
-	riverqueue.com/riverpro/driver v0.24.0-rc.1
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.24.0-rc.1
+	riverqueue.com/riverpro v0.24.0
+	riverqueue.com/riverpro/driver v0.24.0
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.24.0
 	riverqueue.com/riverui v0.16.0-rc.1
 )
 
@@ -34,7 +34,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.35.1 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.37.1 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/slog-http v1.12.1 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
@@ -59,5 +59,11 @@ retract (
 	v0.12.1 // Improper release process, not fully usable
 	v0.12.0 // Improper release process, not fully usable
 )
+
+// replace riverqueue.com/riverpro => ../../riverpro
+
+// replace riverqueue.com/riverpro/driver => ../../riverpro/driver
+
+// replace riverqueue.com/riverpro/driver/riverpropgxv5 => ../../riverpro/driver/riverpropgxv5
 
 // replace riverqueue.com/riverui => ../
