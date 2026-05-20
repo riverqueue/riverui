@@ -182,6 +182,7 @@ export type JobRowsProps = {
   deleteJobs: (jobIDs: bigint[]) => void;
   hideArgs: boolean;
   initialFilters?: Filter[];
+  jobDeletionEnabled: boolean;
   jobs: JobMinimal[];
   onFiltersChange?: (filters: Filter[]) => void;
   retryJobs: (jobIDs: bigint[]) => void;
@@ -212,6 +213,7 @@ function JobListActionButtons({
   cancel,
   className,
   deleteFn,
+  jobDeletionEnabled,
   jobIDs,
   retry,
   state,
@@ -219,6 +221,7 @@ function JobListActionButtons({
   cancel: (jobIDs: bigint[]) => void;
   className?: string;
   deleteFn: (jobIDs: bigint[]) => void;
+  jobDeletionEnabled: boolean;
   jobIDs: bigint[];
   retry: (jobIDs: bigint[]) => void;
   state: JobState;
@@ -279,29 +282,33 @@ function JobListActionButtons({
           onClick={cancelJob}
           text="Cancel"
         />
-        <ButtonForGroup
-          disabled={deleteDisabled}
-          Icon={TrashIcon}
-          onClick={deleteJob}
-          text="Delete"
-        />
+        {jobDeletionEnabled && (
+          <ButtonForGroup
+            disabled={deleteDisabled}
+            Icon={TrashIcon}
+            onClick={deleteJob}
+            text="Delete"
+          />
+        )}
       </span>
-      <ConfirmationDialog
-        confirmText={selectedJobCount === 1 ? "Delete job" : "Delete jobs"}
-        description={
-          selectedJobCount === 1
-            ? "This permanently deletes the selected job. This action cannot be undone."
-            : `This permanently deletes ${selectedJobCount.toString()} selected jobs. This action cannot be undone.`
-        }
-        onClose={() => setDeleteConfirmationOpen(false)}
-        onConfirm={confirmDelete}
-        open={deleteConfirmationOpen}
-        title={
-          selectedJobCount === 1
-            ? "Delete selected job?"
-            : "Delete selected jobs?"
-        }
-      />
+      {jobDeletionEnabled && (
+        <ConfirmationDialog
+          confirmText={selectedJobCount === 1 ? "Delete job" : "Delete jobs"}
+          description={
+            selectedJobCount === 1
+              ? "This permanently deletes the selected job. This action cannot be undone."
+              : `This permanently deletes ${selectedJobCount.toString()} selected jobs. This action cannot be undone.`
+          }
+          onClose={() => setDeleteConfirmationOpen(false)}
+          onConfirm={confirmDelete}
+          open={deleteConfirmationOpen}
+          title={
+            selectedJobCount === 1
+              ? "Delete selected job?"
+              : "Delete selected jobs?"
+          }
+        />
+      )}
     </>
   );
 }
@@ -313,6 +320,7 @@ const JobRows = ({
   deleteJobs,
   hideArgs,
   initialFilters,
+  jobDeletionEnabled,
   jobs,
   onFiltersChange,
   retryJobs,
@@ -382,6 +390,7 @@ const JobRows = ({
             <JobListActionButtons
               cancel={cancelJobs}
               deleteFn={deleteJobs}
+              jobDeletionEnabled={jobDeletionEnabled}
               jobIDs={selectedJobs}
               retry={retryJobs}
               state={state}
@@ -554,6 +563,7 @@ const JobList = (props: JobListProps) => {
           deleteJobs={deleteJobs}
           hideArgs={hideArgs}
           initialFilters={initialFilters}
+          jobDeletionEnabled={features.featureJobDeletionEnabled}
           jobs={jobs}
           onFiltersChange={onFiltersChange}
           retryJobs={retryJobs}

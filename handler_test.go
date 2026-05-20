@@ -52,11 +52,12 @@ func TestNewHandlerIntegration(t *testing.T) {
 
 		logger := riversharedtest.Logger(t)
 		server, err := NewHandler(&HandlerOpts{
-			DevMode:     true,
-			Endpoints:   bundle,
-			LiveFS:      true,
-			Logger:      logger,
-			projectRoot: "./",
+			DevMode:            true,
+			Endpoints:          bundle,
+			JobDeletionEnabled: true,
+			LiveFS:             true,
+			Logger:             logger,
+			projectRoot:        "./",
 		})
 		require.NoError(t, err)
 		return server

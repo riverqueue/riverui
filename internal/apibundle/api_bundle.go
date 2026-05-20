@@ -16,6 +16,7 @@ type APIBundle[TTx any] struct {
 	DB                       riverdriver.Executor
 	Driver                   riverdriver.Driver[TTx]
 	Extensions               func(ctx context.Context) (map[string]bool, error)
+	JobDeletionEnabled       bool
 	JobListHideArgsByDefault bool
 	Logger                   *slog.Logger
 }

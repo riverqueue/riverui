@@ -175,8 +175,9 @@ func (*featuresGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 type featuresGetRequest struct{}
 
 type featuresGetResponse struct {
-	Extensions               map[string]bool `json:"extensions"`
-	JobListHideArgsByDefault bool            `json:"job_list_hide_args_by_default"`
+	FeatureJobDeletionEnabled bool            `json:"feature_job_deletion_enabled"`
+	Extensions                map[string]bool `json:"extensions"`
+	JobListHideArgsByDefault  bool            `json:"job_list_hide_args_by_default"`
 }
 
 func (a *featuresGetEndpoint[TTx]) Execute(ctx context.Context, _ *featuresGetRequest) (*featuresGetResponse, error) {
@@ -186,8 +187,9 @@ func (a *featuresGetEndpoint[TTx]) Execute(ctx context.Context, _ *featuresGetRe
 	}
 
 	return &featuresGetResponse{
-		Extensions:               extensions,
-		JobListHideArgsByDefault: a.JobListHideArgsByDefault,
+		FeatureJobDeletionEnabled: a.JobDeletionEnabled,
+		Extensions:                extensions,
+		JobListHideArgsByDefault:  a.JobListHideArgsByDefault,
 	}, nil
 }
 

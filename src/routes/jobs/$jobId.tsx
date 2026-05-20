@@ -55,7 +55,7 @@ export const Route = createFileRoute("/jobs/$jobId")({
 function JobComponent() {
   const { jobId } = Route.useParams();
   const navigate = Route.useNavigate();
-  const { queryOptions } = Route.useRouteContext();
+  const { features, queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
   const queryOptionsWithRefresh = useMemo(
     () => ({ ...queryOptions, refetchInterval: refreshSettings.intervalMs }),
@@ -122,6 +122,7 @@ function JobComponent() {
     <JobDetail
       cancel={cancelMutation.mutate}
       deleteFn={deleteMutation.mutate}
+      jobDeletionEnabled={features.featureJobDeletionEnabled}
       job={job}
       retry={retryMutation.mutate}
     />
