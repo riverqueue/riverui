@@ -163,7 +163,7 @@ func initServer[TClient any](ctx context.Context, opts *initServerOpts, createCl
 		corsOrigins              = strings.Split(os.Getenv("CORS_ORIGINS"), ",")
 		databaseURL              = os.Getenv("DATABASE_URL")
 		devMode                  = envBooleanTrue(os.Getenv("DEV"))
-		jobDeletionEnabled       = envBooleanTrue(os.Getenv("FEATURE_JOB_DELETION_ENABLED"))
+		jobDeletionEnabled       = !envBooleanTrue(os.Getenv("FEATURE_JOB_DELETION_DISABLED"))
 		jobListHideArgsByDefault = envBooleanTrue(os.Getenv("RIVER_JOB_LIST_HIDE_ARGS_BY_DEFAULT"))
 		host                     = os.Getenv("RIVER_HOST") // may be left empty to bind to all local interfaces
 		liveFS                   = envBooleanTrue(os.Getenv("LIVE_FS"))
