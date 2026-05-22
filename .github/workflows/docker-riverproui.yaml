@@ -432,7 +432,7 @@ jobs:
           done
 
       - name: Login to live registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: riverqueue.com
           username: river
