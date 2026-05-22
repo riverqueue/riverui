@@ -292,7 +292,7 @@ jobs:
           fi
 
       - name: Install crane
-        uses: imjasonh/setup-crane@v0.4
+        uses: imjasonh/setup-crane@v0.5
 
       - name: Compute manifest digest for attestation
         id: manifest_digest
@@ -439,7 +439,7 @@ jobs:
           password: ${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}
 
       - name: Install crane
-        uses: imjasonh/setup-crane@v0.4
+        uses: imjasonh/setup-crane@v0.5
 
       - name: Set up ORAS CLI
         uses: oras-project/setup-oras@v1
