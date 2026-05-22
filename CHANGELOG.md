@@ -19,6 +19,7 @@ Version 0.16.0 includes support for the all new workflow engine in River Pro v0.
 
 ### Fixed
 
+- Fix autocomplete (job kind and queue name) failing with a `relation "river_job" does not exist` error when River tables are in a non-default schema. [PR #517](https://github.com/riverqueue/riverui/pull/517).
 - Workflow detail: add on-canvas zoom controls for click/touch navigation and improve controls styling for dark mode. [PR #524](https://github.com/riverqueue/riverui/pull/524).
 - Workflow detail: improve default workflow diagram framing for legibility while still allowing manual zoom-out to view the full graph. [PR #524](https://github.com/riverqueue/riverui/pull/524).
 - Workflow detail: truncate long workflow names in the header to prevent overflow and add a copy button for the full name. [PR #524](https://github.com/riverqueue/riverui/pull/524).
