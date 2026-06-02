@@ -9,6 +9,7 @@ import (
 )
 
 type BundleOpts struct {
+	JobDeletionEnabled       bool
 	JobListHideArgsByDefault bool
 }
 

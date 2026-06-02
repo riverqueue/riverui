@@ -21,6 +21,7 @@ import { FormEvent, useState } from "react";
 type JobDetailProps = {
   cancel: () => void;
   deleteFn: () => void;
+  jobDeletionEnabled: boolean;
   job: Job;
   retry: () => void;
 };
@@ -28,6 +29,7 @@ type JobDetailProps = {
 export default function JobDetail({
   cancel,
   deleteFn,
+  jobDeletionEnabled,
   job,
   retry,
 }: JobDetailProps) {
@@ -59,6 +61,7 @@ export default function JobDetail({
               <ActionButtons
                 cancel={cancel}
                 deleteFn={deleteFn}
+                jobDeletionEnabled={jobDeletionEnabled}
                 job={job}
                 retry={retry}
               />
@@ -185,7 +188,13 @@ export default function JobDetail({
   );
 }
 
-function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
+function ActionButtons({
+  cancel,
+  deleteFn,
+  jobDeletionEnabled,
+  job,
+  retry,
+}: JobDetailProps) {
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
 
   // Can only delete jobs that aren't running:
@@ -237,27 +246,31 @@ function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
           onClick={cancelJob}
           text="Cancel"
         />
-        <ButtonForGroup
-          disabled={deleteDisabled}
-          Icon={TrashIcon}
-          onClick={deleteJob}
-          text="Delete"
-        />
+        {jobDeletionEnabled && (
+          <ButtonForGroup
+            disabled={deleteDisabled}
+            Icon={TrashIcon}
+            onClick={deleteJob}
+            text="Delete"
+          />
+        )}
       </span>
-      <ConfirmationDialog
-        confirmText="Delete job"
-        description={
-          <>
-            This permanently deletes job{" "}
-            <span className="font-mono">{job.id.toString()}</span>. This action
-            cannot be undone.
-          </>
-        }
-        onClose={() => setDeleteConfirmationOpen(false)}
-        onConfirm={confirmDelete}
-        open={deleteConfirmationOpen}
-        title="Delete job?"
-      />
+      {jobDeletionEnabled && (
+        <ConfirmationDialog
+          confirmText="Delete job"
+          description={
+            <>
+              This permanently deletes job{" "}
+              <span className="font-mono">{job.id.toString()}</span>. This
+              action cannot be undone.
+            </>
+          }
+          onClose={() => setDeleteConfirmationOpen(false)}
+          onConfirm={confirmDelete}
+          open={deleteConfirmationOpen}
+          title="Delete job?"
+        />
+      )}
     </>
   );
 }

@@ -12,11 +12,13 @@ describe("apiFeaturesToFeatures", () => {
         producer_queries: true,
         workflow_queries: true,
       },
+      feature_job_deletion_enabled: true,
       job_list_hide_args_by_default: true,
     } as const;
 
     const expected = {
       durablePeriodicJobs: true,
+      featureJobDeletionEnabled: true,
       hasClientTable: true,
       hasProducerTable: true,
       hasSequenceTable: false,
@@ -37,11 +39,13 @@ describe("apiFeaturesToFeatures", () => {
         producer_queries: false,
         workflow_queries: false,
       },
+      feature_job_deletion_enabled: false,
       job_list_hide_args_by_default: false,
     } as const;
 
     const expected = {
       durablePeriodicJobs: false,
+      featureJobDeletionEnabled: false,
       hasClientTable: false,
       hasProducerTable: false,
       hasSequenceTable: false,
