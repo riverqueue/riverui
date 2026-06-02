@@ -1,5 +1,6 @@
 import WorkflowDetail from "@components/WorkflowDetail";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
 import { toastSuccess } from "@services/toast";
 import {
   cancelJobs,
@@ -37,7 +38,6 @@ export const Route = createFileRoute("/workflows/$workflowId")({
         enabled: features.workflowQueries,
         queryKey: getWorkflowKey(workflowId),
         queryFn: getWorkflow,
-        refetchInterval: 1000,
         signal: abortController.signal,
       },
     };
@@ -66,7 +66,10 @@ function WorkflowComponent() {
   const refreshSettings = useRefreshSetting();
   const queryClient = useQueryClient();
   const queryOptionsWithRefresh = useMemo(
-    () => ({ ...queryOptions, refetchInterval: refreshSettings.intervalMs }),
+    () => ({
+      ...queryOptions,
+      ...refreshQueryOptions(refreshSettings.intervalMs),
+    }),
     [queryOptions, refreshSettings.intervalMs],
   );
 

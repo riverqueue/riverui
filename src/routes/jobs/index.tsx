@@ -1,6 +1,10 @@
 import { Filter, FilterTypeId } from "@components/job-search/JobSearch";
 import JobList from "@components/JobList";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import {
+  type RefreshQueryOptions,
+  refreshQueryOptions,
+} from "@contexts/RefreshSettings.query";
 import { defaultValues, jobSearchSchema } from "@routes/jobs/index.schema";
 import {
   cancelJobs,
@@ -82,7 +86,7 @@ function JobsIndexComponent() {
   const navigate = Route.useNavigate();
   const { id, limit, state, kind, queue, priority } = Route.useLoaderDeps();
   const refreshSettings = useRefreshSetting();
-  const refetchInterval = refreshSettings.intervalMs;
+  const refreshOptions = refreshQueryOptions(refreshSettings.intervalMs);
   const [pauseRefetches, setJobRefetchesPaused] = useState(false);
   const queryClient = useQueryClient();
 
@@ -98,11 +102,11 @@ function JobsIndexComponent() {
       },
       {
         pauseRefetches,
-        refetchInterval,
+        refreshOptions,
       },
     ),
   );
-  const statesQuery = useQuery(statesQueryOptions({ refetchInterval }));
+  const statesQuery = useQuery(statesQueryOptions(refreshOptions));
 
   const canShowFewer = limit > minimumLimit;
   const canShowMore = limit < maximumLimit;
@@ -339,7 +343,7 @@ const jobsQueryOptions = (
     queue?: string[];
     state: JobState;
   },
-  opts?: { pauseRefetches: boolean; refetchInterval: number },
+  opts?: { pauseRefetches: boolean; refreshOptions: RefreshQueryOptions },
 ) => {
   const keepPreviousDataUnlessStateChanged: PlaceholderDataFunction<
     JobMinimal[],
@@ -363,13 +367,17 @@ const jobsQueryOptions = (
     }),
     queryFn: listJobs,
     placeholderData: keepPreviousDataUnlessStateChanged,
-    refetchInterval: !opts?.pauseRefetches && opts?.refetchInterval,
+    ...(opts
+      ? opts.pauseRefetches
+        ? refreshQueryOptions(0)
+        : opts.refreshOptions
+      : {}),
   });
 };
 
-const statesQueryOptions = (opts?: { refetchInterval: number }) =>
+const statesQueryOptions = (opts?: RefreshQueryOptions) =>
   queryOptions({
     queryKey: countsByStateKey(),
     queryFn: countsByState,
-    refetchInterval: opts?.refetchInterval,
+    ...opts,
   });
