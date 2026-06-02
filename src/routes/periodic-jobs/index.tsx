@@ -1,6 +1,7 @@
 import PeriodicJobList from "@components/PeriodicJobList";
 import PeriodicJobListEmptyState from "@components/PeriodicJobListEmptyState";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
 import { listPeriodicJobs, listPeriodicJobsKey } from "@services/periodicJobs";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -25,9 +26,9 @@ export const Route = createFileRoute("/periodic-jobs/")({
 function PeriodicJobsIndexComponent() {
   const { jobsQueryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
-  const refetchInterval = refreshSettings.intervalMs;
+  const refreshOptions = refreshQueryOptions(refreshSettings.intervalMs);
 
-  const query = useQuery({ ...jobsQueryOptions, refetchInterval });
+  const query = useQuery({ ...jobsQueryOptions, ...refreshOptions });
 
   if (!jobsQueryOptions.enabled) {
     return <PeriodicJobListEmptyState hasAny={false} />;

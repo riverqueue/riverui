@@ -1,5 +1,6 @@
 import QueueDetail from "@components/QueueDetail";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
 import { listProducers, listProducersKey } from "@services/producers";
 import {
   type ConcurrencyConfig,
@@ -64,16 +65,17 @@ function QueueComponent() {
   const { name } = Route.useParams();
   const { queueQueryOptions, producersQueryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
+  const refreshOptions = refreshQueryOptions(refreshSettings.intervalMs);
   const { features } = Route.useRouteContext();
   const queryClient = useQueryClient();
 
   const queueQuery = useQuery({
     ...queueQueryOptions,
-    refetchInterval: refreshSettings.intervalMs,
+    ...refreshOptions,
   });
   const producersQuery = useQuery({
     ...producersQueryOptions,
-    refetchInterval: refreshSettings.intervalMs,
+    ...refreshOptions,
   });
 
   const loading =

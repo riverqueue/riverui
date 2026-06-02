@@ -1,6 +1,7 @@
 import JobDetail from "@components/JobDetail";
 import JobNotFound from "@components/JobNotFound";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
 import {
   cancelJobs,
   deleteJobs,
@@ -30,7 +31,6 @@ export const Route = createFileRoute("/jobs/$jobId")({
       queryOptions: {
         queryKey: getJobKey(jobId),
         queryFn: getJob,
-        refetchInterval: 2000,
         signal: abortController.signal,
       },
     };
@@ -58,7 +58,10 @@ function JobComponent() {
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
   const queryOptionsWithRefresh = useMemo(
-    () => ({ ...queryOptions, refetchInterval: refreshSettings.intervalMs }),
+    () => ({
+      ...queryOptions,
+      ...refreshQueryOptions(refreshSettings.intervalMs),
+    }),
     [queryOptions, refreshSettings.intervalMs],
   );
 

@@ -1,5 +1,6 @@
 import QueueList from "@components/QueueList";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
+import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
 import {
   listQueues,
   listQueuesKey,
@@ -16,7 +17,6 @@ export const Route = createFileRoute("/queues/")({
       queryOptions: {
         queryKey: listQueuesKey(),
         queryFn: listQueues,
-        refetchInterval: 2000,
         signal: abortController.signal,
       },
     };
@@ -32,7 +32,10 @@ function QueuesIndexComponent() {
   const { queryOptions } = Route.useRouteContext();
   const refreshSettings = useRefreshSetting();
   const queryOptionsWithRefresh = useMemo(
-    () => ({ ...queryOptions, refetchInterval: refreshSettings.intervalMs }),
+    () => ({
+      ...queryOptions,
+      ...refreshQueryOptions(refreshSettings.intervalMs),
+    }),
     [queryOptions, refreshSettings.intervalMs],
   );
 
