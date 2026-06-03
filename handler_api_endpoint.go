@@ -147,7 +147,7 @@ func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autoco
 			return listResponseFrom(queuePtrs), nil
 
 		default:
-			return nil, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, queue_name", req.Facet)
+			return nil, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, job_tag, queue_name", req.Facet)
 		}
 	})
 }
@@ -418,6 +418,7 @@ type jobListRequest struct {
 	Priorities []int16             `json:"-" validate:"omitempty,min=0,max=10"`                                                                      // from ExtractRaw
 	Queues     []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
 	State      *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
+	Tags       []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
 }
 
 func (req *jobListRequest) ExtractRaw(r *http.Request) error {
@@ -462,6 +463,10 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 		req.Queues = queues
 	}
 
+	if tags := r.URL.Query()["tags"]; len(tags) > 0 {
+		req.Tags = tags
+	}
+
 	return nil
 }
 
@@ -485,6 +490,10 @@ func (a *jobListEndpoint[TTx]) Execute(ctx context.Context, req *jobListRequest)
 
 		if len(req.Queues) > 0 {
 			params = params.Queues(req.Queues...)
+		}
+
+		if len(req.Tags) > 0 {
+			params = params.Where("ARRAY(SELECT lower(t) FROM unnest(tags) t) && ARRAY(SELECT lower(v) FROM unnest(@tags::varchar[]) v)", river.NamedArgs{"tags": req.Tags})
 		}
 
 		if req.State == nil {
