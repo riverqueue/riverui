@@ -29,6 +29,7 @@ import {
   JobStateFilterItem,
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
+import { compactJSONText } from "@utils/jsonText";
 import { classNames } from "@utils/style";
 import React, {
   FormEvent,
@@ -82,6 +83,14 @@ type JobListItemProps = {
   ) => void;
 };
 
+const JobArgsPreview = ({ argsRaw }: { argsRaw: string }) => {
+  const argsPreview = useMemo(() => compactJSONText(argsRaw), [argsRaw]);
+
+  return (
+    <p className="grow truncate font-mono whitespace-nowrap">{argsPreview}</p>
+  );
+};
+
 const JobListItem = ({
   checked,
   hideArgs,
@@ -132,11 +141,7 @@ const JobListItem = ({
           <svg className="size-0.5 flex-none fill-gray-400" viewBox="0 0 2 2">
             <circle cx={1} cy={1} r={1} />
           </svg>
-          {showArgs && (
-            <p className="grow truncate font-mono whitespace-nowrap">
-              {JSON.stringify(job.args)}
-            </p>
-          )}
+          {showArgs && <JobArgsPreview argsRaw={job.argsRaw} />}
           <Badge className="flex-none font-mono text-xs" color="zinc">
             {job.queue}
           </Badge>

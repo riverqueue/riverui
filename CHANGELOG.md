@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Job args: preserve large numeric JSON values exactly when displaying and copying args, while keeping object keys sorted. [Fixes #593](https://github.com/riverqueue/riverui/issues/593). [PR #594](https://github.com/riverqueue/riverui/pull/594).
+
 ## [v0.17.0] - 2026-07-31
 
 ### Added

@@ -2,6 +2,7 @@ import ButtonForGroup from "@components/ButtonForGroup";
 import { DurationCompact } from "@components/DurationCompact";
 import { Subheading } from "@components/Heading";
 import { RunningSpinnerIcon } from "@components/icons/jobStateIcons";
+import JSONTextView from "@components/JSONTextView";
 import JSONView from "@components/JSONView";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import RetryWorkflowDialog from "@components/RetryWorkflowDialog";
@@ -335,7 +336,7 @@ const SelectedJobDetails = ({
 
         <div className="mt-5 border-t border-slate-200 pt-5 dark:border-slate-800">
           <Subheading className="mb-3 text-sm/6">Args</Subheading>
-          <JSONView copyTitle="Args" data={job.args} />
+          <JSONTextView copyTitle="Args" text={job.argsRaw} />
         </div>
 
         <div className="mt-5 border-t border-slate-200 pt-5 text-sm dark:border-slate-800">

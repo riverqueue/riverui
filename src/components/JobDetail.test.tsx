@@ -73,3 +73,14 @@ test("cancels job delete confirmation", async () => {
     ).not.toBeInTheDocument();
   });
 });
+
+test("renders raw job args without rounding large numbers", () => {
+  const argsRaw = '{"id":1970670598291982290}';
+  const job = jobFactory.completed().build({ argsRaw });
+
+  render(
+    <JobDetail cancel={vi.fn()} deleteFn={vi.fn()} job={job} retry={vi.fn()} />,
+  );
+
+  expect(screen.getByText(/1970670598291982290/)).toBeInTheDocument();
+});

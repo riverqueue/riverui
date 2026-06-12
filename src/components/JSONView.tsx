@@ -7,6 +7,7 @@ import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import React from "react";
 
 import CopyablePanel from "@/components/CopyablePanel";
+import { isJSONTextNumber } from "@/utils/jsonText";
 
 interface JSONNodeRendererProps {
   data: unknown;
@@ -22,6 +23,10 @@ interface JSONViewProps {
    * Additional class names to apply to the component.
    */
   className?: string;
+  /**
+   * Preformatted JSON to copy instead of serializing data.
+   */
+  copyText?: string;
   /**
    * The title to show in the copy confirmation toast.
    * @default "JSON"
@@ -40,6 +45,7 @@ interface JSONViewProps {
  */
 export default function JSONView({
   className,
+  copyText,
   copyTitle = "JSON",
   data,
   defaultExpandDepth = 1,
@@ -62,7 +68,7 @@ export default function JSONView({
   return (
     <CopyablePanel
       className={className}
-      copyText={JSON.stringify(sortedData, null, 2)}
+      copyText={copyText ?? JSON.stringify(sortedData, null, 2)}
       copyTitle={copyTitle}
     >
       <div className="block pl-6 text-slate-800 dark:text-slate-200">
@@ -79,6 +85,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
   const prototype = Object.getPrototypeOf(value);
   return prototype === null || prototype === Object.prototype;
+}
+
+function isPrimitiveValue(value: unknown): boolean {
+  return isJSONTextNumber(value) || typeof value !== "object" || value === null;
 }
 
 function JSONNodeRenderer({
@@ -171,7 +181,7 @@ function JSONNodeRenderer({
   const color = styleConfig.json.key;
 
   // For primitive values, render key and value inline
-  if (propKey && (typeof data !== "object" || data === null)) {
+  if (propKey && isPrimitiveValue(data)) {
     return (
       <span
         style={{
@@ -392,6 +402,14 @@ function renderValue(
   defaultExpandDepth: number,
   isParentArrayItem?: boolean,
 ): React.ReactElement {
+  if (isJSONTextNumber(data)) {
+    return (
+      <span className={valueColor("number")} data-testid="json-number">
+        {data.raw}
+        {maybeComma(isLastItemInParent)}
+      </span>
+    );
+  }
   if (data === null) {
     return (
       <span className={valueColor("null")} data-testid="json-null">
@@ -592,6 +610,10 @@ function sortObjectKeysInternal(
   value: unknown,
   sortedValues: WeakMap<object, unknown>,
 ): unknown {
+  if (isJSONTextNumber(value)) {
+    return value;
+  }
+
   if (Array.isArray(value)) {
     const cachedArray = sortedValues.get(value);
     if (cachedArray) {
