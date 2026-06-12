@@ -365,9 +365,9 @@ function AttemptRow({ attemptInfo }: { attemptInfo: AttemptInfo }) {
               <div className="mt-2 space-y-2">
                 {attemptInfo.logs.map((log, idx) => (
                   <PlaintextPanel
-                    content={log.log}
                     copyTitle="Log Entry"
                     key={idx}
+                    text={log.log}
                   />
                 ))}
               </div>

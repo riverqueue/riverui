@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Global live update pause: disable automatic query refreshes on browser focus and reconnect, preventing paused workflow detail pages from re-fetching wait data outside the configured refresh interval. [PR #584](https://github.com/riverqueue/riverui/pull/584).
+- Job detail: preserve line breaks in attempt logs while keeping structured JSON viewer content outside preformatted code markup. [PR #592](https://github.com/riverqueue/riverui/pull/592).
 
 ## [v0.16.0] - 2026-05-19
 
