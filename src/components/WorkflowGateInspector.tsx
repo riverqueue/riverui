@@ -435,9 +435,8 @@ export default function WorkflowWaitInspector({
           <WaitSection title="Wait expression">
             <PlaintextPanel
               codeClassName="whitespace-pre-wrap break-all"
-              content={wait.exprCel || "No CEL expression declared"}
               copyTitle="Wait expression"
-              rawText={wait.exprCel || "No CEL expression declared"}
+              text={wait.exprCel || "No CEL expression declared"}
             />
           </WaitSection>
         </div>

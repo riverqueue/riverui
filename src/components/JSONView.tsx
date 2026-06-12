@@ -6,7 +6,7 @@ import {
 import { ChevronDownIcon, ChevronRightIcon } from "@heroicons/react/24/outline";
 import React from "react";
 
-import PlaintextPanel from "@/components/PlaintextPanel";
+import CopyablePanel from "@/components/CopyablePanel";
 
 interface JSONNodeRendererProps {
   data: unknown;
@@ -60,13 +60,15 @@ export default function JSONView({
   );
 
   return (
-    <PlaintextPanel
+    <CopyablePanel
       className={className}
-      codeClassName="pl-6"
-      content={jsonContent}
+      copyText={JSON.stringify(sortedData, null, 2)}
       copyTitle={copyTitle}
-      rawText={JSON.stringify(sortedData, null, 2)}
-    />
+    >
+      <div className="block pl-6 text-slate-800 dark:text-slate-200">
+        {jsonContent}
+      </div>
+    </CopyablePanel>
   );
 }
 

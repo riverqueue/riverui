@@ -47,7 +47,7 @@ describe("JSONView Component", () => {
   };
 
   it("renders simple JSON data", () => {
-    render(<JSONView data={simpleData} />);
+    const { container } = render(<JSONView data={simpleData} />);
 
     // Check that key elements are in the document
     expect(screen.getByText(/"name"/)).toBeInTheDocument();
@@ -56,6 +56,7 @@ describe("JSONView Component", () => {
     expect(screen.getByText(/30/)).toBeInTheDocument();
     expect(screen.getByText(/"isActive"/)).toBeInTheDocument();
     expect(screen.getByText(/true/)).toBeInTheDocument();
+    expect(container.querySelector("pre")).toBeNull();
   });
 
   it("renders object keys alphabetically at root and nested levels", () => {
