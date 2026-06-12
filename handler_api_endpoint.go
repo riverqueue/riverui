@@ -943,20 +943,20 @@ type PartitionConfig struct {
 }
 
 type RiverJobMinimal struct {
-	ID          int64           `json:"id"`
-	Args        json.RawMessage `json:"args"`
-	Attempt     int             `json:"attempt"`
-	AttemptedAt *time.Time      `json:"attempted_at"`
-	AttemptedBy []string        `json:"attempted_by"`
-	CreatedAt   time.Time       `json:"created_at"`
-	FinalizedAt *time.Time      `json:"finalized_at"`
-	Kind        string          `json:"kind"`
-	MaxAttempts int             `json:"max_attempts"`
-	Priority    int             `json:"priority"`
-	Queue       string          `json:"queue"`
-	ScheduledAt time.Time       `json:"scheduled_at"`
-	State       string          `json:"state"`
-	Tags        []string        `json:"tags"`
+	ID          int64      `json:"id"`
+	Args        string     `json:"args"`
+	Attempt     int        `json:"attempt"`
+	AttemptedAt *time.Time `json:"attempted_at"`
+	AttemptedBy []string   `json:"attempted_by"`
+	CreatedAt   time.Time  `json:"created_at"`
+	FinalizedAt *time.Time `json:"finalized_at"`
+	Kind        string     `json:"kind"`
+	MaxAttempts int        `json:"max_attempts"`
+	Priority    int        `json:"priority"`
+	Queue       string     `json:"queue"`
+	ScheduledAt time.Time  `json:"scheduled_at"`
+	State       string     `json:"state"`
+	Tags        []string   `json:"tags"`
 }
 
 type RiverJob struct {
@@ -988,7 +988,7 @@ func riverJobToSerializableJobMinimal(riverJob *rivertype.JobRow) *RiverJobMinim
 
 	return &RiverJobMinimal{
 		ID:          riverJob.ID,
-		Args:        riverJob.EncodedArgs,
+		Args:        string(riverJob.EncodedArgs),
 		Attempt:     riverJob.Attempt,
 		AttemptedAt: riverJob.AttemptedAt,
 		AttemptedBy: attemptedBy,

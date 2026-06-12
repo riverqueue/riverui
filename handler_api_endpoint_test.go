@@ -2,6 +2,7 @@ package riverui
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
 	"testing"
 	"time"
@@ -438,11 +439,25 @@ func TestAPIHandlerJobGet(t *testing.T) {
 
 		endpoint, bundle := setupEndpoint(ctx, t, newJobGetEndpoint)
 
-		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{})
+		encodedArgs := []byte(`{"id":1970670598291982290,"max":9223372036854775807}`)
+		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			EncodedArgs: encodedArgs,
+		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobGetRequest{JobID: job.ID})
 		require.NoError(t, err)
 		require.Equal(t, job.ID, resp.ID)
+		expectedArgs := string(job.EncodedArgs)
+		require.Equal(t, expectedArgs, resp.Args)
+		require.Contains(t, resp.Args, "1970670598291982290")
+		require.Contains(t, resp.Args, "9223372036854775807")
+
+		var wireResp struct {
+			Args string `json:"args"`
+		}
+		require.NoError(t, json.Unmarshal(uicommontest.MustMarshalJSON(t, resp), &wireResp))
+		require.Equal(t, expectedArgs, wireResp.Args)
+		require.True(t, json.Valid([]byte(wireResp.Args)))
 	})
 
 	t.Run("NotFound", func(t *testing.T) {
@@ -466,9 +481,10 @@ func TestAPIHandlerJobList(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Kind:  ptrutil.Ptr("kind1"),
-			Queue: ptrutil.Ptr("queue1"),
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			EncodedArgs: []byte(`{"id":1970670598291982290}`),
+			Kind:        ptrutil.Ptr("kind1"),
+			Queue:       ptrutil.Ptr("queue1"),
+			State:       ptrutil.Ptr(rivertype.JobStateRunning),
 		})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
 			Kind:  ptrutil.Ptr("kind2"),
@@ -480,7 +496,18 @@ func TestAPIHandlerJobList(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 2)
 		require.Equal(t, job1.ID, resp.Data[0].ID)
+		expectedArgs := string(job1.EncodedArgs)
+		require.Equal(t, expectedArgs, resp.Data[0].Args)
+		require.Contains(t, resp.Data[0].Args, "1970670598291982290")
 		require.Equal(t, job2.ID, resp.Data[1].ID)
+
+		var wireResp struct {
+			Data []struct {
+				Args string `json:"args"`
+			} `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(uicommontest.MustMarshalJSON(t, resp), &wireResp))
+		require.Equal(t, expectedArgs, wireResp.Data[0].Args)
 	})
 
 	t.Run("FilterByIDs", func(t *testing.T) {

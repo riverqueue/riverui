@@ -1,4 +1,7 @@
+import { JobState } from "@services/types";
 import {
+  getWorkflow,
+  getWorkflowKey,
   getWorkflowTaskSignals,
   getWorkflowTaskWaitDiagnostics,
 } from "@services/workflows";
@@ -8,6 +11,65 @@ describe("workflows service", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     document.body.innerHTML = "";
+  });
+
+  it("preserves workflow task args as raw JSON text", async () => {
+    document.body.innerHTML =
+      '<script id="config__json">{"apiUrl":"http://example.test/api"}</script>';
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "wf-args",
+          name: "Workflow Args",
+          tasks: [
+            {
+              args: '{"id":1970670598291982290}',
+              attempt: 0,
+              attempted_by: [],
+              created_at: "2026-04-21T17:57:00Z",
+              deps: [],
+              errors: [],
+              id: 123,
+              ignore_cancelled_deps: false,
+              ignore_deleted_deps: false,
+              ignore_discarded_deps: false,
+              kind: "RowOperation",
+              max_attempts: 25,
+              metadata: {
+                deps: [],
+                task: "row_operation",
+                workflow_id: "wf-args",
+                workflow_staged_at: "2026-04-21T17:57:00Z",
+              },
+              name: "row_operation",
+              priority: 1,
+              queue: "default",
+              scheduled_at: "2026-04-21T17:57:00Z",
+              state: JobState.Available,
+              tags: [],
+              wait_reason: "none",
+              workflow_id: "wf-args",
+            },
+          ],
+        }),
+        {
+          headers: { "Content-Type": "application/json" },
+          status: 200,
+        },
+      ),
+    );
+
+    const workflow = await getWorkflow({
+      client: undefined as never,
+      direction: "forward",
+      meta: undefined,
+      pageParam: undefined,
+      queryKey: getWorkflowKey("wf-args"),
+      signal: new AbortController().signal,
+    });
+
+    expect(workflow.tasks[0]?.argsRaw).toBe('{"id":1970670598291982290}');
   });
 
   it("parses task signal dates, ids, cursor ids, evidence, and scope", async () => {

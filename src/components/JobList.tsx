@@ -29,6 +29,7 @@ import {
   JobStateFilterItem,
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
+import { compactJSONText } from "@utils/jsonText";
 import { classNames } from "@utils/style";
 import React, {
   FormEvent,
@@ -89,6 +90,10 @@ const JobListItem = ({
   onChangeSelect,
 }: JobListItemProps) => {
   const showArgs = !hideArgs;
+  const argsPreview = useMemo(
+    () => compactJSONText(job.argsRaw),
+    [job.argsRaw],
+  );
 
   return (
     <li className="relative flex items-stretch space-x-4 py-1.5">
@@ -134,7 +139,7 @@ const JobListItem = ({
           </svg>
           {showArgs && (
             <p className="grow truncate font-mono whitespace-nowrap">
-              {JSON.stringify(job.args)}
+              {argsPreview}
             </p>
           )}
           <Badge className="flex-none font-mono text-xs" color="zinc">

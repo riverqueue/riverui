@@ -17,18 +17,13 @@ export type AttemptError = {
 };
 
 export type Job = {
-  [Key in keyof JobFromAPI as SnakeToCamelCase<Key>]: Key extends
-    | StringEndingWithUnderscoreAt
-    | undefined
-    ? Date
-    : JobFromAPI[Key] extends AttemptErrorFromAPI[]
-      ? AttemptError[]
-      : JobFromAPI[Key];
-};
+  errors: AttemptError[];
+  logs: JobLogs;
+  metadata: KnownMetadata | object;
+} & JobMinimal;
 
 export type JobFromAPI = {
   errors: AttemptErrorFromAPI[];
-  logs: JobLogs;
   metadata: KnownMetadata | object;
 } & JobMinimalFromAPI;
 
@@ -43,18 +38,25 @@ export type JobLogs = {
 };
 
 export type JobMinimal = {
-  [Key in keyof JobMinimalFromAPI as SnakeToCamelCase<Key>]: Key extends
+  [Key in keyof Omit<
+    JobMinimalFromAPI,
+    "args"
+  > as SnakeToCamelCase<Key>]: Key extends
     | StringEndingWithUnderscoreAt
     | undefined
     ? Date
     : JobMinimalFromAPI[Key];
+} & {
+  argsRaw: string;
 };
 
 // Represents a Job as received from the API. This just like Job, except with
 // string dates instead of Date objects and keys as snake_case instead of
 // camelCase.
 export type JobMinimalFromAPI = {
-  args: object;
+  // JSON text as returned by River. Keep this unparsed to preserve large
+  // integer values exactly for display and copy.
+  args: string;
   attempt: number;
   attempted_at?: string;
   attempted_by: string[];
@@ -100,7 +102,7 @@ type RiverJobLogEntry = {
 export const apiJobMinimalToJobMinimal = (
   job: JobMinimalFromAPI,
 ): JobMinimal => ({
-  args: job.args,
+  argsRaw: job.args,
   attempt: job.attempt,
   attemptedAt: job.attempted_at ? new Date(job.attempted_at) : undefined,
   attemptedBy: job.attempted_by,

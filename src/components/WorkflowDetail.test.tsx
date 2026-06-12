@@ -219,6 +219,24 @@ describe("WorkflowDetail wait inspector", () => {
     expect(screen.getByText("Not waiting")).toBeInTheDocument();
   });
 
+  it("renders selected task args without rounding large numbers", async () => {
+    const argsRaw = '{"id":1970670598291982290}';
+    const task = workflowJobFactory.build({
+      argsRaw,
+      id: 1,
+      state: JobState.Completed,
+      task: "send_response",
+      waitReason: "none",
+    });
+
+    await renderWorkflowDetail(
+      { id: "wf-test-args", name: "Workflow Test", tasks: [task] },
+      task.id,
+    );
+
+    expect(screen.getByText(/1970670598291982290/)).toBeInTheDocument();
+  });
+
   it("updates the lower inspector when the selected task changes", async () => {
     const firstTask = workflowJobFactory.build({
       id: 1,

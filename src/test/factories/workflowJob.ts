@@ -13,6 +13,7 @@ const defaultWorkflowStagedAt = new Date("2025-01-01T00:00:00.000Z");
 const defaultWorkflowID = "wf-1";
 
 type WorkflowJobFactoryParams = {
+  argsRaw?: string;
   attemptedAt?: Date;
   createdAt?: Date;
   deps?: string[];
@@ -81,6 +82,7 @@ export const workflowJobFactory = Factory.define<
 
   const baseJob = jobFactory.build({
     ...(attemptedAt ? { attemptedAt } : {}),
+    ...(params.argsRaw ? { argsRaw: params.argsRaw } : {}),
     createdAt,
     ...(finalizedAt ? { finalizedAt } : {}),
     id,
