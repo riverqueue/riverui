@@ -105,11 +105,11 @@ gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c/go.mod h1:JHkPIbrfpd72SG/EV
 gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
 gopkg.in/yaml.v3 v3.0.1 h1:fxVm/GzAzEWqLHuvctI91KS9hhNmmWOoWu0XTYJS7CA=
 gopkg.in/yaml.v3 v3.0.1/go.mod h1:K4uyk7z7BCEPqu6E+C64Yfv1cQ7kz7rIZviUmN+EgEM=
-riverqueue.com/riverpro v0.25.0 h1:9xDgM8h6a5UDysM0NPD92AldewZ/fIc9O30HSemUzdQ=
-riverqueue.com/riverpro v0.25.0/go.mod h1:UIqMTOnTprE1YwBIMXt26NrRkXNCLBfJgH2ipHxjtm4=
-riverqueue.com/riverpro/driver v0.25.0 h1:S4drweF2VvqTy+dvWJl00gJGRiiBsjEqQ80UBzXrRw8=
-riverqueue.com/riverpro/driver v0.25.0/go.mod h1:XHZTZXDubgXUHJz7cmJcCTQjw+rjnHwqs8gzf/eN/3s=
-riverqueue.com/riverpro/driver/riverpropgxv5 v0.25.0 h1:W9YHSCX+RFv1JmcLUtJeGsfIOCI2n82QxFgLPelKArY=
-riverqueue.com/riverpro/driver/riverpropgxv5 v0.25.0/go.mod h1:hEwCOQvVgzogPStmSeFNWLLKC1b0bEYfQUIas97tJoA=
+riverqueue.com/riverpro v0.25.1 h1:eej9DV1ZEJcHoMHennuq7dHZaat7O9qQxtHqcGOxvfk=
+riverqueue.com/riverpro v0.25.1/go.mod h1:/NJZQD+bX8zA2TwtTasppHQFxrYqpkbyVFaw+Gf7fjI=
+riverqueue.com/riverpro/driver v0.25.1 h1:OJP+OoTFbBBwSfyEkjWoGVWDZwzUOSt4QSU4tb99QmM=
+riverqueue.com/riverpro/driver v0.25.1/go.mod h1:XHZTZXDubgXUHJz7cmJcCTQjw+rjnHwqs8gzf/eN/3s=
+riverqueue.com/riverpro/driver/riverpropgxv5 v0.25.1 h1:P2RMAGc1djkPyvmpVge6zNj+svKs1RE9XKT+8bWLepg=
+riverqueue.com/riverpro/driver/riverpropgxv5 v0.25.1/go.mod h1:sCa02YSZTDKZVao/odl/fenP2+ae289AInGFHfbvd1w=
 riverqueue.com/riverui v0.16.0 h1:XFgTdKqRYjdPsGV2QSBRTrMaWiXAZWvouH2zanQ0t9g=
 riverqueue.com/riverui v0.16.0/go.mod h1:NoIMP+QRd/Z+k5QYZ4LlYzRPinZ/qfIvyrNXFS61cak=
