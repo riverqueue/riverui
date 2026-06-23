@@ -54,7 +54,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.3
         with:
           ref: ${{ inputs.ref || github.ref }}
 
@@ -141,7 +141,7 @@ jobs:
 
     steps:
       - name: Checkout full history (no tags yet)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.3
         with:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0 # full history
@@ -367,7 +367,7 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.3
         with:
           ref: ${{ inputs.ref || github.ref }}
           fetch-depth: 0 # full history
