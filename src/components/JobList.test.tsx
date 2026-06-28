@@ -194,6 +194,7 @@ describe("JobList", () => {
     const deleteJobs = vi.fn();
     const user = userEvent.setup();
     const features = createFeatures({
+      featureJobDeletionEnabled: true,
       jobListHideArgsByDefault: false,
     });
 

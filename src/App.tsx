@@ -29,6 +29,7 @@ const router = createRouter({
   basepath: getBasePath(),
   context: {
     features: {
+      featureJobDeletionEnabled: true,
       hasClientTable: false,
       hasProducerTable: false,
       producerQueries: false,

@@ -14,6 +14,7 @@ test("requires confirmation before deleting a job", async () => {
     <JobDetail
       cancel={vi.fn()}
       deleteFn={deleteFn}
+      jobDeletionEnabled={true}
       job={job}
       retry={vi.fn()}
     />,
@@ -53,6 +54,7 @@ test("cancels job delete confirmation", async () => {
     <JobDetail
       cancel={vi.fn()}
       deleteFn={deleteFn}
+      jobDeletionEnabled={true}
       job={job}
       retry={vi.fn()}
     />,

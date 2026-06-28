@@ -13,6 +13,7 @@ export type Features = {
 
 type FeaturesFromAPI = {
   extensions: Record<string, boolean>;
+  feature_job_deletion_enabled: boolean;
   job_list_hide_args_by_default: boolean;
 };
 
@@ -67,6 +68,7 @@ export const apiFeaturesToFeatures = (features: FeaturesFromAPI): Features => {
   }
 
   return {
+    featureJobDeletionEnabled: features.feature_job_deletion_enabled,
     jobListHideArgsByDefault: features.job_list_hide_args_by_default,
     ...completeKnownExtensions,
   };

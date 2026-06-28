@@ -5,6 +5,12 @@ import { jobFactory } from "@test/factories/job";
 import JobDetail from "./JobDetail";
 
 const meta: Meta<typeof JobDetail> = {
+  args: {
+    cancel: () => {},
+    deleteFn: () => {},
+    jobDeletionEnabled: true,
+    retry: () => {},
+  },
   component: JobDetail,
   title: "Pages/JobDetail",
 };
