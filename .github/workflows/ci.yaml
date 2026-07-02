@@ -148,7 +148,7 @@ jobs:
         uses: actions/checkout@v6.0.3
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
@@ -182,7 +182,7 @@ jobs:
         uses: actions/checkout@v6.0.3
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
@@ -227,7 +227,7 @@ jobs:
           go-version-file: "go.mod"
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
