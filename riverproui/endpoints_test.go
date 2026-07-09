@@ -95,36 +95,6 @@ func TestProEndpointsExtensions(t *testing.T) {
 		})
 	})
 
-	t.Run("ClientTableDetection", func(t *testing.T) { //nolint:dupl
-		t.Parallel()
-
-		t.Run("NoClientTable", func(t *testing.T) {
-			t.Parallel()
-
-			bundle := setup(ctx, t)
-
-			_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_client CASCADE;`)
-			require.NoError(t, err)
-
-			ext, err := bundle.endpoint.Extensions(ctx)
-			require.NoError(t, err)
-			require.False(t, ext["has_client_table"])
-		})
-
-		t.Run("WithClientTable", func(t *testing.T) {
-			t.Parallel()
-
-			bundle := setup(ctx, t)
-
-			_, err := bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_client (id SERIAL PRIMARY KEY);`)
-			require.NoError(t, err)
-
-			ext, err := bundle.endpoint.Extensions(ctx)
-			require.NoError(t, err)
-			require.True(t, ext["has_client_table"])
-		})
-	})
-
 	t.Run("ProducerTableDetection", func(t *testing.T) { //nolint:dupl
 		t.Parallel()
 

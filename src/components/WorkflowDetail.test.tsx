@@ -42,7 +42,6 @@ vi.mock("@components/workflow-diagram/WorkflowDiagram", () => ({
 
 const features: Features = {
   durablePeriodicJobs: false,
-  hasClientTable: false,
   hasProducerTable: true,
   hasSequenceTable: false,
   jobListHideArgsByDefault: false,

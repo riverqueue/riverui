@@ -7,7 +7,6 @@ describe("apiFeaturesToFeatures", () => {
     const apiFeatures = {
       extensions: {
         durable_periodic_jobs: true,
-        has_client_table: true,
         has_producer_table: true,
         producer_queries: true,
         workflow_queries: true,
@@ -17,7 +16,6 @@ describe("apiFeaturesToFeatures", () => {
 
     const expected = {
       durablePeriodicJobs: true,
-      hasClientTable: true,
       hasProducerTable: true,
       hasSequenceTable: false,
       jobListHideArgsByDefault: true,
@@ -32,7 +30,6 @@ describe("apiFeaturesToFeatures", () => {
     const apiFeatures = {
       extensions: {
         durable_periodic_jobs: false,
-        has_client_table: false,
         has_producer_table: false,
         producer_queries: false,
         workflow_queries: false,
@@ -42,7 +39,6 @@ describe("apiFeaturesToFeatures", () => {
 
     const expected = {
       durablePeriodicJobs: false,
-      hasClientTable: false,
       hasProducerTable: false,
       hasSequenceTable: false,
       jobListHideArgsByDefault: false,
