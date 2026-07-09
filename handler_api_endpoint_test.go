@@ -245,9 +245,7 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		// DisableSchemaSharing is required because we're making DB schema changes.
 		endpoint, bundle := setupEndpointWithOpts(ctx, t, newFeaturesGetEndpoint, &riverdbtest.TestTxOpts{DisableSchemaSharing: true})
 
-		_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_client CASCADE;`)
-		require.NoError(t, err)
-		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_job_sequence;`)
+		_, err := bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_job_sequence;`)
 		require.NoError(t, err)
 		_, err = bundle.tx.Exec(ctx, `DROP TABLE IF EXISTS river_producer;`)
 		require.NoError(t, err)
@@ -270,9 +268,7 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		// DisableSchemaSharing is required because we're making DB schema changes.
 		endpoint, bundle := setupEndpointWithOpts(ctx, t, newFeaturesGetEndpoint, &riverdbtest.TestTxOpts{DisableSchemaSharing: true})
 
-		_, err := bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_client (id SERIAL PRIMARY KEY);`)
-		require.NoError(t, err)
-		_, err = bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_job_sequence (id SERIAL PRIMARY KEY);`)
+		_, err := bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_job_sequence (id SERIAL PRIMARY KEY);`)
 		require.NoError(t, err)
 		_, err = bundle.tx.Exec(ctx, `CREATE TABLE IF NOT EXISTS river_producer (id SERIAL PRIMARY KEY);`)
 		require.NoError(t, err)

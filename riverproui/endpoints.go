@@ -90,14 +90,6 @@ func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error
 	}
 	defer execTx.Rollback(ctx)
 
-	hasClientTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
-		Schema: schema,
-		Table:  "river_client",
-	})
-	if err != nil {
-		return nil, err
-	}
-
 	hasPeriodicJobTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
 		Schema: schema,
 		Table:  "river_periodic_job",
@@ -131,7 +123,6 @@ func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error
 		"durable_periodic_jobs": hasPeriodicJobTable,
 		"producer_queries":      true,
 		"workflow_queries":      hasWorkflowV2Tables,
-		"has_client_table":      hasClientTable,
 		"has_producer_table":    hasProducerTable,
 		"has_sequence_table":    hasSequenceTable,
 	}, nil

@@ -20,7 +20,6 @@ const KNOWN_EXTENSIONS = [
   "durable_periodic_jobs",
   "producer_queries",
   "workflow_queries",
-  "has_client_table",
   "has_producer_table",
   "has_sequence_table",
 ] as const;

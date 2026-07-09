@@ -186,7 +186,6 @@ func TestProMountedEndpointResponses(t *testing.T) {
 	// Static flags always true; dynamic flags should also be true because pro migrations run for tests
 	expectedExtensions := map[string]bool{
 		"durable_periodic_jobs": true, // dynamic
-		"has_client_table":      true, // dynamic
 		"has_producer_table":    true, // dynamic
 		"has_sequence_table":    true, // dynamic
 		"producer_queries":      true, // static

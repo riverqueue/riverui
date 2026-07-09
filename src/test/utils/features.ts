@@ -4,7 +4,6 @@ export const createFeatures = (
   overrides: Partial<Features> = {},
 ): Features => ({
   durablePeriodicJobs: false,
-  hasClientTable: false,
   hasProducerTable: false,
   hasSequenceTable: false,
   jobListHideArgsByDefault: false,
