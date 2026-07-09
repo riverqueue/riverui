@@ -97,16 +97,16 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 		DB:                       executor,
 		Driver:                   driver,
 		Extensions:               e.Extensions,
+		JobDeletionEnabled:       e.bundleOpts.JobDeletionEnabled,
 		JobListHideArgsByDefault: e.bundleOpts.JobListHideArgsByDefault,
 		Logger:                   logger,
 	}
 
-	return []apiendpoint.EndpointInterface{
+	endpoints := []apiendpoint.EndpointInterface{
 		apiendpoint.Mount(mux, newAutocompleteListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newFeaturesGetEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newHealthCheckGetEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newJobCancelEndpoint(bundle), mountOpts),
-		apiendpoint.Mount(mux, newJobDeleteEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newJobGetEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newJobListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newJobRetryEndpoint(bundle), mountOpts),
@@ -117,6 +117,12 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 		apiendpoint.Mount(mux, newQueueUpdateEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(bundle), mountOpts),
 	}
+
+	if e.bundleOpts.JobDeletionEnabled {
+		endpoints = append(endpoints, apiendpoint.Mount(mux, newJobDeleteEndpoint(bundle), mountOpts))
+	}
+
+	return endpoints
 }
 
 // HandlerOpts are the options for creating a new Handler.
@@ -124,6 +130,7 @@ type HandlerOpts struct {
 	// DevMode is whether the server is running in development mode.
 	DevMode                  bool
 	Endpoints                uiendpoints.Bundle
+	JobDeletionEnabled       bool
 	JobListHideArgsByDefault bool
 	// LiveFS is whether to use the live filesystem for the frontend.
 	LiveFS bool
@@ -186,6 +193,7 @@ func NewHandler(opts *HandlerOpts) (*Handler, error) {
 	}
 
 	opts.Endpoints.Configure(&uiendpoints.BundleOpts{
+		JobDeletionEnabled:       opts.JobDeletionEnabled,
 		JobListHideArgsByDefault: opts.JobListHideArgsByDefault,
 	})
 
