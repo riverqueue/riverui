@@ -72,6 +72,7 @@
     "vitest": "^4.1.9"
   },
   "overrides": {
+    "shell-quote": "^1.9.0",
     "storybook": "$storybook"
   },
   "scripts": {
