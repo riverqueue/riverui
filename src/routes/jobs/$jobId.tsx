@@ -2,14 +2,9 @@ import JobDetail from "@components/JobDetail";
 import JobNotFound from "@components/JobNotFound";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
-import {
-  cancelJobs,
-  deleteJobs,
-  getJob,
-  getJobKey,
-  retryJobs,
-} from "@services/jobs";
-import { toastError, toastSuccess } from "@services/toast";
+import { useRetryJobs } from "@hooks/use-retry-jobs";
+import { cancelJobs, deleteJobs, getJob, getJobKey } from "@services/jobs";
+import { toastError } from "@services/toast";
 import { JobState } from "@services/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -99,20 +94,13 @@ function JobComponent() {
     },
   });
 
-  const retryMutation = useMutation<void, Error, void>({
-    mutationFn: async (_variables, context) =>
-      retryJobs({ ids: [jobId] }, context),
-    throwOnError: true,
+  const retryMutation = useRetryJobs({
     onSuccess: () => {
-      toastSuccess({
-        message: "Job enqueued for retry",
-        duration: 2000,
-      });
-
       return queryClient.invalidateQueries({
         queryKey: queryOptionsWithRefresh.queryKey,
       });
     },
+    successMessage: "Job enqueued for retry",
   });
 
   if (jobQuery.isLoading || !jobQuery.data) {
@@ -126,7 +114,7 @@ function JobComponent() {
       cancel={cancelMutation.mutate}
       deleteFn={deleteMutation.mutate}
       job={job}
-      retry={retryMutation.mutate}
+      retry={() => retryMutation.mutate([jobId])}
     />
   );
 }
