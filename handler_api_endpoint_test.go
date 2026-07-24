@@ -3,6 +3,7 @@ package riverui
 import (
 	"context"
 	"log/slog"
+	"net/http"
 	"testing"
 	"time"
 
@@ -19,6 +20,7 @@ import (
 	"github.com/riverqueue/river/riverdriver/riverpgxv5"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/startstop"
+	"github.com/riverqueue/river/rivershared/uniquestates"
 	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivertype"
 
@@ -645,6 +647,38 @@ func TestAPIHandlerJobRetry(t *testing.T) {
 
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobRetryRequest{JobIDs: []int64String{123}})
 		uicommontest.RequireAPIError(t, NewNotFoundJob(123), err)
+	})
+
+	t.Run("UniqueConflict", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobRetryEndpoint)
+		uniqueKey := []byte("job-retry-unique-conflict")
+		uniqueStates := uniquestates.UniqueStatesToBitmask([]rivertype.JobState{rivertype.JobStateAvailable})
+
+		discardedParams := testfactory.Job_Build(t, &testfactory.JobOpts{
+			FinalizedAt: ptrutil.Ptr(time.Now()),
+			State:       ptrutil.Ptr(rivertype.JobStateDiscarded),
+		})
+		discardedParams.UniqueKey = uniqueKey
+		discardedParams.UniqueStates = uniqueStates
+		discardedJob, err := bundle.exec.JobInsertFull(ctx, discardedParams)
+		require.NoError(t, err)
+
+		activeParams := testfactory.Job_Build(t, nil)
+		activeParams.UniqueKey = uniqueKey
+		activeParams.UniqueStates = uniqueStates
+		_, err = bundle.exec.JobInsertFull(ctx, activeParams)
+		require.NoError(t, err)
+
+		_, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobRetryRequest{JobIDs: []int64String{int64String(discardedJob.ID)}})
+		require.Error(t, err)
+
+		var apiErr *jobRetryUniqueConflictError
+		require.ErrorAs(t, err, &apiErr)
+		require.Equal(t, http.StatusConflict, apiErr.StatusCode)
+		require.Equal(t, jobRetryUniqueMessage, apiErr.Message)
+		require.Error(t, apiErr.InternalError)
 	})
 }
 

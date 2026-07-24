@@ -5,6 +5,7 @@ import {
   type RefreshQueryOptions,
   refreshQueryOptions,
 } from "@contexts/RefreshSettings.query";
+import { useRetryJobs } from "@hooks/use-retry-jobs";
 import { defaultValues, jobSearchSchema } from "@routes/jobs/index.schema";
 import {
   cancelJobs,
@@ -13,10 +14,9 @@ import {
   listJobs,
   ListJobsKey,
   listJobsKey,
-  retryJobs,
 } from "@services/jobs";
 import { countsByState, countsByStateKey } from "@services/states";
-import { toastError, toastSuccess } from "@services/toast";
+import { toastError } from "@services/toast";
 import { JobState } from "@services/types";
 import {
   PlaceholderDataFunction,
@@ -291,20 +291,14 @@ function JobsIndexComponent() {
     },
   });
 
-  const retryMutation = useMutation({
-    mutationFn: async (jobIDs: bigint[], context) =>
-      retryJobs({ ids: jobIDs }, context),
-    throwOnError: true,
+  const retryMutation = useRetryJobs({
     onSuccess: () => {
-      toastSuccess({
-        message: "Jobs enqueued for retry",
-        duration: 2000,
-      });
       queryClient.invalidateQueries({
         queryKey: listJobsKey({ limit, state }),
       });
       queryClient.invalidateQueries({ queryKey: countsByStateKey() });
     },
+    successMessage: "Jobs enqueued for retry",
   });
 
   return (

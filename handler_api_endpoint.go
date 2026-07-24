@@ -10,6 +10,9 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/apiframe/apitype"
@@ -542,12 +545,41 @@ func (a *jobRetryEndpoint[TTx]) Execute(ctx context.Context, req *jobRetryReques
 				if errors.Is(err, river.ErrNotFound) {
 					return nil, NewNotFoundJob(jobID)
 				}
+				if isJobRetryUniqueConflict(err) {
+					return nil, newJobRetryUniqueConflictError(err)
+				}
 				return nil, err
 			}
 		}
 
 		return statusResponseOK, nil
 	})
+}
+
+const (
+	jobRetryUniqueConstraint = "river_job_unique_idx"
+	jobRetryUniqueMessage    = "Job can't be retried because another active job has the same unique properties. Wait for it to finish or delete it before retrying."
+)
+
+type jobRetryUniqueConflictError struct {
+	apierror.APIError
+}
+
+func newJobRetryUniqueConflictError(internalErr error) *jobRetryUniqueConflictError {
+	return &jobRetryUniqueConflictError{
+		APIError: apierror.APIError{
+			InternalError: internalErr,
+			Message:       jobRetryUniqueMessage,
+			StatusCode:    http.StatusConflict,
+		},
+	}
+}
+
+func isJobRetryUniqueConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) &&
+		pgErr.Code == pgerrcode.UniqueViolation &&
+		pgErr.ConstraintName == jobRetryUniqueConstraint
 }
 
 //
