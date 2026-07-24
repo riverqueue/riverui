@@ -33,6 +33,7 @@ type setupEndpointTestBundle struct {
 	client *river.Client[pgx.Tx]
 	exec   riverdriver.ExecutorTx
 	logger *slog.Logger
+	schema string
 	tx     pgx.Tx
 }
 
@@ -45,10 +46,10 @@ func setupEndpointWithOpts[TEndpoint any](ctx context.Context, t *testing.T, ini
 	t.Helper()
 
 	var (
-		logger = riversharedtest.Logger(t)
-		driver = riverpgxv5.New(riversharedtest.DBPool(ctx, t))
-		tx, _  = riverdbtest.TestTxPgxDriver(ctx, t, driver, opts)
-		exec   = driver.UnwrapExecutor(tx)
+		logger     = riversharedtest.Logger(t)
+		driver     = riverpgxv5.New(riversharedtest.DBPool(ctx, t))
+		tx, schema = riverdbtest.TestTxPgxDriver(ctx, t, driver, opts)
+		exec       = driver.UnwrapExecutor(tx)
 	)
 
 	client, err := river.NewClient(driver, &river.Config{
@@ -74,6 +75,7 @@ func setupEndpointWithOpts[TEndpoint any](ctx context.Context, t *testing.T, ini
 		client: client,
 		exec:   exec,
 		logger: logger,
+		schema: schema,
 		tx:     tx,
 	}
 }
@@ -175,6 +177,35 @@ func runAutocompleteTests(t *testing.T, facet autocompleteFacet, setupFunc func(
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 1)
 		require.Equal(t, "alpha_task", *resp.Data[0])
+	})
+
+	t.Run("WithCustomSchema", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newAutocompleteListEndpoint)
+		client, err := river.NewClient(endpoint.Driver, &river.Config{
+			Logger: bundle.logger,
+			Schema: bundle.schema,
+		})
+		require.NoError(t, err)
+		endpoint.Client = client
+
+		setupFunc(t, bundle)
+
+		// Ensure autocomplete uses the client's configured schema instead of the
+		// transaction's search path.
+		_, err = bundle.tx.Exec(ctx, "SET LOCAL search_path TO public")
+		require.NoError(t, err)
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+			Facet: facet,
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 4)
+		require.Equal(t, "alpha_"+facet.baseString(), *resp.Data[0])
+		require.Equal(t, "alpha_task", *resp.Data[1])
+		require.Equal(t, "beta_"+facet.baseString(), *resp.Data[2])
+		require.Equal(t, "gamma_"+facet.baseString(), *resp.Data[3])
 	})
 }
 
