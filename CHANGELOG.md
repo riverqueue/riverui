@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add first-class custom database schema support to the `riverui` and `riverproui` executables through the `-schema` flag and `RIVER_SCHEMA` environment variable. [PR #629](https://github.com/riverqueue/riverui/pull/629).
+
 ### Fixed
 
 - Job retry: keep the current page open and show an actionable error when a retry conflicts with another active unique job. [PR #623](https://github.com/riverqueue/riverui/pull/623).

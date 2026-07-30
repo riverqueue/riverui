@@ -28,7 +28,11 @@ type BundleOpts struct {
 	JobListHideArgsByDefault bool
 }
 
-func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) {
+type ClientOpts struct {
+	Schema string
+}
+
+func Run[TClient any](createClient func(*pgxpool.Pool, *ClientOpts) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) {
 	ctx := context.Background()
 
 	logger := slog.New(getLogHandler(&slog.HandlerOptions{
@@ -37,6 +41,9 @@ func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createB
 
 	var pathPrefix string
 	flag.StringVar(&pathPrefix, "prefix", "/", "path prefix for API and UI routes (must start with '/', use '/' for no prefix)")
+
+	var schema string
+	flag.StringVar(&schema, "schema", os.Getenv("RIVER_SCHEMA"), "name of non-default database schema where River tables are located")
 
 	var healthCheckName string
 	flag.StringVar(&healthCheckName, "healthcheck", "", "the name of the health checks: minimal or complete")
@@ -57,6 +64,7 @@ func Run[TClient any](createClient func(*pgxpool.Pool) (TClient, error), createB
 	initRes, err := initServer(ctx, &initServerOpts{
 		logger:             logger,
 		pathPrefix:         pathPrefix,
+		schema:             schema,
 		silentHealthChecks: silentHealthChecks,
 	}, createClient, createBundle)
 	if err != nil {
@@ -141,10 +149,11 @@ type initServerResult struct {
 type initServerOpts struct {
 	logger             *slog.Logger
 	pathPrefix         string
+	schema             string
 	silentHealthChecks bool
 }
 
-func initServer[TClient any](ctx context.Context, opts *initServerOpts, createClient func(*pgxpool.Pool) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
+func initServer[TClient any](ctx context.Context, opts *initServerOpts, createClient func(*pgxpool.Pool, *ClientOpts) (TClient, error), createBundle func(TClient) uiendpoints.Bundle) (*initServerResult, error) {
 	if opts == nil {
 		return nil, errors.New("opts is required")
 	}
@@ -184,7 +193,7 @@ func initServer[TClient any](ctx context.Context, opts *initServerOpts, createCl
 		return nil, fmt.Errorf("error connecting to db: %w", err)
 	}
 
-	client, err := createClient(dbPool)
+	client, err := createClient(dbPool, &ClientOpts{Schema: opts.schema})
 	if err != nil {
 		return nil, err
 	}

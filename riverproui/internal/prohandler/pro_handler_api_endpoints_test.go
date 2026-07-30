@@ -255,6 +255,41 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 	})
 }
 
+func TestProAPIHandlerWorkflowListCustomSchema(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	endpoint, bundle := setupEndpoint(ctx, t, NewWorkflowListEndpoint)
+
+	require.NoError(t, bundle.exec.WorkflowInsertMany(ctx, &driver.WorkflowInsertManyParams{
+		IDs:    []string{"active_workflow", "inactive_workflow"},
+		Names:  []string{"Active workflow", "Inactive workflow"},
+		Schema: bundle.schema,
+	}))
+
+	makeWorkflowJob(ctx, t, bundle.exec, bundle.schema, "active_workflow", "active_task", nil)
+	jobWithSchema(ctx, t, bundle.exec, bundle.schema, &testfactory.JobOpts{
+		FinalizedAt: ptrutil.Ptr(time.Now()),
+		Metadata:    workflowMetadata("inactive_workflow", "inactive_task", nil),
+		State:       ptrutil.Ptr(rivertype.JobStateCompleted),
+	})
+
+	activeResp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{State: "active"})
+	require.NoError(t, err)
+	require.Len(t, activeResp.Data, 1)
+	require.Equal(t, "active_workflow", activeResp.Data[0].ID)
+
+	inactiveResp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{State: "inactive"})
+	require.NoError(t, err)
+	require.Len(t, inactiveResp.Data, 1)
+	require.Equal(t, "inactive_workflow", inactiveResp.Data[0].ID)
+
+	allResp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &workflowListRequest{})
+	require.NoError(t, err)
+	require.Len(t, allResp.Data, 2)
+	require.ElementsMatch(t, []string{"active_workflow", "inactive_workflow"}, []string{allResp.Data[0].ID, allResp.Data[1].ID})
+}
+
 func TestProAPIHandlerWorkflowListRequiresV2Tables(t *testing.T) {
 	t.Parallel()
 
