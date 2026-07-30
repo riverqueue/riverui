@@ -8,14 +8,14 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/riverqueue/apiframe v0.0.0-20260512144425-bbb398a56fc5
-	github.com/riverqueue/river v0.40.0
-	github.com/riverqueue/river/riverdriver v0.40.0
-	github.com/riverqueue/river/rivershared v0.40.0
-	github.com/riverqueue/river/rivertype v0.40.0
+	github.com/riverqueue/river v0.41.1
+	github.com/riverqueue/river/riverdriver v0.41.1
+	github.com/riverqueue/river/rivershared v0.41.1
+	github.com/riverqueue/river/rivertype v0.41.1
 	github.com/stretchr/testify v1.11.1
-	riverqueue.com/riverpro v0.25.1
-	riverqueue.com/riverpro/driver v0.25.1
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.25.1
+	riverqueue.com/riverpro v0.26.0
+	riverqueue.com/riverpro/driver v0.26.0
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.26.0
 	riverqueue.com/riverui v0.16.0
 )
 
@@ -34,7 +34,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.40.0 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.41.1 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/slog-http v1.12.1 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
@@ -47,9 +47,9 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948 // indirect
-	golang.org/x/sync v0.21.0 // indirect
+	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260217215200-42d3e9bedb6d // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
