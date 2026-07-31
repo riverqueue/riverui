@@ -78,6 +78,48 @@ func setupEndpointWithOpts[TEndpoint any](ctx context.Context, t *testing.T, ini
 	}
 }
 
+func setupEndpointWithCustomSchema[TEndpoint any](ctx context.Context, t *testing.T, initFunc func(bundle apibundle.APIBundle[pgx.Tx]) *TEndpoint) (*TEndpoint, *setupEndpointTestBundle) {
+	t.Helper()
+
+	var (
+		logger = riversharedtest.Logger(t)
+		driver = riverpgxv5.New(riversharedtest.DBPool(ctx, t))
+		schema = riverdbtest.TestSchema(ctx, t, driver, nil)
+	)
+
+	exec, err := driver.GetExecutor().Begin(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, exec.Rollback(ctx)) })
+	require.NoError(t, exec.Exec(ctx, "SET LOCAL search_path TO public"))
+
+	client, err := river.NewClient(driver, &river.Config{
+		Logger: logger,
+		Schema: schema,
+	})
+	require.NoError(t, err)
+
+	endpoint := initFunc(apibundle.APIBundle[pgx.Tx]{
+		Archetype:  riversharedtest.BaseServiceArchetype(t),
+		Client:     client,
+		DB:         exec,
+		Driver:     driver,
+		Extensions: func(_ context.Context) (map[string]bool, error) { return map[string]bool{}, nil },
+		Logger:     logger,
+	})
+
+	if service, ok := any(endpoint).(startstop.Service); ok {
+		require.NoError(t, service.Start(ctx))
+		t.Cleanup(service.Stop)
+	}
+
+	return endpoint, &setupEndpointTestBundle{
+		client: client,
+		exec:   exec,
+		logger: logger,
+		tx:     driver.UnwrapTx(exec),
+	}
+}
+
 func testMountOpts(t *testing.T) *apiendpoint.MountOpts {
 	t.Helper()
 	return &apiendpoint.MountOpts{
@@ -234,6 +276,42 @@ func TestAPIHandlerAutocompleteList(t *testing.T) {
 		})
 		uicommontest.RequireAPIError(t, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, queue_name", "invalid"), err)
 	})
+}
+
+func TestAPIHandlerAutocompleteListCustomSchema(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	endpoint, bundle := setupEndpointWithCustomSchema(ctx, t, newAutocompleteListEndpoint)
+	schema := bundle.client.Schema()
+
+	jobParams := testfactory.Job_Build(t, &testfactory.JobOpts{Kind: ptrutil.Ptr("custom_schema_job")})
+	jobParams.Schema = schema
+	_, err := bundle.exec.JobInsertFull(ctx, jobParams)
+	require.NoError(t, err)
+
+	_, err = bundle.exec.QueueCreateOrSetUpdatedAt(ctx, &riverdriver.QueueCreateOrSetUpdatedAtParams{
+		Metadata: []byte("{}"),
+		Name:     "custom_schema_queue",
+		Schema:   schema,
+	})
+	require.NoError(t, err)
+
+	jobKindResp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+		Facet: autocompleteFacetJobKind,
+		Match: ptrutil.Ptr("custom_schema_job"),
+	})
+	require.NoError(t, err)
+	require.Len(t, jobKindResp.Data, 1)
+	require.Equal(t, "custom_schema_job", *jobKindResp.Data[0])
+
+	queueNameResp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
+		Facet: autocompleteFacetQueueName,
+		Match: ptrutil.Ptr("custom_schema_queue"),
+	})
+	require.NoError(t, err)
+	require.Len(t, queueNameResp.Data, 1)
+	require.Equal(t, "custom_schema_queue", *queueNameResp.Data[0])
 }
 
 func TestAPIHandlerFeaturesGet(t *testing.T) {

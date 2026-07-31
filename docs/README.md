@@ -47,6 +47,42 @@ See [health checks](health_checks.md).
 
 ## Configuration
 
+### Custom database schema
+
+River UI can query River tables in a non-default PostgreSQL schema without changing the connection's `search_path`. Set the schema with the `-schema` flag or the `RIVER_SCHEMA` environment variable. An explicit flag takes precedence over the environment variable. If neither is set, River UI continues to use PostgreSQL's configured `search_path`.
+
+Use the same schema when running River migrations and River UI:
+
+```sh
+$ export RIVER_SCHEMA=river
+$ river migrate-up --database-url "$DATABASE_URL" --schema "$RIVER_SCHEMA"
+$ riverui
+```
+
+The schema can also be supplied directly with `riverui -schema=river`. Both `riverui` and `riverproui` support the same setting.
+
+For the container image, pass `RIVER_SCHEMA` alongside the database URL:
+
+```sh
+$ docker run -p 8080:8080 --env DATABASE_URL --env RIVER_SCHEMA ghcr.io/riverqueue/riverui:latest
+```
+
+When embedding River UI in a Go application, configure the schema on the River client:
+
+```go
+client, err := river.NewClient(driver, &river.Config{
+	Schema: "river",
+})
+if err != nil {
+	// handle error
+}
+
+handler, err := riverui.NewHandler(&riverui.HandlerOpts{
+	Endpoints: riverui.NewEndpoints(client, nil),
+	// ...
+})
+```
+
 ### Custom path prefix
 
 Serve River UI under a URL prefix like `/ui` by setting `-prefix` (binary) or `PATH_PREFIX` (Docker). Rules: **must start with `/`**, use `/` for no prefix, and a trailing `/` is ignored.

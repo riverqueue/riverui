@@ -42,8 +42,8 @@ func TestInitServer(t *testing.T) { //nolint:tparallel
 			logger:     riversharedtest.Logger(t),
 			pathPrefix: "/",
 		},
-			func(dbPool *pgxpool.Pool) (*river.Client[pgx.Tx], error) {
-				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
+			func(dbPool *pgxpool.Pool, opts *ClientOpts) (*river.Client[pgx.Tx], error) {
+				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{Schema: opts.Schema})
 			},
 			func(client *river.Client[pgx.Tx]) uiendpoints.Bundle {
 				return riverui.NewEndpoints(client, nil)
@@ -82,6 +82,30 @@ func TestInitServer(t *testing.T) { //nolint:tparallel
 
 		_, err = initRes.dbPool.Exec(ctx, "SELECT 1")
 		require.NoError(t, err)
+	})
+
+	t.Run("PassesClientOptions", func(t *testing.T) {
+		t.Parallel()
+
+		const schema = "river_custom"
+
+		var receivedOpts *ClientOpts
+		initRes, err := initServer(ctx, &initServerOpts{
+			logger:     riversharedtest.Logger(t),
+			pathPrefix: "/",
+			schema:     schema,
+		},
+			func(dbPool *pgxpool.Pool, opts *ClientOpts) (*river.Client[pgx.Tx], error) {
+				receivedOpts = opts
+				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
+			},
+			func(client *river.Client[pgx.Tx]) uiendpoints.Bundle {
+				return riverui.NewEndpoints(client, nil)
+			},
+		)
+		require.NoError(t, err)
+		t.Cleanup(initRes.dbPool.Close)
+		require.Equal(t, &ClientOpts{Schema: schema}, receivedOpts)
 	})
 
 	t.Run("JobListHideArgsByDefault", func(t *testing.T) {
@@ -182,8 +206,8 @@ func TestSilentHealthchecks_SuppressesLogs(t *testing.T) {
 			pathPrefix:         prefix,
 			silentHealthChecks: silent,
 		},
-			func(dbPool *pgxpool.Pool) (*river.Client[pgx.Tx], error) {
-				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{})
+			func(dbPool *pgxpool.Pool, opts *ClientOpts) (*river.Client[pgx.Tx], error) {
+				return river.NewClient(riverpgxv5.New(dbPool), &river.Config{Schema: opts.Schema})
 			},
 			func(client *river.Client[pgx.Tx]) uiendpoints.Bundle {
 				return riverui.NewEndpoints(client, nil)

@@ -722,6 +722,7 @@ func (a *workflowListEndpoint[TTx]) Execute(ctx context.Context, req *workflowLi
 		workflows, err := a.DB.WorkflowListActive(ctx, &riverprodriver.WorkflowListParams{
 			After:           ptrutil.ValOrDefault(req.After, ""),
 			PaginationLimit: min(ptrutil.ValOrDefault(req.Limit, 100), 1000),
+			Schema:          a.Client.Schema(),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error listing workflows: %w", err)
@@ -732,6 +733,7 @@ func (a *workflowListEndpoint[TTx]) Execute(ctx context.Context, req *workflowLi
 		workflows, err := a.DB.WorkflowListInactive(ctx, &riverprodriver.WorkflowListParams{
 			After:           ptrutil.ValOrDefault(req.After, ""),
 			PaginationLimit: min(ptrutil.ValOrDefault(req.Limit, 100), 1000),
+			Schema:          a.Client.Schema(),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error listing workflows: %w", err)
@@ -741,6 +743,7 @@ func (a *workflowListEndpoint[TTx]) Execute(ctx context.Context, req *workflowLi
 		workflows, err := a.DB.WorkflowListAll(ctx, &riverprodriver.WorkflowListParams{
 			After:           ptrutil.ValOrDefault(req.After, ""),
 			PaginationLimit: min(ptrutil.ValOrDefault(req.Limit, 100), 1000),
+			Schema:          a.Client.Schema(),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error listing workflows: %w", err)

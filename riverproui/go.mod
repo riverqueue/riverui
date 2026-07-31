@@ -67,4 +67,4 @@ retract (
 
 // replace riverqueue.com/riverpro/driver/riverpropgxv5 => ../../riverpro/driver/riverpropgxv5
 
-// replace riverqueue.com/riverui => ../
+replace riverqueue.com/riverui => ../
