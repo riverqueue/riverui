@@ -122,9 +122,15 @@ As such, we must use a two-phase release for these modules:
    go mod tidy
    ```
 
-5. Prepare a PR with the changes. Have it reviewed and merged.
+5. Start a new branch and commit changes:
 
-6. Pull the changes back down, add a tag for `riverproui/$VERSION`, and push it to GitHub:
+   ``` shell
+   git checkout -b $USER-$VERSION-pro
+   ```
+
+6. Prepare a PR with the changes. Have it reviewed and merged.
+
+7. Pull the changes back down, add a tag for `riverproui/$VERSION`, and push it to GitHub:
 
    ```shell
    git pull origin master
