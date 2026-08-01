@@ -7,8 +7,7 @@ import { SnakeToCamelCase, StringEndingWithUnderscoreAt } from "./types";
 
 export type PeriodicJob = {
   [Key in keyof PeriodicJobFromAPI as SnakeToCamelCase<Key>]: Key extends
-    | StringEndingWithUnderscoreAt
-    | undefined
+    StringEndingWithUnderscoreAt | undefined
     ? Date
     : PeriodicJobFromAPI[Key];
 };

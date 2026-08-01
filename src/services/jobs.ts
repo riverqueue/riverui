@@ -18,8 +18,7 @@ export type AttemptError = {
 
 export type Job = {
   [Key in keyof Omit<JobFromAPI, "args"> as SnakeToCamelCase<Key>]: Key extends
-    | StringEndingWithUnderscoreAt
-    | undefined
+    StringEndingWithUnderscoreAt | undefined
     ? Date
     : JobFromAPI[Key] extends AttemptErrorFromAPI[]
       ? AttemptError[]
@@ -45,12 +44,9 @@ export type JobLogs = {
 };
 
 export type JobMinimal = {
-  [Key in keyof Omit<
-    JobMinimalFromAPI,
-    "args"
-  > as SnakeToCamelCase<Key>]: Key extends
-    | StringEndingWithUnderscoreAt
-    | undefined
+  [
+    Key in keyof Omit<JobMinimalFromAPI, "args"> as SnakeToCamelCase<Key>
+  ]: Key extends StringEndingWithUnderscoreAt | undefined
     ? Date
     : JobMinimalFromAPI[Key];
 } & {

@@ -19,8 +19,7 @@ export interface PartitionConfig {
 
 export type Queue = {
   [Key in keyof QueueFromAPI as SnakeToCamelCase<Key>]: Key extends
-    | StringEndingWithUnderscoreAt
-    | undefined
+    StringEndingWithUnderscoreAt | undefined
     ? Date
     : QueueFromAPI[Key];
 };

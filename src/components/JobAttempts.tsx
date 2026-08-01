@@ -17,10 +17,7 @@ import { DurationCompact } from "./DurationCompact";
 import RelativeTimeFormatter from "./RelativeTimeFormatter";
 
 type AttemptEntry =
-  | AttemptErrorEntry
-  | AttemptLogEntry
-  | AttemptMachineEntry
-  | AttemptStateEntry;
+  AttemptErrorEntry | AttemptLogEntry | AttemptMachineEntry | AttemptStateEntry;
 
 type AttemptEntryBase = {
   attempt: number;
@@ -76,15 +73,13 @@ export default function JobAttempts({ job }: JobAttemptProps) {
   // Group all entries by attempt number
   const attemptInfos = useMemo(() => {
     // Create all entries first
-    const errorEntries = job.errors.map(
-      (error): AttemptErrorEntry => ({
-        attempt: error.attempt,
-        error: error.error,
-        timestamp: error.at,
-        trace: error.trace,
-        type: "error",
-      }),
-    );
+    const errorEntries = job.errors.map((error): AttemptErrorEntry => ({
+      attempt: error.attempt,
+      error: error.error,
+      timestamp: error.at,
+      trace: error.trace,
+      type: "error",
+    }));
 
     const logEntries = Object.entries(job.logs).map(
       ([attemptStr, log]): AttemptLogEntry => ({
