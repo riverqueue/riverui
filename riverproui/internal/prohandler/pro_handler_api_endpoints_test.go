@@ -177,6 +177,7 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 		}
 
 		dependencyJob := jobWithSchema(ctx, t, bundle.exec, bundle.schema, &testfactory.JobOpts{
+			EncodedArgs: []byte(`{"id":1970670598291982290,"max":9223372036854775807}`),
 			FinalizedAt: ptrutil.Ptr(now.Add(-2 * time.Minute)),
 			Metadata:    workflowMetadata("wf_get", "collect_inputs", nil),
 			State:       ptrutil.Ptr(rivertype.JobStateCompleted),
@@ -207,6 +208,27 @@ func TestProAPIHandlerWorkflowGet(t *testing.T) {
 
 		require.Equal(t, workflowTaskWaitReasonNone, taskByID[dependencyJob.ID].WaitReason)
 		require.Nil(t, taskByID[dependencyJob.ID].Wait)
+		expectedArgs := string(dependencyJob.EncodedArgs)
+		require.Equal(t, expectedArgs, taskByID[dependencyJob.ID].Args)
+		require.Contains(t, taskByID[dependencyJob.ID].Args, "1970670598291982290")
+		require.Contains(t, taskByID[dependencyJob.ID].Args, "9223372036854775807")
+
+		var wireResp struct {
+			Tasks []struct {
+				Args string `json:"args"`
+				ID   int64  `json:"id"`
+			} `json:"tasks"`
+		}
+		require.NoError(t, json.Unmarshal(uicommontest.MustMarshalJSON(t, resp), &wireResp))
+		var dependencyArgs string
+		for _, task := range wireResp.Tasks {
+			if task.ID == dependencyJob.ID {
+				dependencyArgs = task.Args
+				break
+			}
+		}
+		require.Equal(t, expectedArgs, dependencyArgs)
+		require.True(t, json.Valid([]byte(dependencyArgs)))
 
 		waitingTask := taskByID[waitingJob.ID]
 		require.NotNil(t, waitingTask)

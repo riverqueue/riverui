@@ -19,7 +19,8 @@ import JobList from "./JobList";
 type UseSettings = typeof import("@hooks/use-settings").useSettings;
 type UseSettingsReturn = ReturnType<UseSettings>;
 
-const { mockUseSettings } = vi.hoisted(() => ({
+const { mockCompactJSONText, mockUseSettings } = vi.hoisted(() => ({
+  mockCompactJSONText: vi.fn(),
   mockUseSettings: vi.fn() as MockedFunction<UseSettings>,
 }));
 
@@ -55,13 +56,28 @@ vi.mock("@hooks/use-settings", () => ({
   useSettings: mockUseSettings,
 }));
 
+vi.mock("@utils/jsonText", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@utils/jsonText")>();
+
+  return {
+    ...actual,
+    compactJSONText: (text: string) => {
+      mockCompactJSONText(text);
+      return actual.compactJSONText(text);
+    },
+  };
+});
+
 describe("JobList", () => {
   beforeEach(() => {
+    mockCompactJSONText.mockReset();
     mockUseSettings.mockReset();
   });
 
   it("shows job args by default", () => {
-    const job = jobMinimalFactory.build();
+    const job = jobMinimalFactory.build({
+      argsRaw: '{"z":2,"id":1970670598291982290,"a":1}',
+    });
     const features = createFeatures({
       jobListHideArgsByDefault: false,
     });
@@ -87,7 +103,9 @@ describe("JobList", () => {
       </FeaturesContext.Provider>,
     );
 
-    expect(screen.getByText(JSON.stringify(job.args))).toBeInTheDocument();
+    expect(
+      screen.getByText('{"a":1,"id":1970670598291982290,"z":2}'),
+    ).toBeInTheDocument();
   });
 
   it("hides job args when jobListHideArgsByDefault is true", () => {
@@ -117,9 +135,8 @@ describe("JobList", () => {
       </FeaturesContext.Provider>,
     );
 
-    expect(
-      screen.queryByText(JSON.stringify(job.args)),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(job.argsRaw)).not.toBeInTheDocument();
+    expect(mockCompactJSONText).not.toHaveBeenCalled();
   });
 
   it("shows job args when user overrides default hide setting", () => {
@@ -150,7 +167,7 @@ describe("JobList", () => {
     );
 
     // Even though server default is to hide, user setting should make them visible
-    expect(screen.getByText(JSON.stringify(job.args))).toBeInTheDocument();
+    expect(screen.getByText(job.argsRaw)).toBeInTheDocument();
   });
 
   it("hides job args when user overrides default show setting", () => {
@@ -181,9 +198,7 @@ describe("JobList", () => {
     );
 
     // Even though server default is to show, user setting should hide them
-    expect(
-      screen.queryByText(JSON.stringify(job.args)),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(job.argsRaw)).not.toBeInTheDocument();
   });
 
   it("requires confirmation before deleting selected jobs", async () => {

@@ -266,7 +266,7 @@ export const jobFactory = JobFactory.define(({ sequence }) => {
   const createdAt = faker.date.recent({ days: 0.001 });
 
   return {
-    args: { baz: 1, foo: "bar" },
+    argsRaw: '{"baz":1,"foo":"bar"}',
     attempt: 0,
     attemptedAt: undefined,
     attemptedBy: [],

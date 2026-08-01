@@ -3,6 +3,7 @@ import ButtonForGroup from "@components/ButtonForGroup";
 import ConfirmationDialog from "@components/ConfirmationDialog";
 import JobAttempts from "@components/JobAttempts";
 import JobTimeline from "@components/JobTimeline";
+import JSONTextView from "@components/JSONTextView";
 import JSONView from "@components/JSONView";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNavTitleOnly from "@components/TopNavTitleOnly";
@@ -164,7 +165,7 @@ export default function JobDetail({
                   Args
                 </dt>
                 <dd className="mt-1 text-sm leading-6 text-slate-700 sm:mt-2 dark:text-slate-300">
-                  <JSONView copyTitle="Args" data={job.args} />
+                  <JSONTextView copyTitle="Args" text={job.argsRaw} />
                 </dd>
               </div>
               <div className="col-span-1 border-t border-slate-100 px-4 py-6 sm:px-0 dark:border-slate-800">
