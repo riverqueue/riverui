@@ -57,7 +57,9 @@ export const Route = createFileRoute("/jobs/")({
     // No need to check for search.state since it has a default value now
     return context;
   },
-  loaderDeps: ({ search: { limit, state, kind, queue, priority, id, tags } }) => {
+  loaderDeps: ({
+    search: { limit, state, kind, queue, priority, id, tags },
+  }) => {
     return {
       kind,
       limit: limit || defaultValues.limit,
@@ -85,7 +87,8 @@ export const Route = createFileRoute("/jobs/")({
 
 function JobsIndexComponent() {
   const navigate = Route.useNavigate();
-  const { id, limit, state, kind, queue, priority, tags } = Route.useLoaderDeps();
+  const { id, limit, state, kind, queue, priority, tags } =
+    Route.useLoaderDeps();
   const refreshSettings = useRefreshSetting();
   const refreshOptions = refreshQueryOptions(refreshSettings.intervalMs);
   const [pauseRefetches, setJobRefetchesPaused] = useState(false);
@@ -127,6 +130,7 @@ function JobsIndexComponent() {
           priority?: string[];
           queue?: string[];
           state: JobState;
+          tags?: string[];
         },
     });
   };
@@ -141,6 +145,7 @@ function JobsIndexComponent() {
           priority?: string[];
           queue?: string[];
           state: JobState;
+          tags?: string[];
         },
     });
   };
@@ -288,6 +293,7 @@ function JobsIndexComponent() {
           queues: queue,
           priorities: priority,
           ids: id,
+          tags,
         }),
       });
       queryClient.invalidateQueries({ queryKey: countsByStateKey() });
@@ -304,7 +310,15 @@ function JobsIndexComponent() {
         duration: 2000,
       });
       await queryClient.removeQueries({
-        queryKey: listJobsKey({ limit, state }),
+        queryKey: listJobsKey({
+          limit,
+          state,
+          kinds: kind,
+          queues: queue,
+          priorities: priority,
+          ids: id,
+          tags,
+        }),
       });
       queryClient.invalidateQueries({ queryKey: countsByStateKey() });
     },
@@ -313,7 +327,15 @@ function JobsIndexComponent() {
   const retryMutation = useRetryJobs({
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: listJobsKey({ limit, state }),
+        queryKey: listJobsKey({
+          limit,
+          state,
+          kinds: kind,
+          queues: queue,
+          priorities: priority,
+          ids: id,
+          tags,
+        }),
       });
       queryClient.invalidateQueries({ queryKey: countsByStateKey() });
     },

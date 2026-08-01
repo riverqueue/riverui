@@ -55,4 +55,15 @@ describe("Jobs Route Search Schema", () => {
     // Test invalid limit type
     expect(() => jobSearchSchema.parse({ limit: "invalid" })).toThrow();
   });
+
+  it("normalizes tag filters", () => {
+    expect(jobSearchSchema.parse({ tags: "urgent" })).toMatchObject({
+      tags: ["urgent"],
+    });
+    expect(
+      jobSearchSchema.parse({ tags: ["customer:123", "urgent"] }),
+    ).toMatchObject({
+      tags: ["customer:123", "urgent"],
+    });
+  });
 });

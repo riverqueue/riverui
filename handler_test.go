@@ -71,7 +71,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 		// Test data
 		//
 
-		job := testfactory.Job(ctx, t, exec, &testfactory.JobOpts{})
+		job := testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Tags: []string{"integration"}})
 
 		queue := testfactory.Queue(ctx, t, exec, nil)
 
@@ -86,7 +86,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 		makeAPICall(t, "JobCancel", http.MethodPost, makeURL("/api/jobs/cancel"), uicommontest.MustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
 		makeAPICall(t, "JobDelete", http.MethodPost, makeURL("/api/jobs/delete"), uicommontest.MustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
 		makeAPICall(t, "JobGet", http.MethodGet, makeURL("/api/jobs/%d", job.ID), nil)
-		makeAPICall(t, "JobList", http.MethodGet, makeURL("/api/jobs"), nil)
+		makeAPICall(t, "JobList", http.MethodGet, makeURL("/api/jobs?tags=integration"), nil)
 		makeAPICall(t, "JobRetry", http.MethodPost, makeURL("/api/jobs/retry"), uicommontest.MustMarshalJSON(t, &jobCancelRequest{JobIDs: []int64String{int64String(job.ID)}}))
 		makeAPICall(t, "QueueGet", http.MethodGet, makeURL("/api/queues/%s", queue.Name), nil)
 		makeAPICall(t, "QueueList", http.MethodGet, makeURL("/api/queues"), nil)

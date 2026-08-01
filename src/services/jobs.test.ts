@@ -73,6 +73,35 @@ describe("jobs service", () => {
     expect(jobs[0]?.argsRaw).toBe('{"id":1970670598291982290}');
   });
 
+  it("serializes tag filters as repeated query parameters", async () => {
+    document.body.innerHTML =
+      '<script id="config__json">{"apiUrl":"http://example.test/api"}</script>';
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ data: [] }), {
+        headers: { "Content-Type": "application/json" },
+        status: 200,
+      }),
+    );
+
+    await listJobs({
+      client: undefined as never,
+      meta: undefined,
+      queryKey: listJobsKey({
+        limit: 10,
+        tags: ["customer:123", "urgent"],
+      }),
+      signal: new AbortController().signal,
+    });
+
+    const requestURL = new URL(String(fetchMock.mock.calls[0]?.[0]));
+    expect(requestURL.pathname).toBe("/api/jobs");
+    expect(requestURL.searchParams.getAll("tags")).toEqual([
+      "customer:123",
+      "urgent",
+    ]);
+  });
+
   it("preserves job detail args as raw JSON text", async () => {
     document.body.innerHTML =
       '<script id="config__json">{"apiUrl":"http://example.test/api"}</script>';

@@ -12,12 +12,16 @@ import { JobFilterTypeID } from "./types";
 describe("parser", () => {
   describe("parseFiltersFromText", () => {
     it("parses simple filters", () => {
-      const result = parseFiltersFromText("kind:batch queue:priority");
-      expect(result).toHaveLength(2);
+      const result = parseFiltersFromText(
+        "kind:batch queue:priority tags:customer,urgent",
+      );
+      expect(result).toHaveLength(3);
       expect(result[0].match).toBe("kind:");
       expect(result[0].values).toEqual(["batch"]);
       expect(result[1].match).toBe("queue:");
       expect(result[1].values).toEqual(["priority"]);
+      expect(result[2].match).toBe("tags:");
+      expect(result[2].values).toEqual(["customer", "urgent"]);
     });
 
     it("parses comma-separated values", () => {

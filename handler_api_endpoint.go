@@ -152,7 +152,7 @@ func (a *autocompleteListEndpoint[TTx]) Execute(ctx context.Context, req *autoco
 			return listResponseFrom(queuePtrs), nil
 
 		default:
-			return nil, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, job_tag, queue_name", req.Facet)
+			return nil, apierror.NewBadRequestf("Invalid facet %q. Valid facets are: job_kind, queue_name", req.Facet)
 		}
 	})
 }
@@ -498,7 +498,10 @@ func (a *jobListEndpoint[TTx]) Execute(ctx context.Context, req *jobListRequest)
 		}
 
 		if len(req.Tags) > 0 {
-			params = params.Where("ARRAY(SELECT lower(t) FROM unnest(tags) t) && ARRAY(SELECT lower(v) FROM unnest(@tags::varchar[]) v)", river.NamedArgs{"tags": req.Tags})
+			params = params.Where(
+				"ARRAY(SELECT lower(tag) FROM unnest(tags) AS tag) && ARRAY(SELECT lower(tag) FROM unnest(@tags::varchar[]) AS tag)",
+				river.NamedArgs{"tags": req.Tags},
+			)
 		}
 
 		if req.State == nil {
