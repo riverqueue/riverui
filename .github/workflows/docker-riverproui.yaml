@@ -78,7 +78,7 @@ jobs:
 
       - name: Docker meta for Pro
         id: meta-pro
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ format('{0}.dkr.ecr.{1}.amazonaws.com/riverqueue/riverproui', env.ECR_ACCOUNT_ID, env.ECR_REGION) }}
           labels: |
@@ -207,7 +207,7 @@ jobs:
 
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ${{ env.ECR_IMAGE }}
           tags: |
