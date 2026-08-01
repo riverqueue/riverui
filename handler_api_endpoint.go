@@ -498,10 +498,7 @@ func (a *jobListEndpoint[TTx]) Execute(ctx context.Context, req *jobListRequest)
 		}
 
 		if len(req.Tags) > 0 {
-			params = params.Where(
-				"ARRAY(SELECT lower(tag) FROM unnest(tags) AS tag) && ARRAY(SELECT lower(tag) FROM unnest(@tags::varchar[]) AS tag)",
-				river.NamedArgs{"tags": req.Tags},
-			)
+			params = params.Tags(req.Tags...)
 		}
 
 		if req.State == nil {
