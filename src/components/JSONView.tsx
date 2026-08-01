@@ -181,7 +181,7 @@ function JSONNodeRenderer({
   const color = styleConfig.json.key;
 
   // For primitive values, render key and value inline
-  if (propKey && isPrimitiveValue(data)) {
+  if (propKey !== null && isPrimitiveValue(data)) {
     return (
       <span
         style={{
@@ -191,7 +191,7 @@ function JSONNodeRenderer({
           whiteSpace: "nowrap",
         }}
       >
-        <span className={styleConfig.json.key}>&quot;{propKey}&quot;</span>
+        <span className={styleConfig.json.key}>{JSON.stringify(propKey)}</span>
         <span className={styleConfig.json.key}>:&nbsp;</span>
         {typeof data === "string" ? (
           <span className={valueColor("string")} style={{ whiteSpace: "pre" }}>
@@ -213,7 +213,7 @@ function JSONNodeRenderer({
   }
 
   // For non-primitive values (objects/arrays) or non-property values, use the normal rendering
-  if (!propKey) {
+  if (propKey === null) {
     return renderValue(
       data,
       valueColor,
@@ -234,7 +234,7 @@ function JSONNodeRenderer({
   if (count === 0) {
     return (
       <span>
-        <span style={{ color }}>&quot;{propKey}&quot;</span>
+        <span style={{ color }}>{JSON.stringify(propKey)}</span>
         <span style={{ color }}>:&nbsp;</span>
         <span>
           {isArray ? "[]" : "{}"}
@@ -294,7 +294,7 @@ function JSONNodeRenderer({
                 />
               )}
             </span>
-            <span style={{ color }}>&quot;{propKey}&quot;</span>
+            <span style={{ color }}>{JSON.stringify(propKey)}</span>
             <span style={{ color }}>:&nbsp;</span>
             <span>{isArray ? "[" : "{"}</span>
             {!open && (

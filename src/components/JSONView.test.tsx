@@ -97,6 +97,19 @@ describe("JSONView Component", () => {
     expect(bravoBeforeZulu).toBeTruthy();
   });
 
+  it("renders empty and escaped object keys as valid JSON strings", () => {
+    const data = JSON.parse(
+      String.raw`{"":"empty key","quote\"key":"quoted key"}`,
+    ) as Record<string, unknown>;
+
+    render(<JSONView data={data} />);
+
+    expect(screen.getByText('""')).toBeInTheDocument();
+    expect(screen.getByText(String.raw`"quote\"key"`)).toBeInTheDocument();
+    expect(screen.getByText('"empty key"')).toBeInTheDocument();
+    expect(screen.getByText('"quoted key"')).toBeInTheDocument();
+  });
+
   it("renders nested JSON data with collapsed nodes but visible keys by default", () => {
     render(<JSONView data={nestedData} defaultExpandDepth={1} />);
 
