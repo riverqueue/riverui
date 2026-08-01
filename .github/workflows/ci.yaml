@@ -43,7 +43,7 @@ jobs:
         uses: actions/checkout@v6.0.3
 
       - name: Setup Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go-version }}
 
@@ -101,7 +101,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6.0.3
 
-      - uses: actions/setup-go@v6
+      - uses: actions/setup-go@v7
         with:
           check-latest: true
           go-version-file: "./go.mod"
@@ -221,7 +221,7 @@ jobs:
         uses: actions/checkout@v6.0.3
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
           check-latest: true
           go-version-file: "go.mod"
