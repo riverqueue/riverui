@@ -93,6 +93,7 @@ updates:
           - "@storybook/*"
           - "@tanstack/*"
           - "storybook"
+          - "typescript"
       storybook:
         patterns:
           - "@chromatic-com/storybook"

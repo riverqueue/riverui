@@ -8,8 +8,7 @@ import { SnakeToCamelCase, StringEndingWithUnderscoreAt } from "./types";
 
 export type Producer = {
   [Key in keyof ProducerFromAPI as SnakeToCamelCase<Key>]: Key extends
-    | StringEndingWithUnderscoreAt
-    | undefined
+    StringEndingWithUnderscoreAt | undefined
     ? Date | undefined
     : ProducerFromAPI[Key];
 };

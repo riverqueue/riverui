@@ -103,16 +103,10 @@ export type WorkflowTaskWaitInputs = {
 };
 
 export type WorkflowTaskWaitPhase =
-  | "not_started"
-  | "resolved"
-  | "unknown"
-  | "waiting";
+  "not_started" | "resolved" | "unknown" | "waiting";
 
 export type WorkflowTaskWaitReason =
-  | "dependencies_and_wait"
-  | "dependencies"
-  | "none"
-  | "wait";
+  "dependencies_and_wait" | "dependencies" | "none" | "wait";
 
 export type WorkflowTaskWaitSignalInput = {
   key: string;
@@ -781,8 +775,7 @@ export type ListWorkflowsKey = [
 
 export type WorkflowListItem = {
   [Key in keyof WorkflowListItemFromAPI as SnakeToCamelCase<Key>]: Key extends
-    | StringEndingWithUnderscoreAt
-    | undefined
+    StringEndingWithUnderscoreAt | undefined
     ? Date
     : WorkflowListItemFromAPI[Key];
 };
