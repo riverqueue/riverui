@@ -9,27 +9,22 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from "./routes/__root"
-import { Route as SettingsRouteImport } from "./routes/settings"
-import { Route as QueuesRouteImport } from "./routes/queues"
-import { Route as JobsRouteImport } from "./routes/jobs"
 import { Route as IndexRouteImport } from "./routes/index"
-import { Route as WorkflowsIndexRouteImport } from "./routes/workflows/index"
-import { Route as QueuesIndexRouteImport } from "./routes/queues/index"
-import { Route as PeriodicJobsIndexRouteImport } from "./routes/periodic-jobs/index"
-import { Route as JobsIndexRouteImport } from "./routes/jobs/index"
-import { Route as WorkflowsWorkflowIdRouteImport } from "./routes/workflows/$workflowId"
-import { Route as QueuesNameRouteImport } from "./routes/queues/$name"
-import { Route as JobsJobIdRouteImport } from "./routes/jobs/$jobId"
+import { Route as JobsRouteImport } from "./routes/jobs"
+import { Route as QueuesRouteImport } from "./routes/queues"
+import { Route as SettingsRouteImport } from "./routes/settings"
 import { Route as AboutAboutRouteImport } from "./routes/about/about"
+import { Route as JobsIndexRouteImport } from "./routes/jobs/index"
+import { Route as JobsJobIdRouteImport } from "./routes/jobs/$jobId"
+import { Route as PeriodicJobsIndexRouteImport } from "./routes/periodic-jobs/index"
+import { Route as QueuesIndexRouteImport } from "./routes/queues/index"
+import { Route as QueuesNameRouteImport } from "./routes/queues/$name"
+import { Route as WorkflowsIndexRouteImport } from "./routes/workflows/index"
+import { Route as WorkflowsWorkflowIdRouteImport } from "./routes/workflows/$workflowId"
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: "/settings",
-  path: "/settings",
-  getParentRoute: () => rootRouteImport,
-} as any)
-const QueuesRoute = QueuesRouteImport.update({
-  id: "/queues",
-  path: "/queues",
+const IndexRoute = IndexRouteImport.update({
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsRoute = JobsRouteImport.update({
@@ -37,24 +32,19 @@ const JobsRoute = JobsRouteImport.update({
   path: "/jobs",
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: "/",
-  path: "/",
+const QueuesRoute = QueuesRouteImport.update({
+  id: "/queues",
+  path: "/queues",
   getParentRoute: () => rootRouteImport,
 } as any)
-const WorkflowsIndexRoute = WorkflowsIndexRouteImport.update({
-  id: "/workflows/",
-  path: "/workflows/",
+const SettingsRoute = SettingsRouteImport.update({
+  id: "/settings",
+  path: "/settings",
   getParentRoute: () => rootRouteImport,
 } as any)
-const QueuesIndexRoute = QueuesIndexRouteImport.update({
-  id: "/",
-  path: "/",
-  getParentRoute: () => QueuesRoute,
-} as any)
-const PeriodicJobsIndexRoute = PeriodicJobsIndexRouteImport.update({
-  id: "/periodic-jobs/",
-  path: "/periodic-jobs/",
+const AboutAboutRoute = AboutAboutRouteImport.update({
+  id: "/about/about",
+  path: "/about/about",
   getParentRoute: () => rootRouteImport,
 } as any)
 const JobsIndexRoute = JobsIndexRouteImport.update({
@@ -62,24 +52,34 @@ const JobsIndexRoute = JobsIndexRouteImport.update({
   path: "/",
   getParentRoute: () => JobsRoute,
 } as any)
-const WorkflowsWorkflowIdRoute = WorkflowsWorkflowIdRouteImport.update({
-  id: "/workflows/$workflowId",
-  path: "/workflows/$workflowId",
+const JobsJobIdRoute = JobsJobIdRouteImport.update({
+  id: "/$jobId",
+  path: "/$jobId",
+  getParentRoute: () => JobsRoute,
+} as any)
+const PeriodicJobsIndexRoute = PeriodicJobsIndexRouteImport.update({
+  id: "/periodic-jobs/",
+  path: "/periodic-jobs/",
   getParentRoute: () => rootRouteImport,
+} as any)
+const QueuesIndexRoute = QueuesIndexRouteImport.update({
+  id: "/",
+  path: "/",
+  getParentRoute: () => QueuesRoute,
 } as any)
 const QueuesNameRoute = QueuesNameRouteImport.update({
   id: "/$name",
   path: "/$name",
   getParentRoute: () => QueuesRoute,
 } as any)
-const JobsJobIdRoute = JobsJobIdRouteImport.update({
-  id: "/$jobId",
-  path: "/$jobId",
-  getParentRoute: () => JobsRoute,
+const WorkflowsIndexRoute = WorkflowsIndexRouteImport.update({
+  id: "/workflows/",
+  path: "/workflows/",
+  getParentRoute: () => rootRouteImport,
 } as any)
-const AboutAboutRoute = AboutAboutRouteImport.update({
-  id: "/about/about",
-  path: "/about/about",
+const WorkflowsWorkflowIdRoute = WorkflowsWorkflowIdRouteImport.update({
+  id: "/workflows/$workflowId",
+  path: "/workflows/$workflowId",
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -180,18 +180,11 @@ export interface RootRouteChildren {
 
 declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    "/settings": {
-      id: "/settings"
-      path: "/settings"
-      fullPath: "/settings"
-      preLoaderRoute: typeof SettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    "/queues": {
-      id: "/queues"
-      path: "/queues"
-      fullPath: "/queues"
-      preLoaderRoute: typeof QueuesRouteImport
+    "/": {
+      id: "/"
+      path: "/"
+      fullPath: "/"
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/jobs": {
@@ -201,32 +194,25 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof JobsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/": {
-      id: "/"
-      path: "/"
-      fullPath: "/"
-      preLoaderRoute: typeof IndexRouteImport
+    "/queues": {
+      id: "/queues"
+      path: "/queues"
+      fullPath: "/queues"
+      preLoaderRoute: typeof QueuesRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/workflows/": {
-      id: "/workflows/"
-      path: "/workflows"
-      fullPath: "/workflows/"
-      preLoaderRoute: typeof WorkflowsIndexRouteImport
+    "/settings": {
+      id: "/settings"
+      path: "/settings"
+      fullPath: "/settings"
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    "/queues/": {
-      id: "/queues/"
-      path: "/"
-      fullPath: "/queues/"
-      preLoaderRoute: typeof QueuesIndexRouteImport
-      parentRoute: typeof QueuesRoute
-    }
-    "/periodic-jobs/": {
-      id: "/periodic-jobs/"
-      path: "/periodic-jobs"
-      fullPath: "/periodic-jobs/"
-      preLoaderRoute: typeof PeriodicJobsIndexRouteImport
+    "/about/about": {
+      id: "/about/about"
+      path: "/about/about"
+      fullPath: "/about/about"
+      preLoaderRoute: typeof AboutAboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/jobs/": {
@@ -236,12 +222,26 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof JobsIndexRouteImport
       parentRoute: typeof JobsRoute
     }
-    "/workflows/$workflowId": {
-      id: "/workflows/$workflowId"
-      path: "/workflows/$workflowId"
-      fullPath: "/workflows/$workflowId"
-      preLoaderRoute: typeof WorkflowsWorkflowIdRouteImport
+    "/jobs/$jobId": {
+      id: "/jobs/$jobId"
+      path: "/$jobId"
+      fullPath: "/jobs/$jobId"
+      preLoaderRoute: typeof JobsJobIdRouteImport
+      parentRoute: typeof JobsRoute
+    }
+    "/periodic-jobs/": {
+      id: "/periodic-jobs/"
+      path: "/periodic-jobs"
+      fullPath: "/periodic-jobs/"
+      preLoaderRoute: typeof PeriodicJobsIndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    "/queues/": {
+      id: "/queues/"
+      path: "/"
+      fullPath: "/queues/"
+      preLoaderRoute: typeof QueuesIndexRouteImport
+      parentRoute: typeof QueuesRoute
     }
     "/queues/$name": {
       id: "/queues/$name"
@@ -250,18 +250,18 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof QueuesNameRouteImport
       parentRoute: typeof QueuesRoute
     }
-    "/jobs/$jobId": {
-      id: "/jobs/$jobId"
-      path: "/$jobId"
-      fullPath: "/jobs/$jobId"
-      preLoaderRoute: typeof JobsJobIdRouteImport
-      parentRoute: typeof JobsRoute
+    "/workflows/": {
+      id: "/workflows/"
+      path: "/workflows"
+      fullPath: "/workflows/"
+      preLoaderRoute: typeof WorkflowsIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
-    "/about/about": {
-      id: "/about/about"
-      path: "/about/about"
-      fullPath: "/about/about"
-      preLoaderRoute: typeof AboutAboutRouteImport
+    "/workflows/$workflowId": {
+      id: "/workflows/$workflowId"
+      path: "/workflows/$workflowId"
+      fullPath: "/workflows/$workflowId"
+      preLoaderRoute: typeof WorkflowsWorkflowIdRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
