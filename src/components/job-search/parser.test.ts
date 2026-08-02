@@ -21,6 +21,7 @@ describe("parser", () => {
       expect(result[1].match).toBe("queue:");
       expect(result[1].values).toEqual(["priority"]);
       expect(result[2].match).toBe("tags:");
+      expect(result[2].typeId).toBe(JobFilterTypeID.TAGS);
       expect(result[2].values).toEqual(["customer", "urgent"]);
     });
 

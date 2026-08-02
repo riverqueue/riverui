@@ -85,7 +85,7 @@ export const Route = createFileRoute("/jobs/")({
   component: JobsIndexComponent,
 });
 
-function JobsIndexComponent() {
+export function JobsIndexComponent() {
   const navigate = Route.useNavigate();
   const { id, limit, state, kind, queue, priority, tags } =
     Route.useLoaderDeps();

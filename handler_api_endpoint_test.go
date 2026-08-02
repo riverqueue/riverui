@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -759,6 +760,21 @@ func TestAPIHandlerJobListCustomSchema(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, resp.Data, 1)
 	require.Equal(t, job.ID, resp.Data[0].ID)
+}
+
+func TestJobListRequestExtractRaw(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/api/jobs?tags=ALPHA&tags=customer%3A123",
+		nil,
+	)
+	params := &jobListRequest{}
+
+	require.NoError(t, params.ExtractRaw(req))
+	require.Equal(t, []string{"ALPHA", "customer:123"}, params.Tags)
 }
 
 func TestAPIHandlerJobRetry(t *testing.T) {
