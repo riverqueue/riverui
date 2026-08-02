@@ -498,7 +498,7 @@ func (a *jobListEndpoint[TTx]) Execute(ctx context.Context, req *jobListRequest)
 		}
 
 		if len(req.Tags) > 0 {
-			params = params.Tags(req.Tags...)
+			params = params.TagsAny(req.Tags...)
 		}
 
 		if req.State == nil {

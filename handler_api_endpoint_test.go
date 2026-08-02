@@ -679,7 +679,7 @@ func TestAPIHandlerJobList(t *testing.T) {
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
 			State: ptrutil.Ptr(rivertype.JobStateRunning),
-			Tags:  []string{"alpha", "shared"},
+			Tags:  []string{"alpha-tag", "shared"},
 		})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
 			State: ptrutil.Ptr(rivertype.JobStateRunning),
@@ -687,11 +687,11 @@ func TestAPIHandlerJobList(t *testing.T) {
 		})
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
 			State: ptrutil.Ptr(rivertype.JobStateRunning),
-			Tags:  []string{"gamma"},
+			Tags:  []string{"ALPHA-TAG"},
 		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
-			Tags: []string{"ALPHA", "BETA"},
+			Tags: []string{"alpha-tag", "beta"},
 		})
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 2)

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Job list: filter jobs by one or more case-insensitive tags. [PR #548](https://github.com/riverqueue/riverui/pull/548).
+- Job list: filter jobs matching any of the selected exact tags. [PR #548](https://github.com/riverqueue/riverui/pull/548).
 
 ### Fixed
 
