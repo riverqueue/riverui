@@ -50,14 +50,16 @@ export const Route = createFileRoute("/jobs/")({
   search: {
     middlewares: [
       stripSearchParams(defaultValues),
-      retainSearchParams(["id", "kind", "limit", "priority", "queue"]),
+      retainSearchParams(["id", "kind", "limit", "priority", "queue", "tags"]),
     ],
   },
   beforeLoad: async ({ context }) => {
     // No need to check for search.state since it has a default value now
     return context;
   },
-  loaderDeps: ({ search: { limit, state, kind, queue, priority, id } }) => {
+  loaderDeps: ({
+    search: { limit, state, kind, queue, priority, id, tags },
+  }) => {
     return {
       kind,
       limit: limit || defaultValues.limit,
@@ -65,15 +67,16 @@ export const Route = createFileRoute("/jobs/")({
       queue,
       state,
       id,
+      tags,
     };
   },
   loader: async ({
     context: { queryClient },
-    deps: { limit, state, kind, queue, id },
+    deps: { limit, state, kind, queue, id, tags },
   }) => {
     await Promise.all([
       queryClient.ensureQueryData({
-        ...jobsQueryOptions({ limit, state, kind, queue, id }),
+        ...jobsQueryOptions({ limit, state, kind, queue, id, tags }),
       }),
       queryClient.ensureQueryData(statesQueryOptions()),
     ]);
@@ -82,9 +85,10 @@ export const Route = createFileRoute("/jobs/")({
   component: JobsIndexComponent,
 });
 
-function JobsIndexComponent() {
+export function JobsIndexComponent() {
   const navigate = Route.useNavigate();
-  const { id, limit, state, kind, queue, priority } = Route.useLoaderDeps();
+  const { id, limit, state, kind, queue, priority, tags } =
+    Route.useLoaderDeps();
   const refreshSettings = useRefreshSetting();
   const refreshOptions = refreshQueryOptions(refreshSettings.intervalMs);
   const [pauseRefetches, setJobRefetchesPaused] = useState(false);
@@ -99,6 +103,7 @@ function JobsIndexComponent() {
         kind,
         queue,
         priority,
+        tags,
       },
       {
         pauseRefetches,
@@ -125,6 +130,7 @@ function JobsIndexComponent() {
           priority?: string[];
           queue?: string[];
           state: JobState;
+          tags?: string[];
         },
     });
   };
@@ -139,6 +145,7 @@ function JobsIndexComponent() {
           priority?: string[];
           queue?: string[];
           state: JobState;
+          tags?: string[];
         },
     });
   };
@@ -151,6 +158,7 @@ function JobsIndexComponent() {
         priority: undefined,
         queue: undefined,
         id: undefined,
+        tags: undefined,
       };
 
       // Only set values for filters that exist and have values
@@ -174,6 +182,11 @@ function JobsIndexComponent() {
               ? filter.values
               : undefined;
             break;
+          case FilterTypeId.TAGS:
+            searchParams.tags = filter.values.length
+              ? filter.values
+              : undefined;
+            break;
         }
       });
 
@@ -182,6 +195,7 @@ function JobsIndexComponent() {
         kind,
         priority: priority?.map(String),
         queue,
+        tags,
       };
 
       // Avoid no-op navigations that can race with route transitions.
@@ -192,7 +206,8 @@ function JobsIndexComponent() {
           currentSearchParams.priority,
           searchParams.priority,
         ) &&
-        areStringArraysEqual(currentSearchParams.queue, searchParams.queue)
+        areStringArraysEqual(currentSearchParams.queue, searchParams.queue) &&
+        areStringArraysEqual(currentSearchParams.tags, searchParams.tags)
       ) {
         return;
       }
@@ -208,10 +223,11 @@ function JobsIndexComponent() {
             priority?: string[];
             queue?: string[];
             state: JobState;
+            tags?: string[];
           },
       });
     },
-    [id, kind, navigate, priority, queue],
+    [id, kind, navigate, priority, queue, tags],
   );
 
   // Convert current search params to initial filters
@@ -249,8 +265,16 @@ function JobsIndexComponent() {
         values: queue,
       });
     }
+    if (tags?.length) {
+      filters.push({
+        id: "tags-filter",
+        match: "tags:",
+        typeId: FilterTypeId.TAGS,
+        values: tags,
+      });
+    }
     return filters;
-  }, [id, kind, priority, queue]);
+  }, [id, kind, priority, queue, tags]);
 
   const cancelMutation = useMutation({
     mutationFn: async (jobIDs: bigint[], context) =>
@@ -269,6 +293,7 @@ function JobsIndexComponent() {
           queues: queue,
           priorities: priority,
           ids: id,
+          tags,
         }),
       });
       queryClient.invalidateQueries({ queryKey: countsByStateKey() });
@@ -285,7 +310,15 @@ function JobsIndexComponent() {
         duration: 2000,
       });
       await queryClient.removeQueries({
-        queryKey: listJobsKey({ limit, state }),
+        queryKey: listJobsKey({
+          limit,
+          state,
+          kinds: kind,
+          queues: queue,
+          priorities: priority,
+          ids: id,
+          tags,
+        }),
       });
       queryClient.invalidateQueries({ queryKey: countsByStateKey() });
     },
@@ -294,7 +327,15 @@ function JobsIndexComponent() {
   const retryMutation = useRetryJobs({
     onSuccess: () => {
       queryClient.invalidateQueries({
-        queryKey: listJobsKey({ limit, state }),
+        queryKey: listJobsKey({
+          limit,
+          state,
+          kinds: kind,
+          queues: queue,
+          priorities: priority,
+          ids: id,
+          tags,
+        }),
       });
       queryClient.invalidateQueries({ queryKey: countsByStateKey() });
     },
@@ -329,6 +370,7 @@ const jobsQueryOptions = (
     kind,
     queue,
     priority,
+    tags,
   }: {
     id?: bigint[];
     kind?: string[];
@@ -336,6 +378,7 @@ const jobsQueryOptions = (
     priority?: number[];
     queue?: string[];
     state: JobState;
+    tags?: string[];
   },
   opts?: { pauseRefetches: boolean; refreshOptions: RefreshQueryOptions },
 ) => {
@@ -358,6 +401,7 @@ const jobsQueryOptions = (
       queues: queue,
       priorities: priority,
       ids: id,
+      tags,
     }),
     queryFn: listJobs,
     placeholderData: keepPreviousDataUnlessStateChanged,

@@ -191,6 +191,7 @@ export type ListJobsKey = [
     priorities: number[] | undefined;
     queues: string[] | undefined;
     state: JobState | undefined;
+    tags: string[] | undefined;
   },
 ];
 
@@ -201,6 +202,7 @@ type ListJobsFilters = {
   priorities?: number[];
   queues?: string[];
   state?: JobState;
+  tags?: string[];
 };
 
 export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
@@ -213,6 +215,7 @@ export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
       priorities: args.priorities,
       queues: args.queues,
       state: args.state,
+      tags: args.tags,
     },
   ];
 };
@@ -221,7 +224,7 @@ export const listJobs: QueryFunction<JobMinimal[], ListJobsKey> = async ({
   queryKey,
   signal,
 }) => {
-  const [, { ids, kinds, limit, priorities, queues, state }] = queryKey;
+  const [, { ids, kinds, limit, priorities, queues, state, tags }] = queryKey;
 
   // Build query params object with only defined values
   const params: Record<string, string | string[]> = {
@@ -232,6 +235,7 @@ export const listJobs: QueryFunction<JobMinimal[], ListJobsKey> = async ({
   if (priorities?.length) params.priorities = priorities.map(String);
   if (queues?.length) params.queues = queues;
   if (state) params.state = state;
+  if (tags?.length) params.tags = tags;
 
   // Convert to URLSearchParams, handling arrays correctly
   const query = new URLSearchParams();

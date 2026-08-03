@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -671,6 +672,33 @@ func TestAPIHandlerJobList(t *testing.T) {
 		require.Equal(t, job.ID, resp.Data[0].ID)
 	})
 
+	t.Run("FilterByTags", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
+
+		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			Tags:  []string{"alpha-tag", "shared"},
+		})
+		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			Tags:  []string{"beta"},
+		})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
+			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			Tags:  []string{"ALPHA-TAG"},
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+			Tags: []string{"alpha-tag", "beta"},
+		})
+		require.NoError(t, err)
+		require.Len(t, resp.Data, 2)
+		require.Equal(t, job1.ID, resp.Data[0].ID)
+		require.Equal(t, job2.ID, resp.Data[1].ID)
+	})
+
 	t.Run("FilterByState", func(t *testing.T) {
 		t.Parallel()
 
@@ -711,6 +739,42 @@ func TestAPIHandlerJobList(t *testing.T) {
 		require.Len(t, resp.Data, 1)
 		require.Equal(t, job.ID, resp.Data[0].ID)
 	})
+}
+
+func TestAPIHandlerJobListCustomSchema(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	endpoint, bundle := setupEndpointWithCustomSchema(ctx, t, newJobListEndpoint)
+	jobParams := testfactory.Job_Build(t, &testfactory.JobOpts{
+		State: ptrutil.Ptr(rivertype.JobStateRunning),
+		Tags:  []string{"custom-schema-tag"},
+	})
+	jobParams.Schema = bundle.client.Schema()
+	job, err := bundle.exec.JobInsertFull(ctx, jobParams)
+	require.NoError(t, err)
+
+	resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
+		Tags: []string{"custom-schema-tag"},
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.Data, 1)
+	require.Equal(t, job.ID, resp.Data[0].ID)
+}
+
+func TestJobListRequestExtractRaw(t *testing.T) {
+	t.Parallel()
+
+	req := httptest.NewRequestWithContext(
+		t.Context(),
+		http.MethodGet,
+		"/api/jobs?tags=ALPHA&tags=customer%3A123",
+		nil,
+	)
+	params := &jobListRequest{}
+
+	require.NoError(t, params.ExtractRaw(req))
+	require.Equal(t, []string{"ALPHA", "customer:123"}, params.Tags)
 }
 
 func TestAPIHandlerJobRetry(t *testing.T) {

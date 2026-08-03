@@ -8,11 +8,11 @@ require (
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/riverqueue/apiframe v0.0.0-20251229202423-2b52ce1c482e
-	github.com/riverqueue/river v0.41.1
-	github.com/riverqueue/river/riverdriver v0.41.1
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.41.1
-	github.com/riverqueue/river/rivershared v0.41.1
-	github.com/riverqueue/river/rivertype v0.41.1
+	github.com/riverqueue/river v0.42.1-0.20260803004224-dc39f530d6db
+	github.com/riverqueue/river/riverdriver v0.42.1-0.20260803004224-dc39f530d6db
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.42.1-0.20260803004224-dc39f530d6db
+	github.com/riverqueue/river/rivershared v0.42.1-0.20260803004224-dc39f530d6db
+	github.com/riverqueue/river/rivertype v0.42.1-0.20260803004224-dc39f530d6db
 	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.12.1
 	github.com/stretchr/testify v1.11.1
