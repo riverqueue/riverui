@@ -194,7 +194,7 @@ jobs:
 
       - name: Cache ESLint
         id: cache-eslint
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .eslintcache
           key: eslint-v1-${{ runner.os }}-${{ matrix.node-version }}-${{ hashFiles('**/package-lock.json') }}
