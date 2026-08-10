@@ -21,6 +21,14 @@ fake_assets:
 dist:
 	@npm run build
 
+.PHONY: generate
+generate: generate/sqlc
+
+.PHONY: generate/sqlc
+generate/sqlc:
+	cd internal/riveruidriver/riveruipostgres/internal/dbsqlc && sqlc generate
+	cd internal/riveruidriver/riveruisqlite/internal/dbsqlc && sqlc generate
+
 .PHONY: build
 build: dist
 	CGO_ENABLED=0 go build
@@ -74,4 +82,5 @@ verify: verify/sqlc
 
 .PHONY: verify/sqlc
 verify/sqlc:
-	cd internal/dbsqlc && sqlc diff
+	cd internal/riveruidriver/riveruipostgres/internal/dbsqlc && sqlc diff
+	cd internal/riveruidriver/riveruisqlite/internal/dbsqlc && sqlc diff

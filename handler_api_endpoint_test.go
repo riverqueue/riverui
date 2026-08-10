@@ -3,6 +3,7 @@ package riverui
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -27,6 +28,8 @@ import (
 
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/internal/riveruidriver/riveruipostgres"
+	"riverqueue.com/riverui/internal/riveruidriver/riveruisqlite"
 	"riverqueue.com/riverui/internal/uicommontest"
 )
 
@@ -1053,6 +1056,25 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
+	stateCountsFromResponse := func(resp *stateAndCountGetResponse) map[rivertype.JobState]*stateCountResponse {
+		return map[rivertype.JobState]*stateCountResponse{
+			rivertype.JobStateAvailable: &resp.Available,
+			rivertype.JobStateCancelled: &resp.Cancelled,
+			rivertype.JobStateCompleted: &resp.Completed,
+			rivertype.JobStateDiscarded: &resp.Discarded,
+			rivertype.JobStatePending:   &resp.Pending,
+			rivertype.JobStateRetryable: &resp.Retryable,
+			rivertype.JobStateRunning:   &resp.Running,
+			rivertype.JobStateScheduled: &resp.Scheduled,
+		}
+	}
+	requireExactCounts := func(t *testing.T, resp *stateAndCountGetResponse) {
+		t.Helper()
+		for state, stateCount := range stateCountsFromResponse(resp) {
+			require.Equal(t, stateCountAccuracyExact, stateCount.Accuracy, state)
+			require.NotNil(t, stateCount.ObservedAt, state)
+		}
+	}
 
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
@@ -1091,55 +1113,216 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &stateAndCountGetRequest{})
 		require.NoError(t, err)
-		require.Equal(t, &stateAndCountGetResponse{
-			Available: 1,
-			Cancelled: 2,
-			Completed: 3,
-			Discarded: 4,
-			Pending:   5,
-			Retryable: 6,
-			Running:   7,
-			Scheduled: 8,
-		}, resp)
+		requireExactCounts(t, resp)
+		require.Equal(t, 1, resp.Available.Count)
+		require.Equal(t, 2, resp.Cancelled.Count)
+		require.Equal(t, 3, resp.Completed.Count)
+		require.Equal(t, 4, resp.Discarded.Count)
+		require.Equal(t, 5, resp.Pending.Count)
+		require.Equal(t, 6, resp.Retryable.Count)
+		require.Equal(t, 7, resp.Running.Count)
+		require.Equal(t, 8, resp.Scheduled.Count)
 	})
 
-	t.Run("WithCachedQueryAboveSkipThreshold", func(t *testing.T) {
+	t.Run("AtCountMaxIsExact", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
+		const countMax = 3
+		endpoint, bundle := setupEndpoint(ctx, t, func(bundle apibundle.APIBundle[pgx.Tx]) *stateAndCountGetEndpoint[pgx.Tx] {
+			endpoint := newStateAndCountGetEndpoint(bundle)
+			endpoint.countMax = countMax
+			return endpoint
+		})
 
-		const queryCacheSkipThreshold = 3
-		for range queryCacheSkipThreshold + 1 {
+		for range countMax {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateAvailable)})
 		}
 
-		_, err := endpoint.queryCacher.RunQuery(ctx)
-		require.NoError(t, err)
-
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &stateAndCountGetRequest{})
 		require.NoError(t, err)
-		require.Equal(t, &stateAndCountGetResponse{
-			Available: queryCacheSkipThreshold + 1,
-		}, resp)
+		requireExactCounts(t, resp)
+		require.Equal(t, countMax, resp.Available.Count)
 	})
 
-	t.Run("WithCachedQueryBelowSkipThreshold", func(t *testing.T) {
+	t.Run("WithExactCachedSnapshot", func(t *testing.T) {
 		t.Parallel()
 
-		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
+		const countMax = 3
+		endpoint, bundle := setupEndpoint(ctx, t, func(bundle apibundle.APIBundle[pgx.Tx]) *stateAndCountGetEndpoint[pgx.Tx] {
+			endpoint := newStateAndCountGetEndpoint(bundle)
+			endpoint.countMax = countMax
+			return endpoint
+		})
 
-		const queryCacheSkipThreshold = 3
-		for range queryCacheSkipThreshold - 1 {
+		for range countMax + 1 {
 			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateAvailable)})
 		}
 
-		_, err := endpoint.queryCacher.RunQuery(ctx)
+		_, err := endpoint.boundedQueryCacher.RunQuery(ctx)
 		require.NoError(t, err)
+		_, err = endpoint.exactQueryCacher.RunQuery(ctx)
+		require.NoError(t, err)
+
+		// Once a state is capped, both caches are reused instead of making an
+		// exact count part of the request's latency.
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateCancelled), FinalizedAt: new(time.Now())})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &stateAndCountGetRequest{})
 		require.NoError(t, err)
-		require.Equal(t, &stateAndCountGetResponse{
-			Available: queryCacheSkipThreshold - 1,
-		}, resp)
+		require.Equal(t, countMax+1, resp.Available.Count)
+		require.Equal(t, stateCountAccuracyExactCached, resp.Available.Accuracy)
+		require.NotNil(t, resp.Available.ObservedAt)
+		require.Equal(t, 0, resp.Cancelled.Count)
+		require.Equal(t, stateCountAccuracyExact, resp.Cancelled.Accuracy)
 	})
+
+	t.Run("WithExactCachedCount", func(t *testing.T) {
+		t.Parallel()
+
+		const countMax = 3
+		endpoint, bundle := setupEndpoint(ctx, t, func(bundle apibundle.APIBundle[pgx.Tx]) *stateAndCountGetEndpoint[pgx.Tx] {
+			endpoint := newStateAndCountGetEndpoint(bundle)
+			endpoint.countMax = countMax
+			return endpoint
+		})
+
+		for range countMax - 1 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateAvailable)})
+		}
+
+		_, err := endpoint.boundedQueryCacher.RunQuery(ctx)
+		require.NoError(t, err)
+
+		// An exact cache result is refreshed inline for the latest counts.
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateCancelled), FinalizedAt: new(time.Now())})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &stateAndCountGetRequest{})
+		require.NoError(t, err)
+		requireExactCounts(t, resp)
+		require.Equal(t, countMax-1, resp.Available.Count)
+		require.Equal(t, 1, resp.Cancelled.Count)
+	})
+
+	t.Run("WithPlannerEstimate", func(t *testing.T) {
+		t.Parallel()
+
+		const countMax = 3
+		endpoint, bundle := setupEndpoint(ctx, t, func(bundle apibundle.APIBundle[pgx.Tx]) *stateAndCountGetEndpoint[pgx.Tx] {
+			endpoint := newStateAndCountGetEndpoint(bundle)
+			endpoint.countMax = countMax
+			return endpoint
+		})
+
+		for range countMax + 1 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateCompleted), FinalizedAt: new(time.Now())})
+		}
+		_, err := endpoint.boundedQueryCacher.RunQuery(ctx)
+		require.NoError(t, err)
+
+		observedAt := time.Now().Add(-5 * time.Minute)
+		endpoint.estimateCounts = func(_ context.Context, states []rivertype.JobState) (map[rivertype.JobState]stateCountEstimate, error) {
+			require.Equal(t, []rivertype.JobState{rivertype.JobStateCompleted}, states)
+			return map[rivertype.JobState]stateCountEstimate{
+				rivertype.JobStateCompleted: {Count: 1_000_000, ObservedAt: &observedAt},
+			}, nil
+		}
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &stateAndCountGetRequest{})
+		require.NoError(t, err)
+		require.Equal(t, stateCountResponse{
+			Accuracy:   stateCountAccuracyEstimated,
+			Count:      1_000_000,
+			ObservedAt: &observedAt,
+		}, resp.Completed)
+	})
+
+	t.Run("ReadsPlannerEstimateFromPostgres", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
+		for range 100 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateCompleted), FinalizedAt: new(time.Now())})
+		}
+		for range 10 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateRunning)})
+		}
+		require.NoError(t, bundle.exec.Exec(ctx, "ANALYZE river_job"))
+
+		estimates, err := endpoint.queryEstimatedCounts(ctx, []rivertype.JobState{
+			rivertype.JobStateCompleted,
+			rivertype.JobStateRunning,
+		})
+		require.NoError(t, err)
+		require.Positive(t, estimates[rivertype.JobStateCompleted].Count)
+		require.NotNil(t, estimates[rivertype.JobStateCompleted].ObservedAt)
+		require.Greater(t, estimates[rivertype.JobStateCompleted].Count, estimates[rivertype.JobStateRunning].Count)
+	})
+
+	t.Run("WithLowerBoundForStaleEstimate", func(t *testing.T) {
+		t.Parallel()
+
+		const countMax = 3
+		endpoint, bundle := setupEndpoint(ctx, t, func(bundle apibundle.APIBundle[pgx.Tx]) *stateAndCountGetEndpoint[pgx.Tx] {
+			endpoint := newStateAndCountGetEndpoint(bundle)
+			endpoint.countMax = countMax
+			return endpoint
+		})
+
+		for range countMax + 1 {
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateAvailable)})
+		}
+		_, err := endpoint.boundedQueryCacher.RunQuery(ctx)
+		require.NoError(t, err)
+		endpoint.estimateCounts = func(_ context.Context, _ []rivertype.JobState) (map[rivertype.JobState]stateCountEstimate, error) {
+			return map[rivertype.JobState]stateCountEstimate{
+				rivertype.JobStateAvailable: {Count: countMax - 1},
+			}, nil
+		}
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &stateAndCountGetRequest{})
+		require.NoError(t, err)
+		require.Equal(t, countMax, resp.Available.Count)
+		require.Equal(t, stateCountAccuracyLowerBound, resp.Available.Accuracy)
+		require.NotNil(t, resp.Available.ObservedAt)
+	})
+}
+
+func TestAllJobStates(t *testing.T) {
+	t.Parallel()
+
+	// Keep the endpoint's exhaustive response synchronized with River when a job
+	// state is added or reordered upstream.
+	require.Equal(t, rivertype.JobStates(), allJobStates)
+}
+
+func TestNewRiverUIDriver(t *testing.T) {
+	t.Parallel()
+
+	require.IsType(t, &riveruipostgres.Driver{}, newRiverUIDriver(riverdriver.DatabaseNamePostgres))
+	require.IsType(t, &riveruisqlite.Driver{}, newRiverUIDriver(riverdriver.DatabaseNameSQLite))
+	require.PanicsWithValue(t, `unsupported River UI database "mysql"`, func() { newRiverUIDriver("mysql") })
+}
+
+func TestStateCountExactRefreshPeriod(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, stateCountExactRefreshMin, stateCountExactRefreshPeriod(100*time.Millisecond, nil))
+	require.Equal(t, 100*time.Second, stateCountExactRefreshPeriod(2*time.Second, nil))
+	require.Equal(t, stateCountExactRefreshMax, stateCountExactRefreshPeriod(time.Hour, nil))
+	require.Equal(t, stateCountExactRefreshMax, stateCountExactRefreshPeriod(time.Second, errors.New("database busy")))
+}
+
+func TestStateAndCountGetEndpointCustomSchema(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	endpoint, bundle := setupEndpointWithCustomSchema(ctx, t, newStateAndCountGetEndpoint)
+	jobParams := testfactory.Job_Build(t, &testfactory.JobOpts{State: new(rivertype.JobStateRunning)})
+	jobParams.Schema = bundle.client.Schema()
+	_, err := bundle.exec.JobInsertFull(ctx, jobParams)
+	require.NoError(t, err)
+
+	resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &stateAndCountGetRequest{})
+	require.NoError(t, err)
+	require.Equal(t, 1, resp.Running.Count)
 }
