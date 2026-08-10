@@ -1,4 +1,5 @@
 import { FeaturesContext } from "@contexts/Features";
+import { StatesAndCounts } from "@services/states";
 import { JobState } from "@services/types";
 import { jobMinimalFactory } from "@test/factories/job";
 import { createFeatures } from "@test/utils/features";
@@ -73,6 +74,50 @@ describe("JobList", () => {
     mockCompactJSONText.mockReset();
     mockUseSettings.mockReset();
   });
+
+  it.each([
+    { accuracy: "estimated", count: 987_654n, formatted: "≈987.7K" },
+    { accuracy: "exact_cached", count: 12_345_678n, formatted: "12.3M" },
+    { accuracy: "lower_bound", count: 10_000n, formatted: "10K+" },
+  ] as const)(
+    "preserves $accuracy counts in the mobile menu",
+    async ({ accuracy, count, formatted }) => {
+      mockUseSettings.mockReturnValue(settingsMock({}));
+      const statesAndCounts: StatesAndCounts = {
+        available: { accuracy: "exact", count: 0n },
+        cancelled: { accuracy: "exact", count: 0n },
+        completed: { accuracy: "exact", count: 0n },
+        discarded: { accuracy: "exact", count: 0n },
+        pending: { accuracy: "exact", count: 0n },
+        retryable: { accuracy: "exact", count: 0n },
+        running: { accuracy, count },
+        scheduled: { accuracy: "exact", count: 0n },
+      };
+      render(
+        <FeaturesContext.Provider value={{ features: createFeatures() }}>
+          <JobList
+            cancelJobs={vi.fn()}
+            canShowFewer={false}
+            canShowMore={false}
+            deleteJobs={vi.fn()}
+            jobs={[]}
+            retryJobs={vi.fn()}
+            setJobRefetchesPaused={vi.fn()}
+            showFewer={vi.fn()}
+            showMore={vi.fn()}
+            state={JobState.Running}
+            statesAndCounts={statesAndCounts}
+          />
+        </FeaturesContext.Provider>,
+      );
+
+      const button = screen.getByRole("button", { name: "Job state" });
+      expect(within(button).getByText(formatted)).toHaveAttribute("title");
+      await userEvent.click(button);
+      const menu = await screen.findByRole("menu");
+      expect(within(menu).getByText(formatted)).toHaveAttribute("title");
+    },
+  );
 
   it("shows job args by default", () => {
     const job = jobMinimalFactory.build({
