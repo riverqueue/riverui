@@ -23,20 +23,37 @@ type QueryCacher[TRes any] struct {
 	cachedRes        TRes
 	cachedResSet     bool
 	mu               sync.RWMutex
+	nextTickPeriod   func(queryDuration time.Duration, queryErr error) time.Duration
 	runQuery         func(ctx context.Context) (TRes, error)
 	runQueryTestChan chan struct{} // closed when query is run; for testing
 	tickPeriod       time.Duration // constant normally, but settable for testing
 }
 
+type QueryCacherOpts struct {
+	// NextTickPeriod makes the interval adaptive to the cost and result of the
+	// preceding query. The period starts after the query finishes, so an
+	// expensive query can never cause this service to run continuously.
+	NextTickPeriod func(queryDuration time.Duration, queryErr error) time.Duration
+}
+
 func NewQueryCacher[TRes any](archetype *baseservice.Archetype, runQuery func(ctx context.Context) (TRes, error)) *QueryCacher[TRes] {
+	return NewQueryCacherWithOpts(archetype, runQuery, nil)
+}
+
+func NewQueryCacherWithOpts[TRes any](archetype *baseservice.Archetype, runQuery func(ctx context.Context) (TRes, error), opts *QueryCacherOpts) *QueryCacher[TRes] {
 	// +/- 1s random variance to ticker interval. Makes sure that given multiple
 	// query caches running simultaneously, they all start and are scheduled a
 	// little differently to make a thundering herd problem less likely.
 	randomTickVariance := time.Duration(rand.Float64()*float64(2*time.Second)) - 1*time.Second
+	var nextTickPeriod func(queryDuration time.Duration, queryErr error) time.Duration
+	if opts != nil {
+		nextTickPeriod = opts.NextTickPeriod
+	}
 
 	queryCacher := baseservice.Init(archetype, &QueryCacher[TRes]{
-		runQuery:   runQuery,
-		tickPeriod: 10*time.Second + randomTickVariance,
+		nextTickPeriod: nextTickPeriod,
+		runQuery:       runQuery,
+		tickPeriod:     10*time.Second + randomTickVariance,
 	})
 
 	// TODO(brandur): Push this up into baseservice.
@@ -76,7 +93,7 @@ func (s *QueryCacher[TRes]) RunQuery(ctx context.Context) (TRes, error) {
 		return emptyRes, err
 	}
 
-	s.Logger.DebugContext(ctx, s.Name+": Ran query and cached result", "duration", time.Since(start), "tick_period", s.tickPeriod)
+	s.Logger.DebugContext(ctx, s.Name+": Ran query and cached result", "duration", time.Since(start))
 
 	s.mu.Lock()
 	s.cachedRes = res
@@ -104,20 +121,36 @@ func (s *QueryCacher[TRes]) Start(ctx context.Context) error {
 		started()
 		defer stopped()
 
-		// In case a query runs long and exceeds tickPeriod, time.Ticker will
-		// drop ticks to compensate.
-		ticker := time.NewTicker(s.tickPeriod)
-		defer ticker.Stop()
+		// A timer is reset only after each query finishes. Unlike a ticker, this
+		// prevents a slow query from leaving a pending tick that starts another
+		// expensive query immediately.
+		timer := time.NewTimer(s.tickPeriod)
+		defer timer.Stop()
 
 		for {
 			select {
 			case <-ctx.Done():
 				return
 
-			case <-ticker.C:
-				if _, err := s.RunQuery(ctx); err != nil {
+			case <-timer.C:
+				start := time.Now()
+				_, err := s.RunQuery(ctx)
+				queryDuration := time.Since(start)
+				if err != nil {
 					s.Logger.ErrorContext(ctx, s.Name+": Error running query", "err", err)
 				}
+
+				nextTickPeriod := s.tickPeriod
+				if s.nextTickPeriod != nil {
+					nextTickPeriod = s.nextTickPeriod(queryDuration, err)
+				}
+				if nextTickPeriod <= 0 {
+					// A non-positive period would make the service spin. Falling
+					// back to the base interval is safer than treating bad options
+					// as permission to continuously query the database.
+					nextTickPeriod = s.tickPeriod
+				}
+				timer.Reset(nextTickPeriod)
 			}
 		}
 	}()
