@@ -26,6 +26,9 @@ import (
 
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/querycacher"
+	"riverqueue.com/riverui/internal/riveruidriver"
+	"riverqueue.com/riverui/internal/riveruidriver/riveruipostgres"
+	"riverqueue.com/riverui/internal/riveruidriver/riveruisqlite"
 )
 
 type listResponse[T any] struct {
@@ -878,22 +881,48 @@ type stateAndCountGetEndpoint[TTx any] struct {
 	apibundle.APIBundle[TTx]
 	apiendpoint.Endpoint[jobCancelRequest, stateAndCountGetResponse]
 
-	queryCacheSkipThreshold int // constant normally, but settable for testing
-	queryCacher             *querycacher.QueryCacher[map[rivertype.JobState]int]
+	boundedQueryCacher *querycacher.QueryCacher[stateCountSnapshot]
+	countMax           int
+	estimateCounts     func(ctx context.Context, states []rivertype.JobState) (map[rivertype.JobState]stateCountEstimate, error)
+	exactQueryCacher   *querycacher.QueryCacher[stateCountSnapshot]
+	driver             riveruidriver.Driver
 }
 
-func newStateAndCountGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *stateAndCountGetEndpoint[TTx] {
-	runQuery := func(ctx context.Context) (map[rivertype.JobState]int, error) {
-		return dbutil.WithTxV(ctx, bundle.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (map[rivertype.JobState]int, error) {
-			tx := bundle.Driver.UnwrapTx(execTx)
+const (
+	stateAndCountDefaultMax = 10_000
 
-			return bundle.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: bundle.Client.Schema()})
-		})
+	// Two missed maximum-interval refreshes make an estimate preferable to an
+	// increasingly misleading exact snapshot.
+	stateCountExactMaxAge         = 30 * time.Minute
+	stateCountExactRefreshMin     = 30 * time.Second
+	stateCountExactRefreshMax     = 15 * time.Minute
+	stateCountExactRefreshCostMul = 50
+)
+
+func newStateAndCountGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *stateAndCountGetEndpoint[TTx] {
+	endpoint := &stateAndCountGetEndpoint[TTx]{
+		APIBundle: bundle,
+		countMax:  stateAndCountDefaultMax,
+		driver:    newRiverUIDriver(bundle.Driver.DatabaseName()),
 	}
-	return &stateAndCountGetEndpoint[TTx]{
-		APIBundle:               bundle,
-		queryCacheSkipThreshold: 1_000_000,
-		queryCacher:             querycacher.NewQueryCacher(bundle.Archetype, runQuery),
+	endpoint.boundedQueryCacher = querycacher.NewQueryCacher(bundle.Archetype, endpoint.queryBoundedCounts)
+	endpoint.exactQueryCacher = querycacher.NewQueryCacherWithOpts(
+		bundle.Archetype,
+		endpoint.queryExactCounts,
+		&querycacher.QueryCacherOpts{NextTickPeriod: stateCountExactRefreshPeriod},
+	)
+	endpoint.estimateCounts = endpoint.queryEstimatedCounts
+	return endpoint
+}
+
+func newRiverUIDriver(databaseName string) riveruidriver.Driver {
+	switch databaseName {
+	case riverdriver.DatabaseNamePostgres:
+		return riveruipostgres.New()
+	case riverdriver.DatabaseNameSQLite:
+		return riveruisqlite.New()
+	default:
+		panic(fmt.Sprintf("unsupported River UI database %q", databaseName))
 	}
 }
 
@@ -905,61 +934,226 @@ func (*stateAndCountGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 }
 
 func (a *stateAndCountGetEndpoint[TTx]) SubServices() []startstop.Service {
-	return []startstop.Service{a.queryCacher}
+	return []startstop.Service{a.boundedQueryCacher, a.exactQueryCacher}
 }
 
 type stateAndCountGetRequest struct{}
 
-type stateAndCountGetResponse struct {
-	Available int `json:"available"`
-	Cancelled int `json:"cancelled"`
-	Completed int `json:"completed"`
-	Discarded int `json:"discarded"`
-	Pending   int `json:"pending"`
-	Retryable int `json:"retryable"`
-	Running   int `json:"running"`
-	Scheduled int `json:"scheduled"`
+type stateCountAccuracy string
+
+const (
+	stateCountAccuracyEstimated   stateCountAccuracy = "estimated"    // uses Postgres planner estimate (Postgres only)
+	stateCountAccuracyExact       stateCountAccuracy = "exact"        // exact
+	stateCountAccuracyExactCached stateCountAccuracy = "exact_cached" // exact (cached)
+	stateCountAccuracyLowerBound  stateCountAccuracy = "lower_bound"  // constrained to stateAndCountDefaultMax
+)
+
+type stateCountResponse struct {
+	Accuracy   stateCountAccuracy `json:"accuracy"`
+	Count      int                `json:"count"`
+	ObservedAt *time.Time         `json:"observed_at,omitempty"`
 }
 
+type stateAndCountGetResponse struct {
+	Available stateCountResponse `json:"available"`
+	Cancelled stateCountResponse `json:"cancelled"`
+	Completed stateCountResponse `json:"completed"`
+	Discarded stateCountResponse `json:"discarded"`
+	Pending   stateCountResponse `json:"pending"`
+	Retryable stateCountResponse `json:"retryable"`
+	Running   stateCountResponse `json:"running"`
+	Scheduled stateCountResponse `json:"scheduled"`
+}
+
+// Execute resolves every state's count from the cheapest sufficiently useful
+// source. A bounded index scan gives fresh exact values for small states. Large
+// states prefer a recent exact snapshot refreshed adaptively in the background,
+// then a PostgreSQL planner estimate, and finally the bound proven by the index
+// scan. Full exact scans are never part of request latency.
 func (a *stateAndCountGetEndpoint[TTx]) Execute(ctx context.Context, _ *stateAndCountGetRequest) (*stateAndCountGetResponse, error) {
-	// Counts the total number of jobs in a state and count result.
-	totalJobs := func(stateAndCountRes map[rivertype.JobState]int) int {
-		var totalJobs int
-		for _, count := range stateAndCountRes {
-			totalJobs += count
+	countsAreExact := func(snapshot stateCountSnapshot) bool {
+		for _, count := range snapshot.Counts {
+			if count > a.countMax {
+				return false
+			}
 		}
-		return totalJobs
+		return true
 	}
 
-	// Counting jobs can be an expensive operation given a large table, so in
-	// the presence of such, prefer to use a result that's cached periodically
-	// instead of querying inline with the API request. In case we don't have a
-	// cached result yet or there's a relatively small number of job rows, run
-	// the query directly (in the case of the latter so we present the freshest
-	// possible information).
-	stateAndCountRes, ok := a.queryCacher.CachedRes()
-	if !ok || totalJobs(stateAndCountRes) < a.queryCacheSkipThreshold {
+	// Prefer fresh counts while every state is below the cap. Once any state is
+	// capped, serve the periodically refreshed result to collapse queries from
+	// multiple UI clients. Both paths use the same bounded query.
+	boundedSnapshot, ok := a.boundedQueryCacher.CachedRes()
+	if !ok || countsAreExact(boundedSnapshot) {
 		var err error
-		stateAndCountRes, err = dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (map[rivertype.JobState]int, error) {
-			tx := a.Driver.UnwrapTx(execTx)
-
-			return a.Driver.UnwrapExecutor(tx).JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{Schema: a.Client.Schema()})
-		})
+		boundedSnapshot, err = a.queryBoundedCounts(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("error getting states and counts: %w", err)
 		}
 	}
 
-	return &stateAndCountGetResponse{
-		Available: stateAndCountRes[rivertype.JobStateAvailable],
-		Cancelled: stateAndCountRes[rivertype.JobStateCancelled],
-		Completed: stateAndCountRes[rivertype.JobStateCompleted],
-		Discarded: stateAndCountRes[rivertype.JobStateDiscarded],
-		Pending:   stateAndCountRes[rivertype.JobStatePending],
-		Retryable: stateAndCountRes[rivertype.JobStateRetryable],
-		Running:   stateAndCountRes[rivertype.JobStateRunning],
-		Scheduled: stateAndCountRes[rivertype.JobStateScheduled],
-	}, nil
+	cappedStates := make([]rivertype.JobState, 0, len(allJobStates))
+	for _, state := range allJobStates {
+		if boundedSnapshot.Counts[state] > a.countMax {
+			cappedStates = append(cappedStates, state)
+		}
+	}
+
+	var (
+		exactSnapshot, hasExactSnapshot = a.exactQueryCacher.CachedRes()
+		exactSnapshotIsFresh            = hasExactSnapshot && time.Since(exactSnapshot.ObservedAt) <= stateCountExactMaxAge
+	)
+
+	statesNeedingEstimate := make([]rivertype.JobState, 0, len(cappedStates))
+	for _, state := range cappedStates {
+		if !exactSnapshotIsFresh || exactSnapshot.Counts[state] <= a.countMax {
+			statesNeedingEstimate = append(statesNeedingEstimate, state)
+		}
+	}
+
+	estimates := make(map[rivertype.JobState]stateCountEstimate)
+	if len(statesNeedingEstimate) > 0 {
+		var err error
+		estimates, err = a.estimateCounts(ctx, statesNeedingEstimate)
+		if err != nil {
+			// Estimates are an optional telemetry enhancement. The bounded count
+			// is still trustworthy, so degrade to a lower bound instead of failing
+			// the entire sidebar when planner statistics can't be read.
+			a.Logger.WarnContext(ctx, "Unable to estimate large job counts", "err", err)
+			estimates = make(map[rivertype.JobState]stateCountEstimate)
+		}
+	}
+
+	resolvedCounts := make(map[rivertype.JobState]stateCountResponse, len(allJobStates))
+	for _, state := range allJobStates {
+		boundedCount := boundedSnapshot.Counts[state]
+
+		if boundedCount <= a.countMax {
+			// The bounded scan reached the end of this state's index range, so the
+			// value is exact and fresh even if another, larger state was capped.
+			resolvedCounts[state] = stateCountResponse{
+				Accuracy:   stateCountAccuracyExact,
+				Count:      boundedCount,
+				ObservedAt: &boundedSnapshot.ObservedAt,
+			}
+			continue
+		}
+
+		if exactSnapshotIsFresh && exactSnapshot.Counts[state] > a.countMax {
+			// A recent full scan preserves the useful magnitude for common large
+			// states. Its timestamp makes the deliberate staleness visible.
+			resolvedCounts[state] = stateCountResponse{
+				Accuracy:   stateCountAccuracyExactCached,
+				Count:      exactSnapshot.Counts[state],
+				ObservedAt: &exactSnapshot.ObservedAt,
+			}
+			continue
+		}
+
+		if estimate, ok := estimates[state]; ok && estimate.Count > a.countMax {
+			// Planner statistics are cheap and retain an order of magnitude during
+			// cold start or when the last exact snapshot has become too old.
+			resolvedCounts[state] = stateCountResponse{
+				Accuracy:   stateCountAccuracyEstimated,
+				Count:      estimate.Count,
+				ObservedAt: estimate.ObservedAt,
+			}
+			continue
+		}
+
+		// The bounded scan proves only that there are more than countMax rows.
+		// Never present a stale planner estimate below that known lower bound.
+		resolvedCounts[state] = stateCountResponse{
+			Accuracy:   stateCountAccuracyLowerBound,
+			Count:      a.countMax,
+			ObservedAt: &boundedSnapshot.ObservedAt,
+		}
+	}
+
+	resp := &stateAndCountGetResponse{
+		Available: resolvedCounts[rivertype.JobStateAvailable],
+		Cancelled: resolvedCounts[rivertype.JobStateCancelled],
+		Completed: resolvedCounts[rivertype.JobStateCompleted],
+		Discarded: resolvedCounts[rivertype.JobStateDiscarded],
+		Pending:   resolvedCounts[rivertype.JobStatePending],
+		Retryable: resolvedCounts[rivertype.JobStateRetryable],
+		Running:   resolvedCounts[rivertype.JobStateRunning],
+		Scheduled: resolvedCounts[rivertype.JobStateScheduled],
+	}
+
+	return resp, nil
+}
+
+type stateCountSnapshot struct {
+	Counts     map[rivertype.JobState]int
+	ObservedAt time.Time
+}
+
+type stateCountEstimate = riveruidriver.JobCountEstimateResult
+
+var allJobStates = []rivertype.JobState{ //nolint:gochecknoglobals
+	rivertype.JobStateAvailable,
+	rivertype.JobStateCancelled,
+	rivertype.JobStateCompleted,
+	rivertype.JobStateDiscarded,
+	rivertype.JobStatePending,
+	rivertype.JobStateRetryable,
+	rivertype.JobStateRunning,
+	rivertype.JobStateScheduled,
+}
+
+func (a *stateAndCountGetEndpoint[TTx]) queryBoundedCounts(ctx context.Context) (stateCountSnapshot, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (stateCountSnapshot, error) {
+		counts, err := a.driver.GetExecutor(execTx).JobCountByAllStatesCapped(ctx, &riveruidriver.JobCountByAllStatesCappedParams{
+			Max:    a.countMax,
+			Schema: a.Client.Schema(),
+		})
+		if err != nil {
+			return stateCountSnapshot{}, err
+		}
+		return stateCountSnapshot{Counts: counts, ObservedAt: time.Now()}, nil
+	})
+}
+
+func (a *stateAndCountGetEndpoint[TTx]) queryExactCounts(ctx context.Context) (stateCountSnapshot, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (stateCountSnapshot, error) {
+		counts, err := execTx.JobCountByAllStates(ctx, &riverdriver.JobCountByAllStatesParams{
+			Schema: a.Client.Schema(),
+		})
+		if err != nil {
+			return stateCountSnapshot{}, fmt.Errorf("error counting all jobs by state exactly: %w", err)
+		}
+		return stateCountSnapshot{Counts: counts, ObservedAt: time.Now()}, nil
+	})
+}
+
+func stateCountExactRefreshPeriod(queryDuration time.Duration, queryErr error) time.Duration {
+	if queryErr != nil {
+		// A failed full-table count is likely load-related. Back off to the
+		// maximum interval instead of repeatedly adding pressure to the database.
+		return stateCountExactRefreshMax
+	}
+
+	// Target about two percent of wall time for full exact counts. Fast counts
+	// still wait at least 30 seconds, while the maximum keeps exact telemetry
+	// reasonably fresh on very large installations.
+	refreshPeriod := queryDuration * stateCountExactRefreshCostMul
+	return min(max(refreshPeriod, stateCountExactRefreshMin), stateCountExactRefreshMax)
+}
+
+// queryEstimatedCounts delegates planner telemetry to the database-specific UI
+// driver. Drivers without an estimate strategy return no estimates, causing the
+// endpoint to retain the lower bound proven by the capped query.
+func (a *stateAndCountGetEndpoint[TTx]) queryEstimatedCounts(ctx context.Context, states []rivertype.JobState) (map[rivertype.JobState]stateCountEstimate, error) {
+	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (map[rivertype.JobState]stateCountEstimate, error) {
+		// SQLite has no planner-estimate equivalent, so its UI driver always
+		// returns an empty map. With no estimate to resolve a capped state,
+		// Execute falls back to the lower bound proven by the bounded count.
+		return a.driver.GetExecutor(execTx).JobCountEstimate(ctx, &riveruidriver.JobCountEstimateParams{
+			Schema: a.Client.Schema(),
+			States: states,
+		})
+	})
 }
 
 func NewNotFoundJob(jobID int64) *apierror.NotFound {
