@@ -12,7 +12,6 @@ import (
 
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
@@ -27,6 +26,9 @@ import (
 
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/querycacher"
+	"riverqueue.com/riverui/internal/riveruidriver"
+	"riverqueue.com/riverui/internal/riveruidriver/riveruipostgres"
+	"riverqueue.com/riverui/internal/riveruidriver/riveruisqlite"
 )
 
 type listResponse[T any] struct {
@@ -883,6 +885,7 @@ type stateAndCountGetEndpoint[TTx any] struct {
 	countMax           int
 	estimateCounts     func(ctx context.Context, states []rivertype.JobState) (map[rivertype.JobState]stateCountEstimate, error)
 	exactQueryCacher   *querycacher.QueryCacher[stateCountSnapshot]
+	driver             riveruidriver.Driver
 }
 
 const (
@@ -900,6 +903,7 @@ func newStateAndCountGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *stat
 	endpoint := &stateAndCountGetEndpoint[TTx]{
 		APIBundle: bundle,
 		countMax:  stateAndCountDefaultMax,
+		driver:    newRiverUIDriver(bundle.Driver.DatabaseName()),
 	}
 	endpoint.boundedQueryCacher = querycacher.NewQueryCacher(bundle.Archetype, endpoint.queryBoundedCounts)
 	endpoint.exactQueryCacher = querycacher.NewQueryCacherWithOpts(
@@ -909,6 +913,17 @@ func newStateAndCountGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *stat
 	)
 	endpoint.estimateCounts = endpoint.queryEstimatedCounts
 	return endpoint
+}
+
+func newRiverUIDriver(databaseName string) riveruidriver.Driver {
+	switch databaseName {
+	case riverdriver.DatabaseNamePostgres:
+		return riveruipostgres.New()
+	case riverdriver.DatabaseNameSQLite:
+		return riveruisqlite.New()
+	default:
+		panic(fmt.Sprintf("unsupported River UI database %q", databaseName))
+	}
 }
 
 func (*stateAndCountGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
@@ -1074,10 +1089,7 @@ type stateCountSnapshot struct {
 	ObservedAt time.Time
 }
 
-type stateCountEstimate struct {
-	Count      int
-	ObservedAt *time.Time
-}
+type stateCountEstimate = riveruidriver.JobCountEstimateResult
 
 var allJobStates = []rivertype.JobState{ //nolint:gochecknoglobals
 	rivertype.JobStateAvailable,
@@ -1090,36 +1102,12 @@ var allJobStates = []rivertype.JobState{ //nolint:gochecknoglobals
 	rivertype.JobStateScheduled,
 }
 
-func jobStateSQLLiteral(state rivertype.JobState) (string, error) {
-	// These are deliberately explicit rather than quoting an arbitrary string.
-	// queryEstimatedCounts embeds the result in SQL so PostgreSQL always plans
-	// against a state constant, even if its prepared statement cache later
-	// chooses a generic plan.
-	switch state {
-	case rivertype.JobStateAvailable:
-		return "'available'", nil
-	case rivertype.JobStateCancelled:
-		return "'cancelled'", nil
-	case rivertype.JobStateCompleted:
-		return "'completed'", nil
-	case rivertype.JobStateDiscarded:
-		return "'discarded'", nil
-	case rivertype.JobStatePending:
-		return "'pending'", nil
-	case rivertype.JobStateRetryable:
-		return "'retryable'", nil
-	case rivertype.JobStateRunning:
-		return "'running'", nil
-	case rivertype.JobStateScheduled:
-		return "'scheduled'", nil
-	default:
-		return "", fmt.Errorf("invalid job state for count estimate: %q", state)
-	}
-}
-
 func (a *stateAndCountGetEndpoint[TTx]) queryBoundedCounts(ctx context.Context) (stateCountSnapshot, error) {
 	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (stateCountSnapshot, error) {
-		counts, err := jobCountByAllStatesCapped(ctx, execTx, a.Driver.ArgPlaceholder(), a.Client.Schema(), a.countMax)
+		counts, err := a.driver.GetExecutor(execTx).JobCountByAllStatesCapped(ctx, &riveruidriver.JobCountByAllStatesCappedParams{
+			Max:    a.countMax,
+			Schema: a.Client.Schema(),
+		})
 		if err != nil {
 			return stateCountSnapshot{}, err
 		}
@@ -1153,140 +1141,18 @@ func stateCountExactRefreshPeriod(queryDuration time.Duration, queryErr error) t
 	return min(max(refreshPeriod, stateCountExactRefreshMin), stateCountExactRefreshMax)
 }
 
-// jobCountByAllStatesCapped counts at most countMax+1 rows for every job state.
-// A result at or below countMax is exact; countMax+1 is a sentinel proving that
-// more rows exist without making the request scan the state's entire index.
-func jobCountByAllStatesCapped(ctx context.Context, exec riverdriver.Executor, argPlaceholder, schema string, countMax int) (map[rivertype.JobState]int, error) {
-	if countMax < 1 {
-		return nil, errors.New("count max must be positive")
-	}
-
-	jobsTable := dbutil.SafeIdentifier("river_job")
-	if schema != "" {
-		jobsTable = dbutil.SafeIdentifier(schema) + "." + jobsTable
-	}
-
-	// Each subquery returns at most countMax+1 rows. The extra entry lets the
-	// caller distinguish an exact count of countMax from a capped count.
-	// Ordering by the remaining columns in river_job_prioritized_fetching_index
-	// encourages an index-only scan that can stop as soon as the limit is met.
-	query := fmt.Sprintf(`
-SELECT
-    (SELECT count(*) FROM (SELECT 1 FROM %[1]s WHERE state = 'available' ORDER BY queue, priority, scheduled_at, id LIMIT %[2]s) AS limited_available),
-    (SELECT count(*) FROM (SELECT 1 FROM %[1]s WHERE state = 'cancelled' ORDER BY queue, priority, scheduled_at, id LIMIT %[2]s) AS limited_cancelled),
-    (SELECT count(*) FROM (SELECT 1 FROM %[1]s WHERE state = 'completed' ORDER BY queue, priority, scheduled_at, id LIMIT %[2]s) AS limited_completed),
-    (SELECT count(*) FROM (SELECT 1 FROM %[1]s WHERE state = 'discarded' ORDER BY queue, priority, scheduled_at, id LIMIT %[2]s) AS limited_discarded),
-    (SELECT count(*) FROM (SELECT 1 FROM %[1]s WHERE state = 'pending' ORDER BY queue, priority, scheduled_at, id LIMIT %[2]s) AS limited_pending),
-    (SELECT count(*) FROM (SELECT 1 FROM %[1]s WHERE state = 'retryable' ORDER BY queue, priority, scheduled_at, id LIMIT %[2]s) AS limited_retryable),
-    (SELECT count(*) FROM (SELECT 1 FROM %[1]s WHERE state = 'running' ORDER BY queue, priority, scheduled_at, id LIMIT %[2]s) AS limited_running),
-    (SELECT count(*) FROM (SELECT 1 FROM %[1]s WHERE state = 'scheduled' ORDER BY queue, priority, scheduled_at, id LIMIT %[2]s) AS limited_scheduled)`,
-		jobsTable,
-		argPlaceholder+"1",
-	)
-
-	var (
-		available int64
-		cancelled int64
-		completed int64
-		discarded int64
-		pending   int64
-		retryable int64
-		running   int64
-		scheduled int64
-	)
-	if err := exec.QueryRow(ctx, query, countMax+1).Scan(
-		&available,
-		&cancelled,
-		&completed,
-		&discarded,
-		&pending,
-		&retryable,
-		&running,
-		&scheduled,
-	); err != nil {
-		return nil, fmt.Errorf("error counting jobs by state: %w", err)
-	}
-
-	return map[rivertype.JobState]int{
-		rivertype.JobStateAvailable: int(available),
-		rivertype.JobStateCancelled: int(cancelled),
-		rivertype.JobStateCompleted: int(completed),
-		rivertype.JobStateDiscarded: int(discarded),
-		rivertype.JobStatePending:   int(pending),
-		rivertype.JobStateRetryable: int(retryable),
-		rivertype.JobStateRunning:   int(running),
-		rivertype.JobStateScheduled: int(scheduled),
-	}, nil
-}
-
-// queryEstimatedCounts asks PostgreSQL to plan, but not execute, one query per
-// state and returns each plan's estimated row count. Estimates are used only
-// when a bounded count is known to exceed countMax and no recent exact snapshot
-// is available; non-PostgreSQL databases fall back to that known lower bound.
+// queryEstimatedCounts delegates planner telemetry to the database-specific UI
+// driver. Drivers without an estimate strategy return no estimates, causing the
+// endpoint to retain the lower bound proven by the capped query.
 func (a *stateAndCountGetEndpoint[TTx]) queryEstimatedCounts(ctx context.Context, states []rivertype.JobState) (map[rivertype.JobState]stateCountEstimate, error) {
-	if a.Driver.DatabaseName() != riverdriver.DatabaseNamePostgres {
-		return nil, errors.New("job count estimates are only available for PostgreSQL")
-	}
-
 	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (map[rivertype.JobState]stateCountEstimate, error) {
-		jobsTable := dbutil.SafeIdentifier("river_job")
-		if schema := a.Client.Schema(); schema != "" {
-			jobsTable = dbutil.SafeIdentifier(schema) + "." + jobsTable
-		}
-
-		// EXPLAIN's Plan Rows comes from PostgreSQL's existing ANALYZE statistics,
-		// so it gives us order-of-magnitude telemetry without reading every
-		// matching row. last_analyze makes that estimate's freshness visible.
-		var analyzedAt pgtype.Timestamptz
-		_ = execTx.QueryRow(ctx, `
-SELECT GREATEST(last_analyze, last_autoanalyze)
-FROM pg_stat_all_tables
-WHERE schemaname = COALESCE(NULLIF(`+a.Driver.ArgPlaceholder()+`1, ''), current_schema())
-  AND relname = 'river_job'`, a.Client.Schema()).Scan(&analyzedAt)
-
-		var observedAt *time.Time
-		if analyzedAt.Valid {
-			observedAtCopy := analyzedAt.Time
-			observedAt = &observedAtCopy
-		}
-
-		type explainPlan struct {
-			Plan struct {
-				Rows int `json:"Plan Rows"` //nolint:tagliatelle // PostgreSQL owns this JSON key.
-			} `json:"Plan"` //nolint:tagliatelle // PostgreSQL owns this JSON key.
-		}
-
-		estimates := make(map[rivertype.JobState]stateCountEstimate, len(states))
-		for _, state := range states {
-			stateLiteral, err := jobStateSQLLiteral(state)
-			if err != nil {
-				return nil, err
-			}
-
-			// A literal makes the statement text state-specific. A parameter here
-			// could eventually receive PostgreSQL's generic prepared plan, losing
-			// the per-state selectivity that makes this estimate useful.
-			query := fmt.Sprintf("EXPLAIN (FORMAT JSON) SELECT 1 FROM %s WHERE state = %s", jobsTable, stateLiteral)
-			var rawPlan []byte
-			if err := execTx.QueryRow(ctx, query).Scan(&rawPlan); err != nil {
-				return nil, fmt.Errorf("error explaining job count for state %q: %w", state, err)
-			}
-
-			var plans []explainPlan
-			if err := json.Unmarshal(rawPlan, &plans); err != nil {
-				return nil, fmt.Errorf("error decoding job count estimate for state %q: %w", state, err)
-			}
-			if len(plans) != 1 {
-				return nil, fmt.Errorf("expected one job count estimate plan for state %q, got %d", state, len(plans))
-			}
-
-			estimates[state] = stateCountEstimate{
-				Count:      plans[0].Plan.Rows,
-				ObservedAt: observedAt,
-			}
-		}
-
-		return estimates, nil
+		// SQLite has no planner-estimate equivalent, so its UI driver always
+		// returns an empty map. With no estimate to resolve a capped state,
+		// Execute falls back to the lower bound proven by the bounded count.
+		return a.driver.GetExecutor(execTx).JobCountEstimate(ctx, &riveruidriver.JobCountEstimateParams{
+			Schema: a.Client.Schema(),
+			States: states,
+		})
 	})
 }
 

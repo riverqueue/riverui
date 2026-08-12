@@ -29,6 +29,8 @@ import (
 
 	"riverqueue.com/riverui/internal/apibundle"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/internal/riveruidriver/riveruipostgres"
+	"riverqueue.com/riverui/internal/riveruidriver/riveruisqlite"
 	"riverqueue.com/riverui/internal/uicommontest"
 )
 
@@ -1289,9 +1291,17 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 func TestAllJobStates(t *testing.T) {
 	t.Parallel()
 
-	// Keep the endpoint's exhaustive response and SQL allowlist synchronized
-	// with River when a job state is added or reordered upstream.
+	// Keep the endpoint's exhaustive response synchronized with River when a job
+	// state is added or reordered upstream.
 	require.Equal(t, rivertype.JobStates(), allJobStates)
+}
+
+func TestNewRiverUIDriver(t *testing.T) {
+	t.Parallel()
+
+	require.IsType(t, &riveruipostgres.Driver{}, newRiverUIDriver(riverdriver.DatabaseNamePostgres))
+	require.IsType(t, &riveruisqlite.Driver{}, newRiverUIDriver(riverdriver.DatabaseNameSQLite))
+	require.PanicsWithValue(t, `unsupported River UI database "mysql"`, func() { newRiverUIDriver("mysql") })
 }
 
 func TestStateCountExactRefreshPeriod(t *testing.T) {
@@ -1301,29 +1311,6 @@ func TestStateCountExactRefreshPeriod(t *testing.T) {
 	require.Equal(t, 100*time.Second, stateCountExactRefreshPeriod(2*time.Second, nil))
 	require.Equal(t, stateCountExactRefreshMax, stateCountExactRefreshPeriod(time.Hour, nil))
 	require.Equal(t, stateCountExactRefreshMax, stateCountExactRefreshPeriod(time.Second, errors.New("database busy")))
-}
-
-func TestJobStateSQLLiteral(t *testing.T) {
-	t.Parallel()
-
-	expected := map[rivertype.JobState]string{
-		rivertype.JobStateAvailable: "'available'",
-		rivertype.JobStateCancelled: "'cancelled'",
-		rivertype.JobStateCompleted: "'completed'",
-		rivertype.JobStateDiscarded: "'discarded'",
-		rivertype.JobStatePending:   "'pending'",
-		rivertype.JobStateRetryable: "'retryable'",
-		rivertype.JobStateRunning:   "'running'",
-		rivertype.JobStateScheduled: "'scheduled'",
-	}
-	for state, expectedLiteral := range expected {
-		literal, err := jobStateSQLLiteral(state)
-		require.NoError(t, err)
-		require.Equal(t, expectedLiteral, literal)
-	}
-
-	_, err := jobStateSQLLiteral(rivertype.JobState("completed'; DROP TABLE river_job; --"))
-	require.EqualError(t, err, `invalid job state for count estimate: "completed'; DROP TABLE river_job; --"`)
 }
 
 func TestStateAndCountGetEndpointCustomSchema(t *testing.T) {
