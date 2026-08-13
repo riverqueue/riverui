@@ -8,14 +8,14 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/riverqueue/apiframe v0.0.0-20260728015158-808511b9e3ae
-	github.com/riverqueue/river v0.42.0
-	github.com/riverqueue/river/riverdriver v0.42.0
-	github.com/riverqueue/river/rivershared v0.42.0
-	github.com/riverqueue/river/rivertype v0.42.0
+	github.com/riverqueue/river v0.43.0
+	github.com/riverqueue/river/riverdriver v0.43.0
+	github.com/riverqueue/river/rivershared v0.43.0
+	github.com/riverqueue/river/rivertype v0.43.0
 	github.com/stretchr/testify v1.11.1
-	riverqueue.com/riverpro v0.26.0
-	riverqueue.com/riverpro/driver v0.26.0
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.26.0
+	riverqueue.com/riverpro v0.26.1
+	riverqueue.com/riverpro/driver v0.26.1
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.26.1
 	riverqueue.com/riverui v0.17.0
 )
 
@@ -27,14 +27,14 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.30.3 // indirect
-	github.com/google/cel-go v0.29.0 // indirect
+	github.com/google/cel-go v0.30.0 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.42.0 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.43.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/slog-http v1.12.1 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
