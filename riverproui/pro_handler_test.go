@@ -1,9 +1,11 @@
 package riverproui
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 
 	"github.com/riverqueue/river"
 	"github.com/riverqueue/river/riverdbtest"
@@ -21,6 +24,7 @@ import (
 	"riverqueue.com/riverpro"
 	"riverqueue.com/riverpro/driver"
 	"riverqueue.com/riverpro/driver/riverpropgxv5"
+	"riverqueue.com/riverpro/driver/riverprosqlite"
 
 	"riverqueue.com/riverui"
 	"riverqueue.com/riverui/internal/handlertest"
@@ -61,59 +65,118 @@ func TestProHandlerIntegration(t *testing.T) {
 		return client, driver, tx
 	}
 
-	createHandler := func(t *testing.T, bundle uiendpoints.Bundle) http.Handler {
-		t.Helper()
-
-		logger := riversharedtest.Logger(t)
-		opts := &riverui.HandlerOpts{
-			DevMode:   true,
-			Endpoints: bundle,
-			LiveFS:    false, // Disable LiveFS to avoid needing projectRoot
-			Logger:    logger,
-		}
-		handler, err := riverui.NewHandler(opts)
-		require.NoError(t, err)
-		return handler
-	}
-
 	testRunner := func(exec riverdriver.Executor, dbDriver riverdriver.Driver[pgx.Tx], makeAPICall handlertest.APICallFunc) {
-		ctx := context.Background()
-
-		proExec, ok := exec.(driver.ProExecutor)
-		require.True(t, ok)
 		proDriver, ok := dbDriver.(driver.ProDriver[pgx.Tx])
 		require.True(t, ok)
-
-		_ = protestfactory.PeriodicJob(ctx, t, proExec, nil)
-
-		queue := testfactory.Queue(ctx, t, exec, nil)
-
-		workflowID := uuid.New()
-		require.NoError(t, proDriver.GetProExecutor().WorkflowInsertMany(ctx, &driver.WorkflowInsertManyParams{
-			IDs:    []string{workflowID.String()},
-			Names:  []string{workflowID.String()},
-			Schema: schema,
-		}))
-		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: uicommontest.MustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID})})
-		workflowID2 := uuid.New()
-		require.NoError(t, proDriver.GetProExecutor().WorkflowInsertMany(ctx, &driver.WorkflowInsertManyParams{
-			IDs:    []string{workflowID2.String()},
-			Names:  []string{workflowID2.String()},
-			Schema: schema,
-		}))
-		_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: uicommontest.MustMarshalJSON(t, map[string]uuid.UUID{"workflow_id": workflowID2})})
-
-		// Verify OSS features endpoint is mounted and returns success even w/ Pro bundle:
-		makeAPICall(t, "FeaturesGet", http.MethodGet, "/api/features", nil)
-
-		makeAPICall(t, "PeriodicJobList", http.MethodGet, "/api/pro/periodic-jobs", nil)
-		makeAPICall(t, "ProducerList", http.MethodGet, "/api/pro/producers?queue_name="+queue.Name, nil)
-		makeAPICall(t, "WorkflowCancel", http.MethodPost, fmt.Sprintf("/api/pro/workflows/%s/cancel", workflowID), nil)
-		makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/pro/workflows/%s", workflowID2), nil)
-		makeAPICall(t, "WorkflowList", http.MethodGet, "/api/pro/workflows", nil)
+		_ = runProHandlerRequests(t, schema, exec, proDriver.GetProExecutor(), makeAPICall)
 	}
 
-	handlertest.RunIntegrationTest(t, createClient, createBundle, createHandler, testRunner)
+	handlertest.RunIntegrationTest(t, createClient, createBundle, newProHandler, testRunner)
+}
+
+func TestProHandlerIntegrationSQLite(t *testing.T) {
+	t.Parallel()
+
+	var (
+		ctx     = t.Context()
+		logger  = riversharedtest.Logger(t)
+		workers = river.NewWorkers()
+		driver  = riverprosqlite.New(nil)
+	)
+	river.AddWorker(workers, &uicommontest.NoOpWorker{})
+
+	schema := riverdbtest.TestSchema(ctx, t, driver, &riverdbtest.TestSchemaOpts{
+		DisableReuse: true,
+		ProcurePool: func(ctx context.Context, schema string) (any, string) {
+			return riversharedtest.DBPoolSQLite(ctx, t, schema), ""
+		},
+	})
+
+	client, err := riverpro.NewClient(driver, &riverpro.Config{
+		Config: river.Config{
+			Logger:  logger,
+			Schema:  schema,
+			Workers: workers,
+		},
+	})
+	require.NoError(t, err)
+
+	handler := newProHandler(t, NewEndpoints(client, nil))
+	makeAPICall := func(t *testing.T, testCaseName, method, path string, payload []byte) {
+		t.Helper()
+
+		t.Run(testCaseName, func(t *testing.T) {
+			var body io.Reader
+			if len(payload) > 0 {
+				body = bytes.NewReader(payload)
+			}
+
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, httptest.NewRequestWithContext(ctx, method, path, body))
+			require.GreaterOrEqual(t, recorder.Code, http.StatusOK)
+			require.Less(t, recorder.Code, http.StatusMultipleChoices, recorder.Body.String())
+		})
+	}
+
+	cancelledWorkflowID := runProHandlerRequests(t, schema, driver.GetProExecutor(), driver.GetProExecutor(), makeAPICall)
+	makeAPICall(t, "WorkflowRetry", http.MethodPost, fmt.Sprintf("/api/pro/workflows/%s/retry", cancelledWorkflowID), nil)
+}
+
+func newProHandler(t *testing.T, bundle uiendpoints.Bundle) http.Handler {
+	t.Helper()
+
+	handler, err := riverui.NewHandler(&riverui.HandlerOpts{
+		DevMode:   true,
+		Endpoints: bundle,
+		LiveFS:    false,
+		Logger:    riversharedtest.Logger(t),
+	})
+	require.NoError(t, err)
+	return handler
+}
+
+func runProHandlerRequests(t *testing.T, schema string, exec riverdriver.Executor, workflowExec driver.ProExecutor, makeAPICall handlertest.APICallFunc) string {
+	t.Helper()
+
+	ctx := t.Context()
+	proExec, ok := exec.(driver.ProExecutor)
+	require.True(t, ok)
+
+	_ = protestfactory.PeriodicJob(ctx, t, proExec, nil)
+
+	queue := testfactory.Queue(ctx, t, exec, nil)
+
+	workflowID := uuid.New()
+	require.NoError(t, workflowExec.WorkflowInsertMany(ctx, &driver.WorkflowInsertManyParams{
+		IDs:    []string{workflowID.String()},
+		Names:  []string{workflowID.String()},
+		Schema: schema,
+	}))
+	_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: uicommontest.MustMarshalJSON(t, map[string]string{
+		"task":        "task_1",
+		"workflow_id": workflowID.String(),
+	})})
+	workflowID2 := uuid.New()
+	require.NoError(t, workflowExec.WorkflowInsertMany(ctx, &driver.WorkflowInsertManyParams{
+		IDs:    []string{workflowID2.String()},
+		Names:  []string{workflowID2.String()},
+		Schema: schema,
+	}))
+	_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: uicommontest.MustMarshalJSON(t, map[string]string{
+		"task":        "task_2",
+		"workflow_id": workflowID2.String(),
+	})})
+
+	// Verify OSS features endpoint is mounted and returns success even w/ Pro bundle:
+	makeAPICall(t, "FeaturesGet", http.MethodGet, "/api/features", nil)
+
+	makeAPICall(t, "PeriodicJobList", http.MethodGet, "/api/pro/periodic-jobs", nil)
+	makeAPICall(t, "ProducerList", http.MethodGet, "/api/pro/producers?queue_name="+queue.Name, nil)
+	makeAPICall(t, "WorkflowCancel", http.MethodPost, fmt.Sprintf("/api/pro/workflows/%s/cancel", workflowID), nil)
+	makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/pro/workflows/%s", workflowID2), nil)
+	makeAPICall(t, "WorkflowList", http.MethodGet, "/api/pro/workflows", nil)
+
+	return workflowID.String()
 }
 
 func TestProMountedEndpointResponses(t *testing.T) {
