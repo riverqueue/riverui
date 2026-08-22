@@ -706,7 +706,7 @@ func (req *workflowListRequest) ExtractRaw(r *http.Request) error {
 	}
 
 	if state := r.URL.Query().Get("state"); state != "" {
-		req.State = (state)
+		req.State = state
 	}
 
 	return nil
