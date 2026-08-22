@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.18.0] - 2026-08-22
+
 ### Added
 
 - Job list: filter jobs matching any of the selected exact tags. [PR #548](https://github.com/riverqueue/riverui/pull/548).
