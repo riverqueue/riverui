@@ -12,8 +12,8 @@ require (
 	github.com/riverqueue/river/riverdriver v0.44.1
 	github.com/riverqueue/river/rivershared v0.44.1
 	github.com/riverqueue/river/rivertype v0.44.1
-	github.com/stretchr/testify v1.11.1
-	modernc.org/sqlite v1.54.0
+	github.com/stretchr/testify v1.12.0
+	modernc.org/sqlite v1.56.0
 	riverqueue.com/riverpro v0.27.1
 	riverqueue.com/riverpro/driver v0.27.1
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.27.1
@@ -24,7 +24,6 @@ require (
 require (
 	cel.dev/expr v0.25.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
-	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
@@ -36,9 +35,8 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
-	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.44.1 // indirect
 	github.com/riverqueue/river/riverdriver/riversqlite v0.44.1 // indirect
@@ -61,7 +59,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260217215200-42d3e9bedb6d // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/libc v1.74.1 // indirect
+	modernc.org/libc v1.74.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
 )
