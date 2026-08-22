@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update River Pro dependency to v0.27.2. [PR #663](https://github.com/riverqueue/riverui/pull/663).
+
 ## [v0.18.0] - 2026-08-22
 
 ### Added
