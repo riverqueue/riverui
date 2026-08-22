@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Job list: filter jobs matching any of the selected exact tags. [PR #548](https://github.com/riverqueue/riverui/pull/548).
+- Add River Pro UI support for SQLite through the new `riverprosqlite` driver. [PR #657](https://github.com/riverqueue/riverui/pull/657).
 
 ### Fixed
 
+- Job and workflow detail: serialize jobs without attempt errors as an empty array so SQLite-backed pages render correctly. [PR #657](https://github.com/riverqueue/riverui/pull/657).
 - Job args: preserve large numeric JSON values exactly when displaying and copying args, while keeping object keys sorted. [Fixes #593](https://github.com/riverqueue/riverui/issues/593). [PR #594](https://github.com/riverqueue/riverui/pull/594).
 - JSON viewer: render empty and escaped object property keys as valid JSON strings. [PR #632](https://github.com/riverqueue/riverui/pull/632).
 
