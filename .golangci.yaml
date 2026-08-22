@@ -4,11 +4,15 @@ linters:
   default: all
 
   disable:
+    # disabled because they have replacements enabled by default
+    - gomodguard # replaced by gomodguard_v2
+
     # disabled, but which we should enable with discussion
     - wrapcheck # checks that errors are wrapped; currently not done anywhere
 
     # disabled because we're not compliant, but which we should think about
     - exhaustruct # checks that properties in structs are exhaustively defined; may be a good idea
+    - exhaustruct_v5 # replacement for exhaustruct
     - testpackage # requires tests in test packages like `river_test`
 
     # disabled because they're annoying/bad
@@ -49,6 +53,9 @@ linters:
           pattern: \bmath\.Max\b
         - msg: Use built-in `min` function instead.
           pattern: \bmath\.Min\b
+
+    goconst:
+      ignore-tests: true
 
     gomoddirectives:
       replace-local: true
