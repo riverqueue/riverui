@@ -1,23 +1,21 @@
 module riverqueue.com/riverui/riverproui
 
-go 1.25.0
-
-toolchain go1.25.7
+go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/riverqueue/apiframe v0.0.0-20260817233638-c78932f9ac68
-	github.com/riverqueue/river v0.44.1
-	github.com/riverqueue/river/riverdriver v0.44.1
-	github.com/riverqueue/river/rivershared v0.44.1
-	github.com/riverqueue/river/rivertype v0.44.1
-	github.com/stretchr/testify v1.12.0
+	github.com/riverqueue/river v0.45.0
+	github.com/riverqueue/river/riverdriver v0.45.0
+	github.com/riverqueue/river/rivershared v0.45.0
+	github.com/riverqueue/river/rivertype v0.45.0
+	github.com/stretchr/testify v1.12.1
 	modernc.org/sqlite v1.56.0
-	riverqueue.com/riverpro v0.27.2
-	riverqueue.com/riverpro/driver v0.27.2
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.27.2
-	riverqueue.com/riverpro/driver/riverprosqlite v0.27.2
+	riverqueue.com/riverpro v0.28.0
+	riverqueue.com/riverpro/driver v0.28.0
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.28.0
+	riverqueue.com/riverpro/driver/riverprosqlite v0.28.0
 	riverqueue.com/riverui v0.18.0
 )
 
@@ -38,8 +36,8 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.44.1 // indirect
-	github.com/riverqueue/river/riverdriver/riversqlite v0.44.1 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.45.0 // indirect
+	github.com/riverqueue/river/riverdriver/riversqlite v0.45.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/slog-http v1.12.1 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
@@ -49,7 +47,7 @@ require (
 	go.opentelemetry.io/otel v1.29.0 // indirect
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
-	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20240823005443-9b4947da3948 // indirect
 	golang.org/x/sync v0.22.0 // indirect
@@ -58,7 +56,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260217215200-42d3e9bedb6d // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 	modernc.org/libc v1.74.4 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.11.0 // indirect
