@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.19.0] - 2026-08-25
+
 ### Changed
 
 - Upgrade supported Go versions to 1.26 and 1.27. [PR #665](https://github.com/riverqueue/riverpro/pull/665).
