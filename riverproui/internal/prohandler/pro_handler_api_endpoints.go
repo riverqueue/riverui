@@ -445,18 +445,15 @@ func (a *workflowTaskSignalsEndpoint[TTx]) Execute(ctx context.Context, req *wor
 
 	result, err := workflow.Signals().ListForTask(ctx, req.TaskName, params)
 	if err != nil {
-		var signalKeyUndeclaredErr *riverworkflow.SignalKeyUndeclaredError
-		if errors.As(err, &signalKeyUndeclaredErr) {
+		if signalKeyUndeclaredErr, ok := errors.AsType[*riverworkflow.SignalKeyUndeclaredError](err); ok {
 			return nil, apierror.NewBadRequestf("%s.", signalKeyUndeclaredErr)
 		}
 
-		var signalTaskDeclaresNoSignalKeysErr *riverworkflow.SignalTaskDeclaresNoSignalKeysError
-		if errors.As(err, &signalTaskDeclaresNoSignalKeysErr) {
+		if signalTaskDeclaresNoSignalKeysErr, ok := errors.AsType[*riverworkflow.SignalTaskDeclaresNoSignalKeysError](err); ok {
 			return nil, apierror.NewBadRequestf("%s.", signalTaskDeclaresNoSignalKeysErr)
 		}
 
-		var signalUnknownTaskErr *riverworkflow.SignalUnknownTaskError
-		if errors.As(err, &signalUnknownTaskErr) {
+		if signalUnknownTaskErr, ok := errors.AsType[*riverworkflow.SignalUnknownTaskError](err); ok {
 			return nil, apierror.NewNotFoundf("%s.", signalUnknownTaskErr)
 		}
 
@@ -654,8 +651,7 @@ func (a *workflowTaskWaitDiagnosticsEndpoint[TTx]) Execute(ctx context.Context, 
 
 	result, err := workflow.WaitDiagnostics(ctx, req.TaskName, nil)
 	if err != nil {
-		var signalUnknownTaskErr *riverworkflow.SignalUnknownTaskError
-		if errors.As(err, &signalUnknownTaskErr) {
+		if signalUnknownTaskErr, ok := errors.AsType[*riverworkflow.SignalUnknownTaskError](err); ok {
 			return nil, apierror.NewNotFoundf("%s.", signalUnknownTaskErr)
 		}
 

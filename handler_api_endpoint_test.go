@@ -23,7 +23,6 @@ import (
 	"github.com/riverqueue/river/rivershared/riversharedtest"
 	"github.com/riverqueue/river/rivershared/startstop"
 	"github.com/riverqueue/river/rivershared/uniquestates"
-	"github.com/riverqueue/river/rivershared/util/ptrutil"
 	"github.com/riverqueue/river/rivertype"
 
 	"riverqueue.com/riverui/internal/apibundle"
@@ -242,10 +241,10 @@ func TestAPIHandlerAutocompleteList(t *testing.T) {
 		setupTestKinds := func(t *testing.T, bundle *setupEndpointTestBundle) {
 			t.Helper()
 			ctx := context.Background()
-			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: ptrutil.Ptr("alpha_job")})
-			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: ptrutil.Ptr("alpha_task")})
-			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: ptrutil.Ptr("beta_job")})
-			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: ptrutil.Ptr("gamma_job")})
+			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: new("alpha_job")})
+			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: new("alpha_task")})
+			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: new("beta_job")})
+			testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{Kind: new("gamma_job")})
 		}
 
 		runAutocompleteTests(t, autocompleteFacetJobKind, setupTestKinds)
@@ -257,10 +256,10 @@ func TestAPIHandlerAutocompleteList(t *testing.T) {
 		setupTestQueues := func(t *testing.T, bundle *setupEndpointTestBundle) {
 			t.Helper()
 			ctx := context.Background()
-			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: ptrutil.Ptr("alpha_queue")})
-			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: ptrutil.Ptr("alpha_task")})
-			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: ptrutil.Ptr("beta_queue")})
-			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: ptrutil.Ptr("gamma_queue")})
+			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: new("alpha_queue")})
+			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: new("alpha_task")})
+			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: new("beta_queue")})
+			testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{Name: new("gamma_queue")})
 		}
 
 		runAutocompleteTests(t, autocompleteFacetQueueName, setupTestQueues)
@@ -287,7 +286,7 @@ func TestAPIHandlerAutocompleteListCustomSchema(t *testing.T) {
 	endpoint, bundle := setupEndpointWithCustomSchema(ctx, t, newAutocompleteListEndpoint)
 	schema := bundle.client.Schema()
 
-	jobParams := testfactory.Job_Build(t, &testfactory.JobOpts{Kind: ptrutil.Ptr("custom_schema_job")})
+	jobParams := testfactory.Job_Build(t, &testfactory.JobOpts{Kind: new("custom_schema_job")})
 	jobParams.Schema = schema
 	_, err := bundle.exec.JobInsertFull(ctx, jobParams)
 	require.NoError(t, err)
@@ -301,7 +300,7 @@ func TestAPIHandlerAutocompleteListCustomSchema(t *testing.T) {
 
 	jobKindResp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
 		Facet: autocompleteFacetJobKind,
-		Match: ptrutil.Ptr("custom_schema_job"),
+		Match: new("custom_schema_job"),
 	})
 	require.NoError(t, err)
 	require.Len(t, jobKindResp.Data, 1)
@@ -309,7 +308,7 @@ func TestAPIHandlerAutocompleteListCustomSchema(t *testing.T) {
 
 	queueNameResp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &autocompleteListRequest{
 		Facet: autocompleteFacetQueueName,
-		Match: ptrutil.Ptr("custom_schema_queue"),
+		Match: new("custom_schema_queue"),
 	})
 	require.NoError(t, err)
 	require.Len(t, queueNameResp.Data, 1)
@@ -559,14 +558,14 @@ func TestAPIHandlerJobList(t *testing.T) {
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
 			EncodedArgs: []byte(`{"id":1970670598291982290}`),
-			Kind:        ptrutil.Ptr("kind1"),
-			Queue:       ptrutil.Ptr("queue1"),
-			State:       ptrutil.Ptr(rivertype.JobStateRunning),
+			Kind:        new("kind1"),
+			Queue:       new("queue1"),
+			State:       new(rivertype.JobStateRunning),
 		})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Kind:  ptrutil.Ptr("kind2"),
-			Queue: ptrutil.Ptr("queue2"),
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			Kind:  new("kind2"),
+			Queue: new("queue2"),
+			State: new(rivertype.JobStateRunning),
 		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{})
@@ -599,7 +598,7 @@ func TestAPIHandlerJobList(t *testing.T) {
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
 			IDs:   []int64{job1.ID, job2.ID},
-			State: ptrutil.Ptr(rivertype.JobStateAvailable),
+			State: new(rivertype.JobStateAvailable),
 		})
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 2)
@@ -613,12 +612,12 @@ func TestAPIHandlerJobList(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Kind:  ptrutil.Ptr("kind1"),
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			Kind:  new("kind1"),
+			State: new(rivertype.JobStateRunning),
 		})
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Kind:  ptrutil.Ptr("kind2"),
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			Kind:  new("kind2"),
+			State: new(rivertype.JobStateRunning),
 		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
@@ -635,15 +634,15 @@ func TestAPIHandlerJobList(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Priority: ptrutil.Ptr(1),
+			Priority: new(1),
 		})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Priority: ptrutil.Ptr(2),
+			Priority: new(2),
 		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
 			Priorities: []int16{2},
-			State:      ptrutil.Ptr(rivertype.JobStateAvailable),
+			State:      new(rivertype.JobStateAvailable),
 		})
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 1)
@@ -656,12 +655,12 @@ func TestAPIHandlerJobList(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Queue: ptrutil.Ptr("queue1"),
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			Queue: new("queue1"),
+			State: new(rivertype.JobStateRunning),
 		})
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			Queue: ptrutil.Ptr("queue2"),
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			Queue: new("queue2"),
+			State: new(rivertype.JobStateRunning),
 		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
@@ -678,15 +677,15 @@ func TestAPIHandlerJobList(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			State: new(rivertype.JobStateRunning),
 			Tags:  []string{"alpha-tag", "shared"},
 		})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			State: new(rivertype.JobStateRunning),
 			Tags:  []string{"beta"},
 		})
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			State: new(rivertype.JobStateRunning),
 			Tags:  []string{"ALPHA-TAG"},
 		})
 
@@ -705,10 +704,10 @@ func TestAPIHandlerJobList(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			State: ptrutil.Ptr(rivertype.JobStateAvailable),
+			State: new(rivertype.JobStateAvailable),
 		})
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			State: new(rivertype.JobStateRunning),
 		})
 
 		state := rivertype.JobStateAvailable
@@ -726,14 +725,14 @@ func TestAPIHandlerJobList(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newJobListEndpoint)
 
 		job := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			State: new(rivertype.JobStateRunning),
 		})
 		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			State: ptrutil.Ptr(rivertype.JobStateRunning),
+			State: new(rivertype.JobStateRunning),
 		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobListRequest{
-			Limit: ptrutil.Ptr(1),
+			Limit: new(1),
 		})
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 1)
@@ -747,7 +746,7 @@ func TestAPIHandlerJobListCustomSchema(t *testing.T) {
 	ctx := context.Background()
 	endpoint, bundle := setupEndpointWithCustomSchema(ctx, t, newJobListEndpoint)
 	jobParams := testfactory.Job_Build(t, &testfactory.JobOpts{
-		State: ptrutil.Ptr(rivertype.JobStateRunning),
+		State: new(rivertype.JobStateRunning),
 		Tags:  []string{"custom-schema-tag"},
 	})
 	jobParams.Schema = bundle.client.Schema()
@@ -788,12 +787,12 @@ func TestAPIHandlerJobRetry(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newJobRetryEndpoint)
 
 		job1 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			FinalizedAt: ptrutil.Ptr(time.Now()),
-			State:       ptrutil.Ptr(rivertype.JobStateDiscarded),
+			FinalizedAt: new(time.Now()),
+			State:       new(rivertype.JobStateDiscarded),
 		})
 		job2 := testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{
-			FinalizedAt: ptrutil.Ptr(time.Now()),
-			State:       ptrutil.Ptr(rivertype.JobStateDiscarded),
+			FinalizedAt: new(time.Now()),
+			State:       new(rivertype.JobStateDiscarded),
 		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &jobRetryRequest{JobIDs: []int64String{int64String(job1.ID), int64String(job2.ID)}})
@@ -826,8 +825,8 @@ func TestAPIHandlerJobRetry(t *testing.T) {
 		uniqueStates := uniquestates.UniqueStatesToBitmask([]rivertype.JobState{rivertype.JobStateAvailable})
 
 		discardedParams := testfactory.Job_Build(t, &testfactory.JobOpts{
-			FinalizedAt: ptrutil.Ptr(time.Now()),
-			State:       ptrutil.Ptr(rivertype.JobStateDiscarded),
+			FinalizedAt: new(time.Now()),
+			State:       new(rivertype.JobStateDiscarded),
 		})
 		discardedParams.UniqueKey = uniqueKey
 		discardedParams.UniqueStates = uniqueStates
@@ -915,7 +914,7 @@ func TestAPIHandlerQueueList(t *testing.T) {
 		queue1 := testfactory.Queue(ctx, t, bundle.exec, nil)
 		_ = testfactory.Queue(ctx, t, bundle.exec, nil)
 
-		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueListRequest{Limit: ptrutil.Ptr(1)})
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueListRequest{Limit: new(1)})
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 1)
 		require.Equal(t, queue1.Name, resp.Data[0].Name)
@@ -960,7 +959,7 @@ func TestAPIHandlerQueueResume(t *testing.T) {
 		endpoint, bundle := setupEndpoint(ctx, t, newQueueResumeEndpoint)
 
 		queue := testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{
-			PausedAt: ptrutil.Ptr(time.Now()),
+			PausedAt: new(time.Now()),
 		})
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueResumeRequest{Name: queue.Name})
@@ -1060,34 +1059,34 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 
 		endpoint, bundle := setupEndpoint(ctx, t, newStateAndCountGetEndpoint)
 
-		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+		_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateAvailable)})
 
 		for range 2 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCancelled), FinalizedAt: ptrutil.Ptr(time.Now())})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateCancelled), FinalizedAt: new(time.Now())})
 		}
 
 		for range 3 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateCompleted), FinalizedAt: ptrutil.Ptr(time.Now())})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateCompleted), FinalizedAt: new(time.Now())})
 		}
 
 		for range 4 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateDiscarded), FinalizedAt: ptrutil.Ptr(time.Now())})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateDiscarded), FinalizedAt: new(time.Now())})
 		}
 
 		for range 5 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStatePending)})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStatePending)})
 		}
 
 		for range 6 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRetryable)})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateRetryable)})
 		}
 
 		for range 7 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateRunning)})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateRunning)})
 		}
 
 		for range 8 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateScheduled)})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateScheduled)})
 		}
 
 		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &stateAndCountGetRequest{})
@@ -1111,7 +1110,7 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 
 		const queryCacheSkipThreshold = 3
 		for range queryCacheSkipThreshold + 1 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateAvailable)})
 		}
 
 		_, err := endpoint.queryCacher.RunQuery(ctx)
@@ -1131,7 +1130,7 @@ func TestStateAndCountGetEndpoint(t *testing.T) {
 
 		const queryCacheSkipThreshold = 3
 		for range queryCacheSkipThreshold - 1 {
-			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: ptrutil.Ptr(rivertype.JobStateAvailable)})
+			_ = testfactory.Job(ctx, t, bundle.exec, &testfactory.JobOpts{State: new(rivertype.JobStateAvailable)})
 		}
 
 		_, err := endpoint.queryCacher.RunQuery(ctx)

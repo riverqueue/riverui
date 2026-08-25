@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Upgrade supported Go versions to 1.26 and 1.27. [PR #665](https://github.com/riverqueue/riverpro/pull/665).
+- Update River dependency to v0.45.0. [PR #665](https://github.com/riverqueue/riverui/pull/665).
+- Update River Pro dependency to v0.28.0. [PR #665](https://github.com/riverqueue/riverui/pull/665).
+
 ## [v0.18.1] - 2026-08-23
 
 ### Changed
