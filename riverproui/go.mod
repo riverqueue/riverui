@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
-	github.com/riverqueue/apiframe v0.0.0-20260817233638-c78932f9ac68
+	github.com/riverqueue/apiframe v0.0.0-20260824213828-b5f5e94d6b98
 	github.com/riverqueue/river v0.45.0
 	github.com/riverqueue/river/riverdriver v0.45.0
 	github.com/riverqueue/river/rivershared v0.45.0
@@ -16,7 +16,7 @@ require (
 	riverqueue.com/riverpro/driver v0.28.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.28.0
 	riverqueue.com/riverpro/driver/riverprosqlite v0.28.0
-	riverqueue.com/riverui v0.18.0
+	riverqueue.com/riverui v0.19.0
 )
 
 require (

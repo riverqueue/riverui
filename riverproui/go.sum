@@ -44,8 +44,8 @@ github.com/ncruces/go-strftime v1.0.0/go.mod h1:Fwc5htZGVVkseilnfgOVb9mKy6w1naJm
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec h1:W09IVJc94icq4NjY3clb7Lk8O1qJ8BdBEF8z0ibU0rE=
 github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec/go.mod h1:qqbHyh8v60DhA7CoWK5oRCqLrMHRGoxYCSS9EjAz6Eo=
-github.com/riverqueue/apiframe v0.0.0-20260817233638-c78932f9ac68 h1:Ogb44HcUITrxC+61EsKNvt7yiHlgFQeP5sx418G0QYg=
-github.com/riverqueue/apiframe v0.0.0-20260817233638-c78932f9ac68/go.mod h1:bPlBpuQxWanRYcrZJR/1JHgJ1tgPl7mWaKKgT/oRdac=
+github.com/riverqueue/apiframe v0.0.0-20260824213828-b5f5e94d6b98 h1:qthDKqeLodpGW89de4fdv5RaYCsYjRsg2Dm7dN3hY7Y=
+github.com/riverqueue/apiframe v0.0.0-20260824213828-b5f5e94d6b98/go.mod h1:m1ExqjcSyuKs8Un9jUL3+cKA9x1a8dSbWD3v2T88vyE=
 github.com/riverqueue/river v0.45.0 h1:gjp+eYx5sB+sA14URXls6EHdXOTbHRnXGN5u+FvYnH0=
 github.com/riverqueue/river v0.45.0/go.mod h1:T2ijF1pvui0DUKZvF2FEyvBTAKfXhYb99HjEbRoEwUM=
 github.com/riverqueue/river/riverdriver v0.45.0 h1:oGSiSw5Pjv6toclmsvcc1VCWhtQXvB0DnA8CGzK+5/k=
@@ -146,5 +146,5 @@ riverqueue.com/riverpro/driver/riverpropgxv5 v0.28.0 h1:NaCuHwiF/30d7JaggENMMF13
 riverqueue.com/riverpro/driver/riverpropgxv5 v0.28.0/go.mod h1:I5V49eybOM3BP29d9fEJ/ZmoKDpWvmoka/yMjsdkvko=
 riverqueue.com/riverpro/driver/riverprosqlite v0.28.0 h1:6KY42gMAFgraK2b0yprJunV+rWjdA3toUAlOVRPi37I=
 riverqueue.com/riverpro/driver/riverprosqlite v0.28.0/go.mod h1:Gq/fnZNoTaFbmathC2b4dWPe/Fw/ShBrtkRcHFT/krQ=
-riverqueue.com/riverui v0.18.0 h1:a7UWNT5c1NF3G4rRudv9GRUNNL6J/co8Wdv7DvJelAk=
-riverqueue.com/riverui v0.18.0/go.mod h1:MnmpKieZCfc/IR8oLkAYFzDKrdo0srbThvULgdOh0/s=
+riverqueue.com/riverui v0.19.0 h1:BOFDze4EXN6QwWeFRh4C9UsknH7dGDxhl9LiYGvsRzY=
+riverqueue.com/riverui v0.19.0/go.mod h1:97c0ys8TMLR8S3g32iITDjWVPO4zkNqlg28wRVT0KyI=
