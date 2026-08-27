@@ -11,7 +11,7 @@ require (
 	github.com/riverqueue/river/rivershared v0.45.0
 	github.com/riverqueue/river/rivertype v0.45.0
 	github.com/stretchr/testify v1.12.1
-	modernc.org/sqlite v1.56.0
+	modernc.org/sqlite v1.57.0
 	riverqueue.com/riverpro v0.28.0
 	riverqueue.com/riverpro/driver v0.28.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.28.0
