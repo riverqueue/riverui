@@ -60,7 +60,7 @@
     "eslint-plugin-storybook": "^10.5.10",
     "fishery": "^2.4.0",
     "globals": "^17.11.0",
-    "jsdom": "^30.0.1",
+    "jsdom": "^29.1.1",
     "prettier": "^3.9.6",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "storybook": "^10.5.4",
