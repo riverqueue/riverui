@@ -482,9 +482,9 @@ const JobList = (props: JobListProps) => {
   const stateFormatted = state.charAt(0).toUpperCase() + state.slice(1);
   const jobsInState = useMemo(() => {
     if (!statesAndCounts) {
-      return 0;
+      return BigInt(0);
     }
-    return statesAndCounts[state] || 0;
+    return statesAndCounts[state].count;
   }, [state, statesAndCounts]);
 
   const filterItems = useMemo(
