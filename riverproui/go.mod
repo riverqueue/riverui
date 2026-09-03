@@ -6,16 +6,16 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.10.0
 	github.com/riverqueue/apiframe v0.0.0-20260824213828-b5f5e94d6b98
-	github.com/riverqueue/river v0.45.0
-	github.com/riverqueue/river/riverdriver v0.45.0
-	github.com/riverqueue/river/rivershared v0.45.0
-	github.com/riverqueue/river/rivertype v0.45.0
+	github.com/riverqueue/river v0.47.0
+	github.com/riverqueue/river/riverdriver v0.47.0
+	github.com/riverqueue/river/rivershared v0.47.0
+	github.com/riverqueue/river/rivertype v0.47.0
 	github.com/stretchr/testify v1.12.1
 	modernc.org/sqlite v1.57.0
-	riverqueue.com/riverpro v0.28.0
-	riverqueue.com/riverpro/driver v0.28.0
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.28.0
-	riverqueue.com/riverpro/driver/riverprosqlite v0.28.0
+	riverqueue.com/riverpro v0.30.1
+	riverqueue.com/riverpro/driver v0.30.1
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.30.1
+	riverqueue.com/riverpro/driver/riverprosqlite v0.30.1
 	riverqueue.com/riverui v0.19.0
 )
 
@@ -36,8 +36,8 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.0.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.45.0 // indirect
-	github.com/riverqueue/river/riverdriver/riversqlite v0.45.0 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.47.0 // indirect
+	github.com/riverqueue/river/riverdriver/riversqlite v0.47.0 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/slog-http v1.12.1 // indirect
 	github.com/tidwall/gjson v1.19.0 // indirect
