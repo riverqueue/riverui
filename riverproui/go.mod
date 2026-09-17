@@ -4,14 +4,14 @@ go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/riverqueue/apiframe v0.0.0-20260824213828-b5f5e94d6b98
 	github.com/riverqueue/river v0.47.0
 	github.com/riverqueue/river/riverdriver v0.47.0
 	github.com/riverqueue/river/rivershared v0.47.0
 	github.com/riverqueue/river/rivertype v0.47.0
 	github.com/stretchr/testify v1.12.1
-	modernc.org/sqlite v1.57.0
+	modernc.org/sqlite v1.58.0
 	riverqueue.com/riverpro v0.30.1
 	riverqueue.com/riverpro/driver v0.30.1
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.30.1
@@ -56,9 +56,9 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260217215200-42d3e9bedb6d // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	modernc.org/libc v1.74.4 // indirect
+	modernc.org/libc v1.75.6 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.11.0 // indirect
+	modernc.org/memory v1.12.1 // indirect
 )
 
 retract (
