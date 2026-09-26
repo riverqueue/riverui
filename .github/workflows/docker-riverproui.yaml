@@ -58,6 +58,14 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
+      - name: Build metadata
+        id: build_metadata
+        run: |
+          version=$(git describe --tags --always --match 'riverproui/v*')
+          echo "version=${version#riverproui/}" >> "$GITHUB_OUTPUT"
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "commit_time=$(git show -s --format=%cI HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v5
         with:
@@ -92,6 +100,10 @@ jobs:
         with:
           context: .
           file: Dockerfile.pro
+          build-args: |
+            BUILD_VERSION=${{ steps.build_metadata.outputs.version }}
+            BUILD_REVISION=${{ steps.build_metadata.outputs.revision }}
+            BUILD_COMMIT_TIME=${{ steps.build_metadata.outputs.commit_time }}
           pull: true
           platforms: ${{ matrix.docker_platform }}
           provenance: true

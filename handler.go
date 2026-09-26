@@ -116,6 +116,7 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 		apiendpoint.Mount(mux, newQueueResumeEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newQueueUpdateEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, newStateAndCountGetEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, newVersionGetEndpoint(bundle), mountOpts),
 	}
 }
 

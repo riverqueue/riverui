@@ -25,6 +25,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	"riverqueue.com/riverui/internal/apibundle"
+	"riverqueue.com/riverui/internal/buildinfo"
 	"riverqueue.com/riverui/internal/querycacher"
 )
 
@@ -1090,4 +1091,45 @@ func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*rive
 		queues[i] = riverQueueToSerializableQueue(*internalQueue, countsMap[internalQueue.Name])
 	}
 	return listResponseFrom(queues)
+}
+
+//
+// versionGetEndpoint
+//
+
+type versionGetEndpoint[TTx any] struct {
+	apibundle.APIBundle[TTx]
+	apiendpoint.Endpoint[versionGetRequest, versionGetResponse]
+}
+
+func newVersionGetEndpoint[TTx any](bundle apibundle.APIBundle[TTx]) *versionGetEndpoint[TTx] {
+	return &versionGetEndpoint[TTx]{APIBundle: bundle}
+}
+
+func (*versionGetEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
+	return &apiendpoint.EndpointMeta{
+		Pattern:    "GET /api/version",
+		StatusCode: http.StatusOK,
+	}
+}
+
+type versionGetRequest struct{}
+
+type versionGetResponse struct {
+	Version   string `json:"version"`
+	Revision  string `json:"revision"`
+	Time      string `json:"time"`
+	Modified  bool   `json:"modified"`
+	GoVersion string `json:"go_version"`
+}
+
+func (*versionGetEndpoint[TTx]) Execute(_ context.Context, _ *versionGetRequest) (*versionGetResponse, error) {
+	info := buildinfo.Get()
+	return &versionGetResponse{
+		Version:   info.Version,
+		Revision:  info.Revision,
+		Time:      info.Time,
+		Modified:  info.Modified,
+		GoVersion: info.GoVersion,
+	}, nil
 }

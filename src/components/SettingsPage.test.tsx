@@ -1,3 +1,5 @@
+import { getVersion, type Version } from "@services/version";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createFeatures } from "@test/utils/features";
 import { fireEvent, render, screen } from "@testing-library/react";
 import {
@@ -29,10 +31,47 @@ vi.mock("@contexts/Features.hook", () => ({
   useFeatures: mockUseFeatures,
 }));
 
+vi.mock("@services/version", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@services/version")>()),
+  getVersion: vi.fn(),
+}));
+
+const mockGetVersion = vi.mocked(getVersion);
+const buildInfo: Version = {
+  goVersion: "go1.26.7",
+  modified: true,
+  revision: "abc123def456",
+  time: "2026-09-25T19:38:00Z",
+  version: "v0.19.0",
+};
+
+function renderSettingsPage() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { gcTime: Infinity, retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SettingsPage />
+    </QueryClientProvider>,
+  );
+}
+
 describe("SettingsPage", () => {
   beforeEach(() => {
     mockUseFeatures.mockReset();
     mockUseSettings.mockReset();
+    mockGetVersion.mockReset();
+    // Leave the request pending unless a test supplies a response.
+    mockGetVersion.mockImplementation(() => new Promise(() => {}));
+    mockUseSettings.mockReturnValue({
+      clearShowJobArgs: vi.fn(),
+      setShowJobArgs: vi.fn(),
+      settings: {},
+      shouldShowJobArgs: true,
+    });
+    mockUseFeatures.mockReturnValue({
+      features: createFeatures({ jobListHideArgsByDefault: false }),
+    });
   });
 
   it("renders correctly with default settings", () => {
@@ -53,7 +92,7 @@ describe("SettingsPage", () => {
       }),
     });
 
-    render(<SettingsPage />);
+    renderSettingsPage();
 
     // Title should be visible
     expect(screen.getByText("Settings")).toBeInTheDocument();
@@ -93,7 +132,7 @@ describe("SettingsPage", () => {
       }),
     });
 
-    render(<SettingsPage />);
+    renderSettingsPage();
 
     // Reset button should be visible
     expect(screen.getByTestId("job-args-reset-btn")).toBeInTheDocument();
@@ -128,7 +167,7 @@ describe("SettingsPage", () => {
       }),
     });
 
-    render(<SettingsPage />);
+    renderSettingsPage();
 
     // Find switch element by data-testid
     const switchElement = screen.getByTestId("job-args-toggle");
@@ -137,5 +176,69 @@ describe("SettingsPage", () => {
     // Click the switch
     fireEvent.click(switchElement);
     expect(mockSetShowJobArgs).toHaveBeenCalledWith(true);
+  });
+
+  it("displays build info when loaded", async () => {
+    mockGetVersion.mockResolvedValue(buildInfo);
+
+    renderSettingsPage();
+
+    expect(await screen.findByTestId("build-version")).toHaveTextContent(
+      "v0.19.0",
+    );
+    expect(screen.getByTestId("build-commit")).toHaveTextContent(
+      "abc123def456 (modified)",
+    );
+    expect(screen.getByText("Commit date")).toBeInTheDocument();
+    expect(screen.getByTestId("build-time")).toHaveTextContent(
+      "2026-09-25T19:38:00Z",
+    );
+    expect(screen.getByTestId("build-go-version")).toHaveTextContent(
+      "go1.26.7",
+    );
+  });
+
+  it("shows loading state while build info loads", () => {
+    renderSettingsPage();
+
+    expect(screen.getByTestId("build-info-loading")).toBeInTheDocument();
+  });
+
+  it("shows an error and retries a failed request", async () => {
+    mockGetVersion.mockRejectedValueOnce(new Error("Network error"));
+    mockGetVersion.mockResolvedValue(buildInfo);
+
+    renderSettingsPage();
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Could not load build info.",
+    );
+    expect(screen.queryByTestId("build-info-loading")).not.toBeInTheDocument();
+    expect(screen.getByTestId("job-args-toggle")).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+
+    expect(await screen.findByTestId("build-version")).toHaveTextContent(
+      "v0.19.0",
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(mockGetVersion).toHaveBeenCalledTimes(2);
+  });
+
+  it("shows unknown metadata without a misleading modified suffix", async () => {
+    mockGetVersion.mockResolvedValue({
+      ...buildInfo,
+      revision: "",
+      time: "",
+      version: "",
+    });
+
+    renderSettingsPage();
+
+    expect(await screen.findByTestId("build-version")).toHaveTextContent(
+      /^unknown$/,
+    );
+    expect(screen.getByTestId("build-commit")).toHaveTextContent(/^unknown$/);
+    expect(screen.getByTestId("build-time")).toHaveTextContent(/^unknown$/);
   });
 });

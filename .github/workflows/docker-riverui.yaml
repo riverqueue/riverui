@@ -44,6 +44,13 @@ jobs:
         with:
           ref: ${{ inputs.ref || github.ref }}
 
+      - name: Build metadata
+        id: build_metadata
+        run: |
+          echo "version=$(git describe --tags --always --match 'v*')" >> "$GITHUB_OUTPUT"
+          echo "revision=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "commit_time=$(git show -s --format=%cI HEAD)" >> "$GITHUB_OUTPUT"
+
       - name: Prepare
         run: |
           platform=${{ matrix.docker_platform }}
@@ -80,6 +87,10 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
+          build-args: |
+            BUILD_VERSION=${{ steps.build_metadata.outputs.version }}
+            BUILD_REVISION=${{ steps.build_metadata.outputs.revision }}
+            BUILD_COMMIT_TIME=${{ steps.build_metadata.outputs.commit_time }}
           pull: true
           platforms: ${{ matrix.docker_platform }}
           labels: ${{ steps.meta.outputs.labels }}

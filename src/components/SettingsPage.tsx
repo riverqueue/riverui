@@ -3,12 +3,19 @@ import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import { useFeatures } from "@contexts/Features.hook";
 import { Switch } from "@headlessui/react";
 import { useSettings } from "@hooks/use-settings";
+import { useVersion } from "@hooks/use-version";
 import clsx from "clsx";
 
 export default function SettingsPage() {
   const { features } = useFeatures();
   const { clearShowJobArgs, setShowJobArgs, settings, shouldShowJobArgs } =
     useSettings();
+  const {
+    data: buildInfo,
+    isError: isBuildInfoError,
+    isLoading: isBuildInfoLoading,
+    refetch: refetchBuildInfo,
+  } = useVersion();
 
   // Determine if we're using an override or the default value
   const isUsingOverride = settings.showJobArgs !== undefined;
@@ -22,8 +29,8 @@ export default function SettingsPage() {
       <TopNavTitleOnly title="Settings" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="space-y-10 divide-y divide-slate-900/10 dark:divide-slate-100/10">
-          <div className="grid grid-cols-1 gap-x-8 gap-y-8 pt-10 md:grid-cols-3">
+        <div className="divide-y divide-slate-900/10 dark:divide-slate-100/10">
+          <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-10 md:grid-cols-3">
             <div className="px-4 sm:px-0">
               <h2 className="text-base leading-7 font-semibold text-slate-900 dark:text-slate-100">
                 Display
@@ -123,8 +130,101 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 gap-x-8 gap-y-8 py-10 md:grid-cols-3">
+            <div className="px-4 sm:px-0">
+              <h2 className="text-base leading-7 font-semibold text-slate-900 dark:text-slate-100">
+                Build info
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-400">
+                Version and build metadata for the running server. When River UI
+                is embedded, this describes the host application.
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-white shadow-sm ring-1 ring-slate-900/5 md:col-span-2 dark:bg-slate-800 dark:ring-slate-100/10">
+              <div className="px-4 py-6 sm:p-8">
+                {isBuildInfoError && !buildInfo ? (
+                  <div className="space-y-3">
+                    <p
+                      className="text-sm text-slate-600 dark:text-slate-400"
+                      role="alert"
+                    >
+                      Could not load build info.
+                    </p>
+                    <Button onClick={() => void refetchBuildInfo()} outline>
+                      Retry
+                    </Button>
+                  </div>
+                ) : isBuildInfoLoading || !buildInfo ? (
+                  <p
+                    className="text-sm text-slate-500 dark:text-slate-400"
+                    data-testid="build-info-loading"
+                  >
+                    Loading build info…
+                  </p>
+                ) : (
+                  <dl className="divide-y divide-slate-900/5 text-sm dark:divide-slate-100/10">
+                    <BuildInfoRow
+                      label="Version"
+                      testId="build-version"
+                      value={displayValue(buildInfo.version)}
+                    />
+                    <BuildInfoRow
+                      label="Commit"
+                      testId="build-commit"
+                      value={
+                        displayValue(buildInfo.revision) +
+                        (buildInfo.revision && buildInfo.modified
+                          ? " (modified)"
+                          : "")
+                      }
+                    />
+                    <BuildInfoRow
+                      label="Commit date"
+                      testId="build-time"
+                      value={displayValue(buildInfo.time)}
+                    />
+                    <BuildInfoRow
+                      label="Go version"
+                      testId="build-go-version"
+                      value={displayValue(buildInfo.goVersion)}
+                    />
+                  </dl>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
+}
+
+function BuildInfoRow({
+  label,
+  testId,
+  value,
+}: {
+  label: string;
+  testId: string;
+  value: string;
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-3">
+      <dt className="font-medium text-slate-900 dark:text-slate-100">
+        {label}
+      </dt>
+      <dd
+        className="font-mono break-all text-slate-600 dark:text-slate-400"
+        data-testid={testId}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
+function displayValue(value: string | undefined): string {
+  return value === undefined || value === "" ? "unknown" : value;
 }
