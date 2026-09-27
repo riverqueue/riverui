@@ -2,10 +2,10 @@ import { getVersion, versionKey } from "@services/version";
 import { useQuery } from "@tanstack/react-query";
 
 export function useVersion() {
-  // Build info is immutable for the lifetime of the server process.
+  // Refetch after deployments while keeping repeat visits inexpensive.
   return useQuery({
     queryFn: getVersion,
     queryKey: versionKey(),
-    staleTime: Infinity,
+    staleTime: 5 * 60 * 1000,
   });
 }
