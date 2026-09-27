@@ -105,6 +105,7 @@ func TestNewHandlerIntegration(t *testing.T) {
 			},
 		}))
 		makeAPICall(t, "StateAndCountGet", http.MethodGet, makeURL("/api/states"), nil)
+		makeAPICall(t, "VersionGet", http.MethodGet, makeURL("/api/version"), nil)
 
 		//
 		// Static files

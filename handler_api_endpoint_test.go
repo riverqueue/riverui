@@ -3,6 +3,7 @@ package riverui
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -26,6 +27,7 @@ import (
 	"github.com/riverqueue/river/rivertype"
 
 	"riverqueue.com/riverui/internal/apibundle"
+	"riverqueue.com/riverui/internal/buildinfo"
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 	"riverqueue.com/riverui/internal/uicommontest"
 )
@@ -383,6 +385,29 @@ func TestAPIHandlerFeaturesGet(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, map[string]bool{"test_1": true, "test_2": false}, resp.Extensions)
 	})
+}
+
+func TestAPIHandlerVersionGet(t *testing.T) {
+	t.Parallel()
+
+	// Build metadata does not require a database connection.
+	endpoint := newVersionGetEndpoint(apibundle.APIBundle[pgx.Tx]{})
+	mux := http.NewServeMux()
+	apiendpoint.Mount(mux, endpoint, testMountOpts(t))
+
+	response := httptest.NewRecorder()
+	mux.ServeHTTP(response, httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/version", nil))
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Contains(t, response.Header().Get("Content-Type"), "application/json")
+	info := buildinfo.Get()
+	require.JSONEq(t, fmt.Sprintf(`{
+		"version": %q,
+		"revision": %q,
+		"time": %q,
+		"modified": %t,
+		"go_version": %q
+	}`, info.Version, info.Revision, info.Time, info.Modified, info.GoVersion), response.Body.String())
 }
 
 func TestAPIHandlerHealthCheckGet(t *testing.T) {
