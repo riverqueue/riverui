@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.20.0] - 2026-10-01
+
 ### Added
 
 - Show the running server's version, commit, commit date, and Go version on the settings page. [PR #685](https://github.com/riverqueue/riverui/pull/685).
