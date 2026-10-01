@@ -47,7 +47,7 @@ ARG BUILD_COMMIT_TIME
 
 RUN go build -trimpath -ldflags="-w -s -buildid= -X riverqueue.com/riverui/internal/buildinfo.version=${BUILD_VERSION} -X riverqueue.com/riverui/internal/buildinfo.revision=${BUILD_REVISION} -X riverqueue.com/riverui/internal/buildinfo.commitTime=${BUILD_COMMIT_TIME}" -o /bin/riverproui ./cmd/riverproui
 
-FROM alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
+FROM alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
 ENV PATH_PREFIX="/"
 COPY --from=build-go /bin/riverproui /bin/riverproui
 CMD ["/bin/sh", "-c", "/bin/riverproui -prefix=$PATH_PREFIX"]
