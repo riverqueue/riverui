@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Show the running server's version, commit, commit date, and Go version on the settings page. [PR #685](https://github.com/riverqueue/riverui/pull/685).
 
+### Changed
+
+- Upgrade River to v0.48.0 and River Pro to v0.31.0. [PR #694](https://github.com/riverqueue/riverui/pull/694).
+
 ## [v0.19.0] - 2026-08-25
 
 ### Changed
