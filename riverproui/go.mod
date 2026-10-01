@@ -5,7 +5,7 @@ go 1.26.0
 require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
-	github.com/riverqueue/apiframe v0.0.0-20260824213828-b5f5e94d6b98
+	github.com/riverqueue/apiframe v0.0.0-20260908014005-b546730aa405
 	github.com/riverqueue/river v0.48.0
 	github.com/riverqueue/river/riverdriver v0.48.0
 	github.com/riverqueue/river/rivershared v0.48.0
@@ -16,7 +16,7 @@ require (
 	riverqueue.com/riverpro/driver v0.31.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.31.0
 	riverqueue.com/riverpro/driver/riverprosqlite v0.31.0
-	riverqueue.com/riverui v0.19.0
+	riverqueue.com/riverui v0.20.0
 )
 
 require (
@@ -24,9 +24,9 @@ require (
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
-	github.com/go-playground/locales v0.14.1 // indirect
-	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/go-playground/validator/v10 v10.30.3 // indirect
+	github.com/go-playground/locales v0.14.2 // indirect
+	github.com/go-playground/universal-translator v0.18.2 // indirect
+	github.com/go-playground/validator/v10 v10.30.5 // indirect
 	github.com/google/cel-go v0.31.0 // indirect
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
@@ -48,10 +48,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.29.0 // indirect
 	go.uber.org/goleak v1.3.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.55.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp v0.0.0-20260908205506-85c1c2202aba // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260928230214-8a89bd6388cc // indirect
@@ -72,4 +72,4 @@ retract (
 
 // replace riverqueue.com/riverpro/driver/riverpropgxv5 => ../../riverpro/driver/riverpropgxv5
 
-replace riverqueue.com/riverui => ../
+// replace riverqueue.com/riverui => ../
