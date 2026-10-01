@@ -65,6 +65,26 @@ define tidy-target
 endef
 $(foreach mod,$(submodules),$(eval $(call tidy-target,$(mod))))
 
+.PHONY: update-river
+update-river:: ## Update version of River dependencies to latest
+define update-river-target
+update-river:: ; cd $1 && \
+	go get -u github.com/riverqueue/river@latest \
+		github.com/riverqueue/river/riverdriver@latest \
+		github.com/riverqueue/river/riverdriver/riverpgxv5@latest \
+		github.com/riverqueue/river/rivershared@latest \
+		github.com/riverqueue/river/rivertype@latest \
+		$2 && \
+	go mod tidy
+endef
+$(eval $(call update-river-target,.))
+$(eval $(call update-river-target,./riverproui, \
+	github.com/riverqueue/river/riverdriver/riversqlite@latest \
+	riverqueue.com/riverpro@latest \
+	riverqueue.com/riverpro/driver@latest \
+	riverqueue.com/riverpro/driver/riverpropgxv5@latest \
+	riverqueue.com/riverpro/driver/riverprosqlite@latest))
+
 preview: build
 	npm run preview
 
