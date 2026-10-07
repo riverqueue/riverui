@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.21.0] - 2026-10-07
+
 ### Changed
 
 - Keep large counts responsive while preserving useful magnitude with bounded live counts, adaptively cached exact snapshots, PostgreSQL planner estimates, and SQLite STAT4 estimates. Expire stale count caches and show count accuracy consistently in the sidebar and mobile menu. [PR #655](https://github.com/riverqueue/riverui/pull/655).
