@@ -115,6 +115,33 @@ func TestQueryCacher(t *testing.T) {
 		}, res)
 	})
 
+	t.Run("UsesAdaptivePeriodAfterQueryFinishes", func(t *testing.T) {
+		t.Parallel()
+
+		var queryFinishedAt time.Time
+		nextPeriodCalled := make(chan struct{})
+		queryCacher := NewQueryCacherWithOpts(
+			riversharedtest.BaseServiceArchetype(t),
+			func(_ context.Context) (int, error) {
+				queryFinishedAt = time.Now()
+				return 1, nil
+			},
+			&QueryCacherOpts{
+				NextTickPeriod: func(_ time.Duration, queryErr error) time.Duration {
+					require.NoError(t, queryErr)
+					require.False(t, queryFinishedAt.IsZero())
+					close(nextPeriodCalled)
+					return time.Hour
+				},
+			},
+		)
+		queryCacher.tickPeriod = time.Millisecond
+
+		require.NoError(t, queryCacher.Start(ctx))
+		t.Cleanup(queryCacher.Stop)
+		riversharedtest.WaitOrTimeout(t, nextPeriodCalled)
+	})
+
 	t.Run("StartStopStress", func(t *testing.T) {
 		t.Parallel()
 

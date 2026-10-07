@@ -2,6 +2,7 @@ import Logo from "@components/Logo";
 import { StatesAndCounts } from "@services/states";
 import { Link } from "@tanstack/react-router";
 import { jobStateFilterItems } from "@utils/jobStateFilterItems";
+import { formatStateCount, stateCountTitle } from "@utils/stateCount";
 import React, { useMemo } from "react";
 
 import { Badge } from "./Badge";
@@ -56,8 +57,9 @@ export const JobStateFilters: (
                         <Badge
                           className="ml-auto w-9 min-w-max justify-end whitespace-nowrap"
                           color="light"
+                          title={stateCountTitle(item)}
                         >
-                          {item.count.toString()}
+                          {formatStateCount(item)}
                         </Badge>
                       ) : null}
                     </Link>

@@ -22,7 +22,7 @@ import { useSettings } from "@hooks/use-settings";
 import { useShiftSelected } from "@hooks/use-shift-selected";
 import { type Features } from "@services/features";
 import { JobMinimal } from "@services/jobs";
-import { StatesAndCounts } from "@services/states";
+import { StateCount, StatesAndCounts } from "@services/states";
 import { JobState } from "@services/types";
 import { Link } from "@tanstack/react-router";
 import {
@@ -30,6 +30,7 @@ import {
   jobStateFilterItems,
 } from "@utils/jobStateFilterItems";
 import { compactJSONText } from "@utils/jsonText";
+import { formatStateCount, stateCountTitle } from "@utils/stateCount";
 import { classNames } from "@utils/style";
 import React, {
   FormEvent,
@@ -480,11 +481,11 @@ const JobList = (props: JobListProps) => {
       : features.jobListHideArgsByDefault;
 
   const stateFormatted = state.charAt(0).toUpperCase() + state.slice(1);
-  const jobsInState = useMemo(() => {
+  const jobsInState = useMemo<StateCount>(() => {
     if (!statesAndCounts) {
-      return 0;
+      return { accuracy: "exact", count: 0n };
     }
-    return statesAndCounts[state] || 0;
+    return statesAndCounts[state];
   }, [state, statesAndCounts]);
 
   const filterItems = useMemo(
@@ -501,7 +502,7 @@ const JobList = (props: JobListProps) => {
           </h1>
           <Dropdown>
             <HeadlessMenuButton
-              aria-label="Account options"
+              aria-label="Job state"
               className="flex items-center gap-3 rounded-xl border border-transparent px-2 py-1 text-slate-700 data-active:border-slate-200 data-hover:border-slate-200 dark:text-slate-300 dark:data-active:border-slate-700 dark:data-hover:border-slate-700"
             >
               <span className="flex min-w-36 flex-1 items-center justify-between text-left">
@@ -509,10 +510,10 @@ const JobList = (props: JobListProps) => {
                   {stateFormatted}
                 </span>
                 <span
-                  aria-hidden="true"
                   className="ml-3 block w-9 min-w-max rounded-full bg-white px-2.5 py-0.5 text-center text-xs leading-5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-white dark:ring-gray-700"
+                  title={stateCountTitle(jobsInState)}
                 >
-                  {jobsInState.toString()}
+                  {formatStateCount(jobsInState)}
                 </span>
               </span>
               <ChevronUpDownIcon className="mr-1 ml-auto size-4 shrink-0 stroke-zinc-400" />
@@ -535,8 +536,11 @@ const JobList = (props: JobListProps) => {
                   to="/jobs"
                 >
                   <span className="">{item.name}</span>
-                  <span className="col-span-4 ml-auto w-9 min-w-max rounded-full bg-white px-2.5 py-0.5 text-center text-xs leading-5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-white dark:ring-gray-700">
-                    {item.count.toString()}
+                  <span
+                    className="col-span-4 ml-auto w-9 min-w-max rounded-full bg-white px-2.5 py-0.5 text-center text-xs leading-5 font-medium whitespace-nowrap text-gray-600 ring-1 ring-gray-200 ring-inset dark:bg-gray-900 dark:text-white dark:ring-gray-700"
+                    title={stateCountTitle(item)}
+                  >
+                    {formatStateCount(item)}
                   </span>
                 </DropdownItem>
               ))}

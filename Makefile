@@ -21,6 +21,14 @@ fake_assets:
 dist:
 	@npm run build
 
+.PHONY: generate
+generate: generate/sqlc
+
+.PHONY: generate/sqlc
+generate/sqlc:
+	cd internal/riveruidriver/riveruipostgres/internal/dbsqlc && sqlc generate
+	cd internal/riveruidriver/riveruisqlite/internal/dbsqlc && sqlc generate
+
 .PHONY: build
 build: dist
 	CGO_ENABLED=0 go build
@@ -72,6 +80,7 @@ update-river:: ; cd $1 && \
 	go get -u github.com/riverqueue/river@latest \
 		github.com/riverqueue/river/riverdriver@latest \
 		github.com/riverqueue/river/riverdriver/riverpgxv5@latest \
+		github.com/riverqueue/river/riverdriver/riversqlite@latest \
 		github.com/riverqueue/river/rivershared@latest \
 		github.com/riverqueue/river/rivertype@latest \
 		$2 && \
@@ -79,7 +88,6 @@ update-river:: ; cd $1 && \
 endef
 $(eval $(call update-river-target,.))
 $(eval $(call update-river-target,./riverproui, \
-	github.com/riverqueue/river/riverdriver/riversqlite@latest \
 	riverqueue.com/riverpro@latest \
 	riverqueue.com/riverpro/driver@latest \
 	riverqueue.com/riverpro/driver/riverpropgxv5@latest \
@@ -94,4 +102,5 @@ verify: verify/sqlc
 
 .PHONY: verify/sqlc
 verify/sqlc:
-	cd internal/dbsqlc && sqlc diff
+	cd internal/riveruidriver/riveruipostgres/internal/dbsqlc && sqlc diff
+	cd internal/riveruidriver/riveruisqlite/internal/dbsqlc && sqlc diff

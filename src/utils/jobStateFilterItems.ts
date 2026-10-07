@@ -1,60 +1,64 @@
-import { StatesAndCounts } from "@services/states";
+import { StateCountAccuracy, StatesAndCounts } from "@services/states";
 import { JobState } from "@services/types";
 
 export type JobStateFilterItem = {
+  accuracy: StateCountAccuracy;
   count: bigint;
   name: string;
+  observedAt?: Date;
   state: JobState;
 };
 
 export const jobStateFilterItems: (
   statesAndCounts: StatesAndCounts | undefined,
 ) => JobStateFilterItem[] = (statesAndCounts) => {
-  const getCount = (state: JobState): bigint => {
-    if (statesAndCounts) {
-      return BigInt(statesAndCounts[state]);
-    }
-    return BigInt(0);
+  const getStateCount = (state: JobState) => {
+    return (
+      statesAndCounts?.[state] ?? {
+        accuracy: "exact" as const,
+        count: BigInt(0),
+      }
+    );
   };
 
   return [
     {
-      count: getCount(JobState.Pending),
+      ...getStateCount(JobState.Pending),
       name: "Pending",
       state: JobState.Pending,
     },
     {
-      count: getCount(JobState.Scheduled),
+      ...getStateCount(JobState.Scheduled),
       name: "Scheduled",
       state: JobState.Scheduled,
     },
     {
-      count: getCount(JobState.Available),
+      ...getStateCount(JobState.Available),
       name: "Available",
       state: JobState.Available,
     },
     {
-      count: getCount(JobState.Running),
+      ...getStateCount(JobState.Running),
       name: "Running",
       state: JobState.Running,
     },
     {
-      count: getCount(JobState.Retryable),
+      ...getStateCount(JobState.Retryable),
       name: "Retryable",
       state: JobState.Retryable,
     },
     {
-      count: getCount(JobState.Cancelled),
+      ...getStateCount(JobState.Cancelled),
       name: "Cancelled",
       state: JobState.Cancelled,
     },
     {
-      count: getCount(JobState.Discarded),
+      ...getStateCount(JobState.Discarded),
       name: "Discarded",
       state: JobState.Discarded,
     },
     {
-      count: getCount(JobState.Completed),
+      ...getStateCount(JobState.Completed),
       name: "Completed",
       state: JobState.Completed,
     },
