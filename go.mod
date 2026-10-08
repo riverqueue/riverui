@@ -6,16 +6,16 @@ require (
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/riverqueue/apiframe v0.0.0-20251229202423-2b52ce1c482e
-	github.com/riverqueue/river v0.48.0
-	github.com/riverqueue/river/riverdriver v0.48.0
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.48.0
-	github.com/riverqueue/river/riverdriver/riversqlite v0.48.0
-	github.com/riverqueue/river/rivershared v0.48.0
-	github.com/riverqueue/river/rivertype v0.48.0
+	github.com/riverqueue/river v0.49.0
+	github.com/riverqueue/river/riverdriver v0.49.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.49.0
+	github.com/riverqueue/river/riverdriver/riversqlite v0.49.0
+	github.com/riverqueue/river/rivershared v0.49.0
+	github.com/riverqueue/river/rivertype v0.49.0
 	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.12.1
 	github.com/stretchr/testify v1.12.1
-	modernc.org/sqlite v1.56.0
+	modernc.org/sqlite v1.60.1
 )
 
 require (
@@ -42,11 +42,11 @@ require (
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/sys v0.47.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
-	modernc.org/libc v1.74.4 // indirect
+	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.11.0 // indirect
+	modernc.org/memory v1.12.1 // indirect
 )
 
 retract (
