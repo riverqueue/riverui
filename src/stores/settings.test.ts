@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import {
   $userSettings,
@@ -7,19 +7,9 @@ import {
   setShowJobArgs,
 } from "./settings";
 
-// Mock local storage
-const localStorageMock = {
-  clear: vi.fn(),
-  getItem: vi.fn(),
-  removeItem: vi.fn(),
-  setItem: vi.fn(),
-};
-
-global.localStorage = localStorageMock as unknown as Storage;
-
 describe("settings store", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    localStorage.clear();
     clearAllSettings();
   });
 
@@ -30,9 +20,15 @@ describe("settings store", () => {
   it("should set show job args setting", () => {
     setShowJobArgs(true);
     expect($userSettings.get().showJobArgs).toBe(true);
+    expect(localStorage.getItem("river_ui_user_settings")).toBe(
+      JSON.stringify({ showJobArgs: true }),
+    );
 
     setShowJobArgs(false);
     expect($userSettings.get().showJobArgs).toBe(false);
+    expect(localStorage.getItem("river_ui_user_settings")).toBe(
+      JSON.stringify({ showJobArgs: false }),
+    );
   });
 
   it("should clear show job args setting", () => {
