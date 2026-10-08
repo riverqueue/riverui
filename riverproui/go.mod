@@ -11,7 +11,7 @@ require (
 	github.com/riverqueue/river/rivershared v0.49.0
 	github.com/riverqueue/river/rivertype v0.49.0
 	github.com/stretchr/testify v1.12.1
-	modernc.org/sqlite v1.57.0
+	modernc.org/sqlite v1.60.1
 	riverqueue.com/riverpro v0.32.0
 	riverqueue.com/riverpro/driver v0.32.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.32.0
@@ -56,9 +56,9 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20261005182115-fad411399dd8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
-	modernc.org/libc v1.74.4 // indirect
+	modernc.org/libc v1.77.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
-	modernc.org/memory v1.11.0 // indirect
+	modernc.org/memory v1.12.1 // indirect
 )
 
 retract (
