@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Require Node.js 24.15+ or 26+ for frontend development and use Node.js 24.21.0 in CI and container builds to support the updated test dependencies. [PR #690](https://github.com/riverqueue/riverui/pull/690).
+
 ### Fixed
 
 - Keep workflow diagram layouts compatible with Dagre's package exports after dependency upgrades. [PR #687](https://github.com/riverqueue/riverui/pull/687).

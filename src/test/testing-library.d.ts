@@ -1,11 +1,13 @@
-import "@testing-library/jest-dom";
+import type { TestingLibraryMatchers } from "@testing-library/jest-dom/matchers";
 
-declare global {
-  namespace Vi {
-    interface Assertion {
-      toBeDisabled(): void;
-      toBeInTheDocument(): void;
-      // Add other custom matchers as needed
-    }
-  }
+import "vitest";
+
+// jest-dom's Vitest entry still augments the pre-Vitest 5 Assertion signature.
+declare module "vitest" {
+  // eslint-disable-next-line @typescript-eslint/no-empty-object-type -- Module augmentation requires an interface to merge the matcher types.
+  interface Matchers<
+    R extends Promise<void> | void = Promise<void> | void,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- Module augmentation must match Vitest's generic parameters.
+    T = unknown,
+  > extends TestingLibraryMatchers<unknown, R> {}
 }

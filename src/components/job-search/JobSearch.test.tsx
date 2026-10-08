@@ -92,13 +92,6 @@ vi.mock("./api", () => ({
   },
 }));
 
-// Add type declarations for test functions
-declare module "vitest" {
-  interface Assertion<T> {
-    toBeInTheDocument(): T;
-  }
-}
-
 describe("JobSearch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
