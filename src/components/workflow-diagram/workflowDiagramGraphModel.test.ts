@@ -2,11 +2,23 @@ import { JobState } from "@services/types";
 import { workflowJobFactory } from "@test/factories/workflowJob";
 import { describe, expect, it } from "vitest";
 
-import { switchHandleCenterGap } from "./workflowDiagramConstants";
+import {
+  nodeHeight,
+  nodeWidth,
+  switchHandleCenterGap,
+} from "./workflowDiagramConstants";
 import {
   buildWorkflowGraphModel,
   depStatusFromJob,
 } from "./workflowDiagramGraphModel";
+
+const isFinitePoint = (point: unknown): boolean =>
+  point !== null &&
+  typeof point === "object" &&
+  "x" in point &&
+  "y" in point &&
+  Number.isFinite(point.x) &&
+  Number.isFinite(point.y);
 
 const targetAnchorOffsetX = (edgeData: unknown): number | undefined => {
   if (!edgeData || typeof edgeData !== "object") return undefined;
@@ -34,6 +46,45 @@ describe("buildWorkflowGraphModel", () => {
       "e-1-3",
       "e-2-3",
     ]);
+  });
+
+  it("lays out a fork and join with Dagre node positions and edge routes", () => {
+    const tasks = [
+      workflowJobFactory.build({ id: 1, task: "start" }),
+      workflowJobFactory.build({ deps: ["start"], id: 2, task: "branch-a" }),
+      workflowJobFactory.build({ deps: ["start"], id: 3, task: "branch-b" }),
+      workflowJobFactory.build({
+        deps: ["branch-a", "branch-b"],
+        id: 4,
+        task: "join",
+      }),
+    ];
+
+    const model = buildWorkflowGraphModel(tasks);
+    const [start, branchA, branchB, join] = model.nodes;
+
+    expect(model.nodes).toHaveLength(4);
+    for (const node of model.nodes) {
+      expect(Number.isFinite(node.position.x)).toBe(true);
+      expect(Number.isFinite(node.position.y)).toBe(true);
+      expect(node.sourcePosition).toBe("right");
+      expect(node.targetPosition).toBe("left");
+    }
+    for (const branch of [branchA, branchB]) {
+      expect(branch.position.x).toBeGreaterThan(start.position.x + nodeWidth);
+      expect(join.position.x).toBeGreaterThan(branch.position.x + nodeWidth);
+    }
+    expect(Math.abs(branchA.position.y - branchB.position.y)).toBeGreaterThan(
+      nodeHeight,
+    );
+    expect(model.edges).toHaveLength(4);
+    for (const edge of model.edges) {
+      const points: unknown = edge.data?.dagrePoints;
+      if (!Array.isArray(points))
+        throw new Error("Expected a Dagre edge route");
+      expect(points.length).toBeGreaterThanOrEqual(2);
+      expect(points.every(isFinitePoint)).toBe(true);
+    }
   });
 
   it("maps job states to dependency statuses", () => {
