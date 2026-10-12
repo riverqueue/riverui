@@ -827,6 +827,15 @@ func (req *queueUpdateRequest) ExtractRaw(r *http.Request) error {
 }
 
 func (a *queueUpdateEndpoint[TTx]) Execute(ctx context.Context, req *queueUpdateRequest) (*RiverQueue, error) {
+	if concurrency := req.Concurrency.Value; concurrency != nil {
+		if concurrency.GlobalLimit < 0 {
+			return nil, apierror.NewBadRequestf("Invalid `global_limit` %d: must be 0 (no limit) or greater.", concurrency.GlobalLimit)
+		}
+		if concurrency.LocalLimit < 0 {
+			return nil, apierror.NewBadRequestf("Invalid `local_limit` %d: must be 0 (no limit) or greater.", concurrency.LocalLimit)
+		}
+	}
+
 	return dbutil.WithTxV(ctx, a.DB, func(ctx context.Context, execTx riverdriver.ExecutorTx) (*RiverQueue, error) {
 		tx := a.Driver.UnwrapTx(execTx)
 

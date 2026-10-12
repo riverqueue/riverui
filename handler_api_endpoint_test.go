@@ -1034,6 +1034,40 @@ func TestAPIHandlerQueueUpdate(t *testing.T) {
 		}, resp.Concurrency)
 	})
 
+	t.Run("NegativeGlobalLimit", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueUpdateEndpoint)
+
+		queue := testfactory.Queue(ctx, t, bundle.exec, nil)
+
+		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueUpdateRequest{
+			Name: queue.Name,
+			Concurrency: apitype.ExplicitNullable[ConcurrencyConfig]{
+				Set:   true,
+				Value: &ConcurrencyConfig{GlobalLimit: -1, LocalLimit: 5},
+			},
+		})
+		uicommontest.RequireAPIError(t, apierror.NewBadRequestf("Invalid `global_limit` -1: must be 0 (no limit) or greater."), err)
+	})
+
+	t.Run("NegativeLocalLimit", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueUpdateEndpoint)
+
+		queue := testfactory.Queue(ctx, t, bundle.exec, nil)
+
+		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueUpdateRequest{
+			Name: queue.Name,
+			Concurrency: apitype.ExplicitNullable[ConcurrencyConfig]{
+				Set:   true,
+				Value: &ConcurrencyConfig{GlobalLimit: 10, LocalLimit: -2},
+			},
+		})
+		uicommontest.RequireAPIError(t, apierror.NewBadRequestf("Invalid `local_limit` -2: must be 0 (no limit) or greater."), err)
+	})
+
 	t.Run("SortsPartitionByArgs", func(t *testing.T) {
 		t.Parallel()
 
