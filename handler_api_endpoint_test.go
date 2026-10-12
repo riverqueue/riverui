@@ -1048,6 +1048,28 @@ func TestAPIHandlerQueueUpdate(t *testing.T) {
 		}, resp.Concurrency)
 	})
 
+	t.Run("ClearsOverrideWithNull", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueUpdateEndpoint)
+
+		queue := testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{
+			Metadata: []byte(`{"concurrency": {"global_limit": 10, "local_limit": 5}}`),
+		})
+
+		var req queueUpdateRequest
+		require.NoError(t, json.Unmarshal([]byte(`{"concurrency": null}`), &req))
+		req.Name = queue.Name
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &req)
+		require.NoError(t, err)
+		require.Nil(t, resp.Concurrency)
+
+		updatedQueue, err := bundle.client.QueueGetTx(ctx, bundle.tx, queue.Name)
+		require.NoError(t, err)
+		require.JSONEq(t, `{}`, string(updatedQueue.Metadata))
+	})
+
 	t.Run("NegativeGlobalLimit", func(t *testing.T) {
 		t.Parallel()
 
@@ -1080,6 +1102,32 @@ func TestAPIHandlerQueueUpdate(t *testing.T) {
 			},
 		})
 		uicommontest.RequireAPIError(t, apierror.NewBadRequestf("Invalid `local_limit` -2: must be 0 (no limit) or greater."), err)
+	})
+
+	t.Run("SetsFullOverride", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueUpdateEndpoint)
+
+		queue := testfactory.Queue(ctx, t, bundle.exec, nil)
+
+		var req queueUpdateRequest
+		require.NoError(t, json.Unmarshal([]byte(`{"concurrency": {"global_limit": 10, "local_limit": 0, "partition": {"by_args": ["b", "a"], "by_kind": true}}}`), &req))
+		req.Name = queue.Name
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &req)
+		require.NoError(t, err)
+		require.Equal(t, &ConcurrencyConfig{
+			GlobalLimit: 10,
+			Partition: PartitionConfig{
+				ByArgs: []string{"a", "b"},
+				ByKind: true,
+			},
+		}, resp.Concurrency)
+
+		updatedQueue, err := bundle.client.QueueGetTx(ctx, bundle.tx, queue.Name)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"concurrency": {"global_limit": 10, "local_limit": 0, "partition": {"by_args": ["a", "b"], "by_kind": true}}}`, string(updatedQueue.Metadata))
 	})
 
 	t.Run("SortsPartitionByArgs", func(t *testing.T) {
