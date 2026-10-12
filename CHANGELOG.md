@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Show queues whose concurrency metadata is missing, `null`, or `{}` as having no concurrency override, matching how River Pro interprets them, and stop showing a zero concurrency config for producers that report none. [PR #704](https://github.com/riverqueue/riverui/pull/704).
+- Reject negative queue concurrency `global_limit` and `local_limit` values with a 400 error instead of storing them. [PR #704](https://github.com/riverqueue/riverui/pull/704).
 - Keep workflow diagram layouts compatible with Dagre's package exports after dependency upgrades. [PR #687](https://github.com/riverqueue/riverui/pull/687).
 
 ## [v0.21.0] - 2026-10-07

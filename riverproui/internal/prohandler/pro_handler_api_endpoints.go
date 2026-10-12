@@ -175,20 +175,10 @@ func (a *producerListEndpoint[TTx]) Execute(ctx context.Context, req *producerLi
 }
 
 func internalProducerToSerializableProducer(internal *riverprodriver.ProducerListByQueueResult) *uitype.RiverProducer {
-	var concurrency *uitype.ConcurrencyConfig
-	if len(internal.Producer.Metadata) > 0 {
-		var metadata struct {
-			Concurrency uitype.ConcurrencyConfig `json:"concurrency"`
-		}
-		if err := json.Unmarshal(internal.Producer.Metadata, &metadata); err == nil {
-			concurrency = &metadata.Concurrency
-		}
-	}
-
 	return &uitype.RiverProducer{
 		ID:          internal.Producer.ID,
 		ClientID:    internal.Producer.ClientID,
-		Concurrency: concurrency,
+		Concurrency: producerConcurrencyFromMetadata(internal.Producer.Metadata),
 		CreatedAt:   internal.Producer.CreatedAt,
 		MaxWorkers:  int(internal.Producer.MaxWorkers),
 		PausedAt:    internal.Producer.PausedAt,
@@ -196,6 +186,41 @@ func internalProducerToSerializableProducer(internal *riverprodriver.ProducerLis
 		Running:     internal.Running,
 		UpdatedAt:   internal.Producer.UpdatedAt,
 	}
+}
+
+// producerConcurrencyFromMetadata extracts the concurrency config a producer
+// reports in its metadata. A missing key, `null`, or an object without any
+// config fields means the producer has no concurrency config, so it returns
+// nil instead of a zero config. Producers also store limiter state like
+// `running` alongside the config, which doesn't count as config on its own.
+func producerConcurrencyFromMetadata(metadata []byte) *uitype.ConcurrencyConfig {
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	var parsed struct {
+		Concurrency json.RawMessage `json:"concurrency"`
+	}
+	if err := json.Unmarshal(metadata, &parsed); err != nil {
+		return nil
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(parsed.Concurrency, &fields); err != nil {
+		return nil
+	}
+	_, hasGlobalLimit := fields["global_limit"]
+	_, hasLocalLimit := fields["local_limit"]
+	_, hasPartition := fields["partition"]
+	if !hasGlobalLimit && !hasLocalLimit && !hasPartition {
+		return nil
+	}
+
+	var concurrency uitype.ConcurrencyConfig
+	if err := json.Unmarshal(parsed.Concurrency, &concurrency); err != nil {
+		return nil
+	}
+	return &concurrency
 }
 
 //
