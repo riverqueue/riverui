@@ -31,6 +31,7 @@ import (
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
 	"riverqueue.com/riverui/internal/uicommontest"
 	"riverqueue.com/riverui/riverproui/internal/protestfactory"
+	"riverqueue.com/riverui/riverproui/internal/uitype"
 )
 
 type setupEndpointTestBundle struct {
@@ -125,6 +126,69 @@ func TestProAPIHandlerPeriodicJobList(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, resp.Data, 1)
 		require.Equal(t, job1.ID, resp.Data[0].ID)
+	})
+}
+
+func TestProducerConcurrencyFromMetadata(t *testing.T) {
+	t.Parallel()
+
+	t.Run("EmptyMetadata", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, producerConcurrencyFromMetadata(nil))
+		require.Nil(t, producerConcurrencyFromMetadata([]byte(`{}`)))
+	})
+
+	t.Run("EmptyObject", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, producerConcurrencyFromMetadata([]byte(`{"concurrency": {}}`)))
+	})
+
+	t.Run("FullConfig", func(t *testing.T) {
+		t.Parallel()
+
+		require.Equal(t, &uitype.ConcurrencyConfig{
+			GlobalLimit: 10,
+			LocalLimit:  5,
+			Partition: uitype.PartitionConfig{
+				ByArgs: []string{"customer_id"},
+				ByKind: true,
+			},
+		}, producerConcurrencyFromMetadata([]byte(`{"concurrency": {"global_limit": 10, "local_limit": 5, "partition": {"by_args": ["customer_id"], "by_kind": true}, "running": {"a": 1}}}`)))
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, producerConcurrencyFromMetadata([]byte(`{"concurrency": `)))
+		require.Nil(t, producerConcurrencyFromMetadata([]byte(`{"concurrency": "invalid"}`)))
+	})
+
+	t.Run("MissingKey", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, producerConcurrencyFromMetadata([]byte(`{"other": true}`)))
+	})
+
+	t.Run("Null", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, producerConcurrencyFromMetadata([]byte(`{"concurrency": null}`)))
+	})
+
+	t.Run("RunningStateOnly", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, producerConcurrencyFromMetadata([]byte(`{"concurrency": {"running": {"a": 1}}}`)))
+	})
+
+	t.Run("ZeroLimits", func(t *testing.T) {
+		t.Parallel()
+
+		// A producer that reports explicit zero limits has a config with no
+		// limits, which is distinct from having no config at all.
+		require.Equal(t, &uitype.ConcurrencyConfig{}, producerConcurrencyFromMetadata([]byte(`{"concurrency": {"global_limit": 0, "local_limit": 0}}`)))
 	})
 }
 
