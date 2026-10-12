@@ -900,6 +900,20 @@ func TestAPIHandlerQueueGet(t *testing.T) {
 		require.Equal(t, queue.Name, resp.Name)
 	})
 
+	t.Run("EmptyConcurrencyObjectIsNoOverride", func(t *testing.T) {
+		t.Parallel()
+
+		endpoint, bundle := setupEndpoint(ctx, t, newQueueGetEndpoint)
+
+		queue := testfactory.Queue(ctx, t, bundle.exec, &testfactory.QueueOpts{
+			Metadata: []byte(`{"concurrency": {}}`),
+		})
+
+		resp, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &queueGetRequest{Name: queue.Name})
+		require.NoError(t, err)
+		require.Nil(t, resp.Concurrency)
+	})
+
 	t.Run("NotFound", func(t *testing.T) {
 		t.Parallel()
 
@@ -1109,6 +1123,61 @@ func TestAPIHandlerQueueUpdate(t *testing.T) {
 			Name: "does_not_exist",
 		})
 		uicommontest.RequireAPIError(t, NewNotFoundQueue("does_not_exist"), err)
+	})
+}
+
+func TestQueueConcurrencyFromMetadata(t *testing.T) {
+	t.Parallel()
+
+	t.Run("EmptyMetadata", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, queueConcurrencyFromMetadata(nil))
+		require.Nil(t, queueConcurrencyFromMetadata([]byte(`{}`)))
+	})
+
+	t.Run("EmptyObject", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, queueConcurrencyFromMetadata([]byte(`{"concurrency": {}}`)))
+	})
+
+	t.Run("FullOverride", func(t *testing.T) {
+		t.Parallel()
+
+		require.Equal(t, &ConcurrencyConfig{
+			GlobalLimit: 10,
+			LocalLimit:  5,
+			Partition: PartitionConfig{
+				ByArgs: []string{"customer_id"},
+				ByKind: true,
+			},
+		}, queueConcurrencyFromMetadata([]byte(`{"concurrency": {"global_limit": 10, "local_limit": 5, "partition": {"by_args": ["customer_id"], "by_kind": true}}}`)))
+	})
+
+	t.Run("InvalidJSON", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, queueConcurrencyFromMetadata([]byte(`{"concurrency": `)))
+		require.Nil(t, queueConcurrencyFromMetadata([]byte(`{"concurrency": "invalid"}`)))
+	})
+
+	t.Run("MissingKey", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, queueConcurrencyFromMetadata([]byte(`{"other": true}`)))
+	})
+
+	t.Run("Null", func(t *testing.T) {
+		t.Parallel()
+
+		require.Nil(t, queueConcurrencyFromMetadata([]byte(`{"concurrency": null}`)))
+	})
+
+	t.Run("PartialOverrideZeroesOmittedFields", func(t *testing.T) {
+		t.Parallel()
+
+		require.Equal(t, &ConcurrencyConfig{LocalLimit: 3}, queueConcurrencyFromMetadata([]byte(`{"concurrency": {"local_limit": 3}}`)))
 	})
 }
 

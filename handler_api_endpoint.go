@@ -1265,25 +1265,43 @@ type RiverQueue struct {
 }
 
 func riverQueueToSerializableQueue(internal rivertype.Queue, count *riverdriver.JobCountByQueueAndStateResult) *RiverQueue {
-	var concurrency *ConcurrencyConfig
-	if len(internal.Metadata) > 0 {
-		var metadata struct {
-			Concurrency *ConcurrencyConfig `json:"concurrency"`
-		}
-		if err := json.Unmarshal(internal.Metadata, &metadata); err == nil {
-			concurrency = metadata.Concurrency
-		}
-	}
-
 	return &RiverQueue{
 		CountAvailable: int(count.CountAvailable),
 		CountRunning:   int(count.CountRunning),
 		CreatedAt:      internal.CreatedAt,
-		Concurrency:    concurrency,
+		Concurrency:    queueConcurrencyFromMetadata(internal.Metadata),
 		Name:           internal.Name,
 		PausedAt:       internal.PausedAt,
 		UpdatedAt:      internal.UpdatedAt,
 	}
+}
+
+// queueConcurrencyFromMetadata extracts a queue's concurrency override from
+// its metadata. A missing key, `null`, and `{}` all mean "no override" to River
+// Pro, so they all return nil. Any other object is a full override where
+// omitted fields are zero values rather than being merged with client config.
+func queueConcurrencyFromMetadata(metadata []byte) *ConcurrencyConfig {
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	var parsed struct {
+		Concurrency json.RawMessage `json:"concurrency"`
+	}
+	if err := json.Unmarshal(metadata, &parsed); err != nil {
+		return nil
+	}
+
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(parsed.Concurrency, &fields); err != nil || len(fields) == 0 {
+		return nil
+	}
+
+	var concurrency ConcurrencyConfig
+	if err := json.Unmarshal(parsed.Concurrency, &concurrency); err != nil {
+		return nil
+	}
+	return &concurrency
 }
 
 func riverQueuesToSerializableQueues(internal []*rivertype.Queue, counts []*riverdriver.JobCountByQueueAndStateResult) *listResponse[RiverQueue] {
