@@ -73,7 +73,7 @@
   },
   "overrides": {
     "@babel/runtime": "^7.26.10",
-    "shell-quote": "^1.9.0",
+    "shell-quote": "^1.11.0",
     "storybook": "$storybook"
   },
   "scripts": {
