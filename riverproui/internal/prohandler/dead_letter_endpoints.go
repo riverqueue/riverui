@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
 	"github.com/riverqueue/apiframe/apierror"
@@ -94,9 +96,31 @@ type deadLetterJobListRequest struct {
 	Limit      *int     `json:"-" validate:"omitempty,min=1,max=200"`
 }
 
+// validateDeadLetterText rejects text that the databases can't handle
+// consistently. PostgreSQL refuses NUL bytes and invalid UTF-8 in both text and
+// jsonb parameters, which would otherwise surface as an internal server error,
+// while SQLite accepts them.
+func validateDeadLetterText(param string, values ...string) error {
+	for _, value := range values {
+		if strings.ContainsRune(value, 0) || !utf8.ValidString(value) {
+			return apierror.NewBadRequestf("Invalid `%s` value: must be valid UTF-8 without NUL bytes.", param)
+		}
+	}
+	return nil
+}
+
 func (req *deadLetterJobListRequest) ExtractRaw(r *http.Request) error {
 	query := r.URL.Query()
 	req.Kinds, req.Queues, req.Tags = query["kinds"], query["queues"], query["tags"]
+	if err := validateDeadLetterText("kinds", req.Kinds...); err != nil {
+		return err
+	}
+	if err := validateDeadLetterText("queues", req.Queues...); err != nil {
+		return err
+	}
+	if err := validateDeadLetterText("tags", req.Tags...); err != nil {
+		return err
+	}
 	for _, value := range query["ids"] {
 		id, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
@@ -238,7 +262,10 @@ type deadLetterAutocompleteRequest struct {
 func (req *deadLetterAutocompleteRequest) ExtractRaw(r *http.Request) error {
 	query := r.URL.Query()
 	req.Facet, req.Match, req.Exclude = query.Get("facet"), query.Get("match"), query["exclude"]
-	return nil
+	if err := validateDeadLetterText("match", req.Match); err != nil {
+		return err
+	}
+	return validateDeadLetterText("exclude", req.Exclude...)
 }
 
 func (a *deadLetterAutocompleteEndpoint[TTx]) Execute(ctx context.Context, req *deadLetterAutocompleteRequest) (*listResponse[string], error) {

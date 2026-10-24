@@ -12,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/riverqueue/apiframe/apiendpoint"
+	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/apiframe/apitest"
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivertype"
@@ -211,6 +213,75 @@ func TestDeadLetterJobListRequest(t *testing.T) {
 	require.Equal(t, []string{"report", "email"}, parsed.Kinds)
 	require.Equal(t, []string{"mail"}, parsed.Queues)
 	require.Equal(t, []string{"urgent", "batch"}, parsed.Tags)
+}
+
+func TestDeadLetterRequestRejectsInvalidText(t *testing.T) {
+	t.Parallel()
+
+	extractList := func(r *http.Request) error { return (&deadLetterJobListRequest{}).ExtractRaw(r) }
+	extractAutocomplete := func(r *http.Request) error { return (&deadLetterAutocompleteRequest{}).ExtractRaw(r) }
+	for _, tt := range []struct {
+		param   string
+		extract func(r *http.Request) error
+	}{
+		{param: "kinds", extract: extractList},
+		{param: "queues", extract: extractList},
+		{param: "tags", extract: extractList},
+		{param: "match", extract: extractAutocomplete},
+		{param: "exclude", extract: extractAutocomplete},
+	} {
+		// A NUL byte alone and within text, then invalid UTF-8 sequences.
+		for _, value := range []string{"%00", "send%00email", "%ff", "caf%c3"} {
+			t.Run(tt.param+"="+value, func(t *testing.T) {
+				t.Parallel()
+				req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?facet=job_kind&kinds=valid&"+tt.param+"="+value, nil)
+				err := tt.extract(req)
+				var badRequest *apierror.BadRequest
+				require.ErrorAs(t, err, &badRequest)
+				require.Equal(t, http.StatusBadRequest, badRequest.StatusCode)
+				require.Equal(t, "Invalid `"+tt.param+"` value: must be valid UTF-8 without NUL bytes.", badRequest.Message)
+			})
+		}
+	}
+
+	// Other control characters and non-ASCII text are valid in both databases.
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?kinds=caf%C3%A9&queues=tab%09bed&tags=%C3%BCber", nil)
+	var parsed deadLetterJobListRequest
+	require.NoError(t, parsed.ExtractRaw(req))
+	require.Equal(t, []string{"café"}, parsed.Kinds)
+	require.Equal(t, []string{"tab\tbed"}, parsed.Queues)
+	require.Equal(t, []string{"über"}, parsed.Tags)
+}
+
+// Requests go through the mounted endpoint so that a value PostgreSQL rejects
+// is shown to produce a bad request rather than an internal server error.
+func TestDeadLetterInvalidTextStatus(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	listEndpoint, _ := setupEndpoint(ctx, t, NewDeadLetterJobListEndpoint)
+	autocompleteEndpoint, _ := setupEndpoint(ctx, t, NewDeadLetterAutocompleteEndpoint)
+	mux := http.NewServeMux()
+	apiendpoint.Mount(mux, listEndpoint, testMountOpts(t))
+	apiendpoint.Mount(mux, autocompleteEndpoint, testMountOpts(t))
+
+	for _, tt := range []struct {
+		path string
+		want int
+	}{
+		{path: "/api/pro/dead-letter-jobs?kinds=%00", want: http.StatusBadRequest},
+		{path: "/api/pro/dead-letter-jobs?queues=%00", want: http.StatusBadRequest},
+		{path: "/api/pro/dead-letter-jobs?tags=%ff", want: http.StatusBadRequest},
+		{path: "/api/pro/dead-letter-jobs?kinds=caf%C3%A9&tags=tab%09bed", want: http.StatusOK},
+		{path: "/api/pro/dead-letter-jobs/autocomplete?facet=job_kind&match=%00", want: http.StatusBadRequest},
+		{path: "/api/pro/dead-letter-jobs/autocomplete?facet=job_kind&match=%ff", want: http.StatusBadRequest},
+		{path: "/api/pro/dead-letter-jobs/autocomplete?facet=job_kind&exclude=%00", want: http.StatusBadRequest},
+		{path: "/api/pro/dead-letter-jobs/autocomplete?facet=job_kind&match=caf%C3%A9", want: http.StatusOK},
+	} {
+		recorder := httptest.NewRecorder()
+		mux.ServeHTTP(recorder, httptest.NewRequestWithContext(ctx, http.MethodGet, tt.path, nil))
+		require.Equal(t, tt.want, recorder.Code, "%s: %s", tt.path, recorder.Body.String())
+	}
 }
 
 func TestDeadLetterAutocomplete(t *testing.T) {
