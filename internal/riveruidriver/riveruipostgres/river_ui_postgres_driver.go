@@ -139,3 +139,44 @@ func (w riverExecutorWrapper) QueryRow(ctx context.Context, query string, args .
 	// the query and context through unchanged and let it consume the template.
 	return w.executor.QueryRow(ctx, query, args...)
 }
+
+func (e *Executor) JobDeadLetterList(ctx context.Context, params *riveruidriver.JobDeadLetterListParams) ([]*riveruidriver.JobDeadLetterListResult, error) {
+	if params.Max < 1 || params.Max > 200 {
+		return nil, errors.New("dead letter list max must be between 1 and 200")
+	}
+	filters, err := json.Marshal(params.Filters)
+	if err != nil {
+		return nil, fmt.Errorf("error encoding dead letter filters: %w", err)
+	}
+	rawJobs, err := dbsqlc.JobDeadLetterListRiver(schemaTemplateParam(ctx, params.Schema), e.dbtx, params.Max, string(filters))
+	if err != nil {
+		return nil, fmt.Errorf("error listing dead letter jobs: %w", err)
+	}
+	var jobs []*riveruidriver.JobDeadLetterListResult
+	if err := json.Unmarshal([]byte(rawJobs), &jobs); err != nil {
+		return nil, fmt.Errorf("error decoding dead letter jobs: %w", err)
+	}
+	return jobs, nil
+}
+
+func (e *Executor) JobDeadLetterAutocomplete(ctx context.Context, params *riveruidriver.JobDeadLetterAutocompleteParams) ([]string, error) {
+	if params.Facet != "job_kind" && params.Facet != "queue_name" {
+		return nil, errors.New("invalid dead letter autocomplete facet")
+	}
+	if params.Max < 1 || params.Max > 100 {
+		return nil, errors.New("dead letter autocomplete max must be between 1 and 100")
+	}
+	exclude, err := json.Marshal(append([]string{}, params.Exclude...))
+	if err != nil {
+		return nil, fmt.Errorf("error encoding dead letter exclusions: %w", err)
+	}
+	rawValues, err := dbsqlc.JobDeadLetterAutocompleteRiver(schemaTemplateParam(ctx, params.Schema), e.dbtx, params.Facet, params.Match, string(exclude), params.Max)
+	if err != nil {
+		return nil, fmt.Errorf("error autocompleting dead letter jobs: %w", err)
+	}
+	var values []string
+	if err := json.Unmarshal([]byte(rawValues), &values); err != nil {
+		return nil, fmt.Errorf("error decoding dead letter suggestions: %w", err)
+	}
+	return values, nil
+}

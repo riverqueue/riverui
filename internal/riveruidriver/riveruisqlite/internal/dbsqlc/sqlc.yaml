@@ -3,8 +3,10 @@ sql:
   - engine: "sqlite"
     queries:
       - river_job.sql
+      - river_job_dead_letter.sql
     schema:
       - river_job.sql
+      - river_job_dead_letter.sql
     gen:
       go:
         package: "dbsqlc"

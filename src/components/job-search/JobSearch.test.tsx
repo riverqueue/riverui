@@ -121,6 +121,55 @@ describe("JobSearch", () => {
       expect(searchInput).toHaveAttribute("autoComplete", "off");
     });
 
+    it("preserves ongoing typing when a parent acknowledges an earlier filter change", async () => {
+      const onFiltersChange = vi.fn();
+      const { rerender } = render(
+        <JobSearch onFiltersChange={onFiltersChange} syncInitialFilters />,
+      );
+      const input = screen.getByTestId("job-search-input");
+      fireEvent.change(input, { target: { value: "kind:batch" } });
+      await waitFor(() =>
+        expect(onFiltersChange).toHaveBeenCalledWith([
+          expect.objectContaining({ values: ["batch"] }),
+        ]),
+      );
+      fireEvent.change(input, { target: { value: "kind:batch queue:ma" } });
+      rerender(
+        <JobSearch
+          initialFilters={[
+            {
+              id: "kind",
+              match: "kind:",
+              typeId: FilterTypeId.KIND,
+              values: ["batch"],
+            },
+          ]}
+          onFiltersChange={onFiltersChange}
+          syncInitialFilters
+        />,
+      );
+      expect(input).toHaveValue("kind:batch queue:ma");
+    });
+
+    it("keeps initial filters uncontrolled unless synchronization is enabled", () => {
+      const { rerender } = render(<JobSearch />);
+      const input = screen.getByTestId("job-search-input");
+      fireEvent.change(input, { target: { value: "kind:batch" } });
+      rerender(
+        <JobSearch
+          initialFilters={[
+            {
+              id: "queue",
+              match: "queue:",
+              typeId: FilterTypeId.QUEUE,
+              values: ["mail"],
+            },
+          ]}
+        />,
+      );
+      expect(input).toHaveValue("kind:batch");
+    });
+
     it("notifies parent of filter changes", async () => {
       const onFiltersChange = vi.fn();
       render(<JobSearch onFiltersChange={onFiltersChange} />);

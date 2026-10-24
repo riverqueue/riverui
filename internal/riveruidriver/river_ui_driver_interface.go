@@ -28,6 +28,45 @@ type Executor interface {
 	// JobCountEstimate returns inexpensive database estimates where supported.
 	// Drivers without an estimate strategy return an empty map.
 	JobCountEstimate(ctx context.Context, params *JobCountEstimateParams) (map[rivertype.JobState]JobCountEstimateResult, error)
+	// JobDeadLetterList returns at most Max jobs, ordered by ID ascending.
+	// Only Pro endpoints call this query; it requires the dead letter table.
+	JobDeadLetterList(ctx context.Context, params *JobDeadLetterListParams) ([]*JobDeadLetterListResult, error)
+	JobDeadLetterAutocomplete(ctx context.Context, params *JobDeadLetterAutocompleteParams) ([]string, error)
+}
+
+// JobDeadLetterFilters matches any value within each populated filter and
+// requires all populated filters to match. Tags match any exact tag.
+type JobDeadLetterFilters struct {
+	IDs        []int64  `json:"ids,omitempty"`
+	Kinds      []string `json:"kinds,omitempty"`
+	Priorities []int16  `json:"priorities,omitempty"`
+	Queues     []string `json:"queues,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
+}
+
+type JobDeadLetterAutocompleteParams struct {
+	Exclude []string
+	Facet   string
+	Match   string
+	Max     int
+	Schema  string
+}
+
+type JobDeadLetterListParams struct {
+	Filters JobDeadLetterFilters
+	Max     int
+	Schema  string
+}
+
+// JobDeadLetterListResult contains only fields displayed in the list. Args,
+// metadata, and attempt history are loaded separately when opening a job.
+type JobDeadLetterListResult struct {
+	ID          int64      `json:"id"`
+	Attempt     int        `json:"attempt"`
+	FinalizedAt *time.Time `json:"finalized_at"`
+	Kind        string     `json:"kind"`
+	MaxAttempts int        `json:"max_attempts"`
+	Queue       string     `json:"queue"`
 }
 
 type JobCountByAllStatesCappedParams struct {

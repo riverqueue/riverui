@@ -65,6 +65,20 @@ func TestProEndpointsExtensions(t *testing.T) {
 		}
 	}
 
+	t.Run("DeadLetterJobs", func(t *testing.T) {
+		t.Parallel()
+		bundle := setup(ctx, t)
+		ext, err := bundle.endpoint.Extensions(ctx)
+		require.NoError(t, err)
+		require.True(t, ext["dead_letter_jobs"])
+
+		_, err = bundle.tx.Exec(ctx, `DROP TABLE river_job_dead_letter`)
+		require.NoError(t, err)
+		ext, err = bundle.endpoint.Extensions(ctx)
+		require.NoError(t, err)
+		require.False(t, ext["dead_letter_jobs"])
+	})
+
 	t.Run("DurablePeriodicJobs", func(t *testing.T) { //nolint:dupl
 		t.Parallel()
 

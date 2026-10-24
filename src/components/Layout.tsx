@@ -8,6 +8,7 @@ import {
   TransitionChild,
 } from "@headlessui/react";
 import {
+  ArchiveBoxIcon,
   CalendarDaysIcon,
   Cog6ToothIcon,
   InboxStackIcon,
@@ -15,7 +16,7 @@ import {
   RectangleGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { Link } from "@tanstack/react-router";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Fragment, PropsWithChildren, useMemo } from "react";
 
 type LayoutProps = PropsWithChildren<object>;
@@ -24,6 +25,9 @@ const Layout = ({ children }: LayoutProps) => {
   const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebarSetting();
 
   const { features } = useFeatures();
+  const inJobsPane = useRouterState({
+    select: ({ matches }) => matches.some((match) => match.routeId === "/jobs"),
+  });
 
   const navigation = useMemo(
     () =>
@@ -32,9 +36,26 @@ const Layout = ({ children }: LayoutProps) => {
           href: "/jobs",
           icon: QueueListIcon,
           name: "Jobs",
-          search: {},
+          // Explicitly clear retained Jobs filters when entering from another pane.
+          search: inJobsPane
+            ? {}
+            : {
+                id: undefined,
+                kind: undefined,
+                limit: undefined,
+                priority: undefined,
+                queue: undefined,
+                tags: undefined,
+              },
         },
         { href: "/queues", icon: InboxStackIcon, name: "Queues" },
+        {
+          hidden: !features.deadLetterJobs,
+          href: "/dead-letter-jobs",
+          icon: ArchiveBoxIcon,
+          name: "Dead Letters",
+          search: {},
+        },
         {
           hidden: !features.workflowQueries,
           href: "/workflows",
@@ -48,7 +69,12 @@ const Layout = ({ children }: LayoutProps) => {
           name: "Periodic Jobs",
         },
       ].filter((item) => item.hidden === undefined || item.hidden === false),
-    [features.durablePeriodicJobs, features.workflowQueries],
+    [
+      features.deadLetterJobs,
+      features.durablePeriodicJobs,
+      features.workflowQueries,
+      inJobsPane,
+    ],
   );
 
   return (

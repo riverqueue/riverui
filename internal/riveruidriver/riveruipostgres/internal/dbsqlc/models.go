@@ -72,3 +72,14 @@ type RiverJob struct {
 	State       RiverJobState
 	ScheduledAt time.Time
 }
+
+type RiverJobDeadLetter struct {
+	ID          int64
+	Attempt     int16
+	FinalizedAt *time.Time
+	Kind        string
+	MaxAttempts int16
+	Queue       string
+	Priority    int16
+	Tags        []string
+}

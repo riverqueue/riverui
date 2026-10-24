@@ -28,6 +28,7 @@ func Exercise(
 	exerciseGetExecutor(ctx, t, driver, executorWithTx)
 	exerciseJobCountByAllStatesCapped(ctx, t, driver, executorWithTx)
 	exerciseJobCountEstimate(ctx, t, databaseName, driver, executorWithTx)
+	exerciseJobDeadLetterList(ctx, t, driver, executorWithTx)
 }
 
 func exerciseGetExecutor(

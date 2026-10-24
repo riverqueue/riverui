@@ -6,6 +6,7 @@ describe("apiFeaturesToFeatures", () => {
   it("converts API features to frontend features", () => {
     const apiFeatures = {
       extensions: {
+        dead_letter_jobs: true,
         durable_periodic_jobs: true,
         has_producer_table: true,
         producer_queries: true,
@@ -15,6 +16,7 @@ describe("apiFeaturesToFeatures", () => {
     } as const;
 
     const expected = {
+      deadLetterJobs: true,
       durablePeriodicJobs: true,
       hasProducerTable: true,
       hasSequenceTable: false,
@@ -38,6 +40,7 @@ describe("apiFeaturesToFeatures", () => {
     } as const;
 
     const expected = {
+      deadLetterJobs: false,
       durablePeriodicJobs: false,
       hasProducerTable: false,
       hasSequenceTable: false,

@@ -24,6 +24,7 @@ interface UseFilterInputProps {
   ) => Promise<string[]>;
   initialFilters: JobFilter[];
   onFiltersChange?: (filters: JobFilter[]) => void;
+  syncInitialFilters?: boolean;
 }
 
 interface UseSuggestionsProps {
@@ -39,8 +40,12 @@ export function useFilterInput({
   fetchSuggestions,
   initialFilters,
   onFiltersChange,
+  syncInitialFilters = false,
 }: UseFilterInputProps) {
   const initialText = serializeFiltersToText(initialFilters);
+  const initialKey = filterValuesKey(initialFilters);
+  const previousInitialKey = useRef(initialKey);
+  const pendingFilterKey = useRef<string | undefined>(undefined);
   const [inputValue, setInputValue] = useState(initialText);
   const [cursorPosition, setCursorPosition] = useState(inputValue.length);
   const [suppressSuggestions, setSuppressSuggestions] = useState(false);
@@ -62,6 +67,19 @@ export function useFilterInput({
     updateSuggestions,
   } = useSuggestions({ fetchSuggestions, suppressSuggestions });
 
+  useEffect(() => {
+    if (!syncInitialFilters || previousInitialKey.current === initialKey)
+      return;
+    previousInitialKey.current = initialKey;
+    // Acknowledging a debounced edit must not overwrite newer typing.
+    const isOwnChange = pendingFilterKey.current === initialKey;
+    pendingFilterKey.current = undefined;
+    if (isOwnChange) return;
+    setInputValue(initialText);
+    setCursorPosition(initialText.length);
+    clearSuggestions();
+  }, [clearSuggestions, initialKey, initialText, syncInitialFilters]);
+
   // Debounced filter change notification
   useEffect(() => {
     if (debounceTimeoutRef.current) {
@@ -69,6 +87,7 @@ export function useFilterInput({
     }
 
     debounceTimeoutRef.current = window.setTimeout(() => {
+      pendingFilterKey.current = filterValuesKey(currentFilters);
       onFiltersChange?.(currentFilters);
     }, 200);
 
@@ -321,4 +340,16 @@ export function useSuggestions({
     suggestionsState,
     updateSuggestions,
   };
+}
+
+function filterValuesKey(filters: JobFilter[]): string {
+  return JSON.stringify(
+    filters
+      .filter((filter) => filter.values.length > 0)
+      .map((filter) => ({
+        type: filter.typeId,
+        values: [...filter.values].sort(),
+      }))
+      .sort((a, b) => a.type.localeCompare(b.type)),
+  );
 }
