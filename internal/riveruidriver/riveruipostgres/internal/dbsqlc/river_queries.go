@@ -86,3 +86,27 @@ func jobCountEstimateQuery(state rivertype.JobState) (string, error) {
 		return "", fmt.Errorf("invalid job state for count estimate: %q", state)
 	}
 }
+
+func JobDeadLetterListRiver(ctx context.Context, db RowQuerier, maxRows int, filters string) (string, error) {
+	var jobs string
+	if err := db.QueryRow(ctx, jobDeadLetterList, filters, maxRows).Scan(&jobs); err != nil {
+		return "", err
+	}
+	return jobs, nil
+}
+
+func JobDeadLetterListByIDsRiver(ctx context.Context, db RowQuerier, maxRows int, filters string) (string, error) {
+	var jobs string
+	if err := db.QueryRow(ctx, jobDeadLetterListByIDs, filters, maxRows).Scan(&jobs); err != nil {
+		return "", err
+	}
+	return jobs, nil
+}
+
+func JobDeadLetterAutocompleteRiver(ctx context.Context, db RowQuerier, facet, match, exclude string, maxRows int) (string, error) {
+	var values string
+	if err := db.QueryRow(ctx, jobDeadLetterAutocomplete, facet, match, exclude, maxRows).Scan(&values); err != nil {
+		return "", err
+	}
+	return values, nil
+}

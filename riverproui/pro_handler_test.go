@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -20,6 +21,7 @@ import (
 	"github.com/riverqueue/river/riverdbtest"
 	"github.com/riverqueue/river/riverdriver"
 	"github.com/riverqueue/river/rivershared/riversharedtest"
+	"github.com/riverqueue/river/rivertype"
 
 	"riverqueue.com/riverpro"
 	"riverqueue.com/riverpro/driver"
@@ -167,6 +169,15 @@ func runProHandlerRequests(t *testing.T, schema string, exec riverdriver.Executo
 		"workflow_id": workflowID2.String(),
 	})})
 
+	deadJob := testfactory.Job(ctx, t, exec, &testfactory.JobOpts{State: new(rivertype.JobStateDiscarded), FinalizedAt: new(time.Now())})
+	_, err := proExec.JobDeadLetterMoveByID(ctx, &driver.JobDeadLetterMoveByIDParams{ID: deadJob.ID})
+	require.NoError(t, err)
+	makeAPICall(t, "DeadLetterJobList", http.MethodGet, "/api/pro/dead-letter-jobs", nil)
+	makeAPICall(t, "DeadLetterJobListFiltered", http.MethodGet, fmt.Sprintf("/api/pro/dead-letter-jobs?ids=%d&priorities=1&queues=default", deadJob.ID), nil)
+	makeAPICall(t, "DeadLetterAutocomplete", http.MethodGet, "/api/pro/dead-letter-jobs/autocomplete?facet=job_kind&match=fake&exclude=other", nil)
+	makeAPICall(t, "DeadLetterJobGet", http.MethodGet, fmt.Sprintf("/api/pro/dead-letter-jobs/%d", deadJob.ID), nil)
+	makeAPICall(t, "DeadLetterJobRetry", http.MethodPost, fmt.Sprintf("/api/pro/dead-letter-jobs/%d/retry", deadJob.ID), nil)
+
 	// Verify OSS features endpoint is mounted and returns success even w/ Pro bundle:
 	makeAPICall(t, "FeaturesGet", http.MethodGet, "/api/features", nil)
 
@@ -248,6 +259,7 @@ func TestProMountedEndpointResponses(t *testing.T) {
 
 	// Static flags always true; dynamic flags should also be true because pro migrations run for tests
 	expectedExtensions := map[string]bool{
+		"dead_letter_jobs":      true, // dynamic
 		"durable_periodic_jobs": true, // dynamic
 		"has_producer_table":    true, // dynamic
 		"has_sequence_table":    true, // dynamic

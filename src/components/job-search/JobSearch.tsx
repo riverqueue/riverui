@@ -22,12 +22,14 @@ export interface JobSearchProps {
    * @param filterTypeId - The ID of the filter type
    * @param query - The search query
    * @param selectedValues - Values already selected for this filter
+   * @param signal - Aborted when a newer request replaces this one
    * @returns Promise resolving to an array of suggestion strings
    */
   fetchSuggestions?: (
     filterTypeId: JobFilterTypeID,
     query: string,
     selectedValues: string[],
+    signal?: AbortSignal,
   ) => Promise<string[]>;
   /**
    * Initial filters to display
@@ -39,6 +41,8 @@ export interface JobSearchProps {
    * @param filters - The updated list of filters
    */
   onFiltersChange?: (filters: JobFilter[]) => void;
+  /** Restore external filter changes, such as browser Back, without resetting ongoing edits. */
+  syncInitialFilters?: boolean;
 }
 
 export function JobSearch({
@@ -46,6 +50,7 @@ export function JobSearch({
   fetchSuggestions = defaultFetchSuggestions,
   initialFilters = [],
   onFiltersChange,
+  syncInitialFilters = false,
 }: JobSearchProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,6 +72,7 @@ export function JobSearch({
     fetchSuggestions,
     initialFilters,
     onFiltersChange,
+    syncInitialFilters,
   });
 
   // Handle clicking outside to close suggestions
@@ -180,6 +186,7 @@ export function JobSearch({
             {inputValue && (
               <div className="flex items-center pr-3 pl-1">
                 <button
+                  aria-label="Clear filters"
                   className="shrink-0 text-gray-400 hover:text-gray-500"
                   onClick={handleClearAll}
                   type="button"

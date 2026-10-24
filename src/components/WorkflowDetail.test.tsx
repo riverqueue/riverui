@@ -41,6 +41,7 @@ vi.mock("@components/workflow-diagram/WorkflowDiagram", () => ({
 }));
 
 const features: Features = {
+  deadLetterJobs: false,
   durablePeriodicJobs: false,
   hasProducerTable: true,
   hasSequenceTable: false,

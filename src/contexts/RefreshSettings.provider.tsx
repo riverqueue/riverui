@@ -1,6 +1,10 @@
 import { Fragment, useContext, useMemo, useState } from "react";
 
-import { RefreshSettingContext } from "./RefreshSettings";
+import {
+  DeadLetterJobsRefreshSettingContext,
+  defaultDeadLetterJobsRefreshIntervalMs,
+  RefreshSettingContext,
+} from "./RefreshSettings";
 
 export interface RefreshSettingProviderProps {
   children?: React.ReactNode;
@@ -20,6 +24,10 @@ const RefreshSetting: React.FC<RefreshSettingProviderProps> = ({
   children,
 }) => {
   const [intervalMs, setIntervalMs] = useState(2000);
+  // Keep the dead letter choice independent and retain it across navigation.
+  const [deadLetterJobsIntervalMs, setDeadLetterJobsIntervalMs] = useState(
+    defaultDeadLetterJobsRefreshIntervalMs,
+  );
 
   const providerValue = useMemo(
     () => ({
@@ -29,9 +37,21 @@ const RefreshSetting: React.FC<RefreshSettingProviderProps> = ({
     [intervalMs, setIntervalMs],
   );
 
+  const deadLetterJobsProviderValue = useMemo(
+    () => ({
+      intervalMs: deadLetterJobsIntervalMs,
+      setIntervalMs: setDeadLetterJobsIntervalMs,
+    }),
+    [deadLetterJobsIntervalMs, setDeadLetterJobsIntervalMs],
+  );
+
   return (
     <RefreshSettingContext.Provider value={providerValue}>
-      {children}
+      <DeadLetterJobsRefreshSettingContext.Provider
+        value={deadLetterJobsProviderValue}
+      >
+        {children}
+      </DeadLetterJobsRefreshSettingContext.Provider>
     </RefreshSettingContext.Provider>
   );
 };

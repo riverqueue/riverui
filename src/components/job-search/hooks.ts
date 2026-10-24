@@ -21,9 +21,11 @@ interface UseFilterInputProps {
     filterTypeId: JobFilterTypeID,
     query: string,
     selectedValues: string[],
+    signal?: AbortSignal,
   ) => Promise<string[]>;
   initialFilters: JobFilter[];
   onFiltersChange?: (filters: JobFilter[]) => void;
+  syncInitialFilters?: boolean;
 }
 
 interface UseSuggestionsProps {
@@ -31,6 +33,7 @@ interface UseSuggestionsProps {
     filterTypeId: JobFilterTypeID,
     query: string,
     selectedValues: string[],
+    signal?: AbortSignal,
   ) => Promise<string[]>;
   suppressSuggestions: boolean;
 }
@@ -39,8 +42,12 @@ export function useFilterInput({
   fetchSuggestions,
   initialFilters,
   onFiltersChange,
+  syncInitialFilters = false,
 }: UseFilterInputProps) {
   const initialText = serializeFiltersToText(initialFilters);
+  const initialKey = filterValuesKey(initialFilters);
+  const previousInitialKey = useRef(initialKey);
+  const pendingFilterKey = useRef<string | undefined>(undefined);
   const [inputValue, setInputValue] = useState(initialText);
   const [cursorPosition, setCursorPosition] = useState(inputValue.length);
   const [suppressSuggestions, setSuppressSuggestions] = useState(false);
@@ -62,6 +69,19 @@ export function useFilterInput({
     updateSuggestions,
   } = useSuggestions({ fetchSuggestions, suppressSuggestions });
 
+  useEffect(() => {
+    if (!syncInitialFilters || previousInitialKey.current === initialKey)
+      return;
+    previousInitialKey.current = initialKey;
+    // Acknowledging a debounced edit must not overwrite newer typing.
+    const isOwnChange = pendingFilterKey.current === initialKey;
+    pendingFilterKey.current = undefined;
+    if (isOwnChange) return;
+    setInputValue(initialText);
+    setCursorPosition(initialText.length);
+    clearSuggestions();
+  }, [clearSuggestions, initialKey, initialText, syncInitialFilters]);
+
   // Debounced filter change notification
   useEffect(() => {
     if (debounceTimeoutRef.current) {
@@ -69,6 +89,7 @@ export function useFilterInput({
     }
 
     debounceTimeoutRef.current = window.setTimeout(() => {
+      pendingFilterKey.current = filterValuesKey(currentFilters);
       onFiltersChange?.(currentFilters);
     }, 200);
 
@@ -218,10 +239,15 @@ export function useSuggestions({
   });
 
   const latestSuggestionRequestRef = useRef(0);
+  const suggestionAbortRef = useRef<AbortController | undefined>(undefined);
 
   const updateSuggestions = useCallback(
     async (text: string, cursor: number) => {
       const requestId = ++latestSuggestionRequestRef.current;
+      // A newer request replaces this one, so stop the old fetch instead of
+      // leaving its query running on the server.
+      suggestionAbortRef.current?.abort();
+      suggestionAbortRef.current = undefined;
       const context = analyzeAutocompleteContext(
         text,
         cursor,
@@ -270,10 +296,13 @@ export function useSuggestions({
         let suggestions: string[] = [];
 
         if (context.type === "filter-value" && context.filterTypeId) {
+          const abortController = new AbortController();
+          suggestionAbortRef.current = abortController;
           suggestions = await fetchSuggestions(
             context.filterTypeId,
             context.currentToken || "",
             context.existingValues || [],
+            abortController.signal,
           );
         }
 
@@ -321,4 +350,16 @@ export function useSuggestions({
     suggestionsState,
     updateSuggestions,
   };
+}
+
+function filterValuesKey(filters: JobFilter[]): string {
+  return JSON.stringify(
+    filters
+      .filter((filter) => filter.values.length > 0)
+      .map((filter) => ({
+        type: filter.typeId,
+        values: [...filter.values].sort(),
+      }))
+      .sort((a, b) => a.type.localeCompare(b.type)),
+  );
 }

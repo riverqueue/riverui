@@ -16,6 +16,7 @@ type FeaturesFromAPI = {
 };
 
 const KNOWN_EXTENSIONS = [
+  "dead_letter_jobs",
   "durable_periodic_jobs",
   "producer_queries",
   "workflow_queries",

@@ -3,6 +3,7 @@ import type { Features } from "@services/features";
 export const createFeatures = (
   overrides: Partial<Features> = {},
 ): Features => ({
+  deadLetterJobs: false,
   durablePeriodicJobs: false,
   hasProducerTable: false,
   hasSequenceTable: false,

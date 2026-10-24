@@ -8,6 +8,7 @@ import {
   TransitionChild,
 } from "@headlessui/react";
 import {
+  ArchiveBoxIcon,
   CalendarDaysIcon,
   Cog6ToothIcon,
   InboxStackIcon,
@@ -15,15 +16,23 @@ import {
   RectangleGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
-import { Link } from "@tanstack/react-router";
+import { retainedJobSearchKeys } from "@routes/jobs/index.schema";
+import { Link, useRouterState } from "@tanstack/react-router";
 import { Fragment, PropsWithChildren, useMemo } from "react";
 
 type LayoutProps = PropsWithChildren<object>;
+
+const clearedJobSearch = Object.fromEntries(
+  retainedJobSearchKeys.map((key) => [key, undefined]),
+);
 
 const Layout = ({ children }: LayoutProps) => {
   const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebarSetting();
 
   const { features } = useFeatures();
+  const inJobsPane = useRouterState({
+    select: ({ matches }) => matches.some((match) => match.routeId === "/jobs"),
+  });
 
   const navigation = useMemo(
     () =>
@@ -32,7 +41,8 @@ const Layout = ({ children }: LayoutProps) => {
           href: "/jobs",
           icon: QueueListIcon,
           name: "Jobs",
-          search: {},
+          // Explicitly clear retained Jobs filters when entering from another pane.
+          search: inJobsPane ? {} : clearedJobSearch,
         },
         { href: "/queues", icon: InboxStackIcon, name: "Queues" },
         {
@@ -42,13 +52,25 @@ const Layout = ({ children }: LayoutProps) => {
           name: "Workflows",
         },
         {
+          hidden: !features.deadLetterJobs,
+          href: "/dead-letter-jobs",
+          icon: ArchiveBoxIcon,
+          name: "Dead Letters",
+          search: {},
+        },
+        {
           hidden: !features.durablePeriodicJobs,
           href: "/periodic-jobs",
           icon: CalendarDaysIcon,
           name: "Periodic Jobs",
         },
       ].filter((item) => item.hidden === undefined || item.hidden === false),
-    [features.durablePeriodicJobs, features.workflowQueries],
+    [
+      features.deadLetterJobs,
+      features.durablePeriodicJobs,
+      features.workflowQueries,
+      inJobsPane,
+    ],
   );
 
   return (

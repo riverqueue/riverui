@@ -6,7 +6,11 @@ import {
   refreshQueryOptions,
 } from "@contexts/RefreshSettings.query";
 import { useRetryJobs } from "@hooks/use-retry-jobs";
-import { defaultValues, jobSearchSchema } from "@routes/jobs/index.schema";
+import {
+  defaultValues,
+  jobSearchSchema,
+  retainedJobSearchKeys,
+} from "@routes/jobs/index.schema";
 import {
   cancelJobs,
   deleteJobs,
@@ -50,7 +54,7 @@ export const Route = createFileRoute("/jobs/")({
   search: {
     middlewares: [
       stripSearchParams(defaultValues),
-      retainSearchParams(["id", "kind", "limit", "priority", "queue", "tags"]),
+      retainSearchParams([...retainedJobSearchKeys]),
     ],
   },
   beforeLoad: async ({ context }) => {

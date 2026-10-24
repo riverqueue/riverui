@@ -90,6 +90,11 @@ func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error
 	}
 	defer execTx.Rollback(ctx)
 
+	hasDeadLetterTable, err := prohandler.HasDeadLetterTable(ctx, execTx, schema)
+	if err != nil {
+		return nil, err
+	}
+
 	hasPeriodicJobTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
 		Schema: schema,
 		Table:  "river_periodic_job",
@@ -120,6 +125,7 @@ func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error
 	}
 
 	return map[string]bool{
+		"dead_letter_jobs":      hasDeadLetterTable,
 		"durable_periodic_jobs": hasPeriodicJobTable,
 		"producer_queries":      true,
 		"workflow_queries":      hasWorkflowV2Tables,
@@ -157,6 +163,10 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 
 	endpoints := e.ossEndpoints.MountEndpoints(archetype, logger, mux, mountOpts)
 	endpoints = append(endpoints,
+		apiendpoint.Mount(mux, prohandler.NewDeadLetterJobListEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, prohandler.NewDeadLetterAutocompleteEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, prohandler.NewDeadLetterJobGetEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, prohandler.NewDeadLetterJobRetryEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewPeriodicJobListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewProducerListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewWorkflowCancelEndpoint(bundle), mountOpts),
