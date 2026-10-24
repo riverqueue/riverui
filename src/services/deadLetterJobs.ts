@@ -95,12 +95,13 @@ export async function fetchDeadLetterSuggestions(
   facet: "job_kind" | "queue_name",
   match: string,
   exclude: string[],
+  signal?: AbortSignal,
 ): Promise<string[]> {
   const query = new URLSearchParams({ facet, match });
   exclude.forEach((value) => query.append("exclude", value));
-  const response = await API.get<ListResponse<string>>({
-    path: "/pro/dead-letter-jobs/autocomplete",
-    query,
-  });
+  const response = await API.get<ListResponse<string>>(
+    { path: "/pro/dead-letter-jobs/autocomplete", query },
+    { signal },
+  );
   return response.data;
 }

@@ -8,6 +8,7 @@ export async function fetchSuggestions(
   filterTypeId: JobFilterTypeID,
   query: string,
   selectedValues: string[],
+  signal?: AbortSignal,
 ): Promise<string[]> {
   if (filterTypeId === JobFilterTypeID.PRIORITY) {
     // Priority is a hardcoded list of values—we just need to filter out
@@ -31,7 +32,13 @@ export async function fetchSuggestions(
   }
 
   if (fetchType) {
-    return await fetchAutocomplete(fetchType, query, undefined, selectedValues);
+    return await fetchAutocomplete(
+      fetchType,
+      query,
+      undefined,
+      selectedValues,
+      signal,
+    );
   }
 
   return [];

@@ -21,6 +21,7 @@ interface UseFilterInputProps {
     filterTypeId: JobFilterTypeID,
     query: string,
     selectedValues: string[],
+    signal?: AbortSignal,
   ) => Promise<string[]>;
   initialFilters: JobFilter[];
   onFiltersChange?: (filters: JobFilter[]) => void;
@@ -32,6 +33,7 @@ interface UseSuggestionsProps {
     filterTypeId: JobFilterTypeID,
     query: string,
     selectedValues: string[],
+    signal?: AbortSignal,
   ) => Promise<string[]>;
   suppressSuggestions: boolean;
 }
@@ -237,10 +239,15 @@ export function useSuggestions({
   });
 
   const latestSuggestionRequestRef = useRef(0);
+  const suggestionAbortRef = useRef<AbortController | undefined>(undefined);
 
   const updateSuggestions = useCallback(
     async (text: string, cursor: number) => {
       const requestId = ++latestSuggestionRequestRef.current;
+      // A newer request replaces this one, so stop the old fetch instead of
+      // leaving its query running on the server.
+      suggestionAbortRef.current?.abort();
+      suggestionAbortRef.current = undefined;
       const context = analyzeAutocompleteContext(
         text,
         cursor,
@@ -289,10 +296,13 @@ export function useSuggestions({
         let suggestions: string[] = [];
 
         if (context.type === "filter-value" && context.filterTypeId) {
+          const abortController = new AbortController();
+          suggestionAbortRef.current = abortController;
           suggestions = await fetchSuggestions(
             context.filterTypeId,
             context.currentToken || "",
             context.existingValues || [],
+            abortController.signal,
           );
         }
 
