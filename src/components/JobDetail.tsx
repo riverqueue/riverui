@@ -1,6 +1,7 @@
 import { Badge } from "@components/Badge";
 import ButtonForGroup from "@components/ButtonForGroup";
 import ConfirmationDialog from "@components/ConfirmationDialog";
+import CopyableHeadingText from "@components/CopyableHeadingText";
 import JobAttempts from "@components/JobAttempts";
 import JobTimeline from "@components/JobTimeline";
 import JSONTextView from "@components/JSONTextView";
@@ -78,11 +79,9 @@ export function JobDetailView({
         <header>
           {/* Heading */}
           <div className="mb-8 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 sm:flex-row sm:items-center sm:px-6 lg:px-8 dark:bg-gray-700/10">
-            <div>
-              <h1 className="flex gap-x-3 text-2xl leading-7">
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {job.kind}
-                </span>
+            <div className="w-full min-w-0 flex-1">
+              <h1 className="text-2xl leading-7">
+                <CopyableHeadingText label="job kind" text={job.kind} />
               </h1>
               <p className="mt-2 text-base leading-6 text-slate-600 dark:text-slate-400">
                 ID: <span className="font-mono">{job.id.toString()}</span>
