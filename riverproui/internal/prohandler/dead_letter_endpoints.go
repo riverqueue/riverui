@@ -18,16 +18,15 @@ import (
 	"github.com/riverqueue/river/rivershared/util/sliceutil"
 	"github.com/riverqueue/river/rivertype"
 
-	"riverqueue.com/riverpro/driver"
-
-	"riverqueue.com/riverui/internal/riveruidriver"
-	"riverqueue.com/riverui/internal/riveruidriver/riveruipostgres"
-	"riverqueue.com/riverui/internal/riveruidriver/riveruisqlite"
+	"riverqueue.com/riverpro"
 )
 
-// deadLetterTableName is the table created by River Pro's dead letter queue
-// migration.
-const deadLetterTableName = "river_job_dead_letter"
+const (
+	deadLetterTableName            = "river_job_dead_letter"
+	deadLetterJobListMaxDefault    = 20
+	deadLetterJobListMaxLimit      = 200
+	deadLetterAutocompleteMaxLimit = 100
+)
 
 // HasDeadLetterTable reports whether the schema has the dead letter table, and
 // therefore whether the dead letter endpoints can serve requests.
@@ -49,10 +48,8 @@ func (a *ProAPIBundle[TTx]) requireDeadLetterJobs(ctx context.Context) error {
 	return nil
 }
 
-// deadLetterJobListItem is the public shape of a job in the list response. It
-// is declared here rather than built on the driver's result, whose JSON tags
-// exist to decode a query and shouldn't define the API. IDs are strings so
-// JavaScript can preserve the full int64 range.
+// deadLetterJobListItem contains the fields shown in the list. Encode IDs as
+// strings so JavaScript can preserve the full int64 range.
 type deadLetterJobListItem struct {
 	ID          int64      `json:"id,string"`
 	Attempt     int        `json:"attempt"`
@@ -62,7 +59,7 @@ type deadLetterJobListItem struct {
 	Queue       string     `json:"queue"`
 }
 
-func deadLetterJobListItemFromDriver(job *riveruidriver.JobDeadLetterListResult) *deadLetterJobListItem {
+func deadLetterJobListItemFromJob(job *rivertype.JobRow) *deadLetterJobListItem {
 	return &deadLetterJobListItem{
 		ID:          job.ID,
 		Attempt:     job.Attempt,
@@ -89,41 +86,32 @@ func serializableDeadLetterJob(job *rivertype.JobRow) *deadLetterJob {
 
 type deadLetterJobListEndpoint[TTx any] struct {
 	ProAPIBundle[TTx]
-	apiendpoint.Endpoint[deadLetterJobListRequest, listResponse[deadLetterJobListItem]]
-
-	uiDriver riveruidriver.Driver
+	apiendpoint.Endpoint[deadLetterJobListRequest, deadLetterJobListResponse]
 }
 
 func NewDeadLetterJobListEndpoint[TTx any](bundle ProAPIBundle[TTx]) *deadLetterJobListEndpoint[TTx] {
-	return &deadLetterJobListEndpoint[TTx]{ProAPIBundle: bundle, uiDriver: deadLetterUIDriver(bundle.Driver.DatabaseName())}
-}
-
-func deadLetterUIDriver(databaseName string) riveruidriver.Driver {
-	var uiDriver riveruidriver.Driver
-	switch databaseName {
-	case riverdriver.DatabaseNamePostgres:
-		uiDriver = riveruipostgres.New()
-	case riverdriver.DatabaseNameSQLite:
-		uiDriver = riveruisqlite.New()
-	default:
-		panic(fmt.Sprintf("unsupported River UI database %q", databaseName))
-	}
-	return uiDriver
+	return &deadLetterJobListEndpoint[TTx]{ProAPIBundle: bundle}
 }
 
 func (*deadLetterJobListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{Pattern: "GET /api/pro/dead-letter-jobs", StatusCode: http.StatusOK}
 }
 
-// The validate tags must be literals. Limit's maximum mirrors
-// riveruidriver.JobDeadLetterListMaxLimit.
+// The UI keeps its existing page sizes, within the limits of the client API.
 type deadLetterJobListRequest struct {
-	IDs        []int64  `json:"-" validate:"omitempty,max=1000,dive,min=1"`
-	Kinds      []string `json:"-" validate:"omitempty,max=100,dive,required,max=1024"`
-	Priorities []int16  `json:"-" validate:"omitempty,max=4,dive,min=1,max=4"`
-	Queues     []string `json:"-" validate:"omitempty,max=100,dive,required,max=1024"`
-	Tags       []string `json:"-" validate:"omitempty,max=100,dive,required,max=1024"`
-	Limit      *int     `json:"-" validate:"omitempty,min=1,max=200"`
+	After      *riverpro.JobDeadLetterListCursor `json:"-"`
+	IDs        []int64                           `json:"-" validate:"omitempty,max=1000,dive,min=1"`
+	Kinds      []string                          `json:"-" validate:"omitempty,max=100,dive,required,max=1024"`
+	Priorities []int16                           `json:"-" validate:"omitempty,max=4,dive,min=1,max=4"`
+	Queues     []string                          `json:"-" validate:"omitempty,max=100,dive,required,max=1024"`
+	Tags       []string                          `json:"-" validate:"omitempty,max=100,dive,required,max=1024"`
+	Limit      *int                              `json:"-" validate:"omitempty,min=1,max=200"`
+}
+
+type deadLetterJobListResponse struct {
+	*listResponse[deadLetterJobListItem]
+
+	LastCursor *riverpro.JobDeadLetterListCursor `json:"last_cursor,omitempty"`
 }
 
 // validateDeadLetterText rejects text that the databases can't handle
@@ -132,6 +120,9 @@ type deadLetterJobListRequest struct {
 // while SQLite accepts them.
 func validateDeadLetterText(param string, values ...string) error {
 	for _, value := range values {
+		if len(value) > 1024 {
+			return apierror.NewBadRequestf("Invalid `%s` value: must be at most 1024 bytes long.", param)
+		}
 		if strings.ContainsRune(value, 0) || !utf8.ValidString(value) {
 			return apierror.NewBadRequestf("Invalid `%s` value: must be valid UTF-8 without NUL bytes.", param)
 		}
@@ -141,6 +132,12 @@ func validateDeadLetterText(param string, values ...string) error {
 
 func (req *deadLetterJobListRequest) ExtractRaw(r *http.Request) error {
 	query := r.URL.Query()
+	if after := query.Get("after"); after != "" {
+		req.After = &riverpro.JobDeadLetterListCursor{}
+		if err := req.After.UnmarshalText([]byte(after)); err != nil {
+			return apierror.NewBadRequest("Invalid dead letter cursor.")
+		}
+	}
 	req.Kinds, req.Queues, req.Tags = query["kinds"], query["queues"], query["tags"]
 	if err := validateDeadLetterText("kinds", req.Kinds...); err != nil {
 		return err
@@ -175,19 +172,33 @@ func (req *deadLetterJobListRequest) ExtractRaw(r *http.Request) error {
 	return nil
 }
 
-func (a *deadLetterJobListEndpoint[TTx]) Execute(ctx context.Context, req *deadLetterJobListRequest) (*listResponse[deadLetterJobListItem], error) {
+func (a *deadLetterJobListEndpoint[TTx]) Execute(ctx context.Context, req *deadLetterJobListRequest) (*deadLetterJobListResponse, error) {
 	if err := a.requireDeadLetterJobs(ctx); err != nil {
 		return nil, err
 	}
-	jobs, err := a.uiDriver.GetExecutor(a.DB).JobDeadLetterList(ctx, &riveruidriver.JobDeadLetterListParams{
-		Filters: riveruidriver.JobDeadLetterFilters{IDs: req.IDs, Kinds: req.Kinds, Priorities: req.Priorities, Queues: req.Queues, Tags: req.Tags},
-		Max:     ptrutil.ValOrDefault(req.Limit, riveruidriver.JobDeadLetterListMaxDefault),
-		Schema:  a.Client.Schema(),
-	})
+	params := &riverpro.JobDeadLetterListParams{
+		After:      req.After,
+		IDs:        req.IDs,
+		Kinds:      req.Kinds,
+		Max:        ptrutil.ValOrDefault(req.Limit, deadLetterJobListMaxDefault),
+		Priorities: req.Priorities,
+		Queues:     req.Queues,
+		Tags:       req.Tags,
+	}
+	var result *riverpro.JobDeadLetterListResult
+	var err error
+	if a.Tx == nil {
+		result, err = a.Client.JobDeadLetterList(ctx, params)
+	} else {
+		result, err = a.Client.JobDeadLetterListTx(ctx, *a.Tx, params)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("error listing dead letter jobs: %w", err)
 	}
-	return listResponseFrom(sliceutil.Map(jobs, deadLetterJobListItemFromDriver)), nil
+	return &deadLetterJobListResponse{
+		listResponse: listResponseFrom(sliceutil.Map(result.Jobs, deadLetterJobListItemFromJob)),
+		LastCursor:   result.LastCursor,
+	}, nil
 }
 
 type deadLetterJobRequest struct {
@@ -220,7 +231,13 @@ func (a *deadLetterJobGetEndpoint[TTx]) Execute(ctx context.Context, req *deadLe
 	if err := a.requireDeadLetterJobs(ctx); err != nil {
 		return nil, err
 	}
-	job, err := a.DB.JobDeadLetterGetByID(ctx, &driver.JobDeadLetterGetByIDParams{ID: req.JobID, Schema: a.Client.Schema()})
+	var job *rivertype.JobRow
+	var err error
+	if a.Tx == nil {
+		job, err = a.Client.JobDeadLetterGet(ctx, req.JobID)
+	} else {
+		job, err = a.Client.JobDeadLetterGetTx(ctx, *a.Tx, req.JobID)
+	}
 	if errors.Is(err, rivertype.ErrNotFound) {
 		return nil, apierror.NewNotFoundf("Dead letter job with ID %d not found. It may already have been retried.", req.JobID)
 	}
@@ -269,29 +286,26 @@ func (a *deadLetterJobRetryEndpoint[TTx]) Execute(ctx context.Context, req *dead
 type deadLetterAutocompleteEndpoint[TTx any] struct {
 	ProAPIBundle[TTx]
 	apiendpoint.Endpoint[deadLetterAutocompleteRequest, listResponse[string]]
-
-	uiDriver riveruidriver.Driver
 }
 
 func NewDeadLetterAutocompleteEndpoint[TTx any](bundle ProAPIBundle[TTx]) *deadLetterAutocompleteEndpoint[TTx] {
-	return &deadLetterAutocompleteEndpoint[TTx]{ProAPIBundle: bundle, uiDriver: deadLetterUIDriver(bundle.Driver.DatabaseName())}
+	return &deadLetterAutocompleteEndpoint[TTx]{ProAPIBundle: bundle}
 }
 
 func (*deadLetterAutocompleteEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{Pattern: "GET /api/pro/dead-letter-jobs/autocomplete", StatusCode: http.StatusOK}
 }
 
-// The validate tags must be literals. Facet's values mirror the
-// riveruidriver.JobDeadLetterFacet constants.
+// Keep the existing HTTP facet names; map them to the client API below.
 type deadLetterAutocompleteRequest struct {
-	Facet   riveruidriver.JobDeadLetterFacet `json:"-" validate:"required,oneof=job_kind queue_name"`
-	Match   string                           `json:"-" validate:"max=1024"`
-	Exclude []string                         `json:"-" validate:"omitempty,max=100,dive,max=1024"`
+	Facet   string   `json:"-" validate:"required,oneof=job_kind queue_name"`
+	Match   string   `json:"-" validate:"max=1024"`
+	Exclude []string `json:"-" validate:"omitempty,max=100,dive,max=1024"`
 }
 
 func (req *deadLetterAutocompleteRequest) ExtractRaw(r *http.Request) error {
 	query := r.URL.Query()
-	req.Facet, req.Match, req.Exclude = riveruidriver.JobDeadLetterFacet(query.Get("facet")), query.Get("match"), query["exclude"]
+	req.Facet, req.Match, req.Exclude = query.Get("facet"), query.Get("match"), query["exclude"]
 	if err := validateDeadLetterText("match", req.Match); err != nil {
 		return err
 	}
@@ -302,9 +316,23 @@ func (a *deadLetterAutocompleteEndpoint[TTx]) Execute(ctx context.Context, req *
 	if err := a.requireDeadLetterJobs(ctx); err != nil {
 		return nil, err
 	}
-	values, err := a.uiDriver.GetExecutor(a.DB).JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{
-		Facet: req.Facet, Match: req.Match, Exclude: req.Exclude, Max: riveruidriver.JobDeadLetterAutocompleteMaxLimit, Schema: a.Client.Schema(),
-	})
+	facet := riverpro.JobDeadLetterFacetKind
+	if req.Facet == "queue_name" {
+		facet = riverpro.JobDeadLetterFacetQueue
+	}
+	params := &riverpro.JobDeadLetterAutocompleteParams{
+		Exclude: req.Exclude,
+		Facet:   facet,
+		Match:   req.Match,
+		Max:     deadLetterAutocompleteMaxLimit,
+	}
+	var values []string
+	var err error
+	if a.Tx == nil {
+		values, err = a.Client.JobDeadLetterAutocomplete(ctx, params)
+	} else {
+		values, err = a.Client.JobDeadLetterAutocompleteTx(ctx, *a.Tx, params)
+	}
 	if err != nil {
 		return nil, err
 	}

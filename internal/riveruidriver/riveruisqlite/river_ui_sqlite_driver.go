@@ -4,11 +4,9 @@ package riveruisqlite
 import (
 	"context"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
-	"slices"
 	"strconv"
 	"strings"
 
@@ -241,52 +239,4 @@ func (w riverExecutorWrapper) QueryRow(ctx context.Context, query string, args .
 	// River's executor owns the dialect-specific sqlctemplate wrapper, so pass
 	// the query and context through unchanged and let it consume the template.
 	return w.executor.QueryRow(ctx, query, args...)
-}
-
-func (e *Executor) JobDeadLetterList(ctx context.Context, params *riveruidriver.JobDeadLetterListParams) ([]*riveruidriver.JobDeadLetterListResult, error) {
-	if err := params.Validate(); err != nil {
-		return nil, err
-	}
-	filters, err := json.Marshal(params.Filters)
-	if err != nil {
-		return nil, fmt.Errorf("error encoding dead letter filters: %w", err)
-	}
-	// ID lookups use their own query so the database can search the primary
-	// key instead of reading the whole table.
-	listQuery := dbsqlc.JobDeadLetterListRiver
-	if len(params.Filters.IDs) > 0 {
-		listQuery = dbsqlc.JobDeadLetterListByIDsRiver
-	}
-	rawJobs, err := listQuery(schemaTemplateParam(ctx, params.Schema), e.dbtx, params.Max, string(filters))
-	if err != nil {
-		return nil, fmt.Errorf("error listing dead letter jobs: %w", err)
-	}
-	var jobs []*riveruidriver.JobDeadLetterListResult
-	if err := json.Unmarshal([]byte(rawJobs), &jobs); err != nil {
-		return nil, fmt.Errorf("error decoding dead letter jobs: %w", err)
-	}
-	riveruidriver.NormalizeJobDeadLetterListResults(jobs)
-	return jobs, nil
-}
-
-func (e *Executor) JobDeadLetterAutocomplete(ctx context.Context, params *riveruidriver.JobDeadLetterAutocompleteParams) ([]string, error) {
-	if err := params.Validate(); err != nil {
-		return nil, err
-	}
-	exclude, err := json.Marshal(append([]string{}, params.Exclude...))
-	if err != nil {
-		return nil, fmt.Errorf("error encoding dead letter exclusions: %w", err)
-	}
-	rawValues, err := dbsqlc.JobDeadLetterAutocompleteRiver(schemaTemplateParam(ctx, params.Schema), e.dbtx, string(params.Facet), params.Match, string(exclude), params.Max)
-	if err != nil {
-		return nil, fmt.Errorf("error autocompleting dead letter jobs: %w", err)
-	}
-	var values []string
-	if err := json.Unmarshal([]byte(rawValues), &values); err != nil {
-		return nil, fmt.Errorf("error decoding dead letter suggestions: %w", err)
-	}
-	// Byte order matches the queries' ordering; sorting here keeps the result
-	// deterministic where the database doesn't guarantee aggregate order.
-	slices.Sort(values)
-	return values, nil
 }

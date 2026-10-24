@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Support cursor pagination on the dead letter jobs API, so callers can fetch jobs beyond the first 200 results. [PR #713](https://github.com/riverqueue/riverui/pull/713).
+
 - Add a Pro-only dead letter queue panel that lists discarded jobs newest first, with ID, kind, queue, priority, and tag filters, dead letter autocomplete, and More/Fewer controls to inspect jobs and retry them as new jobs. [PR #711](https://github.com/riverqueue/riverui/pull/711).
 
 ### Changed
