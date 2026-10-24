@@ -46,17 +46,17 @@ const Layout = ({ children }: LayoutProps) => {
         },
         { href: "/queues", icon: InboxStackIcon, name: "Queues" },
         {
+          hidden: !features.workflowQueries,
+          href: "/workflows",
+          icon: RectangleGroupIcon,
+          name: "Workflows",
+        },
+        {
           hidden: !features.deadLetterJobs,
           href: "/dead-letter-jobs",
           icon: ArchiveBoxIcon,
           name: "Dead Letters",
           search: {},
-        },
-        {
-          hidden: !features.workflowQueries,
-          href: "/workflows",
-          icon: RectangleGroupIcon,
-          name: "Workflows",
         },
         {
           hidden: !features.durablePeriodicJobs,
