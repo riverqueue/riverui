@@ -442,6 +442,7 @@ describe("Dead letter jobs", () => {
         "job_kind",
         "archive_",
         [],
+        expect.any(AbortSignal),
       ),
     );
     fireEvent.change(input, { target: { value: "queue:mail,re" } });
@@ -450,6 +451,7 @@ describe("Dead letter jobs", () => {
         "queue_name",
         "re",
         ["mail"],
+        expect.any(AbortSignal),
       ),
     );
   });
