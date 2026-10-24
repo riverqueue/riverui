@@ -13,6 +13,7 @@ import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
 
 import {
+  deadLetterJobRouteSearchSchema,
   DeadLetterJobSearch,
   deadLetterJobSearchSchema,
   inputFiltersToSearch,
@@ -30,7 +31,7 @@ const jobsQueryOptions = (search: DeadLetterJobSearch) =>
   });
 
 export const Route = createFileRoute("/dead-letter-jobs/")({
-  validateSearch: deadLetterJobSearchSchema,
+  validateSearch: deadLetterJobRouteSearchSchema,
   search: {
     middlewares: [stripSearchParams({ limit: defaultDeadLetterJobsLimit })],
   },
