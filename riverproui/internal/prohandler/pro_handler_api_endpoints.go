@@ -31,6 +31,7 @@ type ProAPIBundle[TTx any] struct {
 
 	Client *riverpro.Client[TTx]
 	DB     riverprodriver.ProExecutor
+	Tx     *TTx
 }
 
 var WorkflowV2TableNames = []string{ //nolint:gochecknoglobals

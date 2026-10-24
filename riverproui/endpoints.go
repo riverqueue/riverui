@@ -159,6 +159,7 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 		},
 		Client: e.client,
 		DB:     executor,
+		Tx:     e.proOpts.Tx,
 	}
 
 	endpoints := e.ossEndpoints.MountEndpoints(archetype, logger, mux, mountOpts)

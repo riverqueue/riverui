@@ -16,17 +16,6 @@ type RiverJob struct {
 	ScheduledAt time.Time
 }
 
-type RiverJobDeadLetter struct {
-	ID          int64
-	Attempt     int64
-	FinalizedAt *time.Time
-	Kind        string
-	MaxAttempts int64
-	Queue       string
-	Priority    int64
-	Tags        string
-}
-
 type SqliteStat4 struct {
 	Tbl    string
 	Idx    string

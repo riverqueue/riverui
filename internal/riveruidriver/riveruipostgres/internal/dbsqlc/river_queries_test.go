@@ -6,8 +6,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/riverqueue/river/rivertype"
-
-	"riverqueue.com/riverui/internal/riveruidriver"
 )
 
 func TestJobCountEstimateQuery(t *testing.T) {
@@ -30,13 +28,4 @@ func TestJobCountByAllStatesCappedQueryStates(t *testing.T) {
 	for _, state := range rivertype.JobStates() {
 		require.Contains(t, jobCountByAllStatesCapped, "state = '"+string(state)+"'")
 	}
-}
-
-func TestJobDeadLetterAutocompleteQueryFacets(t *testing.T) {
-	t.Parallel()
-
-	// The query selects kinds for the job kind facet and queues for anything
-	// else, so its literal must stay in step with the driver's facet values.
-	require.Contains(t, jobDeadLetterAutocomplete, "= '"+string(riveruidriver.JobDeadLetterFacetJobKind)+"' THEN kind ELSE queue END")
-	require.NotContains(t, jobDeadLetterAutocomplete, string(riveruidriver.JobDeadLetterFacetQueueName))
 }

@@ -6,10 +6,10 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/riverqueue/apiframe v0.0.0-20260908014005-b546730aa405
-	github.com/riverqueue/river v0.49.0
-	github.com/riverqueue/river/riverdriver v0.49.0
-	github.com/riverqueue/river/rivershared v0.49.0
-	github.com/riverqueue/river/rivertype v0.49.0
+	github.com/riverqueue/river v0.49.1-0.20261013022952-3e6c2d5eb0af
+	github.com/riverqueue/river/riverdriver v0.49.1-0.20261013022952-3e6c2d5eb0af
+	github.com/riverqueue/river/rivershared v0.49.1-0.20261013022952-3e6c2d5eb0af
+	github.com/riverqueue/river/rivertype v0.49.1-0.20261013022952-3e6c2d5eb0af
 	github.com/stretchr/testify v1.12.1
 	modernc.org/sqlite v1.60.1
 	riverqueue.com/riverpro v0.32.0
@@ -66,10 +66,12 @@ retract (
 	v0.12.0 // Improper release process, not fully usable
 )
 
-// replace riverqueue.com/riverpro => ../../riverpro
-
-// replace riverqueue.com/riverpro/driver => ../../riverpro/driver
-
-// replace riverqueue.com/riverpro/driver/riverpropgxv5 => ../../riverpro/driver/riverpropgxv5
+// These local replacements are temporary until the required APIs are released.
+replace (
+	riverqueue.com/riverpro => ../../riverpro
+	riverqueue.com/riverpro/driver => ../../riverpro/driver
+	riverqueue.com/riverpro/driver/riverpropgxv5 => ../../riverpro/driver/riverpropgxv5
+	riverqueue.com/riverpro/driver/riverprosqlite => ../../riverpro/driver/riverprosqlite
+)
 
 replace riverqueue.com/riverui => ../

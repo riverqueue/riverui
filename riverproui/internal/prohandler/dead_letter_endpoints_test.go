@@ -23,7 +23,6 @@ import (
 	"riverqueue.com/riverpro/driver"
 
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
-	"riverqueue.com/riverui/internal/riveruidriver"
 )
 
 func insertDeadLetterJob(ctx context.Context, t *testing.T, bundle *setupEndpointTestBundle) *rivertype.JobRow {
@@ -79,7 +78,7 @@ func TestDeadLetterJobList(t *testing.T) {
 	}
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{})
 	require.NoError(t, err)
-	require.Len(t, resp.Data, riveruidriver.JobDeadLetterListMaxDefault)
+	require.Len(t, resp.Data, deadLetterJobListMaxDefault)
 	require.Equal(t, newest.ID, resp.Data[0].ID, "newest jobs must come first")
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Limit: new(2)})
 	require.NoError(t, err)
@@ -97,15 +96,15 @@ func TestDeadLetterJobList(t *testing.T) {
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Queues: []string{"missing"}})
 	require.NoError(t, err)
 	require.Empty(t, resp.Data)
-	for _, limit := range []int{-1, 0, riveruidriver.JobDeadLetterListMaxLimit + 1} {
+	for _, limit := range []int{-1, 0, deadLetterJobListMaxLimit + 1} {
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Limit: &limit})
 		require.Error(t, err)
 	}
 }
 
 // The validate tags can't refer to constants, so check that they agree with the
-// limits and facets that the drivers enforce.
-func TestDeadLetterRequestTagsMatchDriver(t *testing.T) {
+// limits and facets exposed by the UI.
+func TestDeadLetterRequestTagsMatchUI(t *testing.T) {
 	t.Parallel()
 
 	validateTag := func(request any, fieldName string) string {
@@ -114,10 +113,10 @@ func TestDeadLetterRequestTagsMatchDriver(t *testing.T) {
 		return field.Tag.Get("validate")
 	}
 	require.Equal(t,
-		fmt.Sprintf("omitempty,min=1,max=%d", riveruidriver.JobDeadLetterListMaxLimit),
+		fmt.Sprintf("omitempty,min=1,max=%d", deadLetterJobListMaxLimit),
 		validateTag(deadLetterJobListRequest{}, "Limit"))
 	require.Equal(t,
-		fmt.Sprintf("required,oneof=%s %s", riveruidriver.JobDeadLetterFacetJobKind, riveruidriver.JobDeadLetterFacetQueueName),
+		fmt.Sprintf("required,oneof=%s %s", "job_kind", "queue_name"),
 		validateTag(deadLetterAutocompleteRequest{}, "Facet"))
 }
 
@@ -383,20 +382,20 @@ func TestDeadLetterJobListItemSerialization(t *testing.T) {
 	t.Parallel()
 
 	finalizedAt := time.Date(2026, time.October, 21, 10, 2, 3, 456_000_000, time.UTC)
-	encoded, err := json.Marshal(deadLetterJobListItemFromDriver(&riveruidriver.JobDeadLetterListResult{
+	encoded, err := json.Marshal(deadLetterJobListItemFromJob(&rivertype.JobRow{
 		ID: 1970670598291982290, Attempt: 3, FinalizedAt: &finalizedAt, Kind: "send_email", MaxAttempts: 5, Queue: "mail",
 	}))
 	require.NoError(t, err)
 	require.JSONEq(t, `{"id":"1970670598291982290","attempt":3,"finalized_at":"2026-10-21T10:02:03.456Z","kind":"send_email","max_attempts":5,"queue":"mail"}`, string(encoded))
 
-	encoded, err = json.Marshal(deadLetterJobListItemFromDriver(&riveruidriver.JobDeadLetterListResult{ID: 1}))
+	encoded, err = json.Marshal(deadLetterJobListItemFromJob(&rivertype.JobRow{ID: 1}))
 	require.NoError(t, err)
 	require.JSONEq(t, `{"id":"1","attempt":0,"finalized_at":null,"kind":"","max_attempts":0,"queue":""}`, string(encoded))
 }
 
 func TestDeadLetterJobListRequest(t *testing.T) {
 	t.Parallel()
-	for _, query := range []string{"limit=invalid", "limit=1.5", "limit=9223372036854775808", "ids=bad", "ids=1.5", "ids=9223372036854775808", "priorities=bad", "priorities=32768"} {
+	for _, query := range []string{"limit=invalid", "limit=1.5", "limit=9223372036854775808", "ids=bad", "ids=1.5", "ids=9223372036854775808", "priorities=bad", "priorities=32768", "after=invalid"} {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/?"+query, nil)
 		require.Error(t, (&deadLetterJobListRequest{}).ExtractRaw(req))
 	}
@@ -501,9 +500,81 @@ func TestDeadLetterAutocomplete(t *testing.T) {
 		}
 		require.Equal(t, tt.want, got)
 	}
-	for _, facet := range []riveruidriver.JobDeadLetterFacet{"", "tags", "id"} {
+	for _, facet := range []string{"", "tags", "id"} {
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterAutocompleteRequest{Facet: facet})
 		var badRequest *apierror.BadRequest
 		require.ErrorAs(t, err, &badRequest)
 	}
+}
+
+func TestDeadLetterJobCursorPagination(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	endpoint, bundle := setupEndpoint(ctx, t, NewDeadLetterJobListEndpoint)
+	for range 205 {
+		insertDeadLetterJob(ctx, t, bundle)
+	}
+	first, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Limit: new(deadLetterJobListMaxLimit)})
+	require.NoError(t, err)
+	require.Len(t, first.Data, 200)
+	require.NotNil(t, first.LastCursor)
+	encoded, err := first.LastCursor.MarshalText()
+	require.NoError(t, err)
+	request := &deadLetterJobListRequest{}
+	require.NoError(t, request.ExtractRaw(httptest.NewRequestWithContext(ctx, http.MethodGet, "/?after="+string(encoded), nil)))
+	second, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), request)
+	require.NoError(t, err)
+	require.Len(t, second.Data, 5)
+	require.Less(t, second.Data[0].ID, first.Data[len(first.Data)-1].ID)
+	require.Nil(t, second.LastCursor)
+}
+
+func TestDeadLetterJobReadsTransaction(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	endpoint, bundle := setupEndpoint(ctx, t, NewDeadLetterJobListEndpoint)
+	execTx, err := bundle.exec.BeginPro(ctx)
+	require.NoError(t, err)
+	defer execTx.Rollback(ctx)
+	txBundle := *bundle
+	txBundle.exec = execTx
+	job := insertDeadLetterJob(ctx, t, &txBundle)
+	apiBundle := endpoint.ProAPIBundle
+	apiBundle.DB = execTx
+	apiBundle.APIBundle.DB = execTx
+	apiBundle.Tx = new(endpoint.Driver.UnwrapTx(execTx))
+	listEndpoint := NewDeadLetterJobListEndpoint(apiBundle)
+	list, err := apitest.InvokeHandler(ctx, listEndpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{})
+	require.NoError(t, err)
+	require.Len(t, list.Data, 1)
+	require.Equal(t, job.ID, list.Data[0].ID)
+	getEndpoint := NewDeadLetterJobGetEndpoint(apiBundle)
+	got, err := apitest.InvokeHandler(ctx, getEndpoint.Execute, testMountOpts(t), &deadLetterJobRequest{JobID: job.ID})
+	require.NoError(t, err)
+	require.Equal(t, job.ID, got.ID)
+	autoEndpoint := NewDeadLetterAutocompleteEndpoint(apiBundle)
+	suggestions, err := apitest.InvokeHandler(ctx, autoEndpoint.Execute, testMountOpts(t), &deadLetterAutocompleteRequest{Facet: "job_kind"})
+	require.NoError(t, err)
+	require.Len(t, suggestions.Data, 1)
+	require.Equal(t, job.Kind, *suggestions.Data[0])
+}
+
+func TestDeadLetterTextByteLimit(t *testing.T) {
+	t.Parallel()
+
+	t.Run("AtLimit", func(t *testing.T) {
+		t.Parallel()
+
+		require.NoError(t, validateDeadLetterText("kinds", strings.Repeat("é", 512)))
+	})
+	t.Run("OverLimit", func(t *testing.T) {
+		t.Parallel()
+
+		err := validateDeadLetterText("kinds", strings.Repeat("é", 513))
+		var badRequest *apierror.BadRequest
+		require.ErrorAs(t, err, &badRequest)
+		require.Equal(t, http.StatusBadRequest, badRequest.StatusCode)
+	})
 }
