@@ -216,7 +216,11 @@ func TestDeadLetterJobsRequireTable(t *testing.T) {
 
 	dropTable := func(t *testing.T, bundle *setupEndpointTestBundle) {
 		t.Helper()
-		require.NoError(t, bundle.exec.Exec(ctx, "DROP TABLE "+dbutil.SafeIdentifier(bundle.schema)+".river_job_dead_letter"))
+		require.NoError(t, bundle.exec.Exec(ctx, "DROP TABLE "+dbutil.SafeIdentifier(bundle.schema)+"."+deadLetterTableName))
+
+		exists, err := HasDeadLetterTable(ctx, bundle.exec, bundle.schema)
+		require.NoError(t, err)
+		require.False(t, exists)
 	}
 	requireMissingTableError := func(t *testing.T, err error) {
 		t.Helper()
@@ -229,8 +233,11 @@ func TestDeadLetterJobsRequireTable(t *testing.T) {
 	t.Run("List", func(t *testing.T) {
 		t.Parallel()
 		endpoint, bundle := setupEndpoint(ctx, t, NewDeadLetterJobListEndpoint)
+		exists, err := HasDeadLetterTable(ctx, bundle.exec, bundle.schema)
+		require.NoError(t, err)
+		require.True(t, exists)
 		dropTable(t, bundle)
-		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{})
+		_, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{})
 		requireMissingTableError(t, err)
 	})
 	t.Run("Autocomplete", func(t *testing.T) {

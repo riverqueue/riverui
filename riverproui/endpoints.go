@@ -90,10 +90,7 @@ func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error
 	}
 	defer execTx.Rollback(ctx)
 
-	hasDeadLetterTable, err := execTx.TableExists(ctx, &riverdriver.TableExistsParams{
-		Schema: schema,
-		Table:  "river_job_dead_letter",
-	})
+	hasDeadLetterTable, err := prohandler.HasDeadLetterTable(ctx, execTx, schema)
 	if err != nil {
 		return nil, err
 	}

@@ -24,11 +24,21 @@ import (
 	"riverqueue.com/riverui/internal/riveruidriver/riveruisqlite"
 )
 
-func (a *ProAPIBundle[TTx]) requireDeadLetterJobs(ctx context.Context) error {
-	exists, err := a.DB.TableExists(ctx, &riverdriver.TableExistsParams{
-		Schema: a.Client.Schema(),
-		Table:  "river_job_dead_letter",
+// deadLetterTableName is the table created by River Pro's dead letter queue
+// migration.
+const deadLetterTableName = "river_job_dead_letter"
+
+// HasDeadLetterTable reports whether the schema has the dead letter table, and
+// therefore whether the dead letter endpoints can serve requests.
+func HasDeadLetterTable(ctx context.Context, exec riverdriver.Executor, schema string) (bool, error) {
+	return exec.TableExists(ctx, &riverdriver.TableExistsParams{
+		Schema: schema,
+		Table:  deadLetterTableName,
 	})
+}
+
+func (a *ProAPIBundle[TTx]) requireDeadLetterJobs(ctx context.Context) error {
+	exists, err := HasDeadLetterTable(ctx, a.DB, a.Client.Schema())
 	if err != nil {
 		return fmt.Errorf("error checking dead letter schema support: %w", err)
 	}
