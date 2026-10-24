@@ -7,12 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.22.0] - 2026-10-24
+
 ### Added
 
-- Add a Pro-only dead letter queue panel that lists discarded jobs newest first, with ID, kind, queue, priority, and tag filters, dead letter autocomplete, and More/Fewer controls to inspect jobs and retry them as new jobs. [PR #711](https://github.com/riverqueue/riverui/pull/711).
+- Add a Pro-only dead letter queue panel that lists discarded jobs newest first, with ID, kind, queue, priority, and tag filters, dead letter autocomplete, and More/Fewer controls to inspect jobs and retry them as new jobs. Live updates start paused and can be enabled independently of the Jobs pane. [PR #711](https://github.com/riverqueue/riverui/pull/711).
 
 ### Changed
 
+- Upgrade River to v0.49.0. [PR #703](https://github.com/riverqueue/riverui/pull/703).
 - Require Node.js 24.15+ or 26+ for frontend development and use Node.js 24.21.0 in CI and container builds to support the updated test dependencies. [PR #690](https://github.com/riverqueue/riverui/pull/690).
 
 ### Fixed
