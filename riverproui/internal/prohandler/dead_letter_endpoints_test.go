@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"riverqueue.com/riverpro/driver"
 
 	"riverqueue.com/riverui/internal/riverinternaltest/testfactory"
+	"riverqueue.com/riverui/internal/riveruidriver"
 )
 
 func insertDeadLetterJob(ctx context.Context, t *testing.T, bundle *setupEndpointTestBundle) *rivertype.JobRow {
@@ -77,7 +79,7 @@ func TestDeadLetterJobList(t *testing.T) {
 	}
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{})
 	require.NoError(t, err)
-	require.Len(t, resp.Data, 20)
+	require.Len(t, resp.Data, riveruidriver.JobDeadLetterListMaxDefault)
 	require.Equal(t, newest.ID, resp.Data[0].ID, "newest jobs must come first")
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Limit: new(2)})
 	require.NoError(t, err)
@@ -95,10 +97,28 @@ func TestDeadLetterJobList(t *testing.T) {
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Queues: []string{"missing"}})
 	require.NoError(t, err)
 	require.Empty(t, resp.Data)
-	for _, limit := range []int{-1, 0, 201} {
+	for _, limit := range []int{-1, 0, riveruidriver.JobDeadLetterListMaxLimit + 1} {
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Limit: &limit})
 		require.Error(t, err)
 	}
+}
+
+// The validate tags can't refer to constants, so check that they agree with the
+// limits and facets that the drivers enforce.
+func TestDeadLetterRequestTagsMatchDriver(t *testing.T) {
+	t.Parallel()
+
+	validateTag := func(request any, fieldName string) string {
+		field, ok := reflect.TypeOf(request).FieldByName(fieldName)
+		require.True(t, ok)
+		return field.Tag.Get("validate")
+	}
+	require.Equal(t,
+		fmt.Sprintf("omitempty,min=1,max=%d", riveruidriver.JobDeadLetterListMaxLimit),
+		validateTag(deadLetterJobListRequest{}, "Limit"))
+	require.Equal(t,
+		fmt.Sprintf("required,oneof=%s %s", riveruidriver.JobDeadLetterFacetJobKind, riveruidriver.JobDeadLetterFacetQueueName),
+		validateTag(deadLetterAutocompleteRequest{}, "Facet"))
 }
 
 // validDeadLetterIDs and validDeadLetterValues return slices whose elements
@@ -466,7 +486,7 @@ func TestDeadLetterAutocomplete(t *testing.T) {
 		}
 		require.Equal(t, tt.want, got)
 	}
-	for _, facet := range []string{"", "tags", "id"} {
+	for _, facet := range []riveruidriver.JobDeadLetterFacet{"", "tags", "id"} {
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterAutocompleteRequest{Facet: facet})
 		var badRequest *apierror.BadRequest
 		require.ErrorAs(t, err, &badRequest)

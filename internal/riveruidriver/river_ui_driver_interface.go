@@ -7,6 +7,8 @@ package riveruidriver
 import (
 	"cmp"
 	"context"
+	"errors"
+	"fmt"
 	"slices"
 	"time"
 
@@ -44,6 +46,27 @@ type Executor interface {
 	JobDeadLetterAutocomplete(ctx context.Context, params *JobDeadLetterAutocompleteParams) ([]string, error)
 }
 
+const (
+	// JobDeadLetterListMaxDefault is the number of jobs to list when the caller
+	// has no preference.
+	JobDeadLetterListMaxDefault = 20
+	// JobDeadLetterListMaxLimit is the largest Max that JobDeadLetterList
+	// accepts.
+	JobDeadLetterListMaxLimit = 200
+	// JobDeadLetterAutocompleteMaxLimit is the largest Max that
+	// JobDeadLetterAutocomplete accepts.
+	JobDeadLetterAutocompleteMaxLimit = 100
+)
+
+// JobDeadLetterFacet is a job attribute that JobDeadLetterAutocomplete can
+// suggest values for. The queries compare against these values literally.
+type JobDeadLetterFacet string
+
+const (
+	JobDeadLetterFacetJobKind   JobDeadLetterFacet = "job_kind"
+	JobDeadLetterFacetQueueName JobDeadLetterFacet = "queue_name"
+)
+
 // JobDeadLetterFilters matches any value within each populated filter and
 // requires all populated filters to match. Tags match any exact tag.
 type JobDeadLetterFilters struct {
@@ -56,16 +79,39 @@ type JobDeadLetterFilters struct {
 
 type JobDeadLetterAutocompleteParams struct {
 	Exclude []string
-	Facet   string
+	Facet   JobDeadLetterFacet
 	Match   string
 	Max     int
 	Schema  string
+}
+
+// Validate reports whether the params are ones that every driver accepts.
+// Drivers call it before querying so they all reject the same inputs.
+func (p *JobDeadLetterAutocompleteParams) Validate() error {
+	switch p.Facet {
+	case JobDeadLetterFacetJobKind, JobDeadLetterFacetQueueName:
+	default:
+		return errors.New("invalid dead letter autocomplete facet")
+	}
+	if p.Max < 1 || p.Max > JobDeadLetterAutocompleteMaxLimit {
+		return fmt.Errorf("dead letter autocomplete max must be between 1 and %d", JobDeadLetterAutocompleteMaxLimit)
+	}
+	return nil
 }
 
 type JobDeadLetterListParams struct {
 	Filters JobDeadLetterFilters
 	Max     int
 	Schema  string
+}
+
+// Validate reports whether the params are ones that every driver accepts.
+// Drivers call it before querying so they all reject the same inputs.
+func (p *JobDeadLetterListParams) Validate() error {
+	if p.Max < 1 || p.Max > JobDeadLetterListMaxLimit {
+		return fmt.Errorf("dead letter list max must be between 1 and %d", JobDeadLetterListMaxLimit)
+	}
+	return nil
 }
 
 // JobDeadLetterListResult contains only fields displayed in the list. Args,

@@ -97,6 +97,8 @@ func (*deadLetterJobListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{Pattern: "GET /api/pro/dead-letter-jobs", StatusCode: http.StatusOK}
 }
 
+// The validate tags must be literals. Limit's maximum mirrors
+// riveruidriver.JobDeadLetterListMaxLimit.
 type deadLetterJobListRequest struct {
 	IDs        []int64  `json:"-" validate:"omitempty,max=1000,dive,min=1"`
 	Kinds      []string `json:"-" validate:"omitempty,max=100,dive,required,max=1024"`
@@ -161,7 +163,7 @@ func (a *deadLetterJobListEndpoint[TTx]) Execute(ctx context.Context, req *deadL
 	}
 	jobs, err := a.uiDriver.GetExecutor(a.DB).JobDeadLetterList(ctx, &riveruidriver.JobDeadLetterListParams{
 		Filters: riveruidriver.JobDeadLetterFilters{IDs: req.IDs, Kinds: req.Kinds, Priorities: req.Priorities, Queues: req.Queues, Tags: req.Tags},
-		Max:     ptrutil.ValOrDefault(req.Limit, 20),
+		Max:     ptrutil.ValOrDefault(req.Limit, riveruidriver.JobDeadLetterListMaxDefault),
 		Schema:  a.Client.Schema(),
 	})
 	if err != nil {
@@ -263,15 +265,17 @@ func (*deadLetterAutocompleteEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 	return &apiendpoint.EndpointMeta{Pattern: "GET /api/pro/dead-letter-jobs/autocomplete", StatusCode: http.StatusOK}
 }
 
+// The validate tags must be literals. Facet's values mirror the
+// riveruidriver.JobDeadLetterFacet constants.
 type deadLetterAutocompleteRequest struct {
-	Facet   string   `json:"-" validate:"required,oneof=job_kind queue_name"`
-	Match   string   `json:"-" validate:"max=1024"`
-	Exclude []string `json:"-" validate:"omitempty,max=100,dive,max=1024"`
+	Facet   riveruidriver.JobDeadLetterFacet `json:"-" validate:"required,oneof=job_kind queue_name"`
+	Match   string                           `json:"-" validate:"max=1024"`
+	Exclude []string                         `json:"-" validate:"omitempty,max=100,dive,max=1024"`
 }
 
 func (req *deadLetterAutocompleteRequest) ExtractRaw(r *http.Request) error {
 	query := r.URL.Query()
-	req.Facet, req.Match, req.Exclude = query.Get("facet"), query.Get("match"), query["exclude"]
+	req.Facet, req.Match, req.Exclude = riveruidriver.JobDeadLetterFacet(query.Get("facet")), query.Get("match"), query["exclude"]
 	if err := validateDeadLetterText("match", req.Match); err != nil {
 		return err
 	}
@@ -283,7 +287,7 @@ func (a *deadLetterAutocompleteEndpoint[TTx]) Execute(ctx context.Context, req *
 		return nil, err
 	}
 	values, err := a.uiDriver.GetExecutor(a.DB).JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{
-		Facet: req.Facet, Match: req.Match, Exclude: req.Exclude, Max: 100, Schema: a.Client.Schema(),
+		Facet: req.Facet, Match: req.Match, Exclude: req.Exclude, Max: riveruidriver.JobDeadLetterAutocompleteMaxLimit, Schema: a.Client.Schema(),
 	})
 	if err != nil {
 		return nil, err

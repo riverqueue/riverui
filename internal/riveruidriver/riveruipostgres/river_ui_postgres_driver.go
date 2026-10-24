@@ -142,8 +142,8 @@ func (w riverExecutorWrapper) QueryRow(ctx context.Context, query string, args .
 }
 
 func (e *Executor) JobDeadLetterList(ctx context.Context, params *riveruidriver.JobDeadLetterListParams) ([]*riveruidriver.JobDeadLetterListResult, error) {
-	if params.Max < 1 || params.Max > 200 {
-		return nil, errors.New("dead letter list max must be between 1 and 200")
+	if err := params.Validate(); err != nil {
+		return nil, err
 	}
 	filters, err := json.Marshal(params.Filters)
 	if err != nil {
@@ -168,17 +168,14 @@ func (e *Executor) JobDeadLetterList(ctx context.Context, params *riveruidriver.
 }
 
 func (e *Executor) JobDeadLetterAutocomplete(ctx context.Context, params *riveruidriver.JobDeadLetterAutocompleteParams) ([]string, error) {
-	if params.Facet != "job_kind" && params.Facet != "queue_name" {
-		return nil, errors.New("invalid dead letter autocomplete facet")
-	}
-	if params.Max < 1 || params.Max > 100 {
-		return nil, errors.New("dead letter autocomplete max must be between 1 and 100")
+	if err := params.Validate(); err != nil {
+		return nil, err
 	}
 	exclude, err := json.Marshal(append([]string{}, params.Exclude...))
 	if err != nil {
 		return nil, fmt.Errorf("error encoding dead letter exclusions: %w", err)
 	}
-	rawValues, err := dbsqlc.JobDeadLetterAutocompleteRiver(schemaTemplateParam(ctx, params.Schema), e.dbtx, params.Facet, params.Match, string(exclude), params.Max)
+	rawValues, err := dbsqlc.JobDeadLetterAutocompleteRiver(schemaTemplateParam(ctx, params.Schema), e.dbtx, string(params.Facet), params.Match, string(exclude), params.Max)
 	if err != nil {
 		return nil, fmt.Errorf("error autocompleting dead letter jobs: %w", err)
 	}

@@ -47,7 +47,7 @@ func exerciseJobDeadLetterList(
 		originalKind = "send_email"
 		customerTag  = "customer"
 		emailKind    = "archive_email"
-		kindFacet    = "job_kind"
+		kindFacet    = riveruidriver.JobDeadLetterFacetJobKind
 	)
 	t.Run("JobDeadLetterList", func(t *testing.T) {
 		t.Parallel()
@@ -72,7 +72,7 @@ func exerciseJobDeadLetterList(
 		}
 		require.NoError(t, executor.Exec(ctx, "INSERT INTO "+prefix+"river_job_dead_letter (id, attempt, finalized_at, kind, max_attempts, queue) VALUES "+strings.Join(rows, ",")))
 
-		for _, limit := range []int{1, 20, 40, 200} {
+		for _, limit := range []int{1, riveruidriver.JobDeadLetterListMaxDefault, 40, riveruidriver.JobDeadLetterListMaxLimit} {
 			jobs, err := executor.JobDeadLetterList(ctx, &riveruidriver.JobDeadLetterListParams{Max: limit, Schema: schema})
 			require.NoError(t, err)
 			require.Len(t, jobs, limit)
@@ -91,7 +91,7 @@ func exerciseJobDeadLetterList(
 				}
 			}
 		}
-		for _, limit := range []int{-1, 0, 201} {
+		for _, limit := range []int{-1, 0, riveruidriver.JobDeadLetterListMaxLimit + 1} {
 			_, err := executor.JobDeadLetterList(ctx, &riveruidriver.JobDeadLetterListParams{Max: limit, Schema: schema})
 			require.EqualError(t, err, "dead letter list max must be between 1 and 200")
 		}
@@ -145,7 +145,7 @@ func exerciseJobDeadLetterList(
 
 		for _, tt := range []struct {
 			name    string
-			facet   string
+			facet   riveruidriver.JobDeadLetterFacet
 			match   string
 			exclude []string
 			max     int
@@ -155,7 +155,7 @@ func exerciseJobDeadLetterList(
 			{name: "PrefixCaseInsensitive", facet: kindFacet, match: "ARCHIVE_", max: 100, want: []string{emailKind, reportKind}},
 			{name: "Exclude", facet: kindFacet, match: "archive_", exclude: []string{reportKind}, max: 100, want: []string{emailKind}},
 			{name: "Limit", facet: kindFacet, max: 1, want: []string{emailKind}},
-			{name: "Queues", facet: "queue_name", max: 100, want: []string{mailQueue, reportsQueue}},
+			{name: "Queues", facet: riveruidriver.JobDeadLetterFacetQueueName, max: 100, want: []string{mailQueue, reportsQueue}},
 			{name: "NoLiveJobs", facet: kindFacet, match: "fake_job", max: 100, want: []string{}},
 			{name: "LiteralPrefix", facet: kindFacet, match: "%", max: 100, want: []string{}},
 		} {
@@ -180,8 +180,8 @@ func exerciseJobDeadLetterAutocomplete(
 ) {
 	t.Helper()
 	const (
-		kindFacet  = "job_kind"
-		queueFacet = "queue_name"
+		kindFacet  = riveruidriver.JobDeadLetterFacetJobKind
+		queueFacet = riveruidriver.JobDeadLetterFacetQueueName
 	)
 	t.Run("JobDeadLetterAutocomplete", func(t *testing.T) {
 		t.Parallel()
@@ -218,7 +218,7 @@ func exerciseJobDeadLetterAutocomplete(
 
 		for _, tt := range []struct {
 			name    string
-			facet   string
+			facet   riveruidriver.JobDeadLetterFacet
 			match   string
 			exclude []string
 			max     int
@@ -245,15 +245,15 @@ func exerciseJobDeadLetterAutocomplete(
 
 		// Drivers guard their own inputs rather than relying on the caller's
 		// validation, and reject them before running a query.
-		for _, facet := range []string{"", "tags", "kind", "JOB_KIND"} {
+		for _, facet := range []riveruidriver.JobDeadLetterFacet{"", "tags", "kind", "JOB_KIND"} {
 			_, err := executor.JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{Facet: facet, Max: 100, Schema: schema})
 			require.EqualError(t, err, "invalid dead letter autocomplete facet", "facet %q", facet)
 		}
-		for _, limit := range []int{-1, 0, 101} {
+		for _, limit := range []int{-1, 0, riveruidriver.JobDeadLetterAutocompleteMaxLimit + 1} {
 			_, err := executor.JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{Facet: kindFacet, Max: limit, Schema: schema})
 			require.EqualError(t, err, "dead letter autocomplete max must be between 1 and 100", "max %d", limit)
 		}
-		for _, limit := range []int{1, 100} {
+		for _, limit := range []int{1, riveruidriver.JobDeadLetterAutocompleteMaxLimit} {
 			values, err := executor.JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{Facet: kindFacet, Max: limit, Schema: schema})
 			require.NoError(t, err)
 			require.Len(t, values, min(limit, len(kinds)))
