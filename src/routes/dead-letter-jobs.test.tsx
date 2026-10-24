@@ -1,5 +1,6 @@
 import Layout from "@components/Layout";
 import { FeaturesContext } from "@contexts/Features";
+import { RefreshSettingProvider } from "@contexts/RefreshSettings.provider";
 import { SidebarSettingProvider } from "@contexts/SidebarSetting.provider";
 import {
   deadLetterJobRouteSearchSchema,
@@ -12,6 +13,8 @@ import { countsByState, StatesAndCounts } from "@services/states";
 import { toastError } from "@services/toast";
 import { JobState } from "@services/types";
 import {
+  focusManager,
+  onlineManager,
   QueryClient,
   QueryClientProvider,
   QueryFunctionContext,
@@ -64,12 +67,6 @@ vi.mock("@components/Root", () => ({
     </Layout>
   ),
 }));
-vi.mock("@components/TopNavTitleOnly", () => ({
-  default: ({ title }: { title: string }) => <h1>{title}</h1>,
-}));
-vi.mock("@contexts/RefreshSettings.hook", () => ({
-  useRefreshSetting: () => ({ intervalMs: 0 }),
-}));
 vi.mock("@services/toast", () => ({
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
@@ -91,11 +88,11 @@ const job = jobFactory.discarded().build({
   queue: "mail",
 });
 
-async function renderRoute(path: string, pro = true) {
+async function renderRoute(path: string, pro = true, staleTime = Infinity) {
   const features = createFeatures({ deadLetterJobs: pro });
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false, staleTime: Infinity },
+      queries: { retry: false, staleTime },
       mutations: { retry: false },
     },
   });
@@ -120,7 +117,9 @@ async function renderRoute(path: string, pro = true) {
       <QueryClientProvider client={queryClient}>
         <FeaturesContext.Provider value={{ features }}>
           <SidebarSettingProvider>
-            <RouterProvider router={router} />
+            <RefreshSettingProvider>
+              <RouterProvider router={router} />
+            </RefreshSettingProvider>
           </SidebarSettingProvider>
         </FeaturesContext.Provider>
       </QueryClientProvider>,
@@ -129,7 +128,17 @@ async function renderRoute(path: string, pro = true) {
   return { queryClient, router };
 }
 
+async function selectRefreshInterval(name: string) {
+  fireEvent.click(screen.getByRole("button", { name: /live updates/i }));
+  fireEvent.click(await screen.findByRole("option", { name }));
+  await waitFor(() =>
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument(),
+  );
+}
+
 afterEach(() => {
+  focusManager.setFocused(undefined);
+  onlineManager.setOnline(true);
   vi.useRealTimers();
 });
 
@@ -156,6 +165,146 @@ beforeEach(() => {
 describe("Dead letter jobs", () => {
   const filteredSearch =
     "?id=1970670598291982290&kind=send_email&queue=mail&priority=1,3&tags=batch,urgent&limit=40";
+
+  it.each(["/dead-letter-jobs", `/dead-letter-jobs/${job.id}`])(
+    "defaults to paused live updates for %s",
+    async (path) => {
+      focusManager.setFocused(true);
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { queryClient } = await renderRoute(path, true, 0);
+      const fetchJob =
+        path === "/dead-letter-jobs" ? listDeadLetterJobs : getDeadLetterJob;
+      expect(fetchJob).toHaveBeenCalled();
+      expect(
+        screen.getByRole("button", { name: /Resume live updates/ }),
+      ).toBeInTheDocument();
+      const initialCalls = fetchJob.mock.calls.length;
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6000);
+      });
+      expect(fetchJob).toHaveBeenCalledTimes(initialCalls);
+      await act(async () => {
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+        await vi.advanceTimersByTimeAsync(10);
+      });
+      expect(fetchJob).toHaveBeenCalledTimes(initialCalls);
+      queryClient.clear();
+    },
+  );
+
+  it.each(["/dead-letter-jobs", `/dead-letter-jobs/${job.id}`])(
+    "allows enabling and pausing live updates with the selector for %s",
+    async (path) => {
+      focusManager.setFocused(true);
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      const { queryClient } = await renderRoute(path, true, 0);
+      const fetchJob =
+        path === "/dead-letter-jobs" ? listDeadLetterJobs : getDeadLetterJob;
+      const initialCalls = fetchJob.mock.calls.length;
+
+      await selectRefreshInterval("1s");
+      expect(
+        screen.getByRole("button", { name: /Pause live updates/ }),
+      ).toBeInTheDocument();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1200);
+      });
+      expect(fetchJob.mock.calls.length).toBeGreaterThan(initialCalls);
+
+      await selectRefreshInterval("Pause");
+      const callsAfterPausing = fetchJob.mock.calls.length;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6000);
+        focusManager.setFocused(false);
+        focusManager.setFocused(true);
+        onlineManager.setOnline(false);
+        onlineManager.setOnline(true);
+        await vi.advanceTimersByTimeAsync(10);
+      });
+      expect(fetchJob).toHaveBeenCalledTimes(callsAfterPausing);
+      queryClient.clear();
+    },
+  );
+
+  it("keeps standard Jobs refreshing after leaving Dead Letters", async () => {
+    focusManager.setFocused(true);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { queryClient, router } = await renderRoute("/dead-letter-jobs");
+    await act(async () => {
+      await router.navigate({ to: "/jobs" });
+    });
+    await screen.findByTestId("job-search-input");
+    const initialCalls = vi.mocked(listJobs).mock.calls.length;
+    expect(
+      screen.getByText("Pause live updates", { selector: "span" }),
+    ).toBeInTheDocument();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500);
+    });
+    expect(vi.mocked(listJobs).mock.calls.length).toBeGreaterThan(initialCalls);
+    expect(listDeadLetterJobs).toHaveBeenCalledTimes(1);
+    queryClient.clear();
+  });
+
+  it("retains separate refresh choices across panes and dead letter details", async () => {
+    focusManager.setFocused(true);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { queryClient, router } = await renderRoute("/jobs");
+    await selectRefreshInterval("Pause");
+
+    await act(async () => {
+      await router.navigate({ to: "/dead-letter-jobs" });
+    });
+    expect(
+      screen.getByRole("button", { name: /Resume live updates/ }),
+    ).toBeInTheDocument();
+    await selectRefreshInterval("1s");
+
+    await act(async () => {
+      await router.navigate({
+        to: "/dead-letter-jobs/$jobId",
+        params: { jobId: job.id },
+      });
+    });
+    const initialDetailCalls = getDeadLetterJob.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1200);
+    });
+    expect(getDeadLetterJob.mock.calls.length).toBeGreaterThan(
+      initialDetailCalls,
+    );
+
+    await act(async () => {
+      await router.navigate({ to: "/jobs" });
+    });
+    expect(
+      screen.getByRole("button", { name: /Resume live updates/ }),
+    ).toBeInTheDocument();
+    const initialJobsCalls = vi.mocked(listJobs).mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(listJobs).toHaveBeenCalledTimes(initialJobsCalls);
+
+    await act(async () => {
+      await router.navigate({ to: "/dead-letter-jobs" });
+    });
+    expect(
+      screen.getByRole("button", { name: /Pause live updates/ }),
+    ).toBeInTheDocument();
+    const initialListCalls = listDeadLetterJobs.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1200);
+    });
+    expect(listDeadLetterJobs.mock.calls.length).toBeGreaterThan(
+      initialListCalls,
+    );
+    queryClient.clear();
+  });
 
   it("clears filters and pagination when navigating from Dead Letters to Jobs", async () => {
     const { router, queryClient } = await renderRoute(
