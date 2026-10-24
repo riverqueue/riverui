@@ -15,6 +15,9 @@ CREATE TABLE river_job_dead_letter (
 -- Return the newest jobs first. Apply the limit before aggregation so neither
 -- the database nor the browser materializes the entire queue. River's common
 -- executor exposes QueryRow, so return the bounded set as one JSON value.
+--
+-- This query ignores the filter's IDs; the driver sends ID lookups to
+-- JobDeadLetterListByIDs instead.
 SELECT coalesce(json_agg(json_build_object(
     'id', limited.id,
     'attempt', limited.attempt,
@@ -26,7 +29,32 @@ SELECT coalesce(json_agg(json_build_object(
 FROM (
     SELECT id, attempt, finalized_at, kind, max_attempts, queue
     FROM /* TEMPLATE: schema */river_job_dead_letter
-    WHERE (NOT jsonb_exists(@filters::jsonb, 'ids') OR id IN (SELECT value::bigint FROM jsonb_array_elements_text(@filters::jsonb -> 'ids')))
+    WHERE (NOT jsonb_exists(@filters::jsonb, 'kinds') OR kind IN (SELECT value::text FROM jsonb_array_elements_text(@filters::jsonb -> 'kinds')))
+      AND (NOT jsonb_exists(@filters::jsonb, 'priorities') OR priority IN (SELECT value::smallint FROM jsonb_array_elements_text(@filters::jsonb -> 'priorities')))
+      AND (NOT jsonb_exists(@filters::jsonb, 'queues') OR queue IN (SELECT value::text FROM jsonb_array_elements_text(@filters::jsonb -> 'queues')))
+      AND (NOT jsonb_exists(@filters::jsonb, 'tags') OR tags && ARRAY(SELECT jsonb_array_elements_text(@filters::jsonb -> 'tags'))::varchar[])
+    ORDER BY id DESC
+    LIMIT @max::int
+) AS limited;
+
+-- name: JobDeadLetterListByIDs :one
+-- JobDeadLetterList for filters that include IDs. The ID predicate must stand
+-- alone as a top-level condition: written as "no IDs requested OR id IN (...)"
+-- the planner can't turn it into an index condition and reads the whole
+-- table. Collapsing the requested IDs to an array lets it probe the primary
+-- key once per ID, whether the statement runs with a custom or generic plan.
+SELECT coalesce(json_agg(json_build_object(
+    'id', limited.id,
+    'attempt', limited.attempt,
+    'finalized_at', limited.finalized_at,
+    'kind', limited.kind,
+    'max_attempts', limited.max_attempts,
+    'queue', limited.queue
+) ORDER BY limited.id DESC), '[]'::json)::text AS jobs
+FROM (
+    SELECT id, attempt, finalized_at, kind, max_attempts, queue
+    FROM /* TEMPLATE: schema */river_job_dead_letter
+    WHERE id = ANY (ARRAY(SELECT value::bigint FROM jsonb_array_elements_text(@filters::jsonb -> 'ids')))
       AND (NOT jsonb_exists(@filters::jsonb, 'kinds') OR kind IN (SELECT value::text FROM jsonb_array_elements_text(@filters::jsonb -> 'kinds')))
       AND (NOT jsonb_exists(@filters::jsonb, 'priorities') OR priority IN (SELECT value::smallint FROM jsonb_array_elements_text(@filters::jsonb -> 'priorities')))
       AND (NOT jsonb_exists(@filters::jsonb, 'queues') OR queue IN (SELECT value::text FROM jsonb_array_elements_text(@filters::jsonb -> 'queues')))

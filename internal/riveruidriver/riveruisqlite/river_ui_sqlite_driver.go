@@ -250,7 +250,13 @@ func (e *Executor) JobDeadLetterList(ctx context.Context, params *riveruidriver.
 	if err != nil {
 		return nil, fmt.Errorf("error encoding dead letter filters: %w", err)
 	}
-	rawJobs, err := dbsqlc.JobDeadLetterListRiver(schemaTemplateParam(ctx, params.Schema), e.dbtx, params.Max, string(filters))
+	// ID lookups use their own query so the database can search the primary
+	// key instead of reading the whole table.
+	listQuery := dbsqlc.JobDeadLetterListRiver
+	if len(params.Filters.IDs) > 0 {
+		listQuery = dbsqlc.JobDeadLetterListByIDsRiver
+	}
+	rawJobs, err := listQuery(schemaTemplateParam(ctx, params.Schema), e.dbtx, params.Max, string(filters))
 	if err != nil {
 		return nil, fmt.Errorf("error listing dead letter jobs: %w", err)
 	}

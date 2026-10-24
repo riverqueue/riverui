@@ -109,6 +109,8 @@ func exerciseJobDeadLetterList(
 			want    []int64
 		}{
 			{name: "IDs", filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{first, second}}, want: []int64{second, first}},
+			{name: "IDsWithOtherFilters", filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{first, second, third}, Queues: []string{mailQueue}}, want: []int64{third, first}},
+			{name: "IDsNoMatches", filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{firstID - 1}}, want: []int64{}},
 			{name: "Kinds", filters: riveruidriver.JobDeadLetterFilters{Kinds: []string{emailKind, reportKind}}, want: []int64{third, second, first}},
 			{name: "Queues", filters: riveruidriver.JobDeadLetterFilters{Queues: []string{reportsQueue}}, want: []int64{second}},
 			{name: "Priorities", filters: riveruidriver.JobDeadLetterFilters{Priorities: []int16{1, 3}}, want: []int64{second, first}},

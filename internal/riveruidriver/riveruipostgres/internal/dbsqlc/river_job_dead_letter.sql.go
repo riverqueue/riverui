@@ -53,8 +53,7 @@ SELECT coalesce(json_agg(json_build_object(
 FROM (
     SELECT id, attempt, finalized_at, kind, max_attempts, queue
     FROM /* TEMPLATE: schema */river_job_dead_letter
-    WHERE (NOT jsonb_exists($1::jsonb, 'ids') OR id IN (SELECT value::bigint FROM jsonb_array_elements_text($1::jsonb -> 'ids')))
-      AND (NOT jsonb_exists($1::jsonb, 'kinds') OR kind IN (SELECT value::text FROM jsonb_array_elements_text($1::jsonb -> 'kinds')))
+    WHERE (NOT jsonb_exists($1::jsonb, 'kinds') OR kind IN (SELECT value::text FROM jsonb_array_elements_text($1::jsonb -> 'kinds')))
       AND (NOT jsonb_exists($1::jsonb, 'priorities') OR priority IN (SELECT value::smallint FROM jsonb_array_elements_text($1::jsonb -> 'priorities')))
       AND (NOT jsonb_exists($1::jsonb, 'queues') OR queue IN (SELECT value::text FROM jsonb_array_elements_text($1::jsonb -> 'queues')))
       AND (NOT jsonb_exists($1::jsonb, 'tags') OR tags && ARRAY(SELECT jsonb_array_elements_text($1::jsonb -> 'tags'))::varchar[])
@@ -71,8 +70,50 @@ type JobDeadLetterListParams struct {
 // Return the newest jobs first. Apply the limit before aggregation so neither
 // the database nor the browser materializes the entire queue. River's common
 // executor exposes QueryRow, so return the bounded set as one JSON value.
+//
+// This query ignores the filter's IDs; the driver sends ID lookups to
+// JobDeadLetterListByIDs instead.
 func (q *Queries) JobDeadLetterList(ctx context.Context, db DBTX, arg *JobDeadLetterListParams) (string, error) {
 	row := db.QueryRow(ctx, jobDeadLetterList, arg.Filters, arg.Max)
+	var jobs string
+	err := row.Scan(&jobs)
+	return jobs, err
+}
+
+const jobDeadLetterListByIDs = `-- name: JobDeadLetterListByIDs :one
+SELECT coalesce(json_agg(json_build_object(
+    'id', limited.id,
+    'attempt', limited.attempt,
+    'finalized_at', limited.finalized_at,
+    'kind', limited.kind,
+    'max_attempts', limited.max_attempts,
+    'queue', limited.queue
+) ORDER BY limited.id DESC), '[]'::json)::text AS jobs
+FROM (
+    SELECT id, attempt, finalized_at, kind, max_attempts, queue
+    FROM /* TEMPLATE: schema */river_job_dead_letter
+    WHERE id = ANY (ARRAY(SELECT value::bigint FROM jsonb_array_elements_text($1::jsonb -> 'ids')))
+      AND (NOT jsonb_exists($1::jsonb, 'kinds') OR kind IN (SELECT value::text FROM jsonb_array_elements_text($1::jsonb -> 'kinds')))
+      AND (NOT jsonb_exists($1::jsonb, 'priorities') OR priority IN (SELECT value::smallint FROM jsonb_array_elements_text($1::jsonb -> 'priorities')))
+      AND (NOT jsonb_exists($1::jsonb, 'queues') OR queue IN (SELECT value::text FROM jsonb_array_elements_text($1::jsonb -> 'queues')))
+      AND (NOT jsonb_exists($1::jsonb, 'tags') OR tags && ARRAY(SELECT jsonb_array_elements_text($1::jsonb -> 'tags'))::varchar[])
+    ORDER BY id DESC
+    LIMIT $2::int
+) AS limited
+`
+
+type JobDeadLetterListByIDsParams struct {
+	Filters []byte
+	Max     int32
+}
+
+// JobDeadLetterList for filters that include IDs. The ID predicate must stand
+// alone as a top-level condition: written as "no IDs requested OR id IN (...)"
+// the planner can't turn it into an index condition and reads the whole
+// table. Collapsing the requested IDs to an array lets it probe the primary
+// key once per ID, whether the statement runs with a custom or generic plan.
+func (q *Queries) JobDeadLetterListByIDs(ctx context.Context, db DBTX, arg *JobDeadLetterListByIDsParams) (string, error) {
+	row := db.QueryRow(ctx, jobDeadLetterListByIDs, arg.Filters, arg.Max)
 	var jobs string
 	err := row.Scan(&jobs)
 	return jobs, err

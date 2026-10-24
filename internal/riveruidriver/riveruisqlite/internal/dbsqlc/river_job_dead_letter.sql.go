@@ -56,8 +56,7 @@ SELECT CAST(json_group_array(json_object(
 FROM (
     SELECT id, attempt, finalized_at, kind, max_attempts, queue
     FROM /* TEMPLATE: schema */river_job_dead_letter
-    WHERE (json_type(CAST(?1 AS text), '$.ids') IS NULL OR id IN (SELECT CAST(value AS integer) FROM json_each(CAST(?1 AS text), '$.ids')))
-      AND (json_type(CAST(?1 AS text), '$.kinds') IS NULL OR kind IN (SELECT CAST(value AS text) FROM json_each(CAST(?1 AS text), '$.kinds')))
+    WHERE (json_type(CAST(?1 AS text), '$.kinds') IS NULL OR kind IN (SELECT CAST(value AS text) FROM json_each(CAST(?1 AS text), '$.kinds')))
       AND (json_type(CAST(?1 AS text), '$.priorities') IS NULL OR priority IN (SELECT CAST(value AS integer) FROM json_each(CAST(?1 AS text), '$.priorities')))
       AND (json_type(CAST(?1 AS text), '$.queues') IS NULL OR queue IN (SELECT CAST(value AS text) FROM json_each(CAST(?1 AS text), '$.queues')))
       AND (json_type(CAST(?1 AS text), '$.tags') IS NULL OR EXISTS (SELECT 1 FROM json_each(river_job_dead_letter.tags) AS job_tag JOIN json_each(CAST(?1 AS text), '$.tags') AS filter_tag ON job_tag.value = filter_tag.value))
@@ -76,8 +75,48 @@ type JobDeadLetterListParams struct {
 // guarantee that json_group_array preserves the subquery's order, so the
 // driver sorts the decoded rows. Normalize SQLite timestamps to RFC 3339 for
 // the shared result decoder; strftime preserves NULL timestamps.
+//
+// This query ignores the filter's IDs; the driver sends ID lookups to
+// JobDeadLetterListByIDs instead.
 func (q *Queries) JobDeadLetterList(ctx context.Context, db DBTX, arg *JobDeadLetterListParams) (string, error) {
 	row := db.QueryRowContext(ctx, jobDeadLetterList, arg.Filters, arg.Max)
+	var jobs string
+	err := row.Scan(&jobs)
+	return jobs, err
+}
+
+const jobDeadLetterListByIDs = `-- name: JobDeadLetterListByIDs :one
+SELECT CAST(json_group_array(json_object(
+    'id', limited.id,
+    'attempt', limited.attempt,
+    'finalized_at', strftime('%Y-%m-%dT%H:%M:%fZ', limited.finalized_at),
+    'kind', limited.kind,
+    'max_attempts', limited.max_attempts,
+    'queue', limited.queue
+)) AS text) AS jobs
+FROM (
+    SELECT id, attempt, finalized_at, kind, max_attempts, queue
+    FROM /* TEMPLATE: schema */river_job_dead_letter
+    WHERE id IN (SELECT CAST(value AS integer) FROM json_each(CAST(?1 AS text), '$.ids'))
+      AND (json_type(CAST(?1 AS text), '$.kinds') IS NULL OR kind IN (SELECT CAST(value AS text) FROM json_each(CAST(?1 AS text), '$.kinds')))
+      AND (json_type(CAST(?1 AS text), '$.priorities') IS NULL OR priority IN (SELECT CAST(value AS integer) FROM json_each(CAST(?1 AS text), '$.priorities')))
+      AND (json_type(CAST(?1 AS text), '$.queues') IS NULL OR queue IN (SELECT CAST(value AS text) FROM json_each(CAST(?1 AS text), '$.queues')))
+      AND (json_type(CAST(?1 AS text), '$.tags') IS NULL OR EXISTS (SELECT 1 FROM json_each(river_job_dead_letter.tags) AS job_tag JOIN json_each(CAST(?1 AS text), '$.tags') AS filter_tag ON job_tag.value = filter_tag.value))
+    ORDER BY id DESC
+    LIMIT ?2
+) AS limited
+`
+
+type JobDeadLetterListByIDsParams struct {
+	Filters string
+	Max     int64
+}
+
+// JobDeadLetterList for filters that include IDs. The ID predicate must stand
+// alone as a top-level condition: written as "no IDs requested OR id IN (...)"
+// SQLite scans the whole table instead of searching the primary key.
+func (q *Queries) JobDeadLetterListByIDs(ctx context.Context, db DBTX, arg *JobDeadLetterListByIDsParams) (string, error) {
+	row := db.QueryRowContext(ctx, jobDeadLetterListByIDs, arg.Filters, arg.Max)
 	var jobs string
 	err := row.Scan(&jobs)
 	return jobs, err
