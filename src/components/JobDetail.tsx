@@ -17,7 +17,7 @@ import { Job, JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
-import { FormEvent, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -26,12 +26,44 @@ type JobDetailProps = {
   retry: () => void;
 };
 
+type JobDetailViewProps = {
+  actions: ReactNode;
+  job: Job;
+  // Shown under the heading, for context that applies to the whole job.
+  notice?: ReactNode;
+  title: string;
+};
+
 export default function JobDetail({
   cancel,
   deleteFn,
   job,
   retry,
 }: JobDetailProps) {
+  return (
+    <JobDetailView
+      actions={
+        <ActionButtons
+          cancel={cancel}
+          deleteFn={deleteFn}
+          job={job}
+          retry={retry}
+        />
+      }
+      job={job}
+      title="Job Details"
+    />
+  );
+}
+
+// JobDetailView is the job detail page without its actions, so that other
+// panes showing a job (like dead letters) share one layout.
+export function JobDetailView({
+  actions,
+  job,
+  notice,
+  title,
+}: JobDetailViewProps) {
   const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
 
   let jobWithMetadata: JobWithKnownMetadata | undefined;
@@ -41,7 +73,7 @@ export default function JobDetail({
 
   return (
     <>
-      <TopNavTitleOnly title="Job Details" />
+      <TopNavTitleOnly title={title} />
       <main>
         <header>
           {/* Heading */}
@@ -55,14 +87,14 @@ export default function JobDetail({
               <p className="mt-2 text-base leading-6 text-slate-600 dark:text-slate-400">
                 ID: <span className="font-mono">{job.id.toString()}</span>
               </p>
+              {notice && (
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                  {notice}
+                </p>
+              )}
             </div>
             <div className="order-none flex w-full justify-around sm:block sm:w-auto sm:flex-none">
-              <ActionButtons
-                cancel={cancel}
-                deleteFn={deleteFn}
-                job={job}
-                retry={retry}
-              />
+              {actions}
             </div>
           </div>
         </header>

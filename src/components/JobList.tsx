@@ -1,11 +1,12 @@
 import { Badge } from "@components/Badge";
-import { Button } from "@components/Button";
 import ButtonForGroup from "@components/ButtonForGroup";
 import ConfirmationDialog from "@components/ConfirmationDialog";
 import { CustomCheckbox } from "@components/CustomCheckbox";
 import { Dropdown, DropdownItem, DropdownMenu } from "@components/Dropdown";
 import { Filter, JobSearch } from "@components/job-search/JobSearch";
 import { JobStateFilters } from "@components/JobStateFilters";
+import ListEmptyState from "@components/ListEmptyState";
+import ListPagination from "@components/ListPagination";
 import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
 import TopNav from "@components/TopNav";
 import { useFeatures } from "@contexts/Features.hook";
@@ -151,35 +152,6 @@ const JobListItem = ({
     </li>
   );
 };
-
-type EmptySetIconProps = React.ComponentProps<"svg">;
-
-const EmptySetIcon = (props: EmptySetIconProps) => (
-  <svg
-    fill="currentColor"
-    height="200"
-    stroke="currentColor"
-    viewBox="0 0 200 200"
-    width="200"
-    xmlns="http://www.w3.org/2000/svg"
-    {...props}
-  >
-    <circle cx="100" cy="100" fill="none" r="60" strokeWidth="10" />
-    <line strokeWidth="10" x1="40" x2="160" y1="40" y2="160" />
-  </svg>
-);
-
-const EmptyState = () => (
-  <div className="flex h-full flex-col items-center justify-center py-16">
-    <EmptySetIcon className="mx-auto size-12 text-gray-400" />
-    <h3 className="mt-2 text-sm font-semibold text-gray-900 dark:text-gray-100">
-      No jobs found
-    </h3>
-    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-      Try adjusting your filters to find what you're looking for.
-    </p>
-  </div>
-);
 
 export type JobRowsProps = {
   cancelJobs: (jobIDs: bigint[]) => void;
@@ -408,7 +380,10 @@ const JobRows = ({
       </div>
       {jobs.length === 0 ? (
         <div className="grow">
-          <EmptyState />
+          <ListEmptyState
+            description="Try adjusting your filters to find what you're looking for."
+            title="No jobs found"
+          />
         </div>
       ) : (
         <>
@@ -426,27 +401,12 @@ const JobRows = ({
               />
             ))}
           </ul>
-          <nav
-            aria-label="Pagination"
-            className="sticky inset-x-0 bottom-0 flex items-center justify-center border-t border-black/5 bg-white py-3 dark:border-white/5 dark:bg-slate-900"
-          >
-            <Button
-              className="mx-2"
-              color="light"
-              disabled={!canShowFewer}
-              onClick={() => showFewer()}
-            >
-              Fewer
-            </Button>
-            <Button
-              className="mx-2"
-              color="light"
-              disabled={!canShowMore}
-              onClick={() => showMore()}
-            >
-              More
-            </Button>
-          </nav>
+          <ListPagination
+            canShowFewer={canShowFewer}
+            canShowMore={canShowMore}
+            showFewer={showFewer}
+            showMore={showMore}
+          />
         </>
       )}
     </div>
