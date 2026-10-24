@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/riverqueue/apiframe/apiendpoint"
@@ -48,11 +49,28 @@ func (a *ProAPIBundle[TTx]) requireDeadLetterJobs(ctx context.Context) error {
 	return nil
 }
 
-// IDs are strings so JavaScript can preserve the full int64 range.
+// deadLetterJobListItem is the public shape of a job in the list response. It
+// is declared here rather than built on the driver's result, whose JSON tags
+// exist to decode a query and shouldn't define the API. IDs are strings so
+// JavaScript can preserve the full int64 range.
 type deadLetterJobListItem struct {
-	*riveruidriver.JobDeadLetterListResult
+	ID          int64      `json:"id,string"`
+	Attempt     int        `json:"attempt"`
+	FinalizedAt *time.Time `json:"finalized_at"`
+	Kind        string     `json:"kind"`
+	MaxAttempts int        `json:"max_attempts"`
+	Queue       string     `json:"queue"`
+}
 
-	ID int64 `json:"id,string"`
+func deadLetterJobListItemFromDriver(job *riveruidriver.JobDeadLetterListResult) *deadLetterJobListItem {
+	return &deadLetterJobListItem{
+		ID:          job.ID,
+		Attempt:     job.Attempt,
+		FinalizedAt: job.FinalizedAt,
+		Kind:        job.Kind,
+		MaxAttempts: job.MaxAttempts,
+		Queue:       job.Queue,
+	}
 }
 
 type deadLetterJob struct {
@@ -169,9 +187,7 @@ func (a *deadLetterJobListEndpoint[TTx]) Execute(ctx context.Context, req *deadL
 	if err != nil {
 		return nil, fmt.Errorf("error listing dead letter jobs: %w", err)
 	}
-	return listResponseFrom(sliceutil.Map(jobs, func(job *riveruidriver.JobDeadLetterListResult) *deadLetterJobListItem {
-		return &deadLetterJobListItem{JobDeadLetterListResult: job, ID: job.ID}
-	})), nil
+	return listResponseFrom(sliceutil.Map(jobs, deadLetterJobListItemFromDriver)), nil
 }
 
 type deadLetterJobRequest struct {

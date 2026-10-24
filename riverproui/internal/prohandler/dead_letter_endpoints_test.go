@@ -379,6 +379,21 @@ func TestDeadLetterJobSerialization(t *testing.T) {
 	require.Contains(t, string(encoded), `"errors":[]`)
 }
 
+func TestDeadLetterJobListItemSerialization(t *testing.T) {
+	t.Parallel()
+
+	finalizedAt := time.Date(2026, time.October, 21, 10, 2, 3, 456_000_000, time.UTC)
+	encoded, err := json.Marshal(deadLetterJobListItemFromDriver(&riveruidriver.JobDeadLetterListResult{
+		ID: 1970670598291982290, Attempt: 3, FinalizedAt: &finalizedAt, Kind: "send_email", MaxAttempts: 5, Queue: "mail",
+	}))
+	require.NoError(t, err)
+	require.JSONEq(t, `{"id":"1970670598291982290","attempt":3,"finalized_at":"2026-10-21T10:02:03.456Z","kind":"send_email","max_attempts":5,"queue":"mail"}`, string(encoded))
+
+	encoded, err = json.Marshal(deadLetterJobListItemFromDriver(&riveruidriver.JobDeadLetterListResult{ID: 1}))
+	require.NoError(t, err)
+	require.JSONEq(t, `{"id":"1","attempt":0,"finalized_at":null,"kind":"","max_attempts":0,"queue":""}`, string(encoded))
+}
+
 func TestDeadLetterJobListRequest(t *testing.T) {
 	t.Parallel()
 	for _, query := range []string{"limit=invalid", "limit=1.5", "limit=9223372036854775808", "ids=bad", "ids=1.5", "ids=9223372036854775808", "priorities=bad", "priorities=32768"} {
