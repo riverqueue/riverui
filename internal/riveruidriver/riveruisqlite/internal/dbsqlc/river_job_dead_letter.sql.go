@@ -32,6 +32,12 @@ type JobDeadLetterAutocompleteParams struct {
 }
 
 // Suggest values from the archive, including kinds and queues with no live jobs.
+//
+// SQLite's built-in lower() folds only ASCII letters and its default BINARY
+// collation sorts values by their bytes. The PostgreSQL query pins the "C"
+// collation to behave the same way. A SQLite build that loads the ICU
+// extension replaces lower() with a Unicode-aware version and would also fold
+// non-ASCII letters.
 func (q *Queries) JobDeadLetterAutocomplete(ctx context.Context, db DBTX, arg *JobDeadLetterAutocompleteParams) (string, error) {
 	row := db.QueryRowContext(ctx, jobDeadLetterAutocomplete,
 		arg.Facet,
@@ -74,7 +80,8 @@ type JobDeadLetterListParams struct {
 // the database nor the browser materializes the entire queue. SQLite doesn't
 // guarantee that json_group_array preserves the subquery's order, so the
 // driver sorts the decoded rows. Normalize SQLite timestamps to RFC 3339 for
-// the shared result decoder; strftime preserves NULL timestamps.
+// the shared result decoder; strftime preserves NULL timestamps. Its %f keeps
+// milliseconds, where PostgreSQL returns microseconds.
 //
 // This query ignores the filter's IDs; the driver sends ID lookups to
 // JobDeadLetterListByIDs instead.

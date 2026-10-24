@@ -3,6 +3,7 @@ package riveruidrivertest
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -15,6 +16,21 @@ import (
 
 	"riverqueue.com/riverui/internal/riveruidriver"
 )
+
+// createJobDeadLetterTable creates the dead letter table in the test schema and
+// returns the prefix that qualifies table names in it. OSS test schemas don't
+// include Pro tables, so reproduce only the columns these queries need,
+// preserving each database's timestamp column type.
+func createJobDeadLetterTable(ctx context.Context, t *testing.T, executor riveruidriver.Executor, schema string) string {
+	t.Helper()
+
+	prefix := ""
+	if schema != "" {
+		prefix = dbutil.SafeIdentifier(schema) + "."
+	}
+	require.NoError(t, executor.Exec(ctx, "CREATE TABLE "+prefix+"river_job_dead_letter AS SELECT id, attempt, finalized_at, kind, max_attempts, queue, priority, tags FROM "+prefix+"river_job WHERE 1 = 0"))
+	return prefix
+}
 
 func exerciseJobDeadLetterList(
 	ctx context.Context,
@@ -36,13 +52,7 @@ func exerciseJobDeadLetterList(
 	t.Run("JobDeadLetterList", func(t *testing.T) {
 		t.Parallel()
 		executor, schema := executorWithSchema(ctx, t, driver, executorWithTx)
-		prefix := ""
-		if schema != "" {
-			prefix = dbutil.SafeIdentifier(schema) + "."
-		}
-		// OSS test schemas don't include Pro tables. Reproduce only the columns
-		// this query needs, preserving each database's timestamp column type.
-		require.NoError(t, executor.Exec(ctx, "CREATE TABLE "+prefix+"river_job_dead_letter AS SELECT id, attempt, finalized_at, kind, max_attempts, queue, priority, tags FROM "+prefix+"river_job WHERE 1 = 0"))
+		prefix := createJobDeadLetterTable(ctx, t, executor, schema)
 		testfactory.Job(ctx, t, executor, &testfactory.JobOpts{Schema: schema})
 		jobs, err := executor.JobDeadLetterList(ctx, &riveruidriver.JobDeadLetterListParams{Max: 20, Schema: schema})
 		require.NoError(t, err)
@@ -77,6 +87,7 @@ func exerciseJobDeadLetterList(
 				} else {
 					require.NotNil(t, job.FinalizedAt)
 					require.True(t, job.FinalizedAt.Equal(time.Date(2026, time.October, 21, 10, 2, 3, 456_000_000, time.UTC)))
+					require.Equal(t, time.UTC, job.FinalizedAt.Location(), "timestamps must be in UTC on every driver")
 				}
 			}
 		}
@@ -149,6 +160,83 @@ func exerciseJobDeadLetterList(
 			{name: "LiteralPrefix", facet: kindFacet, match: "%", max: 100, want: []string{}},
 		} {
 			t.Run("Autocomplete"+tt.name, func(t *testing.T) {
+				values, err := executor.JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{Facet: tt.facet, Match: tt.match, Exclude: tt.exclude, Max: tt.max, Schema: schema})
+				require.NoError(t, err)
+				require.Equal(t, tt.want, values)
+			})
+		}
+	})
+}
+
+// exerciseJobDeadLetterAutocomplete proves that every driver matches and orders
+// suggestions the same way for text where database collations disagree:
+// mixed-case ASCII and non-ASCII letters.
+func exerciseJobDeadLetterAutocomplete(
+	ctx context.Context,
+	t *testing.T,
+	databaseName string,
+	driver riveruidriver.Driver,
+	executorWithTx func(ctx context.Context, t *testing.T) (riverdriver.Executor, string),
+) {
+	t.Helper()
+	const (
+		kindFacet  = "job_kind"
+		queueFacet = "queue_name"
+	)
+	t.Run("JobDeadLetterAutocomplete", func(t *testing.T) {
+		t.Parallel()
+		executor, schema := executorWithSchema(ctx, t, driver, executorWithTx)
+		prefix := createJobDeadLetterTable(ctx, t, executor, schema)
+
+		if databaseName == riverdriver.DatabaseNamePostgres {
+			// Give the columns a linguistic collation where one is available so
+			// the query is shown not to depend on the collation of the database
+			// or its columns. Unlike "C", this collation folds non-ASCII letters
+			// in lower() and sorts letters of both cases together.
+			var hasICU bool
+			require.NoError(t, executor.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM pg_collation WHERE collname = 'und-x-icu')").Scan(&hasICU))
+			if hasICU {
+				require.NoError(t, executor.Exec(ctx, "ALTER TABLE "+prefix+`river_job_dead_letter ALTER COLUMN kind TYPE text COLLATE "und-x-icu", ALTER COLUMN queue TYPE text COLLATE "und-x-icu"`))
+			}
+		}
+
+		// Listed in the byte order that every driver must return. A linguistic
+		// collation would instead return alpha, école, École, zebra, Zeta.
+		const (
+			zeta       = "Zeta"
+			alpha      = "alpha"
+			zebra      = "zebra"
+			ecoleUpper = "École"
+			ecoleLower = "école"
+		)
+		kinds := []string{zeta, alpha, zebra, ecoleUpper, ecoleLower}
+		rows := make([]string, 0, len(kinds))
+		for i, kind := range slices.Backward(kinds) {
+			rows = append(rows, fmt.Sprintf("(%d, 3, NULL, '%s', 5, '%s')", i+1, kind, strings.ToUpper(kind)))
+		}
+		require.NoError(t, executor.Exec(ctx, "INSERT INTO "+prefix+"river_job_dead_letter (id, attempt, finalized_at, kind, max_attempts, queue) VALUES "+strings.Join(rows, ",")))
+
+		for _, tt := range []struct {
+			name    string
+			facet   string
+			match   string
+			exclude []string
+			max     int
+			want    []string
+		}{
+			{name: "ByteOrder", facet: kindFacet, max: 100, want: kinds},
+			{name: "ByteOrderQueues", facet: queueFacet, max: 100, want: []string{"ALPHA", "ZEBRA", "ZETA", "ÉCOLE"}},
+			{name: "LimitFollowsByteOrder", facet: kindFacet, max: 2, want: []string{zeta, alpha}},
+			{name: "MixedCaseMatch", facet: kindFacet, match: "zE", max: 100, want: []string{zeta, zebra}},
+			{name: "MixedCaseMatchUpper", facet: kindFacet, match: "ALPHA", max: 100, want: []string{alpha}},
+			{name: "MixedCaseMatchQueues", facet: queueFacet, match: "zeb", max: 100, want: []string{"ZEBRA"}},
+			{name: "NonASCIILower", facet: kindFacet, match: "é", max: 100, want: []string{ecoleLower}},
+			{name: "NonASCIIUpper", facet: kindFacet, match: "É", max: 100, want: []string{ecoleUpper}},
+			{name: "NonASCIIFoldsOnlyASCII", facet: kindFacet, match: "éCOLE", max: 100, want: []string{ecoleLower}},
+			{name: "NonASCIIFoldsOnlyASCIIQueues", facet: queueFacet, match: "éc", max: 100, want: []string{}},
+			{name: "NonASCIIExclude", facet: kindFacet, exclude: []string{ecoleUpper, "ZETA"}, max: 100, want: []string{zeta, alpha, zebra, ecoleLower}},
+		} {
+			t.Run(tt.name, func(t *testing.T) {
 				values, err := executor.JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{Facet: tt.facet, Match: tt.match, Exclude: tt.exclude, Max: tt.max, Schema: schema})
 				require.NoError(t, err)
 				require.Equal(t, tt.want, values)

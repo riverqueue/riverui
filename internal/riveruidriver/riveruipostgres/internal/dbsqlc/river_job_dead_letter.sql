@@ -65,12 +65,20 @@ FROM (
 
 -- name: JobDeadLetterAutocomplete :one
 -- Suggest values from the archive, including kinds and queues with no live jobs.
-SELECT coalesce(json_agg(suggestions.value ORDER BY suggestions.value), '[]'::json)::text AS values
+--
+-- The "C" collation makes matching and ordering independent of the database's
+-- collation and identical to SQLite: lower() folds only ASCII letters, and
+-- values sort by their bytes. The ordering matters before the limit as well,
+-- because it decides which suggestions are returned.
+SELECT coalesce(json_agg(suggestions.value ORDER BY suggestions.value COLLATE "C"), '[]'::json)::text AS values
 FROM (
-    SELECT DISTINCT CASE WHEN @facet::text = 'job_kind' THEN kind ELSE queue END AS value
-    FROM /* TEMPLATE: schema */river_job_dead_letter
-    WHERE left(lower(CASE WHEN @facet::text = 'job_kind' THEN kind ELSE queue END), length(@match::text)) = lower(@match::text)
-      AND (CASE WHEN @facet::text = 'job_kind' THEN kind ELSE queue END) NOT IN (SELECT jsonb_array_elements_text(@exclude::jsonb))
-    ORDER BY value
+    SELECT DISTINCT candidates.value
+    FROM (
+        SELECT (CASE WHEN @facet::text = 'job_kind' THEN kind ELSE queue END) COLLATE "C" AS value
+        FROM /* TEMPLATE: schema */river_job_dead_letter
+    ) AS candidates
+    WHERE left(lower(candidates.value COLLATE "C"), length(@match::text)) = lower((@match::text) COLLATE "C")
+      AND candidates.value NOT IN (SELECT excluded.value COLLATE "C" FROM jsonb_array_elements_text(@exclude::jsonb) AS excluded(value))
+    ORDER BY candidates.value
     LIMIT @max::int
 ) AS suggestions;

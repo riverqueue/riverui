@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"time"
 
 	"github.com/riverqueue/river/riverdriver"
@@ -162,7 +163,7 @@ func (e *Executor) JobDeadLetterList(ctx context.Context, params *riveruidriver.
 	if err := json.Unmarshal([]byte(rawJobs), &jobs); err != nil {
 		return nil, fmt.Errorf("error decoding dead letter jobs: %w", err)
 	}
-	riveruidriver.SortJobDeadLetterListResults(jobs)
+	riveruidriver.NormalizeJobDeadLetterListResults(jobs)
 	return jobs, nil
 }
 
@@ -185,5 +186,8 @@ func (e *Executor) JobDeadLetterAutocomplete(ctx context.Context, params *riveru
 	if err := json.Unmarshal([]byte(rawValues), &values); err != nil {
 		return nil, fmt.Errorf("error decoding dead letter suggestions: %w", err)
 	}
+	// Byte order matches the queries' ordering; sorting here keeps the result
+	// deterministic where the database doesn't guarantee aggregate order.
+	slices.Sort(values)
 	return values, nil
 }

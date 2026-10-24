@@ -10,13 +10,16 @@ import (
 )
 
 const jobDeadLetterAutocomplete = `-- name: JobDeadLetterAutocomplete :one
-SELECT coalesce(json_agg(suggestions.value ORDER BY suggestions.value), '[]'::json)::text AS values
+SELECT coalesce(json_agg(suggestions.value ORDER BY suggestions.value COLLATE "C"), '[]'::json)::text AS values
 FROM (
-    SELECT DISTINCT CASE WHEN $1::text = 'job_kind' THEN kind ELSE queue END AS value
-    FROM /* TEMPLATE: schema */river_job_dead_letter
-    WHERE left(lower(CASE WHEN $1::text = 'job_kind' THEN kind ELSE queue END), length($2::text)) = lower($2::text)
-      AND (CASE WHEN $1::text = 'job_kind' THEN kind ELSE queue END) NOT IN (SELECT jsonb_array_elements_text($3::jsonb))
-    ORDER BY value
+    SELECT DISTINCT candidates.value
+    FROM (
+        SELECT (CASE WHEN $1::text = 'job_kind' THEN kind ELSE queue END) COLLATE "C" AS value
+        FROM /* TEMPLATE: schema */river_job_dead_letter
+    ) AS candidates
+    WHERE left(lower(candidates.value COLLATE "C"), length($2::text)) = lower(($2::text) COLLATE "C")
+      AND candidates.value NOT IN (SELECT excluded.value COLLATE "C" FROM jsonb_array_elements_text($3::jsonb) AS excluded(value))
+    ORDER BY candidates.value
     LIMIT $4::int
 ) AS suggestions
 `
@@ -29,6 +32,11 @@ type JobDeadLetterAutocompleteParams struct {
 }
 
 // Suggest values from the archive, including kinds and queues with no live jobs.
+//
+// The "C" collation makes matching and ordering independent of the database's
+// collation and identical to SQLite: lower() folds only ASCII letters, and
+// values sort by their bytes. The ordering matters before the limit as well,
+// because it decides which suggestions are returned.
 func (q *Queries) JobDeadLetterAutocomplete(ctx context.Context, db DBTX, arg *JobDeadLetterAutocompleteParams) (string, error) {
 	row := db.QueryRow(ctx, jobDeadLetterAutocomplete,
 		arg.Facet,
