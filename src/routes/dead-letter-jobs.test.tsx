@@ -1,7 +1,10 @@
 import Layout from "@components/Layout";
 import { FeaturesContext } from "@contexts/Features";
 import { SidebarSettingProvider } from "@contexts/SidebarSetting.provider";
-import { deadLetterJobSearchSchema } from "@routes/dead-letter-jobs/index.schema";
+import {
+  deadLetterJobRouteSearchSchema,
+  deadLetterJobSearchSchema,
+} from "@routes/dead-letter-jobs/index.schema";
 import { listDeadLetterJobsKey } from "@services/deadLetterJobs";
 import { featuresKey } from "@services/features";
 import { Job, listJobs, listJobsKey } from "@services/jobs";
@@ -228,6 +231,12 @@ describe("Dead letter jobs", () => {
       ).not.toBeInTheDocument();
       expect(listDeadLetterJobs).not.toHaveBeenCalled();
       expect(getDeadLetterJob).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("heading", { name: "Page not found" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "Return to job list" }),
+      ).toHaveAttribute("href", "/jobs");
     },
   );
 
@@ -475,6 +484,14 @@ describe("Dead letter jobs", () => {
       expect(deadLetterJobSearchSchema.safeParse({ priority }).success).toBe(
         false,
       );
+    // The route schema drops only the filters it can't parse.
+    expect(
+      deadLetterJobRouteSearchSchema.parse({
+        id: "bad",
+        kind: "report",
+        priority: "5",
+      }),
+    ).toEqual({ limit: 20, kind: ["report"] });
   });
 
   it("retries through the Pro API and opens the newly created job", async () => {

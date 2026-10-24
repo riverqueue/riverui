@@ -51,7 +51,6 @@ function DeadLetterJobsIndexComponent() {
   const query = useQuery({
     ...jobsQueryOptions(search),
     ...refreshQueryOptions(intervalMs),
-    throwOnError: true,
   });
   const onFiltersChange = useCallback(
     (filters: Filter[]) => {
@@ -79,6 +78,11 @@ function DeadLetterJobsIndexComponent() {
       filterError={filterError}
       initialFilters={initialFilters}
       jobs={query.data ?? []}
+      loadError={
+        query.isError
+          ? `Couldn't refresh dead letter jobs: ${query.error.message}`
+          : undefined
+      }
       loading={query.isLoading}
       onFiltersChange={onFiltersChange}
       showFewer={() =>
