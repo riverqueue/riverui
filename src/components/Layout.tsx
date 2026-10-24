@@ -16,10 +16,15 @@ import {
   RectangleGroupIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import { retainedJobSearchKeys } from "@routes/jobs/index.schema";
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Fragment, PropsWithChildren, useMemo } from "react";
 
 type LayoutProps = PropsWithChildren<object>;
+
+const clearedJobSearch = Object.fromEntries(
+  retainedJobSearchKeys.map((key) => [key, undefined]),
+);
 
 const Layout = ({ children }: LayoutProps) => {
   const { open: sidebarOpen, setOpen: setSidebarOpen } = useSidebarSetting();
@@ -37,16 +42,7 @@ const Layout = ({ children }: LayoutProps) => {
           icon: QueueListIcon,
           name: "Jobs",
           // Explicitly clear retained Jobs filters when entering from another pane.
-          search: inJobsPane
-            ? {}
-            : {
-                id: undefined,
-                kind: undefined,
-                limit: undefined,
-                priority: undefined,
-                queue: undefined,
-                tags: undefined,
-              },
+          search: inJobsPane ? {} : clearedJobSearch,
         },
         { href: "/queues", icon: InboxStackIcon, name: "Queues" },
         {

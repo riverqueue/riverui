@@ -5,6 +5,17 @@ export const minimumLimit = 20;
 export const defaultLimit = 20;
 export const maximumLimit = 200;
 
+// Search params kept when moving between job states. Other panes clear
+// them when they link to Jobs.
+export const retainedJobSearchKeys = [
+  "id",
+  "kind",
+  "limit",
+  "priority",
+  "queue",
+  "tags",
+] as const;
+
 // Define default values
 export const defaultValues = {
   limit: defaultLimit,
