@@ -16,6 +16,7 @@ import (
 	"github.com/riverqueue/apiframe/apierror"
 	"github.com/riverqueue/apiframe/apitest"
 	"github.com/riverqueue/river/riverdriver"
+	"github.com/riverqueue/river/rivershared/util/dbutil"
 	"github.com/riverqueue/river/rivertype"
 
 	"riverqueue.com/riverpro/driver"
@@ -94,23 +95,173 @@ func TestDeadLetterJobList(t *testing.T) {
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Queues: []string{"missing"}})
 	require.NoError(t, err)
 	require.Empty(t, resp.Data)
-	for _, invalid := range []*deadLetterJobListRequest{
-		{IDs: []int64{0}},
-		{IDs: []int64{-1}},
-		{IDs: make([]int64, 1001)},
-		{Priorities: []int16{0}},
-		{Priorities: []int16{5}},
-		{Kinds: []string{""}},
-		{Queues: []string{strings.Repeat("x", 1025)}},
-		{Tags: make([]string, 101)},
-	} {
-		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), invalid)
-		require.Error(t, err)
-	}
 	for _, limit := range []int{-1, 0, 201} {
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Limit: &limit})
 		require.Error(t, err)
 	}
+}
+
+// validDeadLetterIDs and validDeadLetterValues return slices whose elements
+// pass validation, so that only the size of the slice is under test.
+func validDeadLetterIDs(count int) []int64 {
+	ids := make([]int64, count)
+	for i := range ids {
+		ids[i] = int64(i) + 1
+	}
+	return ids
+}
+
+func validDeadLetterValues(count int) []string {
+	values := make([]string, count)
+	for i := range values {
+		values[i] = fmt.Sprintf("value_%d", i)
+	}
+	return values
+}
+
+func TestDeadLetterJobListValidation(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	endpoint, _ := setupEndpoint(ctx, t, NewDeadLetterJobListEndpoint)
+
+	const (
+		tooManyElements = "must contain at most %d element(s)"
+		tooLong         = "must be at most 1024 character(s) long"
+		required        = "is required"
+	)
+	for _, tt := range []struct {
+		name    string
+		request *deadLetterJobListRequest
+		wantErr string // empty when the request is valid
+	}{
+		{name: "IDsAtLimit", request: &deadLetterJobListRequest{IDs: validDeadLetterIDs(1000)}},
+		{name: "IDsOverLimit", request: &deadLetterJobListRequest{IDs: validDeadLetterIDs(1001)}, wantErr: fmt.Sprintf(tooManyElements, 1000)},
+		{name: "IDZero", request: &deadLetterJobListRequest{IDs: []int64{0}}, wantErr: "must be greater or equal to 1"},
+		{name: "IDNegative", request: &deadLetterJobListRequest{IDs: []int64{-1}}, wantErr: "must be greater or equal to 1"},
+		{name: "KindsAtLimit", request: &deadLetterJobListRequest{Kinds: validDeadLetterValues(100)}},
+		{name: "KindsOverLimit", request: &deadLetterJobListRequest{Kinds: validDeadLetterValues(101)}, wantErr: fmt.Sprintf(tooManyElements, 100)},
+		{name: "KindAtLength", request: &deadLetterJobListRequest{Kinds: []string{strings.Repeat("x", 1024)}}},
+		{name: "KindOverLength", request: &deadLetterJobListRequest{Kinds: []string{strings.Repeat("x", 1025)}}, wantErr: tooLong},
+		{name: "KindEmpty", request: &deadLetterJobListRequest{Kinds: []string{""}}, wantErr: required},
+		{name: "QueuesAtLimit", request: &deadLetterJobListRequest{Queues: validDeadLetterValues(100)}},
+		{name: "QueuesOverLimit", request: &deadLetterJobListRequest{Queues: validDeadLetterValues(101)}, wantErr: fmt.Sprintf(tooManyElements, 100)},
+		{name: "QueueAtLength", request: &deadLetterJobListRequest{Queues: []string{strings.Repeat("x", 1024)}}},
+		{name: "QueueOverLength", request: &deadLetterJobListRequest{Queues: []string{strings.Repeat("x", 1025)}}, wantErr: tooLong},
+		{name: "QueueEmpty", request: &deadLetterJobListRequest{Queues: []string{""}}, wantErr: required},
+		{name: "TagsAtLimit", request: &deadLetterJobListRequest{Tags: validDeadLetterValues(100)}},
+		{name: "TagsOverLimit", request: &deadLetterJobListRequest{Tags: validDeadLetterValues(101)}, wantErr: fmt.Sprintf(tooManyElements, 100)},
+		{name: "TagAtLength", request: &deadLetterJobListRequest{Tags: []string{strings.Repeat("x", 1024)}}},
+		{name: "TagOverLength", request: &deadLetterJobListRequest{Tags: []string{strings.Repeat("x", 1025)}}, wantErr: tooLong},
+		{name: "TagEmpty", request: &deadLetterJobListRequest{Tags: []string{""}}, wantErr: required},
+		{name: "PrioritiesAll", request: &deadLetterJobListRequest{Priorities: []int16{1, 2, 3, 4}}},
+		{name: "PrioritiesOverLimit", request: &deadLetterJobListRequest{Priorities: []int16{1, 2, 3, 4, 1}}, wantErr: fmt.Sprintf(tooManyElements, 4)},
+		{name: "PriorityZero", request: &deadLetterJobListRequest{Priorities: []int16{0}}, wantErr: "min"},
+		{name: "PriorityTooHigh", request: &deadLetterJobListRequest{Priorities: []int16{5}}, wantErr: "max"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), tt.request)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			var badRequest *apierror.BadRequest
+			require.ErrorAs(t, err, &badRequest)
+			require.Equal(t, http.StatusBadRequest, badRequest.StatusCode)
+			require.Contains(t, badRequest.Message, tt.wantErr)
+		})
+	}
+}
+
+func TestDeadLetterAutocompleteValidation(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+	endpoint, _ := setupEndpoint(ctx, t, NewDeadLetterAutocompleteEndpoint)
+
+	const tooLong = "must be at most 1024 character(s) long"
+	for _, tt := range []struct {
+		name    string
+		request *deadLetterAutocompleteRequest
+		wantErr string // empty when the request is valid
+	}{
+		{name: "MatchAtLength", request: &deadLetterAutocompleteRequest{Facet: "job_kind", Match: strings.Repeat("x", 1024)}},
+		{name: "MatchOverLength", request: &deadLetterAutocompleteRequest{Facet: "job_kind", Match: strings.Repeat("x", 1025)}, wantErr: tooLong},
+		{name: "ExcludeAtLimit", request: &deadLetterAutocompleteRequest{Facet: "job_kind", Exclude: validDeadLetterValues(100)}},
+		{name: "ExcludeOverLimit", request: &deadLetterAutocompleteRequest{Facet: "job_kind", Exclude: validDeadLetterValues(101)}, wantErr: "must contain at most 100 element(s)"},
+		{name: "ExcludeValueAtLength", request: &deadLetterAutocompleteRequest{Facet: "queue_name", Exclude: []string{strings.Repeat("x", 1024)}}},
+		{name: "ExcludeValueOverLength", request: &deadLetterAutocompleteRequest{Facet: "queue_name", Exclude: []string{strings.Repeat("x", 1025)}}, wantErr: tooLong},
+		{name: "FacetMissing", request: &deadLetterAutocompleteRequest{}, wantErr: "is required"},
+		{name: "FacetUnknown", request: &deadLetterAutocompleteRequest{Facet: "tags"}, wantErr: "should be one of the following values: job_kind queue_name"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), tt.request)
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+				return
+			}
+			var badRequest *apierror.BadRequest
+			require.ErrorAs(t, err, &badRequest)
+			require.Equal(t, http.StatusBadRequest, badRequest.StatusCode)
+			require.Contains(t, badRequest.Message, tt.wantErr)
+		})
+	}
+}
+
+// Every dead letter endpoint must report a missing table as a bad request that
+// names the migration, rather than failing in a query.
+func TestDeadLetterJobsRequireTable(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	dropTable := func(t *testing.T, bundle *setupEndpointTestBundle) {
+		t.Helper()
+		require.NoError(t, bundle.exec.Exec(ctx, "DROP TABLE "+dbutil.SafeIdentifier(bundle.schema)+".river_job_dead_letter"))
+	}
+	requireMissingTableError := func(t *testing.T, err error) {
+		t.Helper()
+		var badRequest *apierror.BadRequest
+		require.ErrorAs(t, err, &badRequest)
+		require.Equal(t, http.StatusBadRequest, badRequest.StatusCode)
+		require.Equal(t, "Dead letter jobs require River Pro's dead letter queue migration.", badRequest.Message)
+	}
+
+	t.Run("List", func(t *testing.T) {
+		t.Parallel()
+		endpoint, bundle := setupEndpoint(ctx, t, NewDeadLetterJobListEndpoint)
+		dropTable(t, bundle)
+		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{})
+		requireMissingTableError(t, err)
+	})
+	t.Run("Autocomplete", func(t *testing.T) {
+		t.Parallel()
+		endpoint, bundle := setupEndpoint(ctx, t, NewDeadLetterAutocompleteEndpoint)
+		dropTable(t, bundle)
+		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterAutocompleteRequest{Facet: "job_kind"})
+		requireMissingTableError(t, err)
+	})
+	t.Run("Get", func(t *testing.T) {
+		t.Parallel()
+		endpoint, bundle := setupEndpoint(ctx, t, NewDeadLetterJobGetEndpoint)
+		dropTable(t, bundle)
+		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobRequest{JobID: 1})
+		requireMissingTableError(t, err)
+	})
+	t.Run("Retry", func(t *testing.T) {
+		t.Parallel()
+		endpoint, bundle := setupEndpoint(ctx, t, NewDeadLetterJobRetryEndpoint)
+		dropTable(t, bundle)
+		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobRequest{JobID: 1})
+		requireMissingTableError(t, err)
+	})
+}
+
+func requireDeadLetterNotFound(t *testing.T, err error, jobID int64) {
+	t.Helper()
+	var notFound *apierror.NotFound
+	require.ErrorAs(t, err, &notFound)
+	require.Equal(t, http.StatusNotFound, notFound.StatusCode)
+	require.Equal(t, fmt.Sprintf("Dead letter job with ID %d not found. It may already have been retried.", jobID), notFound.Message)
 }
 
 func TestDeadLetterJobGet(t *testing.T) {
@@ -126,7 +277,7 @@ func TestDeadLetterJobGet(t *testing.T) {
 	require.Equal(t, "delivery failed", resp.Errors[0].Error)
 
 	_, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobRequest{JobID: job.ID + 1})
-	require.EqualError(t, err, fmt.Sprintf("Dead letter job with ID %d not found. It may already have been retried.", job.ID+1))
+	requireDeadLetterNotFound(t, err, job.ID+1)
 }
 
 func TestDeadLetterJobRetry(t *testing.T) {
@@ -151,9 +302,9 @@ func TestDeadLetterJobRetry(t *testing.T) {
 	require.Equal(t, rivertype.JobStateAvailable, live.State)
 
 	_, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobRequest{JobID: job.ID})
-	require.EqualError(t, err, fmt.Sprintf("Dead letter job with ID %d not found. It may already have been retried.", job.ID))
+	requireDeadLetterNotFound(t, err, job.ID)
 	_, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobRequest{JobID: live.ID})
-	require.EqualError(t, err, fmt.Sprintf("Dead letter job with ID %d not found. It may already have been retried.", live.ID))
+	requireDeadLetterNotFound(t, err, live.ID)
 }
 
 func TestDeadLetterJobRetryUniqueConflict(t *testing.T) {
@@ -173,7 +324,10 @@ func TestDeadLetterJobRetryUniqueConflict(t *testing.T) {
 	require.NoError(t, err)
 
 	_, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobRequest{JobID: job.ID})
-	require.ErrorContains(t, err, "another active job has the same unique properties")
+	var apiErr *apierror.APIError
+	require.ErrorAs(t, err, &apiErr)
+	require.Equal(t, http.StatusConflict, apiErr.StatusCode)
+	require.Equal(t, "Job can't be retried because another active job has the same unique properties. Wait for it to finish before retrying.", apiErr.Message)
 	_, err = bundle.exec.JobDeadLetterGetByID(ctx, &driver.JobDeadLetterGetByIDParams{ID: job.ID, Schema: bundle.schema})
 	require.NoError(t, err, "a conflict must retain the dead letter job")
 }
@@ -307,6 +461,7 @@ func TestDeadLetterAutocomplete(t *testing.T) {
 	}
 	for _, facet := range []string{"", "tags", "id"} {
 		_, err := apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterAutocompleteRequest{Facet: facet})
-		require.Error(t, err)
+		var badRequest *apierror.BadRequest
+		require.ErrorAs(t, err, &badRequest)
 	}
 }

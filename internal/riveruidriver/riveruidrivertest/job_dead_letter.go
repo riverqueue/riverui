@@ -242,5 +242,21 @@ func exerciseJobDeadLetterAutocomplete(
 				require.Equal(t, tt.want, values)
 			})
 		}
+
+		// Drivers guard their own inputs rather than relying on the caller's
+		// validation, and reject them before running a query.
+		for _, facet := range []string{"", "tags", "kind", "JOB_KIND"} {
+			_, err := executor.JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{Facet: facet, Max: 100, Schema: schema})
+			require.EqualError(t, err, "invalid dead letter autocomplete facet", "facet %q", facet)
+		}
+		for _, limit := range []int{-1, 0, 101} {
+			_, err := executor.JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{Facet: kindFacet, Max: limit, Schema: schema})
+			require.EqualError(t, err, "dead letter autocomplete max must be between 1 and 100", "max %d", limit)
+		}
+		for _, limit := range []int{1, 100} {
+			values, err := executor.JobDeadLetterAutocomplete(ctx, &riveruidriver.JobDeadLetterAutocompleteParams{Facet: kindFacet, Max: limit, Schema: schema})
+			require.NoError(t, err)
+			require.Len(t, values, min(limit, len(kinds)))
+		}
 	})
 }
