@@ -170,6 +170,29 @@ describe("JobSearch", () => {
       expect(input).toHaveValue("kind:batch");
     });
 
+    it("aborts a suggestion request when a newer one replaces it", async () => {
+      const signals: AbortSignal[] = [];
+      const fetchSuggestions = vi.fn(
+        (
+          _type: FilterTypeId,
+          _query: string,
+          _selected: string[],
+          signal?: AbortSignal,
+        ) => {
+          if (signal) signals.push(signal);
+          return new Promise<string[]>(() => {});
+        },
+      );
+      render(<JobSearch fetchSuggestions={fetchSuggestions} />);
+      const input = screen.getByTestId("job-search-input");
+      fireEvent.change(input, { target: { value: "kind:b" } });
+      await waitFor(() => expect(signals).toHaveLength(1));
+      fireEvent.change(input, { target: { value: "kind:ba" } });
+      await waitFor(() => expect(signals).toHaveLength(2));
+      expect(signals[0].aborted).toBe(true);
+      expect(signals[1].aborted).toBe(false);
+    });
+
     it("notifies parent of filter changes", async () => {
       const onFiltersChange = vi.fn();
       render(<JobSearch onFiltersChange={onFiltersChange} />);

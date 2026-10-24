@@ -1,6 +1,6 @@
 import { Button } from "@components/Button";
 import DeadLetterJobDetail from "@components/DeadLetterJobDetail";
-import TopNavTitleOnly from "@components/TopNavTitleOnly";
+import NotFoundPage from "@components/NotFoundPage";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
 import {
@@ -9,7 +9,7 @@ import {
   listDeadLetterJobsKey,
   retryDeadLetterJob,
 } from "@services/deadLetterJobs";
-import { getJobKey } from "@services/jobs";
+import { getJobKey, listJobsKeyPrefix } from "@services/jobs";
 import { countsByStateKey } from "@services/states";
 import { toastError, toastSuccess } from "@services/toast";
 import {
@@ -34,15 +34,16 @@ export const Route = createFileRoute("/dead-letter-jobs/$jobId")({
     queryClient.ensureQueryData(jobQueryOptions),
   errorComponent: ({ error }) =>
     error instanceof NotFoundError ? (
-      <>
-        <TopNavTitleOnly title="Dead Letter Job" />
-        <div className="space-y-4 p-8">
-          <p>{error.message}</p>
-          <Button outline to="/dead-letter-jobs">
-            Return to dead letters
+      <NotFoundPage
+        action={
+          <Button plain to="/dead-letter-jobs">
+            Return to dead letters <span aria-hidden="true">&rarr;</span>
           </Button>
-        </div>
-      </>
+        }
+        description={error.message}
+        heading="Dead letter job not found"
+        title="Dead Letter Job"
+      />
     ) : (
       <ErrorComponent error={error} />
     ),
@@ -68,7 +69,7 @@ export function DeadLetterJobComponent() {
       toastSuccess({ message: "Job enqueued for retry", duration: 2000 });
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: listDeadLetterJobsKey() }),
-        queryClient.invalidateQueries({ queryKey: ["listJobs"] }),
+        queryClient.invalidateQueries({ queryKey: listJobsKeyPrefix }),
         queryClient.invalidateQueries({ queryKey: countsByStateKey() }),
       ]);
       await navigate({ to: "/jobs/$jobId", params: { jobId: job.id } });
@@ -83,7 +84,11 @@ export function DeadLetterJobComponent() {
     throwOnError: true,
   });
 
-  if (!query.data) return <p className="p-8">Loading…</p>;
+  if (!query.data) {
+    return (
+      <p className="p-8 text-sm text-slate-600 dark:text-slate-400">Loading…</p>
+    );
+  }
   return (
     <DeadLetterJobDetail
       job={query.data}

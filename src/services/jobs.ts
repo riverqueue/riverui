@@ -205,6 +205,9 @@ type ListJobsFilters = {
   tags?: string[];
 };
 
+// Matches every job list query, for invalidation.
+export const listJobsKeyPrefix = ["listJobs"] as const;
+
 export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
   return [
     "listJobs",

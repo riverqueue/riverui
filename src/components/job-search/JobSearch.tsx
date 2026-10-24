@@ -22,12 +22,14 @@ export interface JobSearchProps {
    * @param filterTypeId - The ID of the filter type
    * @param query - The search query
    * @param selectedValues - Values already selected for this filter
+   * @param signal - Aborted when a newer request replaces this one
    * @returns Promise resolving to an array of suggestion strings
    */
   fetchSuggestions?: (
     filterTypeId: JobFilterTypeID,
     query: string,
     selectedValues: string[],
+    signal?: AbortSignal,
   ) => Promise<string[]>;
   /**
    * Initial filters to display

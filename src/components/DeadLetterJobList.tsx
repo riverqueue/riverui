@@ -1,18 +1,78 @@
+import { Badge } from "@components/Badge";
 import { fetchSuggestions } from "@components/job-search/api";
 import {
   Filter,
   FilterTypeId,
   JobSearch,
 } from "@components/job-search/JobSearch";
+import ListEmptyState from "@components/ListEmptyState";
+import ListPagination from "@components/ListPagination";
+import RelativeTimeFormatter from "@components/RelativeTimeFormatter";
+import TopNavTitleOnly from "@components/TopNavTitleOnly";
 import {
   DeadLetterJobListItem,
   fetchDeadLetterSuggestions,
 } from "@services/deadLetterJobs";
 import { Link } from "@tanstack/react-router";
 
-import { Button } from "./Button";
-import RelativeTimeFormatter from "./RelativeTimeFormatter";
-import TopNavTitleOnly from "./TopNavTitleOnly";
+type DeadLetterJobListProps = {
+  canShowFewer: boolean;
+  canShowMore: boolean;
+  filterError?: string;
+  initialFilters: Filter[];
+  jobs: DeadLetterJobListItem[];
+  // Set when a refresh fails. The last loaded jobs stay visible.
+  loadError?: string;
+  loading: boolean;
+  onFiltersChange: (filters: Filter[]) => void;
+  showFewer: () => void;
+  showMore: () => void;
+};
+
+const DeadLetterJobRow = ({ job }: { job: DeadLetterJobListItem }) => (
+  <li className="relative flex items-stretch space-x-4 py-1.5">
+    <div className="min-w-0 flex-auto">
+      <div className="flex items-center gap-x-3">
+        <div className="flex-none rounded-full bg-rose-400/10 p-1 text-rose-400">
+          <div className="size-2 rounded-full bg-current" />
+        </div>
+        <h2 className="min-w-0 grow text-sm leading-5 font-medium">
+          <Link
+            className="flex items-baseline gap-x-2 text-slate-900 dark:text-slate-200"
+            params={{ jobId: job.id }}
+            to="/dead-letter-jobs/$jobId"
+          >
+            <span className="truncate">{job.kind}</span>{" "}
+            <span className="flex-none font-mono text-xs font-normal text-gray-500 dark:text-gray-400">
+              #{job.id.toString()}
+            </span>
+          </Link>
+        </h2>
+        <div className="text-right text-sm leading-5 text-nowrap text-slate-700 dark:text-slate-100">
+          {job.finalizedAt ? (
+            <RelativeTimeFormatter
+              addSuffix
+              includeSeconds
+              time={job.finalizedAt}
+            />
+          ) : (
+            "–"
+          )}
+        </div>
+      </div>
+      <div className="mt-1.5 flex items-center gap-x-2.5 text-xs leading-5 text-gray-500 dark:text-gray-300">
+        <div className="flex grow items-center gap-x-2 font-semibold">
+          <span>{job.attempt.toString()}</span>
+          <span>/</span>
+          <span>{job.maxAttempts.toString()}</span>
+        </div>
+        <Badge className="flex-none font-mono text-xs" color="zinc">
+          {job.queue}
+        </Badge>
+      </div>
+    </div>
+  </li>
+);
 
 export default function DeadLetterJobList({
   canShowFewer,
@@ -20,121 +80,76 @@ export default function DeadLetterJobList({
   filterError,
   initialFilters,
   jobs,
+  loadError,
   loading,
   onFiltersChange,
   showFewer,
   showMore,
-}: {
-  canShowFewer: boolean;
-  canShowMore: boolean;
-  filterError?: string;
-  initialFilters: Filter[];
-  jobs: DeadLetterJobListItem[];
-  loading: boolean;
-  onFiltersChange: (filters: Filter[]) => void;
-  showFewer: () => void;
-  showMore: () => void;
-}) {
+}: DeadLetterJobListProps) {
+  const alert = filterError ?? loadError;
+
   return (
     <>
       <TopNavTitleOnly title="Dead Letters" />
-      <div className="space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-        <p className="text-sm text-slate-600 dark:text-slate-400">
-          Discarded jobs retained in the dead letter queue. Select a job to
-          inspect its failures and retry it.
-        </p>
-        <JobSearch
-          fetchSuggestions={fetchSuggestionsForDeadLetters}
-          initialFilters={initialFilters}
-          onFiltersChange={onFiltersChange}
-          syncInitialFilters
-        />
-        {filterError && (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {filterError}
-          </p>
-        )}
+      <div className="flex min-h-dvh flex-col">
+        <div className="px-4 sm:px-6 lg:px-8">
+          <div className="flex min-h-16 items-center space-x-4 border-b border-slate-300 py-2 dark:border-slate-700">
+            <JobSearch
+              fetchSuggestions={fetchSuggestionsForDeadLetters}
+              initialFilters={initialFilters}
+              onFiltersChange={onFiltersChange}
+              syncInitialFilters
+            />
+          </div>
+          {alert && (
+            <p
+              className="border-b border-slate-200 py-2 text-sm text-red-600 dark:border-slate-800 dark:text-red-400"
+              role="alert"
+            >
+              {alert}
+            </p>
+          )}
+        </div>
         {loading ? (
-          <p>Loading…</p>
-        ) : jobs.length === 0 ? (
-          <p className="py-12 text-center text-slate-500">
-            {initialFilters.length
-              ? "No dead letter jobs match these filters."
-              : "No dead letter jobs."}
+          <p className="px-4 py-6 text-sm text-slate-600 sm:px-6 lg:px-8 dark:text-slate-400">
+            Loading…
           </p>
+        ) : jobs.length === 0 ? (
+          <div className="grow">
+            {initialFilters.length ? (
+              <ListEmptyState
+                description="Try adjusting your filters to find what you're looking for."
+                title="No dead letter jobs match these filters."
+              />
+            ) : (
+              <ListEmptyState
+                description={
+                  <>
+                    Discarded jobs appear here when the dead letter queue is
+                    enabled with <code>Config.DeadLetter.Enabled</code> in River
+                    Pro.
+                  </>
+                }
+                title="No dead letter jobs."
+              />
+            )}
+          </div>
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full divide-y divide-slate-300 text-left text-sm dark:divide-slate-700">
-                <thead>
-                  <tr>
-                    <th className="px-3 py-3" scope="col">
-                      Job
-                    </th>
-                    <th className="px-3 py-3" scope="col">
-                      Queue
-                    </th>
-                    <th className="px-3 py-3" scope="col">
-                      Attempts
-                    </th>
-                    <th className="px-3 py-3" scope="col">
-                      Discarded
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
-                  {jobs.map((job) => (
-                    <tr key={job.id.toString()}>
-                      <td className="px-3 py-4">
-                        <Link
-                          className="font-mono text-brand-primary hover:underline dark:text-blue-400"
-                          params={{ jobId: job.id }}
-                          to="/dead-letter-jobs/$jobId"
-                        >
-                          {job.kind}{" "}
-                          <span className="text-xs">#{job.id.toString()}</span>
-                        </Link>
-                      </td>
-                      <td className="px-3 py-4 font-mono">{job.queue}</td>
-                      <td className="px-3 py-4">
-                        {job.attempt} / {job.maxAttempts}
-                      </td>
-                      <td className="px-3 py-4">
-                        {job.finalizedAt ? (
-                          <RelativeTimeFormatter
-                            addSuffix
-                            time={job.finalizedAt}
-                          />
-                        ) : (
-                          "–"
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <nav
-              aria-label="Pagination"
-              className="sticky inset-x-0 bottom-0 flex items-center justify-center border-t border-black/5 bg-white py-3 dark:border-white/5 dark:bg-slate-900"
+            <ul
+              className="grow divide-y divide-slate-200 px-4 sm:px-6 lg:px-8 dark:divide-slate-800"
+              role="list"
             >
-              <Button
-                className="mx-2"
-                color="light"
-                disabled={!canShowFewer}
-                onClick={showFewer}
-              >
-                Fewer
-              </Button>
-              <Button
-                className="mx-2"
-                color="light"
-                disabled={!canShowMore}
-                onClick={showMore}
-              >
-                More
-              </Button>
-            </nav>
+              {jobs.map((job) => (
+                <DeadLetterJobRow job={job} key={job.id.toString()} />
+              ))}
+            </ul>
+            <ListPagination
+              canShowFewer={canShowFewer}
+              canShowMore={canShowMore}
+              showFewer={showFewer}
+              showMore={showMore}
+            />
           </>
         )}
       </div>
@@ -146,13 +161,15 @@ async function fetchSuggestionsForDeadLetters(
   type: FilterTypeId,
   query: string,
   selectedValues: string[],
+  signal?: AbortSignal,
 ): Promise<string[]> {
   if (type === FilterTypeId.KIND || type === FilterTypeId.QUEUE) {
     return fetchDeadLetterSuggestions(
       type === FilterTypeId.KIND ? "job_kind" : "queue_name",
       query,
       selectedValues,
+      signal,
     );
   }
-  return fetchSuggestions(type, query, selectedValues);
+  return fetchSuggestions(type, query, selectedValues, signal);
 }

@@ -1,7 +1,10 @@
 import Layout from "@components/Layout";
 import { FeaturesContext } from "@contexts/Features";
 import { SidebarSettingProvider } from "@contexts/SidebarSetting.provider";
-import { deadLetterJobSearchSchema } from "@routes/dead-letter-jobs/index.schema";
+import {
+  deadLetterJobRouteSearchSchema,
+  deadLetterJobSearchSchema,
+} from "@routes/dead-letter-jobs/index.schema";
 import { listDeadLetterJobsKey } from "@services/deadLetterJobs";
 import { featuresKey } from "@services/features";
 import { Job, listJobs, listJobsKey } from "@services/jobs";
@@ -30,7 +33,7 @@ import {
 } from "@testing-library/react";
 import { APIResponseError, NotFoundError } from "@utils/api";
 import qs from "query-string";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../global-type-overrides";
 import { routeTree } from "../routeTree.gen";
@@ -125,6 +128,10 @@ async function renderRoute(path: string, pro = true) {
   });
   return { queryClient, router };
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -228,8 +235,45 @@ describe("Dead letter jobs", () => {
       ).not.toBeInTheDocument();
       expect(listDeadLetterJobs).not.toHaveBeenCalled();
       expect(getDeadLetterJob).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("heading", { name: "Page not found" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: "Return to job list" }),
+      ).toHaveAttribute("href", "/jobs");
     },
   );
+
+  it("opens the list when a bookmarked URL has filters it can't parse", async () => {
+    const { router } = await renderRoute(
+      "/dead-letter-jobs?id=abc&priority=5&queue=mail",
+    );
+    expect(
+      await screen.findByRole("link", { name: `send_email #${job.id}` }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("job-search-input")).toHaveValue("queue:mail");
+    expect(router.state.location.search).toEqual({ queue: "mail" });
+    expect(listDeadLetterJobs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: listDeadLetterJobsKey(20, { queues: ["mail"] }),
+      }),
+    );
+  });
+
+  it("keeps the loaded jobs visible when a refresh fails", async () => {
+    const { queryClient } = await renderRoute("/dead-letter-jobs");
+    listDeadLetterJobs.mockRejectedValue(new Error("Failed to fetch"));
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: listDeadLetterJobsKey() });
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't refresh dead letter jobs: Failed to fetch",
+    );
+    expect(
+      screen.getByRole("link", { name: `send_email #${job.id}` }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("job-search-input")).toBeInTheDocument();
+  });
 
   it("shows the Pro navigation and opens the selected dead letter job", async () => {
     const { router } = await renderRoute("/dead-letter-jobs");
@@ -397,6 +441,7 @@ describe("Dead letter jobs", () => {
   });
 
   it("restores the search field on browser Back", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { router } = await renderRoute("/dead-letter-jobs?queue=mail");
     await act(async () => {
       await router.navigate({
@@ -413,8 +458,9 @@ describe("Dead letter jobs", () => {
     await waitFor(() =>
       expect(screen.getByTestId("job-search-input")).toHaveValue("queue:mail"),
     );
+    // Run the filter debounce to confirm it doesn't rewrite the restored URL.
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await vi.advanceTimersByTimeAsync(300);
     });
     expect(router.state.location.search).toEqual({ queue: "mail" });
   });
@@ -442,6 +488,7 @@ describe("Dead letter jobs", () => {
         "job_kind",
         "archive_",
         [],
+        expect.any(AbortSignal),
       ),
     );
     fireEvent.change(input, { target: { value: "queue:mail,re" } });
@@ -450,6 +497,7 @@ describe("Dead letter jobs", () => {
         "queue_name",
         "re",
         ["mail"],
+        expect.any(AbortSignal),
       ),
     );
   });
@@ -473,6 +521,14 @@ describe("Dead letter jobs", () => {
       expect(deadLetterJobSearchSchema.safeParse({ priority }).success).toBe(
         false,
       );
+    // The route schema drops only the filters it can't parse.
+    expect(
+      deadLetterJobRouteSearchSchema.parse({
+        id: "bad",
+        kind: "report",
+        priority: "5",
+      }),
+    ).toEqual({ limit: 20, kind: ["report"] });
   });
 
   it("retries through the Pro API and opens the newly created job", async () => {

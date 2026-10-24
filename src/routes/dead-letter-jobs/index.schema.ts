@@ -61,6 +61,17 @@ export const deadLetterJobSearchSchema = z.object({
 
 export type DeadLetterJobSearch = z.output<typeof deadLetterJobSearchSchema>;
 
+// The route drops a filter it can't parse, as the Jobs list does, so that a
+// hand-edited or stale URL still opens the list. Edits in the search field
+// use the strict schema above and show the problem instead.
+export const deadLetterJobRouteSearchSchema = deadLetterJobSearchSchema.extend({
+  id: ids.catch(undefined),
+  kind: strings.catch(undefined),
+  priority: priorities.catch(undefined),
+  queue: strings.catch(undefined),
+  tags: strings.catch(undefined),
+});
+
 export const searchToDeadLetterFilters = (
   search: DeadLetterJobSearch,
 ): DeadLetterJobFilters => ({

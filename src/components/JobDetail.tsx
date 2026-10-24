@@ -1,6 +1,7 @@
 import { Badge } from "@components/Badge";
 import ButtonForGroup from "@components/ButtonForGroup";
 import ConfirmationDialog from "@components/ConfirmationDialog";
+import CopyableHeadingText from "@components/CopyableHeadingText";
 import JobAttempts from "@components/JobAttempts";
 import JobTimeline from "@components/JobTimeline";
 import JSONTextView from "@components/JSONTextView";
@@ -17,7 +18,7 @@ import { Job, JobWithKnownMetadata } from "@services/jobs";
 import { JobState } from "@services/types";
 import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
-import { FormEvent, useState } from "react";
+import { FormEvent, ReactNode, useState } from "react";
 
 type JobDetailProps = {
   cancel: () => void;
@@ -26,12 +27,44 @@ type JobDetailProps = {
   retry: () => void;
 };
 
+type JobDetailViewProps = {
+  actions: ReactNode;
+  job: Job;
+  // Shown under the heading, for context that applies to the whole job.
+  notice?: ReactNode;
+  title: string;
+};
+
 export default function JobDetail({
   cancel,
   deleteFn,
   job,
   retry,
 }: JobDetailProps) {
+  return (
+    <JobDetailView
+      actions={
+        <ActionButtons
+          cancel={cancel}
+          deleteFn={deleteFn}
+          job={job}
+          retry={retry}
+        />
+      }
+      job={job}
+      title="Job Details"
+    />
+  );
+}
+
+// JobDetailView is the job detail page without its actions, so that other
+// panes showing a job (like dead letters) share one layout.
+export function JobDetailView({
+  actions,
+  job,
+  notice,
+  title,
+}: JobDetailViewProps) {
   const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
 
   let jobWithMetadata: JobWithKnownMetadata | undefined;
@@ -41,28 +74,26 @@ export default function JobDetail({
 
   return (
     <>
-      <TopNavTitleOnly title="Job Details" />
+      <TopNavTitleOnly title={title} />
       <main>
         <header>
           {/* Heading */}
           <div className="mb-8 flex flex-col items-start justify-between gap-x-8 gap-y-4 bg-gray-300/10 p-4 sm:flex-row sm:items-center sm:px-6 lg:px-8 dark:bg-gray-700/10">
-            <div>
-              <h1 className="flex gap-x-3 text-2xl leading-7">
-                <span className="font-semibold text-slate-900 dark:text-white">
-                  {job.kind}
-                </span>
+            <div className="w-full min-w-0 flex-1">
+              <h1 className="text-2xl leading-7">
+                <CopyableHeadingText label="job kind" text={job.kind} />
               </h1>
               <p className="mt-2 text-base leading-6 text-slate-600 dark:text-slate-400">
                 ID: <span className="font-mono">{job.id.toString()}</span>
               </p>
+              {notice && (
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-400">
+                  {notice}
+                </p>
+              )}
             </div>
             <div className="order-none flex w-full justify-around sm:block sm:w-auto sm:flex-none">
-              <ActionButtons
-                cancel={cancel}
-                deleteFn={deleteFn}
-                job={job}
-                retry={retry}
-              />
+              {actions}
             </div>
           </div>
         </header>
