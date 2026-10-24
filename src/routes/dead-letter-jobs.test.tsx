@@ -33,7 +33,7 @@ import {
 } from "@testing-library/react";
 import { APIResponseError, NotFoundError } from "@utils/api";
 import qs from "query-string";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import "../global-type-overrides";
 import { routeTree } from "../routeTree.gen";
@@ -128,6 +128,10 @@ async function renderRoute(path: string, pro = true) {
   });
   return { queryClient, router };
 }
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -239,6 +243,37 @@ describe("Dead letter jobs", () => {
       ).toHaveAttribute("href", "/jobs");
     },
   );
+
+  it("opens the list when a bookmarked URL has filters it can't parse", async () => {
+    const { router } = await renderRoute(
+      "/dead-letter-jobs?id=abc&priority=5&queue=mail",
+    );
+    expect(
+      await screen.findByRole("link", { name: `send_email #${job.id}` }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("job-search-input")).toHaveValue("queue:mail");
+    expect(router.state.location.search).toEqual({ queue: "mail" });
+    expect(listDeadLetterJobs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queryKey: listDeadLetterJobsKey(20, { queues: ["mail"] }),
+      }),
+    );
+  });
+
+  it("keeps the loaded jobs visible when a refresh fails", async () => {
+    const { queryClient } = await renderRoute("/dead-letter-jobs");
+    listDeadLetterJobs.mockRejectedValue(new Error("Failed to fetch"));
+    await act(async () => {
+      await queryClient.refetchQueries({ queryKey: listDeadLetterJobsKey() });
+    });
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't refresh dead letter jobs: Failed to fetch",
+    );
+    expect(
+      screen.getByRole("link", { name: `send_email #${job.id}` }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("job-search-input")).toBeInTheDocument();
+  });
 
   it("shows the Pro navigation and opens the selected dead letter job", async () => {
     const { router } = await renderRoute("/dead-letter-jobs");
@@ -406,6 +441,7 @@ describe("Dead letter jobs", () => {
   });
 
   it("restores the search field on browser Back", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { router } = await renderRoute("/dead-letter-jobs?queue=mail");
     await act(async () => {
       await router.navigate({
@@ -422,8 +458,9 @@ describe("Dead letter jobs", () => {
     await waitFor(() =>
       expect(screen.getByTestId("job-search-input")).toHaveValue("queue:mail"),
     );
+    // Run the filter debounce to confirm it doesn't rewrite the restored URL.
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await vi.advanceTimersByTimeAsync(300);
     });
     expect(router.state.location.search).toEqual({ queue: "mail" });
   });
