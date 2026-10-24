@@ -49,13 +49,13 @@ func exerciseJobDeadLetterList(
 		require.Empty(t, jobs, "live jobs must not appear in the dead letter list")
 		require.NotNil(t, jobs)
 
-		// Deliberately insert in reverse order, with IDs beyond JavaScript's
+		// Deliberately insert out of result order, with IDs beyond JavaScript's
 		// exact integer range, and enough rows to exceed the maximum UI limit.
 		const firstID int64 = 1970670598291982290
 		rows := make([]string, 0, 205)
-		for i := 204; i >= 0; i-- {
+		for i := range 205 {
 			finalizedAt := "'2026-10-21 10:02:03.456+00:00'"
-			if i == 0 {
+			if i == 204 {
 				finalizedAt = "NULL"
 			}
 			rows = append(rows, fmt.Sprintf("(%d, 3, %s, 'send_email', 5, 'mail')", firstID+int64(i), finalizedAt))
@@ -67,7 +67,7 @@ func exerciseJobDeadLetterList(
 			require.NoError(t, err)
 			require.Len(t, jobs, limit)
 			for i, job := range jobs {
-				require.Equal(t, firstID+int64(i), job.ID)
+				require.Equal(t, firstID+204-int64(i), job.ID, "newest jobs must come first")
 				require.Equal(t, 3, job.Attempt)
 				require.Equal(t, 5, job.MaxAttempts)
 				require.Equal(t, originalKind, job.Kind)
@@ -87,11 +87,11 @@ func exerciseJobDeadLetterList(
 
 		// Filtering must happen before limiting, without rounding large IDs.
 		jobs, err = executor.JobDeadLetterList(ctx, &riveruidriver.JobDeadLetterListParams{
-			Filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{firstID + 204}}, Max: 1, Schema: schema,
+			Filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{firstID}}, Max: 1, Schema: schema,
 		})
 		require.NoError(t, err)
 		require.Len(t, jobs, 1)
-		require.Equal(t, firstID+204, jobs[0].ID)
+		require.Equal(t, firstID, jobs[0].ID)
 
 		archive := func(kind, queue string, priority int, tags []string) int64 {
 			job := testfactory.Job(ctx, t, executor, &testfactory.JobOpts{
@@ -108,16 +108,16 @@ func exerciseJobDeadLetterList(
 			filters riveruidriver.JobDeadLetterFilters
 			want    []int64
 		}{
-			{name: "IDs", filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{second, first}}, want: []int64{first, second}},
-			{name: "Kinds", filters: riveruidriver.JobDeadLetterFilters{Kinds: []string{emailKind, reportKind}}, want: []int64{first, second, third}},
+			{name: "IDs", filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{first, second}}, want: []int64{second, first}},
+			{name: "Kinds", filters: riveruidriver.JobDeadLetterFilters{Kinds: []string{emailKind, reportKind}}, want: []int64{third, second, first}},
 			{name: "Queues", filters: riveruidriver.JobDeadLetterFilters{Queues: []string{reportsQueue}}, want: []int64{second}},
-			{name: "Priorities", filters: riveruidriver.JobDeadLetterFilters{Priorities: []int16{1, 3}}, want: []int64{first, second}},
-			{name: "TagsMatchAny", filters: riveruidriver.JobDeadLetterFilters{Tags: []string{urgentTag, "batch"}}, want: []int64{first, second}},
+			{name: "Priorities", filters: riveruidriver.JobDeadLetterFilters{Priorities: []int16{1, 3}}, want: []int64{second, first}},
+			{name: "TagsMatchAny", filters: riveruidriver.JobDeadLetterFilters{Tags: []string{urgentTag, "batch"}}, want: []int64{second, first}},
 			{name: "TagsAreExact", filters: riveruidriver.JobDeadLetterFilters{Tags: []string{urgentTag}}, want: []int64{first}},
 			{name: "Combined", filters: riveruidriver.JobDeadLetterFilters{Kinds: []string{emailKind, reportKind}, Queues: []string{mailQueue}, Priorities: []int16{1, 2}, Tags: []string{customerTag}}, want: []int64{first}},
 			{name: "NoMatches", filters: riveruidriver.JobDeadLetterFilters{Kinds: []string{"missing"}}, want: []int64{}},
 			{name: "LiteralValues", filters: riveruidriver.JobDeadLetterFilters{Tags: []string{"urgent' OR 1=1 --"}}, want: []int64{}},
-			{name: "EmptyFilters", filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{}, Kinds: []string{}, Queues: []string{}, Tags: []string{}, Priorities: []int16{}}, want: []int64{first, second, third}},
+			{name: "EmptyFilters", filters: riveruidriver.JobDeadLetterFilters{IDs: []int64{}, Kinds: []string{}, Queues: []string{}, Tags: []string{}, Priorities: []int16{}}, want: []int64{firstID + 204, firstID + 203, firstID + 202}},
 		} {
 			t.Run(tt.name, func(t *testing.T) {
 				jobs, err := executor.JobDeadLetterList(ctx, &riveruidriver.JobDeadLetterListParams{Filters: tt.filters, Max: 3, Schema: schema})

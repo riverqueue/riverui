@@ -68,17 +68,18 @@ func TestDeadLetterJobList(t *testing.T) {
 	encoded, err = json.Marshal(resp)
 	require.NoError(t, err)
 	require.Contains(t, string(encoded), fmt.Sprintf(`"id":"%d"`, job.ID))
+	var newest *rivertype.JobRow
 	for range 24 {
-		insertDeadLetterJob(ctx, t, bundle)
+		newest = insertDeadLetterJob(ctx, t, bundle)
 	}
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{})
 	require.NoError(t, err)
 	require.Len(t, resp.Data, 20)
-	require.Equal(t, job.ID, resp.Data[0].ID)
+	require.Equal(t, newest.ID, resp.Data[0].ID, "newest jobs must come first")
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Limit: new(2)})
 	require.NoError(t, err)
 	require.Len(t, resp.Data, 2)
-	require.Less(t, resp.Data[0].ID, resp.Data[1].ID)
+	require.Greater(t, resp.Data[0].ID, resp.Data[1].ID)
 	resp, err = apitest.InvokeHandler(ctx, endpoint.Execute, testMountOpts(t), &deadLetterJobListRequest{Limit: new(40)})
 	require.NoError(t, err)
 	require.Len(t, resp.Data, 25)

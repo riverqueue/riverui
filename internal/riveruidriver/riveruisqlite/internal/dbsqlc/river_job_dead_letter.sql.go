@@ -61,7 +61,7 @@ FROM (
       AND (json_type(CAST(?1 AS text), '$.priorities') IS NULL OR priority IN (SELECT CAST(value AS integer) FROM json_each(CAST(?1 AS text), '$.priorities')))
       AND (json_type(CAST(?1 AS text), '$.queues') IS NULL OR queue IN (SELECT CAST(value AS text) FROM json_each(CAST(?1 AS text), '$.queues')))
       AND (json_type(CAST(?1 AS text), '$.tags') IS NULL OR EXISTS (SELECT 1 FROM json_each(river_job_dead_letter.tags) AS job_tag JOIN json_each(CAST(?1 AS text), '$.tags') AS filter_tag ON job_tag.value = filter_tag.value))
-    ORDER BY id
+    ORDER BY id DESC
     LIMIT ?2
 ) AS limited
 `
@@ -71,8 +71,10 @@ type JobDeadLetterListParams struct {
 	Max     int64
 }
 
-// Apply the limit before aggregation so neither the database nor the browser
-// materializes the entire queue. Normalize SQLite timestamps to RFC 3339 for
+// Return the newest jobs first. Apply the limit before aggregation so neither
+// the database nor the browser materializes the entire queue. SQLite doesn't
+// guarantee that json_group_array preserves the subquery's order, so the
+// driver sorts the decoded rows. Normalize SQLite timestamps to RFC 3339 for
 // the shared result decoder; strftime preserves NULL timestamps.
 func (q *Queries) JobDeadLetterList(ctx context.Context, db DBTX, arg *JobDeadLetterListParams) (string, error) {
 	row := db.QueryRowContext(ctx, jobDeadLetterList, arg.Filters, arg.Max)

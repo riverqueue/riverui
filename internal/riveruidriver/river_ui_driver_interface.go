@@ -5,7 +5,9 @@
 package riveruidriver
 
 import (
+	"cmp"
 	"context"
+	"slices"
 	"time"
 
 	"github.com/riverqueue/river/riverdriver"
@@ -28,8 +30,10 @@ type Executor interface {
 	// JobCountEstimate returns inexpensive database estimates where supported.
 	// Drivers without an estimate strategy return an empty map.
 	JobCountEstimate(ctx context.Context, params *JobCountEstimateParams) (map[rivertype.JobState]JobCountEstimateResult, error)
-	// JobDeadLetterList returns at most Max jobs, ordered by ID ascending.
-	// Only Pro endpoints call this query; it requires the dead letter table.
+	// JobDeadLetterList returns at most Max jobs, ordered by ID descending so
+	// the newest dead letter jobs come first and stay reachable when more jobs
+	// match than Max. Only Pro endpoints call this query; it requires the dead
+	// letter table.
 	JobDeadLetterList(ctx context.Context, params *JobDeadLetterListParams) ([]*JobDeadLetterListResult, error)
 	JobDeadLetterAutocomplete(ctx context.Context, params *JobDeadLetterAutocompleteParams) ([]string, error)
 }
@@ -67,6 +71,13 @@ type JobDeadLetterListResult struct {
 	Kind        string     `json:"kind"`
 	MaxAttempts int        `json:"max_attempts"`
 	Queue       string     `json:"queue"`
+}
+
+// SortJobDeadLetterListResults orders jobs by ID descending. Drivers apply it
+// after decoding because not every database guarantees the order of elements
+// within an aggregated JSON array.
+func SortJobDeadLetterListResults(jobs []*JobDeadLetterListResult) {
+	slices.SortFunc(jobs, func(a, b *JobDeadLetterListResult) int { return cmp.Compare(b.ID, a.ID) })
 }
 
 type JobCountByAllStatesCappedParams struct {

@@ -12,9 +12,9 @@ CREATE TABLE river_job_dead_letter (
 );
 
 -- name: JobDeadLetterList :one
--- Apply the limit before aggregation so neither the database nor the browser
--- materializes the entire queue. River's common executor exposes QueryRow,
--- so return the bounded set as one JSON value.
+-- Return the newest jobs first. Apply the limit before aggregation so neither
+-- the database nor the browser materializes the entire queue. River's common
+-- executor exposes QueryRow, so return the bounded set as one JSON value.
 SELECT coalesce(json_agg(json_build_object(
     'id', limited.id,
     'attempt', limited.attempt,
@@ -22,7 +22,7 @@ SELECT coalesce(json_agg(json_build_object(
     'kind', limited.kind,
     'max_attempts', limited.max_attempts,
     'queue', limited.queue
-) ORDER BY limited.id), '[]'::json)::text AS jobs
+) ORDER BY limited.id DESC), '[]'::json)::text AS jobs
 FROM (
     SELECT id, attempt, finalized_at, kind, max_attempts, queue
     FROM /* TEMPLATE: schema */river_job_dead_letter
@@ -31,7 +31,7 @@ FROM (
       AND (NOT jsonb_exists(@filters::jsonb, 'priorities') OR priority IN (SELECT value::smallint FROM jsonb_array_elements_text(@filters::jsonb -> 'priorities')))
       AND (NOT jsonb_exists(@filters::jsonb, 'queues') OR queue IN (SELECT value::text FROM jsonb_array_elements_text(@filters::jsonb -> 'queues')))
       AND (NOT jsonb_exists(@filters::jsonb, 'tags') OR tags && ARRAY(SELECT jsonb_array_elements_text(@filters::jsonb -> 'tags'))::varchar[])
-    ORDER BY id
+    ORDER BY id DESC
     LIMIT @max::int
 ) AS limited;
 

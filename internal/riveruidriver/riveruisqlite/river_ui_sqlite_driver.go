@@ -258,6 +258,7 @@ func (e *Executor) JobDeadLetterList(ctx context.Context, params *riveruidriver.
 	if err := json.Unmarshal([]byte(rawJobs), &jobs); err != nil {
 		return nil, fmt.Errorf("error decoding dead letter jobs: %w", err)
 	}
+	riveruidriver.SortJobDeadLetterListResults(jobs)
 	return jobs, nil
 }
 

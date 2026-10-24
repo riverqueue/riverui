@@ -49,7 +49,7 @@ SELECT coalesce(json_agg(json_build_object(
     'kind', limited.kind,
     'max_attempts', limited.max_attempts,
     'queue', limited.queue
-) ORDER BY limited.id), '[]'::json)::text AS jobs
+) ORDER BY limited.id DESC), '[]'::json)::text AS jobs
 FROM (
     SELECT id, attempt, finalized_at, kind, max_attempts, queue
     FROM /* TEMPLATE: schema */river_job_dead_letter
@@ -58,7 +58,7 @@ FROM (
       AND (NOT jsonb_exists($1::jsonb, 'priorities') OR priority IN (SELECT value::smallint FROM jsonb_array_elements_text($1::jsonb -> 'priorities')))
       AND (NOT jsonb_exists($1::jsonb, 'queues') OR queue IN (SELECT value::text FROM jsonb_array_elements_text($1::jsonb -> 'queues')))
       AND (NOT jsonb_exists($1::jsonb, 'tags') OR tags && ARRAY(SELECT jsonb_array_elements_text($1::jsonb -> 'tags'))::varchar[])
-    ORDER BY id
+    ORDER BY id DESC
     LIMIT $2::int
 ) AS limited
 `
@@ -68,9 +68,9 @@ type JobDeadLetterListParams struct {
 	Max     int32
 }
 
-// Apply the limit before aggregation so neither the database nor the browser
-// materializes the entire queue. River's common executor exposes QueryRow,
-// so return the bounded set as one JSON value.
+// Return the newest jobs first. Apply the limit before aggregation so neither
+// the database nor the browser materializes the entire queue. River's common
+// executor exposes QueryRow, so return the bounded set as one JSON value.
 func (q *Queries) JobDeadLetterList(ctx context.Context, db DBTX, arg *JobDeadLetterListParams) (string, error) {
 	row := db.QueryRow(ctx, jobDeadLetterList, arg.Filters, arg.Max)
 	var jobs string
