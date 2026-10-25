@@ -16,7 +16,7 @@ require (
 	riverqueue.com/riverpro/driver v0.32.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.32.0
 	riverqueue.com/riverpro/driver/riverprosqlite v0.32.0
-	riverqueue.com/riverui v0.21.0
+	riverqueue.com/riverui v0.22.0
 )
 
 require (
@@ -72,4 +72,4 @@ retract (
 
 // replace riverqueue.com/riverpro/driver/riverpropgxv5 => ../../riverpro/driver/riverpropgxv5
 
-replace riverqueue.com/riverui => ../
+// replace riverqueue.com/riverui => ../
