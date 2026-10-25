@@ -20,10 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Show a "Page not found" page with a link back to Jobs for unknown URLs, instead of a blank page. [PR #711](https://github.com/riverqueue/riverui/pull/711).
-- Keep a long job kind on one line in the job detail heading, with a tooltip and a copy button for the full kind. [PR #711](https://github.com/riverqueue/riverui/pull/711).
-- Cancel job search suggestion requests that a newer keystroke has replaced. [PR #711](https://github.com/riverqueue/riverui/pull/711).
-- Clear filters and pagination when switching between Jobs and Dead Letters, while preserving them when switching job states within Jobs. [PR #711](https://github.com/riverqueue/riverui/pull/711).
 - Show queues whose concurrency metadata is missing, `null`, or `{}` as having no concurrency override, matching how River Pro interprets them, and stop showing a zero concurrency config for producers that report none. [PR #704](https://github.com/riverqueue/riverui/pull/704).
 - Reject negative queue concurrency `global_limit` and `local_limit` values with a 400 error instead of storing them. [PR #704](https://github.com/riverqueue/riverui/pull/704).
 - Keep workflow diagram layouts compatible with Dagre's package exports after dependency upgrades. [PR #687](https://github.com/riverqueue/riverui/pull/687).
