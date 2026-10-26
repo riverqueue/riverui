@@ -2,6 +2,37 @@
 <html lang="en" class="h-full">
   <head>
     <meta charset="UTF-8" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      // Match next-themes before loading styles, React, or the features API.
+      (() => {
+        let theme;
+        try {
+          theme = localStorage.getItem("theme");
+        } catch {
+          // Use the system preference when storage is unavailable.
+        }
+
+        if (theme !== "light" && theme !== "dark") {
+          theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+            ? "dark"
+            : "light";
+        }
+
+        document.documentElement.classList.add(theme);
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
+    <style>
+      /* Match bg-white and dark:bg-slate-900 before Tailwind loads. */
+      html {
+        background-color: #fff;
+      }
+
+      html.dark {
+        background-color: var(--color-slate-900, oklch(20.8% 0.042 265.755));
+      }
+    </style>
     <link
       rel="icon"
       href="{{ .Base }}/favicon.ico"
