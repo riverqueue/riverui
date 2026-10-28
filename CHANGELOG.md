@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add sort order toggle (ASC/DESC) and time range filter (created after/before) to the job list dashboard. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
+- Add sort order toggle (ASC/DESC) and time range filter (created after/before) to the job list dashboard. [PR #720](https://github.com/riverqueue/riverui/pull/720).
 
 ## [v0.22.0] - 2026-10-24
 
