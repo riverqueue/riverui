@@ -10,6 +10,7 @@ import {
   defaultValues,
   jobSearchSchema,
   retainedJobSearchKeys,
+  SortOrder,
 } from "@routes/jobs/index.schema";
 import {
   cancelJobs,
@@ -62,13 +63,27 @@ export const Route = createFileRoute("/jobs/")({
     return context;
   },
   loaderDeps: ({
-    search: { limit, state, kind, queue, priority, id, tags },
+    search: {
+      createdAfter,
+      createdBefore,
+      limit,
+      state,
+      kind,
+      queue,
+      priority,
+      id,
+      sortOrder,
+      tags,
+    },
   }) => {
     return {
+      createdAfter,
+      createdBefore,
       kind,
       limit: limit || defaultValues.limit,
       priority: priority?.map((p) => parseInt(p, 10)),
       queue,
+      sortOrder,
       state,
       id,
       tags,
@@ -76,11 +91,31 @@ export const Route = createFileRoute("/jobs/")({
   },
   loader: async ({
     context: { queryClient },
-    deps: { limit, state, kind, queue, id, tags },
+    deps: {
+      createdAfter,
+      createdBefore,
+      limit,
+      state,
+      kind,
+      queue,
+      id,
+      sortOrder,
+      tags,
+    },
   }) => {
     await Promise.all([
       queryClient.ensureQueryData({
-        ...jobsQueryOptions({ limit, state, kind, queue, id, tags }),
+        ...jobsQueryOptions({
+          createdAfter,
+          createdBefore,
+          limit,
+          state,
+          kind,
+          queue,
+          id,
+          sortOrder,
+          tags,
+        }),
       }),
       queryClient.ensureQueryData(statesQueryOptions()),
     ]);
@@ -91,8 +126,18 @@ export const Route = createFileRoute("/jobs/")({
 
 export function JobsIndexComponent() {
   const navigate = Route.useNavigate();
-  const { id, limit, state, kind, queue, priority, tags } =
-    Route.useLoaderDeps();
+  const {
+    createdAfter,
+    createdBefore,
+    id,
+    limit,
+    state,
+    kind,
+    queue,
+    priority,
+    sortOrder,
+    tags,
+  } = Route.useLoaderDeps();
   const refreshSettings = useRefreshSetting();
   const refreshOptions = refreshQueryOptions(refreshSettings.intervalMs);
   const [pauseRefetches, setJobRefetchesPaused] = useState(false);
@@ -101,12 +146,15 @@ export function JobsIndexComponent() {
   const jobsQuery = useQuery(
     jobsQueryOptions(
       {
+        createdAfter,
+        createdBefore,
         id,
         limit,
         state,
         kind,
         queue,
         priority,
+        sortOrder,
         tags,
       },
       {
@@ -291,12 +339,15 @@ export function JobsIndexComponent() {
       });
       queryClient.invalidateQueries({
         queryKey: listJobsKey({
+          createdAfter,
+          createdBefore,
           limit,
           state,
           kinds: kind,
           queues: queue,
           priorities: priority,
           ids: id,
+          sortOrder,
           tags,
         }),
       });
@@ -315,12 +366,15 @@ export function JobsIndexComponent() {
       });
       await queryClient.removeQueries({
         queryKey: listJobsKey({
+          createdAfter,
+          createdBefore,
           limit,
           state,
           kinds: kind,
           queues: queue,
           priorities: priority,
           ids: id,
+          sortOrder,
           tags,
         }),
       });
@@ -332,12 +386,15 @@ export function JobsIndexComponent() {
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: listJobsKey({
+          createdAfter,
+          createdBefore,
           limit,
           state,
           kinds: kind,
           queues: queue,
           priorities: priority,
           ids: id,
+          sortOrder,
           tags,
         }),
       });
@@ -346,20 +403,73 @@ export function JobsIndexComponent() {
     successMessage: "Jobs enqueued for retry",
   });
 
+  const handleSortOrderChange = useCallback(
+    (newSortOrder: SortOrder | undefined) => {
+      navigate({
+        replace: true,
+        search: (old) =>
+          ({ ...old, sortOrder: newSortOrder }) as {
+            id?: string[];
+            kind?: string[];
+            limit: number;
+            priority?: string[];
+            queue?: string[];
+            sortOrder?: SortOrder;
+            state: JobState;
+            tags?: string[];
+          },
+      });
+    },
+    [navigate],
+  );
+
+  const handleTimeRangeChange = useCallback(
+    (
+      newCreatedAfter: string | undefined,
+      newCreatedBefore: string | undefined,
+    ) => {
+      navigate({
+        replace: true,
+        search: (old) =>
+          ({
+            ...old,
+            createdAfter: newCreatedAfter,
+            createdBefore: newCreatedBefore,
+          }) as {
+            createdAfter?: string;
+            createdBefore?: string;
+            id?: string[];
+            kind?: string[];
+            limit: number;
+            priority?: string[];
+            queue?: string[];
+            state: JobState;
+            tags?: string[];
+          },
+      });
+    },
+    [navigate],
+  );
+
   return (
     <JobList
       cancelJobs={cancelMutation.mutate}
       canShowFewer={canShowFewer}
       canShowMore={canShowMore}
+      createdAfter={createdAfter}
+      createdBefore={createdBefore}
       deleteJobs={deleteMutation.mutate}
       initialFilters={initialFilters}
       jobs={jobsQuery.data || []}
       loading={jobsQuery.isLoading}
       onFiltersChange={handleFiltersChange}
+      onSortOrderChange={handleSortOrderChange}
+      onTimeRangeChange={handleTimeRangeChange}
       retryJobs={retryMutation.mutate}
       setJobRefetchesPaused={setJobRefetchesPaused}
       showFewer={showFewer}
       showMore={showMore}
+      sortOrder={sortOrder}
       state={state}
       statesAndCounts={statesQuery.data}
     />
@@ -368,19 +478,25 @@ export function JobsIndexComponent() {
 
 const jobsQueryOptions = (
   {
+    createdAfter,
+    createdBefore,
     id,
     limit,
     state,
     kind,
     queue,
     priority,
+    sortOrder,
     tags,
   }: {
+    createdAfter?: string;
+    createdBefore?: string;
     id?: bigint[];
     kind?: string[];
     limit: number;
     priority?: number[];
     queue?: string[];
+    sortOrder?: SortOrder;
     state: JobState;
     tags?: string[];
   },
@@ -399,12 +515,15 @@ const jobsQueryOptions = (
   };
   return queryOptions({
     queryKey: listJobsKey({
+      createdAfter,
+      createdBefore,
       limit,
       state,
       kinds: kind,
       queues: queue,
       priorities: priority,
       ids: id,
+      sortOrder,
       tags,
     }),
     queryFn: listJobs,
