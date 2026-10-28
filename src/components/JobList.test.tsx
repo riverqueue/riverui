@@ -3,7 +3,14 @@ import { StatesAndCounts } from "@services/states";
 import { JobState } from "@services/types";
 import { jobMinimalFactory } from "@test/factories/job";
 import { createFeatures } from "@test/utils/features";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { type ReactNode } from "react";
 import { userEvent } from "storybook/test";
 import {
@@ -118,6 +125,51 @@ describe("JobList", () => {
       expect(within(menu).getByText(formatted)).toHaveAttribute("title");
     },
   );
+
+  it("reports sort order and time range filter changes", async () => {
+    mockUseSettings.mockReturnValue(settingsMock({}));
+    const onSortOrderChange = vi.fn();
+    const onTimeRangeChange = vi.fn();
+    const features = createFeatures({});
+
+    render(
+      <FeaturesContext.Provider value={{ features }}>
+        <JobList
+          cancelJobs={vi.fn()}
+          canShowFewer={false}
+          canShowMore={false}
+          deleteJobs={vi.fn()}
+          jobs={[]}
+          onSortOrderChange={onSortOrderChange}
+          onTimeRangeChange={onTimeRangeChange}
+          retryJobs={vi.fn()}
+          setJobRefetchesPaused={vi.fn()}
+          showFewer={vi.fn()}
+          showMore={vi.fn()}
+          sortOrder="asc"
+          state={JobState.Running}
+          statesAndCounts={undefined}
+        />
+      </FeaturesContext.Provider>,
+    );
+
+    // Running defaults to ascending, so the control offers descending next.
+    await userEvent.click(
+      screen.getByRole("button", { name: "Sort ascending" }),
+    );
+    expect(onSortOrderChange).toHaveBeenCalledWith("desc");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Filter by time range" }),
+    );
+    fireEvent.change(screen.getByLabelText("Created after"), {
+      target: { value: "2026-03-01T10:00" },
+    });
+    expect(onTimeRangeChange).toHaveBeenCalledWith(
+      new Date("2026-03-01T10:00").toISOString(),
+      undefined,
+    );
+  });
 
   it("shows job args by default", () => {
     const job = jobMinimalFactory.build({
