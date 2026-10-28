@@ -358,7 +358,7 @@ const TimeRangeFilter = ({
         type="button"
       >
         <FunnelIcon className="size-4" />
-        <span className="hidden sm:inline">Time Range</span>
+        <span className="hidden whitespace-nowrap sm:inline">Time Range</span>
         {hasFilter && (
           <button
             aria-label="Clear time range filter"
@@ -479,7 +479,9 @@ const SortOrderButton = ({
       ) : (
         <BarsArrowUpIcon className="size-4" />
       )}
-      <span className="hidden sm:inline">{isDesc ? "Newest" : "Oldest"}</span>
+      <span className="hidden whitespace-nowrap sm:inline">
+        {isDesc ? "Newest" : "Oldest"}
+      </span>
     </button>
   );
 };
