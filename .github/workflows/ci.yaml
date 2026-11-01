@@ -43,9 +43,13 @@ jobs:
         uses: actions/checkout@v7.0.1
 
       - name: Setup Go ${{ matrix.go-version }}
-        uses: actions/setup-go@v7
+        uses: ./.github/actions/setup-go-ci
         with:
+          build-cache-scope: postgres-${{ matrix.postgres-version }}-race
           go-version: ${{ matrix.go-version }}
+          # One full-suite job seeds the shared downloads; lint and release
+          # workloads must not freeze an archive with only their dependencies.
+          save-module-cache: ${{ matrix.go-version == '1.27' && matrix.postgres-version == 18 && 'true' || 'false' }}
 
       - name: Display Go version
         run: go version
@@ -101,9 +105,10 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
 
-      - uses: actions/setup-go@v7
+      - name: Set up Go for lint
+        uses: ./.github/actions/setup-go-ci
         with:
-          check-latest: true
+          check-latest: "true"
           go-version-file: "./go.mod"
 
       # ensure that there is a file in `dist` to prevent a lint error about
@@ -240,9 +245,12 @@ jobs:
         uses: actions/checkout@v7.0.1
 
       - name: Setup Go
-        uses: actions/setup-go@v7
+        uses: ./.github/actions/setup-go-ci
         with:
-          check-latest: true
+          # The binaries embed the production frontend. Refresh their build
+          # archive when its sources or build configuration change as well.
+          build-cache-extra-hash: ${{ hashFiles('src/**', 'package.json', 'package-lock.json', '*.config.*', 'tsconfig*.json', '.npmrc') }}
+          check-latest: "true"
           go-version-file: "go.mod"
 
       - name: Install Node.js
