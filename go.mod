@@ -6,12 +6,12 @@ require (
 	github.com/jackc/pgerrcode v0.0.0-20250907135507-afb5586c32a6
 	github.com/jackc/pgx/v5 v5.11.0
 	github.com/riverqueue/apiframe v0.0.0-20251229202423-2b52ce1c482e
-	github.com/riverqueue/river v0.50.0
-	github.com/riverqueue/river/riverdriver v0.50.0
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.50.0
-	github.com/riverqueue/river/riverdriver/riversqlite v0.50.0
-	github.com/riverqueue/river/rivershared v0.50.0
-	github.com/riverqueue/river/rivertype v0.50.0
+	github.com/riverqueue/river v0.51.0
+	github.com/riverqueue/river/riverdriver v0.51.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.51.0
+	github.com/riverqueue/river/riverdriver/riversqlite v0.51.0
+	github.com/riverqueue/river/rivershared v0.51.0
+	github.com/riverqueue/river/rivertype v0.51.0
 	github.com/rs/cors v1.11.1
 	github.com/samber/slog-http v1.12.1
 	github.com/stretchr/testify v1.12.1
