@@ -12,7 +12,7 @@ COPY src ./src
 RUN npx vite build
 
 # Build the Go binary, including embedded UI files:
-FROM golang:1.26.8-alpine@sha256:8ac98ca534ac3f51e1f420a1dd2c15e74c75cfa0f23f3ad27eb5d7236c349a0c AS build-go
+FROM golang:1.26.10-alpine@sha256:a2012b4a1d1f9f7e9f44e0d39b805a901e856b1dd80b4e6ee4338db547050308 AS build-go
 WORKDIR /go/src/riverui
 
 COPY go.mod go.sum ./
