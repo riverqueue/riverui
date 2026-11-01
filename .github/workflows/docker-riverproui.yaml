@@ -67,7 +67,7 @@ jobs:
           echo "commit_time=$(git show -s --format=%cI HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.ECR_ROLE_ARN }}
           aws-region: ${{ env.ECR_REGION }}
@@ -172,7 +172,7 @@ jobs:
         uses: sigstore/cosign-installer@v3
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ env.ECR_ROLE_ARN }}
           aws-region: ${{ env.ECR_REGION }}
