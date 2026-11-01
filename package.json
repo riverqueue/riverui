@@ -29,7 +29,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@chromatic-com/storybook": "^5.3.1",
+    "@chromatic-com/storybook": "^5.5.1",
     "@eslint/css": "^2.0.1",
     "@eslint/js": "^10.0.1",
     "@faker-js/faker": "^10.6.0",
@@ -72,7 +72,6 @@
     "vitest": "^5.0.5"
   },
   "overrides": {
-    "@babel/runtime": "^7.26.10",
     "@tailwindcss/typography": {
       "postcss-selector-parser": "6.1.5"
     },
