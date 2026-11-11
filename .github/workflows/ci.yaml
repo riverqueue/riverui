@@ -157,7 +157,7 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "24.21.0"
+          - "24.22.3"
       fail-fast: false
     timeout-minutes: 5
 
@@ -194,7 +194,7 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "24.21.0"
+          - "24.22.3"
       fail-fast: false
     timeout-minutes: 5
 
@@ -258,7 +258,7 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
-          node-version: "24.21.0"
+          node-version: "24.22.3"
 
       - name: Install dependencies
         run: npm ci
