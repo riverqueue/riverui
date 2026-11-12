@@ -9,10 +9,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 type JobListHarnessProps = {
   cancelJobs: (jobIDs: bigint[]) => void;
+  createdAfter?: string;
+  createdBefore?: string;
   deleteJobs: (jobIDs: bigint[]) => void;
   initialFilters?: Filter[];
   onFiltersChange?: (filters: Filter[]) => void;
+  onSortOrderChange?: (sortOrder: "asc" | "desc" | undefined) => void;
+  onTimeRangeChange?: (
+    createdAfter: string | undefined,
+    createdBefore: string | undefined,
+  ) => void;
   retryJobs: (jobIDs: bigint[]) => void;
+  sortOrder?: "asc" | "desc";
 };
 
 type NavigateOptions = {
@@ -80,21 +88,27 @@ vi.mock("@services/toast", () => ({
 }));
 
 const loaderDeps = {
+  createdAfter: "2026-01-01T00:00:00.000Z",
+  createdBefore: "2026-02-01T00:00:00.000Z",
   id: undefined,
   kind: ["email"],
   limit: 20,
   priority: [1],
   queue: ["default"],
+  sortOrder: "desc" as const,
   state: JobState.Running,
   tags: ["customer:123", "urgent"],
 };
 
 const activeJobsKey = listJobsKey({
+  createdAfter: loaderDeps.createdAfter,
+  createdBefore: loaderDeps.createdBefore,
   ids: loaderDeps.id,
   kinds: loaderDeps.kind,
   limit: loaderDeps.limit,
   priorities: loaderDeps.priority,
   queues: loaderDeps.queue,
+  sortOrder: loaderDeps.sortOrder,
   state: loaderDeps.state,
   tags: loaderDeps.tags,
 });
@@ -189,6 +203,18 @@ describe("Jobs Route Search Schema", () => {
       tags: ["customer:123", "urgent"],
     });
   });
+
+  it("validates sort order and time range parameters", () => {
+    expect(jobSearchSchema.parse({ sortOrder: "asc" }).sortOrder).toBe("asc");
+    expect(jobSearchSchema.parse({ sortOrder: "desc" }).sortOrder).toBe("desc");
+    expect(() => jobSearchSchema.parse({ sortOrder: "newest" })).toThrow();
+
+    const createdAfter = "2026-01-01T00:00:00.000Z";
+    const createdBefore = "2026-01-02T00:00:00.000Z";
+    expect(
+      jobSearchSchema.parse({ createdAfter, createdBefore }),
+    ).toMatchObject({ createdAfter, createdBefore });
+  });
 });
 
 describe("JobsIndexComponent", () => {
@@ -257,6 +283,40 @@ describe("JobsIndexComponent", () => {
       queue: undefined,
       state: JobState.Running,
       tags: undefined,
+    });
+  });
+
+  it("round trips sort order and time range into route search", async () => {
+    renderJobsIndex();
+
+    await waitFor(() => expect(mockListJobs).toHaveBeenCalled());
+    const props = latestJobListProps();
+    expect(props.createdAfter).toBe(loaderDeps.createdAfter);
+    expect(props.createdBefore).toBe(loaderDeps.createdBefore);
+    expect(props.sortOrder).toBe(loaderDeps.sortOrder);
+
+    act(() => props.onSortOrderChange?.("asc"));
+    let navigateOpts = mockNavigate.mock.calls.at(-1)?.[0] as
+      NavigateOptions | undefined;
+    expect(navigateOpts?.search({ state: JobState.Running })).toMatchObject({
+      sortOrder: "asc",
+    });
+
+    act(() => props.onSortOrderChange?.(undefined));
+    navigateOpts = mockNavigate.mock.calls.at(-1)?.[0] as
+      NavigateOptions | undefined;
+    expect(navigateOpts?.search({ state: JobState.Running })).toMatchObject({
+      sortOrder: undefined,
+    });
+
+    const createdAfter = "2026-03-01T00:00:00.000Z";
+    const createdBefore = "2026-04-01T00:00:00.000Z";
+    act(() => props.onTimeRangeChange?.(createdAfter, createdBefore));
+    navigateOpts = mockNavigate.mock.calls.at(-1)?.[0] as
+      NavigateOptions | undefined;
+    expect(navigateOpts?.search({ state: JobState.Running })).toMatchObject({
+      createdAfter,
+      createdBefore,
     });
   });
 
