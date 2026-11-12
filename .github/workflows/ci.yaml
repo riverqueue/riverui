@@ -157,7 +157,7 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "24.21.0"
+          - "24"
       fail-fast: false
     timeout-minutes: 5
 
@@ -176,6 +176,7 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
+          check-latest: true
           node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
@@ -194,7 +195,7 @@ jobs:
     strategy:
       matrix:
         node-version:
-          - "24.21.0"
+          - "24"
       fail-fast: false
     timeout-minutes: 5
 
@@ -210,6 +211,7 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
+          check-latest: true
           node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
@@ -258,7 +260,8 @@ jobs:
         with:
           cache: "npm"
           cache-dependency-path: package-lock.json
-          node-version: "24.21.0"
+          check-latest: true
+          node-version: "24"
 
       - name: Install dependencies
         run: npm ci
