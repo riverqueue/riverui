@@ -262,11 +262,18 @@ func TestProMountedEndpointResponses(t *testing.T) {
 		"dead_letter_jobs":      true, // dynamic
 		"durable_periodic_jobs": true, // dynamic
 		"has_producer_table":    true, // dynamic
+		"sequence_queries":      true,
 		"has_sequence_table":    true, // dynamic
 		"producer_queries":      true, // static
 		"workflow_queries":      true, // dynamic
 	}
 	require.Equal(t, expectedExtensions, resp.Extensions)
+
+	sequenceRecorder := httptest.NewRecorder()
+	sequenceReq := httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/pro/jobs/9223372036854775807/sequence", nil)
+	bundle.handler.ServeHTTP(sequenceRecorder, sequenceReq)
+	require.Equal(t, http.StatusNotFound, sequenceRecorder.Result().StatusCode)
+	require.Contains(t, sequenceRecorder.Body.String(), "Sequence for job")
 
 	recorder = httptest.NewRecorder()
 	req = httptest.NewRequestWithContext(

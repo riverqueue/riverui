@@ -67,6 +67,8 @@ type PgStatAllTables struct {
 
 type RiverJob struct {
 	ID          int64
+	Kind        string
+	Metadata    []byte
 	Priority    int16
 	Queue       string
 	State       RiverJobState

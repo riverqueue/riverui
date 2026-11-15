@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Show sequence wait reasons, the sequence head, and blocking jobs with links on job detail pages. Diagnostics use sequence scheduling indexes and exclude completed job history. [PR #XXX](https://github.com/riverqueue/riverui/pull/XXX).
+
 ## [v0.22.0] - 2026-10-24
 
 ### Added
