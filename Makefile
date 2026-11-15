@@ -5,7 +5,9 @@ clean:
 
 # Find each Go submodule from the top-level directory. Go commands only
 # consider the current module, so they must run separately for every module.
-submodules := $(shell find . -name 'go\.mod' -exec dirname {} \;)
+# Skip nested checkouts (like agent worktrees under `.claude`) and dependencies,
+# whose modules would otherwise be linted and tested as if they were this one's.
+submodules := $(shell find . \( -name .claude -o -name node_modules \) -prune -o -name 'go\.mod' -exec dirname {} \;)
 
 .PHONY: dev
 dev: fake_assets
