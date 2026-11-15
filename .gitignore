@@ -5,6 +5,8 @@
 .tool-versions
 /riverui
 /riverproui/riverproui
+/go.work
+/go.work.sum
 
 # Logs
 logs
