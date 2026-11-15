@@ -1,8 +1,9 @@
 import { Badge } from "@components/Badge";
 import ButtonForGroup from "@components/ButtonForGroup";
-import ConfirmationDialog from "@components/ConfirmationDialog";
 import CopyableHeadingText from "@components/CopyableHeadingText";
+import DeleteJobConfirmation from "@components/DeleteJobConfirmation";
 import JobAttempts from "@components/JobAttempts";
+import { SequenceStatusField } from "@components/JobSequenceStatus";
 import JobTimeline from "@components/JobTimeline";
 import JSONTextView from "@components/JSONTextView";
 import JSONView from "@components/JSONView";
@@ -15,6 +16,10 @@ import {
 } from "@heroicons/react/24/outline";
 import useFeature from "@hooks/use-feature";
 import { Job, JobWithKnownMetadata } from "@services/jobs";
+import {
+  type JobSequenceStatus,
+  sequenceWaitSummary,
+} from "@services/sequences";
 import { JobState } from "@services/types";
 import { Link } from "@tanstack/react-router";
 import { capitalize } from "@utils/string";
@@ -25,6 +30,8 @@ type JobDetailProps = {
   deleteFn: () => void;
   job: Job;
   retry: () => void;
+  // Set for jobs in a sequence when the server supports sequence queries.
+  sequence?: JobSequenceStatus;
 };
 
 type JobDetailViewProps = {
@@ -32,6 +39,9 @@ type JobDetailViewProps = {
   job: Job;
   // Shown under the heading, for context that applies to the whole job.
   notice?: ReactNode;
+  // Set for jobs in a sequence. Adds a Sequence details field and a reason on
+  // a pending job's wait step.
+  sequence?: JobSequenceStatus;
   title: string;
 };
 
@@ -40,6 +50,7 @@ export default function JobDetail({
   deleteFn,
   job,
   retry,
+  sequence,
 }: JobDetailProps) {
   return (
     <JobDetailView
@@ -49,9 +60,11 @@ export default function JobDetail({
           deleteFn={deleteFn}
           job={job}
           retry={retry}
+          sequence={sequence}
         />
       }
       job={job}
+      sequence={sequence}
       title="Job Details"
     />
   );
@@ -63,6 +76,7 @@ export function JobDetailView({
   actions,
   job,
   notice,
+  sequence,
   title,
 }: JobDetailViewProps) {
   const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
@@ -160,6 +174,13 @@ export function JobDetailView({
                   <RelativeTimeFormatter addSuffix time={job.createdAt} />
                 </dd>
               </div>
+              {sequence && (
+                <SequenceStatusField
+                  className="col-span-12 border-t border-slate-100 p-4 sm:col-span-6 sm:px-0 dark:border-slate-800"
+                  job={job}
+                  status={sequence}
+                />
+              )}
               {featureEnabledWorkflows &&
                 jobWithMetadata &&
                 jobWithMetadata.metadata.workflow_id && (
@@ -187,7 +208,7 @@ export function JobDetailView({
             </dl>
           </div>
 
-          <JobTimeline job={job} />
+          <JobTimeline job={job} wait={sequenceWaitSummary(job, sequence)} />
 
           <div className="col-span-1 sm:order-3 sm:col-span-2">
             <dl className="grid-cols-1 gap-x-4 border-slate-100 md:grid md:grid-cols-2 md:border-t dark:border-slate-800">
@@ -217,7 +238,13 @@ export function JobDetailView({
   );
 }
 
-function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
+function ActionButtons({
+  cancel,
+  deleteFn,
+  job,
+  retry,
+  sequence,
+}: JobDetailProps) {
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
 
   // Can only delete jobs that aren't running:
@@ -276,19 +303,16 @@ function ActionButtons({ cancel, deleteFn, job, retry }: JobDetailProps) {
           text="Delete"
         />
       </span>
-      <ConfirmationDialog
-        confirmText="Delete job"
-        description={
-          <>
-            This permanently deletes job{" "}
-            <span className="font-mono">{job.id.toString()}</span>. This action
-            cannot be undone.
-          </>
-        }
+      <DeleteJobConfirmation
+        job={job}
         onClose={() => setDeleteConfirmationOpen(false)}
-        onConfirm={confirmDelete}
+        onDelete={confirmDelete}
+        onRetry={() => {
+          setDeleteConfirmationOpen(false);
+          retry();
+        }}
         open={deleteConfirmationOpen}
-        title="Delete job?"
+        sequence={sequence}
       />
     </>
   );

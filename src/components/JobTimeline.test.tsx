@@ -44,6 +44,35 @@ const getStepNames = (): string[] => {
 };
 
 describe("JobTimeline", () => {
+  it("names and tints a pending job's wait reason", () => {
+    const job = jobFactory.pending().build();
+    const { rerender } = render(<JobTimeline job={job} />);
+    expect(
+      within(getStepItem("Wait")).getByText("Pending"),
+    ).toBeInTheDocument();
+    expect(getStepIcon("Wait")).toHaveClass("bg-slate-100");
+
+    rerender(
+      <JobTimeline
+        job={job}
+        wait={{ label: "Sequence halted", tone: "halted" }}
+      />,
+    );
+    expect(screen.getByText("Sequence halted")).toHaveClass("text-red-700");
+    expect(getStepIcon("Wait")).toHaveClass("bg-red-200");
+
+    rerender(
+      <JobTimeline
+        job={job}
+        wait={{ label: "Waiting on sequence", tone: "waiting" }}
+      />,
+    );
+    expect(screen.getByText("Waiting on sequence")).toHaveClass(
+      "text-amber-700",
+    );
+    expect(getStepIcon("Wait")).toHaveClass("bg-amber-200");
+  });
+
   it("renders snoozed jobs with a dedicated snoozed step after running", () => {
     // This fixture models a job that already ran once, then was snoozed back
     // into `scheduled`. In that state, the next retry time is known, but the
