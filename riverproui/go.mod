@@ -12,10 +12,10 @@ require (
 	github.com/riverqueue/river/rivertype v0.51.2
 	github.com/stretchr/testify v1.12.1
 	modernc.org/sqlite v1.62.0
-	riverqueue.com/riverpro v0.33.0
-	riverqueue.com/riverpro/driver v0.33.0
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.33.0
-	riverqueue.com/riverpro/driver/riverprosqlite v0.33.0
+	riverqueue.com/riverpro v0.34.0
+	riverqueue.com/riverpro/driver v0.34.0
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.34.0
+	riverqueue.com/riverpro/driver/riverprosqlite v0.34.0
 	riverqueue.com/riverui v0.22.0
 )
 
