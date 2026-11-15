@@ -22,6 +22,7 @@ describe("apiFeaturesToFeatures", () => {
       hasSequenceTable: false,
       jobListHideArgsByDefault: true,
       producerQueries: true,
+      sequenceQueries: false,
       workflowQueries: true,
     };
 
@@ -46,6 +47,7 @@ describe("apiFeaturesToFeatures", () => {
       hasSequenceTable: false,
       jobListHideArgsByDefault: false,
       producerQueries: false,
+      sequenceQueries: false,
       workflowQueries: false,
     };
 

@@ -47,6 +47,7 @@ const features: Features = {
   hasSequenceTable: false,
   jobListHideArgsByDefault: false,
   producerQueries: true,
+  sequenceQueries: false,
   workflowQueries: true,
 };
 
