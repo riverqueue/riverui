@@ -30,7 +30,7 @@ export default function SequenceDetails({
   return (
     <section
       aria-label="Sequence"
-      className="border-t border-slate-100 p-4 text-sm sm:px-0 dark:border-slate-800"
+      className="border-t border-slate-100 p-4 text-sm text-slate-700 sm:px-0 dark:border-slate-800 dark:text-slate-300"
     >
       <h2 className="mb-3 font-medium text-slate-900 dark:text-slate-100">
         Sequence
