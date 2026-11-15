@@ -4,18 +4,18 @@ go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.11.0
+	github.com/jackc/pgx/v5 v5.12.0
 	github.com/riverqueue/apiframe v0.0.0-20260908014005-b546730aa405
-	github.com/riverqueue/river v0.51.0
-	github.com/riverqueue/river/riverdriver v0.51.0
-	github.com/riverqueue/river/rivershared v0.51.0
-	github.com/riverqueue/river/rivertype v0.51.0
+	github.com/riverqueue/river v0.51.2
+	github.com/riverqueue/river/riverdriver v0.51.2
+	github.com/riverqueue/river/rivershared v0.51.2
+	github.com/riverqueue/river/rivertype v0.51.2
 	github.com/stretchr/testify v1.12.1
-	modernc.org/sqlite v1.61.0
-	riverqueue.com/riverpro v0.32.0
-	riverqueue.com/riverpro/driver v0.32.0
-	riverqueue.com/riverpro/driver/riverpropgxv5 v0.32.0
-	riverqueue.com/riverpro/driver/riverprosqlite v0.32.0
+	modernc.org/sqlite v1.61.1
+	riverqueue.com/riverpro v0.33.0
+	riverqueue.com/riverpro/driver v0.33.0
+	riverqueue.com/riverpro/driver/riverpropgxv5 v0.33.0
+	riverqueue.com/riverpro/driver/riverprosqlite v0.33.0
 	riverqueue.com/riverui v0.22.0
 )
 
@@ -36,8 +36,8 @@ require (
 	github.com/mattn/go-isatty v0.0.24 // indirect
 	github.com/ncruces/go-strftime v1.1.0 // indirect
 	github.com/remyoudompheng/bigfft v0.0.0-20230129092748-24d4a6f8daec // indirect
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.51.0 // indirect
-	github.com/riverqueue/river/riverdriver/riversqlite v0.51.0 // indirect
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.51.2 // indirect
+	github.com/riverqueue/river/riverdriver/riversqlite v0.51.2 // indirect
 	github.com/rs/cors v1.11.1 // indirect
 	github.com/samber/slog-http v1.12.1 // indirect
 	github.com/tidwall/gjson v1.20.0 // indirect
