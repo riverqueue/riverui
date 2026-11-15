@@ -9,6 +9,7 @@ export const createFeatures = (
   hasSequenceTable: false,
   jobListHideArgsByDefault: false,
   producerQueries: false,
+  sequenceQueries: false,
   workflowQueries: false,
   ...overrides,
 });
