@@ -421,16 +421,35 @@ func (*jobListEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
 }
 
 type jobListRequest struct {
-	IDs        []int64             `json:"-" validate:"omitempty,min=1,max=1000"`                                                                    // from ExtractRaw
-	Kinds      []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
-	Limit      *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
-	Priorities []int16             `json:"-" validate:"omitempty,min=0,max=10"`                                                                      // from ExtractRaw
-	Queues     []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
-	State      *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
-	Tags       []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	CreatedAfter  *time.Time          `json:"-"`                                                                                                        // from ExtractRaw
+	CreatedBefore *time.Time          `json:"-"`                                                                                                        // from ExtractRaw
+	IDs           []int64             `json:"-" validate:"omitempty,min=1,max=1000"`                                                                    // from ExtractRaw
+	Kinds         []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	Limit         *int                `json:"-" validate:"omitempty,min=0,max=1000"`                                                                    // from ExtractRaw
+	Priorities    []int16             `json:"-" validate:"omitempty,min=0,max=10"`                                                                      // from ExtractRaw
+	Queues        []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
+	SortOrder     *string             `json:"-" validate:"omitempty,oneof=asc desc"`                                                                    // from ExtractRaw
+	State         *rivertype.JobState `json:"-" validate:"omitempty,oneof=available cancelled completed discarded pending retryable running scheduled"` // from ExtractRaw
+	Tags          []string            `json:"-" validate:"omitempty,max=100"`                                                                           // from ExtractRaw
 }
 
 func (req *jobListRequest) ExtractRaw(r *http.Request) error {
+	if createdAfter := r.URL.Query().Get("created_after"); createdAfter != "" {
+		t, err := time.Parse(time.RFC3339, createdAfter)
+		if err != nil {
+			return apierror.NewBadRequestf("Invalid `created_after` timestamp: %s.", err)
+		}
+		req.CreatedAfter = &t
+	}
+
+	if createdBefore := r.URL.Query().Get("created_before"); createdBefore != "" {
+		t, err := time.Parse(time.RFC3339, createdBefore)
+		if err != nil {
+			return apierror.NewBadRequestf("Invalid `created_before` timestamp: %s.", err)
+		}
+		req.CreatedBefore = &t
+	}
+
 	if ids := r.URL.Query()["ids"]; len(ids) > 0 {
 		req.IDs = sliceutil.Map(ids, func(id string) int64 {
 			value, err := strconv.ParseInt(id, 10, 64)
@@ -464,12 +483,16 @@ func (req *jobListRequest) ExtractRaw(r *http.Request) error {
 		})
 	}
 
-	if state := r.URL.Query().Get("state"); state != "" {
-		req.State = (*rivertype.JobState)(&state)
-	}
-
 	if queues := r.URL.Query()["queues"]; len(queues) > 0 {
 		req.Queues = queues
+	}
+
+	if sortOrder := r.URL.Query().Get("sort_order"); sortOrder != "" {
+		req.SortOrder = &sortOrder
+	}
+
+	if state := r.URL.Query().Get("state"); state != "" {
+		req.State = (*rivertype.JobState)(&state)
 	}
 
 	if tags := r.URL.Query()["tags"]; len(tags) > 0 {
@@ -505,15 +528,43 @@ func (a *jobListEndpoint[TTx]) Execute(ctx context.Context, req *jobListRequest)
 			params = params.TagsAny(req.Tags...)
 		}
 
+		// Determine sort direction: use explicit request value, or fall back
+		// to a sensible default per state.
+		sortOrder := river.SortOrderAsc
+		if req.SortOrder != nil {
+			switch *req.SortOrder {
+			case "desc":
+				sortOrder = river.SortOrderDesc
+			default:
+				sortOrder = river.SortOrderAsc
+			}
+		} else {
+			// Preserve original default: finalized states sort descending.
+			if req.State != nil {
+				switch *req.State {
+				case rivertype.JobStateCancelled, rivertype.JobStateCompleted, rivertype.JobStateDiscarded:
+					sortOrder = river.SortOrderDesc
+				}
+			}
+		}
+
 		if req.State == nil {
-			params = params.States(rivertype.JobStateRunning).OrderBy(river.JobListOrderByTime, river.SortOrderAsc)
+			params = params.States(rivertype.JobStateRunning).OrderBy(river.JobListOrderByTime, sortOrder)
 		} else {
 			switch *req.State {
 			case rivertype.JobStateCancelled, rivertype.JobStateCompleted, rivertype.JobStateDiscarded:
-				params = params.States(*req.State).OrderBy(river.JobListOrderByTime, river.SortOrderDesc)
+				params = params.States(*req.State).OrderBy(river.JobListOrderByTime, sortOrder)
 			case rivertype.JobStateAvailable, rivertype.JobStateRetryable, rivertype.JobStatePending, rivertype.JobStateRunning, rivertype.JobStateScheduled:
-				params = params.States(*req.State)
+				params = params.States(*req.State).OrderBy(river.JobListOrderByTime, sortOrder)
 			}
+		}
+
+		// Time range filters on created_at.
+		if req.CreatedAfter != nil {
+			params = params.Where("created_at >= @created_after", river.NamedArgs{"created_after": *req.CreatedAfter})
+		}
+		if req.CreatedBefore != nil {
+			params = params.Where("created_at <= @created_before", river.NamedArgs{"created_before": *req.CreatedBefore})
 		}
 
 		result, err := a.Client.JobListTx(ctx, tx, params)

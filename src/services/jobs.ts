@@ -185,22 +185,28 @@ export const deleteJobs: MutationFunction<void, DeletePayload> = async ({
 export type ListJobsKey = [
   "listJobs",
   {
+    createdAfter: string | undefined;
+    createdBefore: string | undefined;
     ids: bigint[] | undefined;
     kinds: string[] | undefined;
     limit: number;
     priorities: number[] | undefined;
     queues: string[] | undefined;
+    sortOrder: "asc" | "desc" | undefined;
     state: JobState | undefined;
     tags: string[] | undefined;
   },
 ];
 
 type ListJobsFilters = {
+  createdAfter?: string;
+  createdBefore?: string;
   ids?: bigint[];
   kinds?: string[];
   limit: number;
   priorities?: number[];
   queues?: string[];
+  sortOrder?: "asc" | "desc";
   state?: JobState;
   tags?: string[];
 };
@@ -212,11 +218,14 @@ export const listJobsKey = (args: ListJobsFilters): ListJobsKey => {
   return [
     "listJobs",
     {
+      createdAfter: args.createdAfter,
+      createdBefore: args.createdBefore,
       ids: args.ids,
       kinds: args.kinds,
       limit: args.limit,
       priorities: args.priorities,
       queues: args.queues,
+      sortOrder: args.sortOrder,
       state: args.state,
       tags: args.tags,
     },
@@ -227,16 +236,33 @@ export const listJobs: QueryFunction<JobMinimal[], ListJobsKey> = async ({
   queryKey,
   signal,
 }) => {
-  const [, { ids, kinds, limit, priorities, queues, state, tags }] = queryKey;
+  const [
+    ,
+    {
+      createdAfter,
+      createdBefore,
+      ids,
+      kinds,
+      limit,
+      priorities,
+      queues,
+      sortOrder,
+      state,
+      tags,
+    },
+  ] = queryKey;
 
   // Build query params object with only defined values
   const params: Record<string, string | string[]> = {
     limit: String(limit),
   };
+  if (createdAfter) params.created_after = createdAfter;
+  if (createdBefore) params.created_before = createdBefore;
   if (ids?.length) params.ids = ids.map(String);
   if (kinds?.length) params.kinds = kinds;
   if (priorities?.length) params.priorities = priorities.map(String);
   if (queues?.length) params.queues = queues;
+  if (sortOrder) params.sort_order = sortOrder;
   if (state) params.state = state;
   if (tags?.length) params.tags = tags;
 
