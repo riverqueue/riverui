@@ -188,3 +188,18 @@ func (e *Executor) JobDeadLetterAutocomplete(ctx context.Context, params *riveru
 	slices.Sort(values)
 	return values, nil
 }
+
+func (e *Executor) JobSequenceGet(ctx context.Context, params *riveruidriver.JobSequenceGetParams) (*riveruidriver.JobSequence, error) {
+	raw, err := dbsqlc.JobSequenceGetRiver(schemaTemplateParam(ctx, params.Schema), e.dbtx, params.ID)
+	if err != nil {
+		return nil, fmt.Errorf("error inspecting job sequence: %w", err)
+	}
+	var sequence *riveruidriver.JobSequence
+	if err := json.Unmarshal([]byte(raw), &sequence); err != nil {
+		return nil, fmt.Errorf("error decoding job sequence: %w", err)
+	}
+	if sequence != nil {
+		sequence.Normalize()
+	}
+	return sequence, nil
+}

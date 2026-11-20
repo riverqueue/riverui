@@ -25,6 +25,7 @@ type JobDetailProps = {
   deleteFn: () => void;
   job: Job;
   retry: () => void;
+  sequenceDetails?: ReactNode;
 };
 
 type JobDetailViewProps = {
@@ -32,6 +33,7 @@ type JobDetailViewProps = {
   job: Job;
   // Shown under the heading, for context that applies to the whole job.
   notice?: ReactNode;
+  sequenceDetails?: ReactNode;
   title: string;
 };
 
@@ -40,6 +42,7 @@ export default function JobDetail({
   deleteFn,
   job,
   retry,
+  sequenceDetails,
 }: JobDetailProps) {
   return (
     <JobDetailView
@@ -52,6 +55,7 @@ export default function JobDetail({
         />
       }
       job={job}
+      sequenceDetails={sequenceDetails}
       title="Job Details"
     />
   );
@@ -63,6 +67,7 @@ export function JobDetailView({
   actions,
   job,
   notice,
+  sequenceDetails,
   title,
 }: JobDetailViewProps) {
   const featureEnabledWorkflows = useFeature("ENABLE_WORKFLOWS", true);
@@ -185,6 +190,7 @@ export function JobDetailView({
                   </div>
                 )}
             </dl>
+            {sequenceDetails}
           </div>
 
           <JobTimeline job={job} />

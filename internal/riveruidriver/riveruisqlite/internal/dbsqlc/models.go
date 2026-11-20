@@ -10,6 +10,8 @@ import (
 
 type RiverJob struct {
 	ID          int64
+	Kind        string
+	Metadata    string
 	Priority    int64
 	Queue       string
 	State       string
