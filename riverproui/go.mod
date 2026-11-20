@@ -4,14 +4,14 @@ go 1.26.0
 
 require (
 	github.com/google/uuid v1.6.0
-	github.com/jackc/pgx/v5 v5.12.0
+	github.com/jackc/pgx/v5 v5.13.0
 	github.com/riverqueue/apiframe v0.0.0-20260908014005-b546730aa405
 	github.com/riverqueue/river v0.51.2
 	github.com/riverqueue/river/riverdriver v0.51.2
 	github.com/riverqueue/river/rivershared v0.51.2
 	github.com/riverqueue/river/rivertype v0.51.2
 	github.com/stretchr/testify v1.12.1
-	modernc.org/sqlite v1.61.1
+	modernc.org/sqlite v1.62.0
 	riverqueue.com/riverpro v0.33.0
 	riverqueue.com/riverpro/driver v0.33.0
 	riverqueue.com/riverpro/driver/riverpropgxv5 v0.33.0
@@ -56,7 +56,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20261005182115-fad411399dd8 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20261005182115-fad411399dd8 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
-	modernc.org/libc v1.79.0 // indirect
+	modernc.org/libc v1.80.1 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.12.1 // indirect
 )
