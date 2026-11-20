@@ -2,12 +2,15 @@ import { CheckIcon } from "@heroicons/react/16/solid";
 import { ClipboardIcon } from "@heroicons/react/24/outline";
 import { toastSuccess } from "@services/toast";
 import { capitalize } from "@utils/string";
+import clsx from "clsx";
 import { useState } from "react";
 
 type CopyableHeadingTextProps = {
   // Names what is copied, in lowercase, such as "job kind".
   label: string;
   text: string;
+  // Replaces the default heading weight and color, for use in a value cell.
+  textClassName?: string;
 };
 
 // CopyableHeadingText keeps a heading on one line. Text that doesn't fit
@@ -16,6 +19,7 @@ type CopyableHeadingTextProps = {
 export default function CopyableHeadingText({
   label,
   text,
+  textClassName = "font-semibold text-slate-900 dark:text-white",
 }: CopyableHeadingTextProps) {
   const [copied, setCopied] = useState(false);
 
@@ -40,7 +44,7 @@ export default function CopyableHeadingText({
   return (
     <span className="inline-flex max-w-full items-center gap-x-2">
       <span
-        className="block min-w-0 truncate font-semibold text-slate-900 dark:text-white"
+        className={clsx("block min-w-0 truncate", textClassName)}
         title={text}
       >
         {text}

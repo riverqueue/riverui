@@ -19,6 +19,7 @@ const KNOWN_EXTENSIONS = [
   "dead_letter_jobs",
   "durable_periodic_jobs",
   "producer_queries",
+  "sequence_queries",
   "workflow_queries",
   "has_producer_table",
   "has_sequence_table",

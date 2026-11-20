@@ -22,6 +22,7 @@ import { Route as JobsJobIdRouteImport } from "./routes/jobs/$jobId"
 import { Route as PeriodicJobsIndexRouteImport } from "./routes/periodic-jobs/index"
 import { Route as QueuesIndexRouteImport } from "./routes/queues/index"
 import { Route as QueuesNameRouteImport } from "./routes/queues/$name"
+import { Route as SequencesSequenceKeyRouteImport } from "./routes/sequences/$sequenceKey"
 import { Route as WorkflowsIndexRouteImport } from "./routes/workflows/index"
 import { Route as WorkflowsWorkflowIdRouteImport } from "./routes/workflows/$workflowId"
 
@@ -90,6 +91,11 @@ const QueuesNameRoute = QueuesNameRouteImport.update({
   path: "/$name",
   getParentRoute: () => QueuesRoute,
 } as any)
+const SequencesSequenceKeyRoute = SequencesSequenceKeyRouteImport.update({
+  id: "/sequences/$sequenceKey",
+  path: "/sequences/$sequenceKey",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const WorkflowsIndexRoute = WorkflowsIndexRouteImport.update({
   id: "/workflows/",
   path: "/workflows/",
@@ -111,6 +117,7 @@ export interface FileRoutesByFullPath {
   "/dead-letter-jobs/$jobId": typeof DeadLetterJobsJobIdRoute
   "/jobs/$jobId": typeof JobsJobIdRoute
   "/queues/$name": typeof QueuesNameRoute
+  "/sequences/$sequenceKey": typeof SequencesSequenceKeyRoute
   "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
   "/dead-letter-jobs/": typeof DeadLetterJobsIndexRoute
   "/jobs/": typeof JobsIndexRoute
@@ -125,6 +132,7 @@ export interface FileRoutesByTo {
   "/dead-letter-jobs/$jobId": typeof DeadLetterJobsJobIdRoute
   "/jobs/$jobId": typeof JobsJobIdRoute
   "/queues/$name": typeof QueuesNameRoute
+  "/sequences/$sequenceKey": typeof SequencesSequenceKeyRoute
   "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
   "/dead-letter-jobs": typeof DeadLetterJobsIndexRoute
   "/jobs": typeof JobsIndexRoute
@@ -143,6 +151,7 @@ export interface FileRoutesById {
   "/dead-letter-jobs/$jobId": typeof DeadLetterJobsJobIdRoute
   "/jobs/$jobId": typeof JobsJobIdRoute
   "/queues/$name": typeof QueuesNameRoute
+  "/sequences/$sequenceKey": typeof SequencesSequenceKeyRoute
   "/workflows/$workflowId": typeof WorkflowsWorkflowIdRoute
   "/dead-letter-jobs/": typeof DeadLetterJobsIndexRoute
   "/jobs/": typeof JobsIndexRoute
@@ -162,6 +171,7 @@ export interface FileRouteTypes {
     | "/dead-letter-jobs/$jobId"
     | "/jobs/$jobId"
     | "/queues/$name"
+    | "/sequences/$sequenceKey"
     | "/workflows/$workflowId"
     | "/dead-letter-jobs/"
     | "/jobs/"
@@ -176,6 +186,7 @@ export interface FileRouteTypes {
     | "/dead-letter-jobs/$jobId"
     | "/jobs/$jobId"
     | "/queues/$name"
+    | "/sequences/$sequenceKey"
     | "/workflows/$workflowId"
     | "/dead-letter-jobs"
     | "/jobs"
@@ -193,6 +204,7 @@ export interface FileRouteTypes {
     | "/dead-letter-jobs/$jobId"
     | "/jobs/$jobId"
     | "/queues/$name"
+    | "/sequences/$sequenceKey"
     | "/workflows/$workflowId"
     | "/dead-letter-jobs/"
     | "/jobs/"
@@ -208,6 +220,7 @@ export interface RootRouteChildren {
   QueuesRoute: typeof QueuesRouteWithChildren
   SettingsRoute: typeof SettingsRoute
   AboutAboutRoute: typeof AboutAboutRoute
+  SequencesSequenceKeyRoute: typeof SequencesSequenceKeyRoute
   WorkflowsWorkflowIdRoute: typeof WorkflowsWorkflowIdRoute
   PeriodicJobsIndexRoute: typeof PeriodicJobsIndexRoute
   WorkflowsIndexRoute: typeof WorkflowsIndexRoute
@@ -306,6 +319,13 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof QueuesNameRouteImport
       parentRoute: typeof QueuesRoute
     }
+    "/sequences/$sequenceKey": {
+      id: "/sequences/$sequenceKey"
+      path: "/sequences/$sequenceKey"
+      fullPath: "/sequences/$sequenceKey"
+      preLoaderRoute: typeof SequencesSequenceKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/workflows/": {
       id: "/workflows/"
       path: "/workflows"
@@ -369,6 +389,7 @@ const rootRouteChildren: RootRouteChildren = {
   QueuesRoute: QueuesRouteWithChildren,
   SettingsRoute: SettingsRoute,
   AboutAboutRoute: AboutAboutRoute,
+  SequencesSequenceKeyRoute: SequencesSequenceKeyRoute,
   WorkflowsWorkflowIdRoute: WorkflowsWorkflowIdRoute,
   PeriodicJobsIndexRoute: PeriodicJobsIndexRoute,
   WorkflowsIndexRoute: WorkflowsIndexRoute,
