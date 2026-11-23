@@ -52,6 +52,7 @@ func createBundle() error {
 	var (
 		check           bool
 		dir             string
+		latestFromList  string
 		mod             string
 		outputDirPath   string
 		requireFrontend bool
@@ -60,6 +61,7 @@ func createBundle() error {
 	)
 	flag.BoolVar(&check, "check", false, "only check that dir's module zip would include nothing but Go source, module files, docs, and embedded frontend files")
 	flag.StringVar(&dir, "dir", "", "dir to package up")
+	flag.StringVar(&latestFromList, "latest-from-list", "", "only print the version that Go's @latest query selects from the version list in this file, one version per line: the highest release version, or the highest prerelease if there's no release version")
 	flag.StringVar(&mod, "mod", "", "module name, i.e. github.com/user/repo")
 	flag.Int64Var(&timestampInt, "timestamp", 0, "timestamp of the version")
 	flag.BoolVar(&requireFrontend, "require-frontend", false, "fail unless dir's module zip would include the built frontend: dist/index.html, the Vite manifest, every file the manifest references, and the static files in public")
@@ -67,6 +69,10 @@ func createBundle() error {
 	flag.StringVar(&versionString, "version", "", "version of the module")
 
 	flag.Parse()
+
+	if latestFromList != "" {
+		return printLatestVersion(os.Stdout, latestFromList)
+	}
 
 	if dir == "" {
 		return errors.New("dir is required")
