@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- The `riverui` and `riverproui` Go module zips include only Go source, module files, docs, and the built frontend. Repository tooling, development configuration, and test files are no longer published, and a release fails if its zip would include anything else or leave out part of the built frontend. [PR #745](https://github.com/riverqueue/riverui/pull/745).
+
 ## [v0.23.0] - 2026-11-22
 
 ### Added
@@ -59,7 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Upgrade supported Go versions to 1.26 and 1.27. [PR #665](https://github.com/riverqueue/riverpro/pull/665).
+- Upgrade supported Go versions to 1.26 and 1.27. [PR #665](https://github.com/riverqueue/riverui/pull/665).
 - Update River dependency to v0.45.0. [PR #665](https://github.com/riverqueue/riverui/pull/665).
 - Update River Pro dependency to v0.28.0. [PR #665](https://github.com/riverqueue/riverui/pull/665).
 

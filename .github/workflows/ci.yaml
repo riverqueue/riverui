@@ -132,6 +132,9 @@ jobs:
       - name: Run lint
         run: make lint
 
+      - name: Check module zips include only packaged files
+        run: make check/modzip
+
   sqlc_verify:
     name: Verify sqlc generated code
     runs-on: ubuntu-latest
@@ -186,8 +189,19 @@ jobs:
       - name: Test 🧪
         run: npm test
 
+      # Build the frontend the way releases do so that the module zip check
+      # below covers the same files a release packages.
       - name: Build 🏗️
-        run: npm exec vite build
+        run: npm exec vite build -- --sourcemap false
+
+      - name: Set up Go for module zip check
+        uses: actions/setup-go@v7
+        with:
+          cache-dependency-path: packager/go.sum
+          go-version-file: "packager/go.mod"
+
+      - name: Check module zips include the built frontend
+        run: make check/modzip MODZIP_REQUIRE_FRONTEND=true
 
   js_lint:
     name: JS Lint
