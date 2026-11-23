@@ -135,11 +135,15 @@ jobs:
 
       - name: Package module
         # if: startsWith(github.ref, 'refs/tags/')
+        #
+        # The riverui module at the repository's root embeds the built
+        # frontend, so require all of it there. riverproui embeds none.
         run: |
           packager \
             -dir ${{ inputs.module-dir }} \
             -output ${{ env.OUTPUT_DIR }} \
             -mod ${{ steps.module_info.outputs.module_name }} \
+            ${{ inputs.module-dir == '.' && '-require-frontend' || '' }} \
             -timestamp ${{ steps.extract_timestamp.outputs.timestamp }} \
             -version ${{ steps.module_info.outputs.version_number }}
 
