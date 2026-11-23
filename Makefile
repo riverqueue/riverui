@@ -9,6 +9,21 @@ clean:
 # whose modules would otherwise be linted and tested as if they were this one's.
 submodules := $(shell find . \( -name .claude -o -name node_modules \) -prune -o -name 'go\.mod' -exec dirname {} \;)
 
+released_modules := . riverproui
+
+.PHONY: check/modzip
+check/modzip: ## Check that released Go module zips include only Go source, module files, docs, and embedded frontend files
+	@set -e; \
+	export_dir="$$(mktemp -d)"; \
+	trap 'rm -rf "$$export_dir"' EXIT; \
+	tree="$$(git stash create)"; \
+	git archive "$${tree:-HEAD}" | tar -x -C "$$export_dir"; \
+	(cd "$$export_dir" && ./packager/remove-unpackaged-files.sh); \
+	cd packager; \
+	for module in $(released_modules); do \
+		go run . -check -dir "$$export_dir/$$module"; \
+	done
+
 .PHONY: dev
 dev: fake_assets
 	npm run dev

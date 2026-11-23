@@ -128,27 +128,10 @@ jobs:
           echo "version_number: ${{ steps.module_info.outputs.version_number }}"
 
       - name: Remove all undesirable files
-        # Remove all files that we don't want to end up in the final mod release .zip file, including:
-        # * node_modules
-        # * UI source files, .json, .js
-        # * UI config files for eslint, typescript, vite, etc.
-        # * .gitignore, because it messes with Go vendoring
-        run: |
-          rm -r \
-            .github \
-            .gitignore \
-            .storybook \
-            .stylelintignore \
-            .vscode \
-            eslint.config.mjs \
-            Makefile \
-            node_modules \
-            package-lock.json \
-            package.json \
-            tsconfig.json \
-            tsconfig.node.json \
-            src \
-            vite.config.ts
+        # Remove all files that we don't want to end up in the final mod
+        # release .zip file. The packager fails if anything remains besides
+        # Go source, module files, docs, and embedded frontend files.
+        run: ./packager/remove-unpackaged-files.sh
 
       - name: Package module
         # if: startsWith(github.ref, 'refs/tags/')

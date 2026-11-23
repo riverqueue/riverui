@@ -132,6 +132,9 @@ jobs:
       - name: Run lint
         run: make lint
 
+      - name: Check module zips include only packaged files
+        run: make check/modzip
+
   sqlc_verify:
     name: Verify sqlc generated code
     runs-on: ubuntu-latest
