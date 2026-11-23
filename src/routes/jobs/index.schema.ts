@@ -5,14 +5,19 @@ export const minimumLimit = 20;
 export const defaultLimit = 20;
 export const maximumLimit = 200;
 
+export type SortOrder = "asc" | "desc";
+
 // Search params kept when moving between job states. Other panes clear
 // them when they link to Jobs.
 export const retainedJobSearchKeys = [
+  "createdAfter",
+  "createdBefore",
   "id",
   "kind",
   "limit",
   "priority",
   "queue",
+  "sortOrder",
   "tags",
 ] as const;
 
@@ -23,6 +28,8 @@ export const defaultValues = {
 };
 
 export const jobSearchSchema = z.object({
+  createdAfter: z.string().optional(),
+  createdBefore: z.string().optional(),
   id: z
     .union([z.string(), z.array(z.string().min(1))])
     .optional()
@@ -59,6 +66,10 @@ export const jobSearchSchema = z.object({
     .union([z.string(), z.array(z.string().min(1))])
     .optional()
     .transform((v) => (Array.isArray(v) ? v : v ? [v] : undefined)),
+  sortOrder: z
+    .enum(["asc", "desc"])
+    .optional()
+    .transform((v) => v as SortOrder | undefined),
   state: z.nativeEnum(JobState).default(defaultValues.state),
   tags: z
     .union([z.string(), z.array(z.string().min(1))])

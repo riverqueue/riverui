@@ -14,9 +14,13 @@ import { MenuButton as HeadlessMenuButton } from "@headlessui/react";
 import { ExclamationTriangleIcon } from "@heroicons/react/20/solid";
 import {
   ArrowUturnLeftIcon,
+  BarsArrowDownIcon,
+  BarsArrowUpIcon,
   ChevronUpDownIcon,
+  FunnelIcon,
   TrashIcon,
   XCircleIcon,
+  XMarkIcon,
 } from "@heroicons/react/24/outline";
 import { useSelected } from "@hooks/use-selected";
 import { useSettings } from "@hooks/use-settings";
@@ -157,15 +161,23 @@ export type JobRowsProps = {
   cancelJobs: (jobIDs: bigint[]) => void;
   canShowFewer: boolean;
   canShowMore: boolean;
+  createdAfter?: string;
+  createdBefore?: string;
   deleteJobs: (jobIDs: bigint[]) => void;
   hideArgs: boolean;
   initialFilters?: Filter[];
   jobs: JobMinimal[];
   onFiltersChange?: (filters: Filter[]) => void;
+  onSortOrderChange?: (sortOrder: "asc" | "desc" | undefined) => void;
+  onTimeRangeChange?: (
+    createdAfter: string | undefined,
+    createdBefore: string | undefined,
+  ) => void;
   retryJobs: (jobIDs: bigint[]) => void;
   setJobRefetchesPaused: (value: boolean) => void;
   showFewer: () => void;
   showMore: () => void;
+  sortOrder?: "asc" | "desc";
   state: JobState;
 };
 
@@ -173,15 +185,23 @@ type JobListProps = {
   cancelJobs: (jobIDs: bigint[]) => void;
   canShowFewer: boolean;
   canShowMore: boolean;
+  createdAfter?: string;
+  createdBefore?: string;
   deleteJobs: (jobIDs: bigint[]) => void;
   initialFilters?: Filter[];
   jobs: JobMinimal[];
   loading?: boolean;
   onFiltersChange?: (filters: Filter[]) => void;
+  onSortOrderChange?: (sortOrder: "asc" | "desc" | undefined) => void;
+  onTimeRangeChange?: (
+    createdAfter: string | undefined,
+    createdBefore: string | undefined,
+  ) => void;
   retryJobs: (jobIDs: bigint[]) => void;
   setJobRefetchesPaused: (value: boolean) => void;
   showFewer: () => void;
   showMore: () => void;
+  sortOrder?: "asc" | "desc";
   state: JobState;
   statesAndCounts: StatesAndCounts | undefined;
 };
@@ -284,19 +304,206 @@ function JobListActionButtons({
   );
 }
 
+const formatDateTimeLocal = (isoString: string | undefined): string => {
+  if (!isoString) return "";
+  try {
+    const d = new Date(isoString);
+    // Format as YYYY-MM-DDTHH:MM for datetime-local input
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return `${year.toString()}-${month}-${day}T${hours}:${minutes}`;
+  } catch {
+    return "";
+  }
+};
+
+const dateTimeLocalToISO = (value: string): string | undefined => {
+  if (!value) return undefined;
+  try {
+    return new Date(value).toISOString();
+  } catch {
+    return undefined;
+  }
+};
+
+const TimeRangeFilter = ({
+  createdAfter,
+  createdBefore,
+  onTimeRangeChange,
+}: {
+  createdAfter?: string;
+  createdBefore?: string;
+  onTimeRangeChange?: (
+    createdAfter: string | undefined,
+    createdBefore: string | undefined,
+  ) => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const hasFilter = !!createdAfter || !!createdBefore;
+
+  return (
+    <div className="relative">
+      <button
+        aria-label="Filter by time range"
+        className={classNames(
+          "flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium",
+          hasFilter
+            ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300"
+            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
+        )}
+        onClick={() => setIsOpen(!isOpen)}
+        type="button"
+      >
+        <FunnelIcon className="size-4" />
+        <span className="hidden whitespace-nowrap sm:inline">Time Range</span>
+        {hasFilter && (
+          <button
+            aria-label="Clear time range filter"
+            className="ml-1 rounded-full p-0.5 hover:bg-indigo-200 dark:hover:bg-indigo-800"
+            onClick={(e) => {
+              e.stopPropagation();
+              onTimeRangeChange?.(undefined, undefined);
+            }}
+            type="button"
+          >
+            <XMarkIcon className="size-3" />
+          </button>
+        )}
+      </button>
+      {isOpen && (
+        <div className="absolute top-full right-0 z-50 mt-1 w-72 rounded-lg border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-700 dark:bg-slate-800">
+          <div className="space-y-3">
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400"
+                htmlFor="created-after"
+              >
+                Created after
+              </label>
+              <input
+                className="block w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                id="created-after"
+                onChange={(e) => {
+                  onTimeRangeChange?.(
+                    dateTimeLocalToISO(e.target.value),
+                    createdBefore,
+                  );
+                }}
+                type="datetime-local"
+                value={formatDateTimeLocal(createdAfter)}
+              />
+            </div>
+            <div>
+              <label
+                className="mb-1 block text-xs font-medium text-slate-600 dark:text-slate-400"
+                htmlFor="created-before"
+              >
+                Created before
+              </label>
+              <input
+                className="block w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+                id="created-before"
+                onChange={(e) => {
+                  onTimeRangeChange?.(
+                    createdAfter,
+                    dateTimeLocalToISO(e.target.value),
+                  );
+                }}
+                type="datetime-local"
+                value={formatDateTimeLocal(createdBefore)}
+              />
+            </div>
+            {hasFilter && (
+              <button
+                className="w-full rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300 dark:hover:bg-slate-600"
+                onClick={() => {
+                  onTimeRangeChange?.(undefined, undefined);
+                  setIsOpen(false);
+                }}
+                type="button"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+const SortOrderButton = ({
+  onSortOrderChange,
+  sortOrder,
+  state,
+}: {
+  onSortOrderChange?: (sortOrder: "asc" | "desc" | undefined) => void;
+  sortOrder?: "asc" | "desc";
+  state: JobState;
+}) => {
+  // Default sort direction per state (matches backend defaults)
+  const defaultIsDesc = [
+    JobState.Cancelled,
+    JobState.Completed,
+    JobState.Discarded,
+  ].includes(state);
+  const effectiveSortOrder = sortOrder ?? (defaultIsDesc ? "desc" : "asc");
+  const isDesc = effectiveSortOrder === "desc";
+  const isCustom = sortOrder !== undefined;
+
+  const toggle = () => {
+    const newOrder = isDesc ? "asc" : "desc";
+    // If toggling back to default, clear the param
+    const defaultOrder = defaultIsDesc ? "desc" : "asc";
+    onSortOrderChange?.(newOrder === defaultOrder ? undefined : newOrder);
+  };
+
+  return (
+    <button
+      aria-label={`Sort ${isDesc ? "descending" : "ascending"}`}
+      className={classNames(
+        "flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium",
+        isCustom
+          ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300"
+          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200",
+      )}
+      onClick={toggle}
+      title={`Sort by time ${isDesc ? "newest first" : "oldest first"}`}
+      type="button"
+    >
+      {isDesc ? (
+        <BarsArrowDownIcon className="size-4" />
+      ) : (
+        <BarsArrowUpIcon className="size-4" />
+      )}
+      <span className="hidden whitespace-nowrap sm:inline">
+        {isDesc ? "Newest" : "Oldest"}
+      </span>
+    </button>
+  );
+};
+
 const JobRows = ({
   cancelJobs,
   canShowFewer,
   canShowMore,
+  createdAfter,
+  createdBefore,
   deleteJobs,
   hideArgs,
   initialFilters,
   jobs,
   onFiltersChange,
+  onSortOrderChange,
+  onTimeRangeChange,
   retryJobs,
   setJobRefetchesPaused,
   showFewer,
   showMore,
+  sortOrder,
   state,
 }: JobRowsProps) => {
   const {
@@ -355,6 +562,21 @@ const JobRows = ({
             initialFilters={initialFilters}
             onFiltersChange={onFiltersChange}
           />
+
+          {selectedJobs.length === 0 && (
+            <div className="flex items-center gap-1">
+              <SortOrderButton
+                onSortOrderChange={onSortOrderChange}
+                sortOrder={sortOrder}
+                state={state}
+              />
+              <TimeRangeFilter
+                createdAfter={createdAfter}
+                createdBefore={createdBefore}
+                onTimeRangeChange={onTimeRangeChange}
+              />
+            </div>
+          )}
 
           {selectedJobs.length > 0 && (
             <JobListActionButtons
@@ -418,15 +640,20 @@ const JobList = (props: JobListProps) => {
     cancelJobs,
     canShowFewer,
     canShowMore,
+    createdAfter,
+    createdBefore,
     deleteJobs,
     initialFilters,
     jobs,
     loading = false,
     onFiltersChange,
+    onSortOrderChange,
+    onTimeRangeChange,
     retryJobs,
     setJobRefetchesPaused,
     showFewer,
     showMore,
+    sortOrder,
     state,
     statesAndCounts,
   } = props;
@@ -520,15 +747,20 @@ const JobList = (props: JobListProps) => {
           cancelJobs={cancelJobs}
           canShowFewer={canShowFewer}
           canShowMore={canShowMore}
+          createdAfter={createdAfter}
+          createdBefore={createdBefore}
           deleteJobs={deleteJobs}
           hideArgs={hideArgs}
           initialFilters={initialFilters}
           jobs={jobs}
           onFiltersChange={onFiltersChange}
+          onSortOrderChange={onSortOrderChange}
+          onTimeRangeChange={onTimeRangeChange}
           retryJobs={retryJobs}
           setJobRefetchesPaused={setJobRefetchesPaused}
           showFewer={showFewer}
           showMore={showMore}
+          sortOrder={sortOrder}
           state={state}
         />
       )}
