@@ -146,5 +146,5 @@ riverqueue.com/riverpro/driver/riverpropgxv5 v0.34.0 h1:9uDEZMBNMmcRerYdTNJwMD+d
 riverqueue.com/riverpro/driver/riverpropgxv5 v0.34.0/go.mod h1:AWYJokWdmo4XYDCc7cmUynXmVFbGIq3wIHjPwBc2OpE=
 riverqueue.com/riverpro/driver/riverprosqlite v0.34.0 h1:l4ipVIzmCrTUhAMnd2DlwmUhF3W+7+UsEmZfxG+3ZDg=
 riverqueue.com/riverpro/driver/riverprosqlite v0.34.0/go.mod h1:BvlEqN1HjrzQNwi5GncN2Er0yOfsJQS4AKBpklMZkyo=
-riverqueue.com/riverui v0.22.0 h1:g7L5TPWlnZvN1VCb5XMG9yZ/CfO4MkaI70PXq8msao0=
-riverqueue.com/riverui v0.22.0/go.mod h1:kk8BAx4yyYCMRVe3NBxvpggjPhWDQGkHMSjtRCgSLoI=
+riverqueue.com/riverui v0.23.0 h1:YPWCvfckQZJE6+MFc1NgwinEDSQUHVS8PPQDnUXV0Pc=
+riverqueue.com/riverui v0.23.0/go.mod h1:Aqjk2InfNSJcQFUfgm+FlqF3FR4+dPow1634je29Pq8=
