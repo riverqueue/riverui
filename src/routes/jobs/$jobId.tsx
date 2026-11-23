@@ -1,12 +1,24 @@
 import JobDetail from "@components/JobDetail";
 import JobNotFound from "@components/JobNotFound";
+import { useFeatures } from "@contexts/Features.hook";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
 import { useRetryJobs } from "@hooks/use-retry-jobs";
 import { cancelJobs, deleteJobs, getJob, getJobKey } from "@services/jobs";
+import {
+  getJobSequence,
+  jobSequenceKey,
+  sequenceKeyFromMetadata,
+  sequenceKeyPrefix,
+} from "@services/sequences";
 import { toastError } from "@services/toast";
 import { JobState } from "@services/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import {
   createFileRoute,
   ErrorComponent,
@@ -47,7 +59,7 @@ export const Route = createFileRoute("/jobs/$jobId")({
   component: JobComponent,
 });
 
-function JobComponent() {
+export function JobComponent() {
   const { jobId } = Route.useParams();
   const navigate = Route.useNavigate();
   const { queryOptions } = Route.useRouteContext();
@@ -62,6 +74,40 @@ function JobComponent() {
 
   const queryClient = useQueryClient();
   const jobQuery = useQuery(queryOptionsWithRefresh);
+  const { features } = useFeatures();
+  const sequenceKey = jobQuery.data
+    ? sequenceKeyFromMetadata(jobQuery.data.metadata)
+    : undefined;
+  const sequenceEnabled = features.sequenceQueries && !!sequenceKey;
+  const jobState = jobQuery.data?.state;
+  // Only a pending job's wait reason changes while the job itself doesn't, so
+  // other jobs load their sequence once per job state instead of polling it.
+  // A halting job's own state changes when it's retried, which reloads it.
+  const sequenceRefresh = refreshQueryOptions(
+    jobState === JobState.Pending ? refreshSettings.intervalMs : 0,
+  );
+  const sequenceQuery = useQuery({
+    enabled: sequenceEnabled,
+    queryFn: getJobSequence,
+    queryKey: jobSequenceKey(jobId, jobState),
+    ...sequenceRefresh,
+    // Avoid flashing the field empty while a new state's snapshot loads.
+    placeholderData: keepPreviousData,
+    staleTime: sequenceRefresh.refetchInterval === false ? Infinity : 0,
+  });
+
+  const invalidateJob = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryOptionsWithRefresh.queryKey,
+      }),
+      queryClient.invalidateQueries({ queryKey: jobSequenceKey(jobId) }),
+      // A cached sequence page shows this job too.
+      sequenceKey &&
+        queryClient.invalidateQueries({
+          queryKey: sequenceKeyPrefix(sequenceKey),
+        }),
+    ]);
 
   const cancelMutation = useMutation<void, Error, void>({
     mutationFn: async (_variables, context) =>
@@ -72,9 +118,7 @@ function JobComponent() {
         message: "Job cancelled",
         duration: 2000,
       });
-      return queryClient.invalidateQueries({
-        queryKey: queryOptionsWithRefresh.queryKey,
-      });
+      return invalidateJob();
     },
   });
 
@@ -95,11 +139,7 @@ function JobComponent() {
   });
 
   const retryMutation = useRetryJobs({
-    onSuccess: () => {
-      return queryClient.invalidateQueries({
-        queryKey: queryOptionsWithRefresh.queryKey,
-      });
-    },
+    onSuccess: invalidateJob,
     successMessage: "Job enqueued for retry",
   });
 
@@ -115,6 +155,15 @@ function JobComponent() {
       deleteFn={deleteMutation.mutate}
       job={job}
       retry={() => retryMutation.mutate([jobId])}
+      sequence={
+        sequenceEnabled && sequenceKey
+          ? {
+              error: sequenceQuery.isError,
+              jobSequence: sequenceQuery.data,
+              key: sequenceKey,
+            }
+          : undefined
+      }
     />
   );
 }

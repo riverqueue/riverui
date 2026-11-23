@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 	"time"
 
@@ -182,6 +183,15 @@ func runProHandlerRequests(t *testing.T, schema string, exec riverdriver.Executo
 	makeAPICall(t, "FeaturesGet", http.MethodGet, "/api/features", nil)
 
 	makeAPICall(t, "PeriodicJobList", http.MethodGet, "/api/pro/periodic-jobs", nil)
+
+	sequenceKey := "a/b+c="
+	sequenceMetadata := uicommontest.MustMarshalJSON(t, map[string]string{"seq_key": sequenceKey})
+	_ = testfactory.Job(ctx, t, exec, &testfactory.JobOpts{FinalizedAt: new(time.Now()), Metadata: sequenceMetadata, State: new(rivertype.JobStateCancelled)})
+	sequenceJob := testfactory.Job(ctx, t, exec, &testfactory.JobOpts{Metadata: sequenceMetadata, State: new(rivertype.JobStatePending)})
+	makeAPICall(t, "JobSequenceGet", http.MethodGet, fmt.Sprintf("/api/pro/jobs/%d/sequence", sequenceJob.ID), nil)
+	makeAPICall(t, "SequenceGet", http.MethodGet, "/api/pro/sequence?key="+url.QueryEscape(sequenceKey), nil)
+	makeAPICall(t, "SequenceJobList", http.MethodGet, "/api/pro/sequence/jobs?key="+url.QueryEscape(sequenceKey), nil)
+	makeAPICall(t, "SequenceJobListAfter", http.MethodGet, fmt.Sprintf("/api/pro/sequence/jobs?key=%s&after_id=%d&limit=1", url.QueryEscape(sequenceKey), sequenceJob.ID-1), nil)
 	makeAPICall(t, "ProducerList", http.MethodGet, "/api/pro/producers?queue_name="+queue.Name, nil)
 	makeAPICall(t, "WorkflowCancel", http.MethodPost, fmt.Sprintf("/api/pro/workflows/%s/cancel", workflowID), nil)
 	makeAPICall(t, "WorkflowGet", http.MethodGet, fmt.Sprintf("/api/pro/workflows/%s", workflowID2), nil)
@@ -264,9 +274,29 @@ func TestProMountedEndpointResponses(t *testing.T) {
 		"has_producer_table":    true, // dynamic
 		"has_sequence_table":    true, // dynamic
 		"producer_queries":      true, // static
+		"sequence_queries":      true, // dynamic
 		"workflow_queries":      true, // dynamic
 	}
 	require.Equal(t, expectedExtensions, resp.Extensions)
+
+	recorder = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/pro/jobs/9223372036854775807/sequence", nil)
+	bundle.handler.ServeHTTP(recorder, req)
+	require.Equal(t, http.StatusNotFound, recorder.Result().StatusCode)
+	require.Contains(t, recorder.Body.String(), "isn't in a sequence")
+
+	// Keys are commonly base64, so they're passed in the query string.
+	recorder = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/pro/sequence?key="+url.QueryEscape("a/b+c="), nil)
+	bundle.handler.ServeHTTP(recorder, req)
+	require.Equal(t, http.StatusOK, recorder.Result().StatusCode)
+	require.JSONEq(t, `{"blockers":[],"halted_by":null,"head":null,"key":"a/b+c=","pending_count":{"count":0,"more":false}}`, recorder.Body.String())
+
+	recorder = httptest.NewRecorder()
+	req = httptest.NewRequestWithContext(ctx, http.MethodGet, "/api/pro/sequence/jobs?key="+url.QueryEscape("a/b+c="), nil)
+	bundle.handler.ServeHTTP(recorder, req)
+	require.Equal(t, http.StatusOK, recorder.Result().StatusCode)
+	require.JSONEq(t, `{"data":[],"has_earlier":false,"has_later":false}`, recorder.Body.String())
 
 	recorder = httptest.NewRecorder()
 	req = httptest.NewRequestWithContext(

@@ -11,6 +11,7 @@ import {
   XCircleIcon,
 } from "@heroicons/react/24/solid";
 import { AttemptError, Job } from "@services/jobs";
+import { type SequenceWaitTone } from "@services/sequences";
 import { Heroicon, JobState } from "@services/types";
 import clsx from "clsx";
 import { formatDistanceStrict } from "date-fns";
@@ -188,7 +189,23 @@ const ScheduledStep = ({ job }: { job: Job }) => {
   );
 };
 
-const WaitStep = ({ job }: { job: Job }) => {
+// A pending job's wait step names what it's waiting on when that's known,
+// like its sequence, tinted by whether it needs attention.
+export type WaitSummary = { label: string; tone: SequenceWaitTone };
+
+const waitToneStatus: Record<SequenceWaitTone, StepStatus> = {
+  halted: "failed",
+  neutral: "pending",
+  waiting: "waiting",
+};
+
+const waitToneTextClasses: Record<SequenceWaitTone, string> = {
+  halted: "font-medium text-red-700 dark:text-red-400",
+  neutral: "",
+  waiting: "font-medium text-amber-700 dark:text-amber-400",
+};
+
+const WaitStep = ({ job, wait }: { job: Job; wait?: WaitSummary }) => {
   const nowSec = useTime();
   const now = useMemo(() => new Date(nowSec * 1000), [nowSec]);
   const scheduledAtInFuture = useMemo(() => job.scheduledAt >= now, [job, now]);
@@ -220,11 +237,16 @@ const WaitStep = ({ job }: { job: Job }) => {
   if (job.state === JobState.Pending) {
     return (
       <StatusStep
-        description="Pending"
         Icon={QueueListIcon}
         name="Wait"
-        status="pending"
-      />
+        status={wait ? waitToneStatus[wait.tone] : "pending"}
+      >
+        {wait ? (
+          <span className={waitToneTextClasses[wait.tone]}>{wait.label}</span>
+        ) : (
+          "Pending"
+        )}
+      </StatusStep>
     );
   }
 
@@ -435,9 +457,12 @@ const FinalizedStep = ({ job }: { job: Job }) => {
 
 type JobTimelineProps = {
   job: Job;
+  // Replaces a pending job's "Pending" wait step with a more specific reason,
+  // like a job held back by its sequence.
+  wait?: WaitSummary;
 };
 
-export default function JobTimeline({ job }: JobTimelineProps) {
+export default function JobTimeline({ job, wait }: JobTimelineProps) {
   return (
     <ol className="relative px-2 text-slate-500 sm:px-0 dark:text-slate-400">
       <StatusStep
@@ -449,7 +474,7 @@ export default function JobTimeline({ job }: JobTimelineProps) {
         <RelativeTime addSuffix={true} time={job.createdAt} />
       </StatusStep>
       <ScheduledStep job={job} />
-      <WaitStep job={job} />
+      <WaitStep job={job} wait={wait} />
       <RunningStep job={job} />
       <SnoozedStep job={job} />
       <RetryableStep job={job} />
