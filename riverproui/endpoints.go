@@ -119,6 +119,11 @@ func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error
 		return nil, err
 	}
 
+	hasSequenceDiagnostics, err := prohandler.HasSequenceDiagnostics(ctx, execTx, schema)
+	if err != nil {
+		return nil, err
+	}
+
 	hasWorkflowV2Tables, err := prohandler.HasWorkflowV2Tables(ctx, execTx, schema)
 	if err != nil {
 		return nil, err
@@ -131,6 +136,7 @@ func (e *endpoints[TTx]) Extensions(ctx context.Context) (map[string]bool, error
 		"workflow_queries":      hasWorkflowV2Tables,
 		"has_producer_table":    hasProducerTable,
 		"has_sequence_table":    hasSequenceTable,
+		"sequence_queries":      hasSequenceDiagnostics,
 	}, nil
 }
 
@@ -167,6 +173,7 @@ func (e *endpoints[TTx]) MountEndpoints(archetype *baseservice.Archetype, logger
 		apiendpoint.Mount(mux, prohandler.NewDeadLetterAutocompleteEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewDeadLetterJobGetEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewDeadLetterJobRetryEndpoint(bundle), mountOpts),
+		apiendpoint.Mount(mux, prohandler.NewJobSequenceGetEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewPeriodicJobListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewProducerListEndpoint(bundle), mountOpts),
 		apiendpoint.Mount(mux, prohandler.NewWorkflowCancelEndpoint(bundle), mountOpts),

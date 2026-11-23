@@ -44,6 +44,9 @@ type Executor interface {
 	// bytes. Only Pro endpoints call this query; it requires the dead letter
 	// table.
 	JobDeadLetterAutocomplete(ctx context.Context, params *JobDeadLetterAutocompleteParams) ([]string, error)
+	// JobSequenceGet inspects one sequence using its scheduling indexes. A nil
+	// result means the job does not exist or has no sequence key.
+	JobSequenceGet(ctx context.Context, params *JobSequenceGetParams) (*JobSequence, error)
 }
 
 const (

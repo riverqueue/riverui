@@ -38,6 +38,9 @@ COPY riverproui/ riverproui/
 
 COPY --from=build-ui /app/dist ./dist
 
+# Build both modules from this checkout, including unreleased shared UI queries.
+RUN go work init . ./riverproui
+
 # Build the riverproui binary
 WORKDIR /go/src/riverui/riverproui
 # Pass metadata from the original checkout; this partial copy is not a Git checkout.

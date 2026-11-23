@@ -60,3 +60,11 @@ func JobDeadLetterAutocompleteRiver(ctx context.Context, db RowQuerier, facet, m
 	}
 	return values, nil
 }
+
+func JobSequenceGetRiver(ctx context.Context, db RowQuerier, jobID int64) (string, error) {
+	var sequence string
+	if err := db.QueryRow(ctx, jobSequenceGet, jobID).Scan(&sequence); err != nil {
+		return "", err
+	}
+	return sequence, nil
+}

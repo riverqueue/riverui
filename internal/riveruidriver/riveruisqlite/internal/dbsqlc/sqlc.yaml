@@ -2,6 +2,7 @@ version: "2"
 sql:
   - engine: "sqlite"
     queries:
+      - sequence.sql
       - river_job.sql
       - river_job_dead_letter.sql
     schema:

@@ -1,9 +1,16 @@
 import JobDetail from "@components/JobDetail";
 import JobNotFound from "@components/JobNotFound";
+import SequenceDetails from "@components/SequenceDetails";
+import { useFeatures } from "@contexts/Features.hook";
 import { useRefreshSetting } from "@contexts/RefreshSettings.hook";
 import { refreshQueryOptions } from "@contexts/RefreshSettings.query";
 import { useRetryJobs } from "@hooks/use-retry-jobs";
 import { cancelJobs, deleteJobs, getJob, getJobKey } from "@services/jobs";
+import {
+  getJobSequence,
+  getJobSequenceKey,
+  sequenceKeyFromMetadata,
+} from "@services/sequences";
 import { toastError } from "@services/toast";
 import { JobState } from "@services/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -47,7 +54,7 @@ export const Route = createFileRoute("/jobs/$jobId")({
   component: JobComponent,
 });
 
-function JobComponent() {
+export function JobComponent() {
   const { jobId } = Route.useParams();
   const navigate = Route.useNavigate();
   const { queryOptions } = Route.useRouteContext();
@@ -62,6 +69,24 @@ function JobComponent() {
 
   const queryClient = useQueryClient();
   const jobQuery = useQuery(queryOptionsWithRefresh);
+  const { features } = useFeatures();
+  const sequenceKey =
+    jobQuery.data && sequenceKeyFromMetadata(jobQuery.data.metadata);
+  const sequenceEnabled = features.sequenceQueries && !!sequenceKey;
+  const sequenceQuery = useQuery({
+    queryKey: getJobSequenceKey(jobId),
+    queryFn: getJobSequence,
+    enabled: sequenceEnabled,
+    ...refreshQueryOptions(refreshSettings.intervalMs),
+  });
+
+  const invalidateJob = () =>
+    Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: queryOptionsWithRefresh.queryKey,
+      }),
+      queryClient.invalidateQueries({ queryKey: getJobSequenceKey(jobId) }),
+    ]);
 
   const cancelMutation = useMutation<void, Error, void>({
     mutationFn: async (_variables, context) =>
@@ -72,9 +97,7 @@ function JobComponent() {
         message: "Job cancelled",
         duration: 2000,
       });
-      return queryClient.invalidateQueries({
-        queryKey: queryOptionsWithRefresh.queryKey,
-      });
+      return invalidateJob();
     },
   });
 
@@ -96,9 +119,7 @@ function JobComponent() {
 
   const retryMutation = useRetryJobs({
     onSuccess: () => {
-      return queryClient.invalidateQueries({
-        queryKey: queryOptionsWithRefresh.queryKey,
-      });
+      return invalidateJob();
     },
     successMessage: "Job enqueued for retry",
   });
@@ -115,6 +136,15 @@ function JobComponent() {
       deleteFn={deleteMutation.mutate}
       job={job}
       retry={() => retryMutation.mutate([jobId])}
+      sequenceDetails={
+        sequenceEnabled && sequenceKey ? (
+          <SequenceDetails
+            error={sequenceQuery.isError}
+            sequence={sequenceQuery.data}
+            sequenceKey={sequenceKey}
+          />
+        ) : undefined
+      }
     />
   );
 }

@@ -3,6 +3,8 @@
 -- table definition if future UI queries need additional columns.
 CREATE TABLE river_job (
     id integer PRIMARY KEY,
+    kind text NOT NULL DEFAULT '',
+    metadata text NOT NULL DEFAULT '{}',
     priority integer NOT NULL DEFAULT 1,
     queue text NOT NULL DEFAULT 'default',
     state text NOT NULL DEFAULT 'available',

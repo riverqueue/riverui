@@ -25,6 +25,7 @@ func Exercise(
 ) {
 	t.Helper()
 
+	exerciseJobSequenceGet(ctx, t, driver, executorWithTx)
 	exerciseGetExecutor(ctx, t, driver, executorWithTx)
 	exerciseJobCountByAllStatesCapped(ctx, t, driver, executorWithTx)
 	exerciseJobCountEstimate(ctx, t, databaseName, driver, executorWithTx)

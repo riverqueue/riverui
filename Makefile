@@ -9,6 +9,12 @@ clean:
 # whose modules would otherwise be linted and tested as if they were this one's.
 submodules := $(shell find . \( -name .claude -o -name node_modules \) -prune -o -name 'go\.mod' -exec dirname {} \;)
 
+# Tests and lint must see changes in sibling modules before they're released.
+# Keep this local to the checkout so published modules remain go-installable.
+.PHONY: workspace
+workspace:
+	@if [ -z "$$(go env GOWORK)" ]; then go work init $(submodules); fi
+
 .PHONY: dev
 dev: fake_assets
 	npm run dev
@@ -48,21 +54,21 @@ docker-db/down:
 # produce the best/most comprehensible output by far (e.g. compared to a shell
 # loop).
 .PHONY: lint
-lint:: ## Run linter (golangci-lint) for all submodules
+lint:: workspace ## Run linter (golangci-lint) for all submodules
 define lint-target
     lint:: ; cd $1 && golangci-lint run --fix
 endef
 $(foreach mod,$(submodules),$(eval $(call lint-target,$(mod))))
 
 .PHONY: test
-test:: ## Run test suite for all submodules
+test:: workspace ## Run test suite for all submodules
 define test-target
     test:: ; cd $1 && go test ./... -timeout 2m
 endef
 $(foreach mod,$(submodules),$(eval $(call test-target,$(mod))))
 
 .PHONY: test/race
-test/race:: ## Run test suite for all submodules with race detector
+test/race:: workspace ## Run test suite for all submodules with race detector
 define test-race-target
     test/race:: ; cd $1 && go test ./... -race -timeout 2m
 endef

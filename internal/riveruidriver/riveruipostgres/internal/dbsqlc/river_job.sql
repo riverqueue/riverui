@@ -14,6 +14,8 @@ CREATE TYPE river_job_state AS ENUM(
 -- table definition if future UI queries need additional columns.
 CREATE TABLE river_job (
     id bigserial PRIMARY KEY,
+    kind text NOT NULL DEFAULT '',
+    metadata jsonb NOT NULL DEFAULT '{}',
     priority smallint NOT NULL DEFAULT 1,
     queue text NOT NULL DEFAULT 'default',
     state river_job_state NOT NULL DEFAULT 'available',

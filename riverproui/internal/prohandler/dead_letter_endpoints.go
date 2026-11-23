@@ -95,10 +95,10 @@ type deadLetterJobListEndpoint[TTx any] struct {
 }
 
 func NewDeadLetterJobListEndpoint[TTx any](bundle ProAPIBundle[TTx]) *deadLetterJobListEndpoint[TTx] {
-	return &deadLetterJobListEndpoint[TTx]{ProAPIBundle: bundle, uiDriver: deadLetterUIDriver(bundle.Driver.DatabaseName())}
+	return &deadLetterJobListEndpoint[TTx]{ProAPIBundle: bundle, uiDriver: uiDriverForDatabase(bundle.Driver.DatabaseName())}
 }
 
-func deadLetterUIDriver(databaseName string) riveruidriver.Driver {
+func uiDriverForDatabase(databaseName string) riveruidriver.Driver {
 	var uiDriver riveruidriver.Driver
 	switch databaseName {
 	case riverdriver.DatabaseNamePostgres:
@@ -274,7 +274,7 @@ type deadLetterAutocompleteEndpoint[TTx any] struct {
 }
 
 func NewDeadLetterAutocompleteEndpoint[TTx any](bundle ProAPIBundle[TTx]) *deadLetterAutocompleteEndpoint[TTx] {
-	return &deadLetterAutocompleteEndpoint[TTx]{ProAPIBundle: bundle, uiDriver: deadLetterUIDriver(bundle.Driver.DatabaseName())}
+	return &deadLetterAutocompleteEndpoint[TTx]{ProAPIBundle: bundle, uiDriver: uiDriverForDatabase(bundle.Driver.DatabaseName())}
 }
 
 func (*deadLetterAutocompleteEndpoint[TTx]) Meta() *apiendpoint.EndpointMeta {
