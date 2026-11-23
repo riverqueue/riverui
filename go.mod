@@ -52,4 +52,5 @@ require (
 retract (
 	v0.12.1 // Improper release process, not fully usable
 	v0.12.0 // Improper release process, not fully usable
+	v0.5.0-pre1 // Published without the public directory it embeds, does not build
 )
