@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [v0.23.0] - 2026-11-22
+
 ### Added
 
 - River Pro sequence jobs show where they stand in their sequence on the job page. A pending job says whether it's up next, waiting on another job, or halted by a cancelled or discarded job, with a link to that job, and its timeline's wait step is tinted to match. A cancelled or discarded job that halted its sequence says which jobs wait behind it. A new sequence page lists every job in a sequence in run order, highlights the job that halted it with Retry and Delete in place, and marks any running or retrying job blocking it. Deleting a job that halted its sequence now warns how many jobs will run without it and offers Retry instead. [PR #740](https://github.com/riverqueue/riverui/pull/740).
+
+### Changed
+
+- Upgrade River to v0.51.2. [PR #738](https://github.com/riverqueue/riverui/pull/738).
+- River Pro UI now requires River Pro v0.34.0, which adds the sequence inspection APIs. [PR #740](https://github.com/riverqueue/riverui/pull/740).
+
+### Fixed
+
+- Apply the saved or system theme before the app loads, so dark mode no longer flashes a white page on startup. [PR #719](https://github.com/riverqueue/riverui/pull/719).
 
 ## [v0.22.0] - 2026-10-24
 
