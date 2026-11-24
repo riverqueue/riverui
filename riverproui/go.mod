@@ -62,6 +62,8 @@ require (
 )
 
 retract (
+	v0.13.0 // Published with a replace directive, so go install refuses to build it
+	v0.12.2 // Published with a replace directive, so go install refuses to build it
 	v0.12.1 // Improper release process, not fully usable
 	v0.12.0 // Improper release process, not fully usable
 )
