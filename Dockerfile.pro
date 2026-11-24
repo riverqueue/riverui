@@ -1,5 +1,10 @@
 # syntax=docker/dockerfile:1
 
+# A release commit's riverproui requires a riverui version that's published
+# only once the commit is tagged. CI packages it with
+# packager/build-candidate-proxy.sh and passes it in place of this empty stage.
+FROM scratch AS candidate-proxy
+
 FROM node:24.21.0-alpine@sha256:ebfe2f90462722a7a4de65e91990e97fe0d401c70e0e762c5b53302f905ec1c1 AS build-ui
 WORKDIR /app
 COPY .npmrc package.json package-lock.json ./
@@ -22,8 +27,9 @@ RUN go mod download
 # Download riverproui module dependencies with secret
 COPY riverproui/go.mod riverproui/go.sum ./riverproui/
 WORKDIR /go/src/riverui/riverproui
-RUN --mount=type=secret,id=riverpro_credential,dst=/etc/secrets/riverpro_credential \
-  sh -c 'GOPROXY=https://proxy.golang.org,https://u:$(cat /etc/secrets/riverpro_credential)@riverqueue.com/goproxy,direct \
+RUN --mount=type=bind,from=candidate-proxy,target=/candidate-proxy \
+  --mount=type=secret,id=riverpro_credential,dst=/etc/secrets/riverpro_credential \
+  sh -c 'GOPROXY=file:///candidate-proxy,https://proxy.golang.org,https://u:$(cat /etc/secrets/riverpro_credential)@riverqueue.com/goproxy,direct \
   go mod download'
 
 # Return to main directory and copy Go files without copying the ui dir:

@@ -80,11 +80,67 @@ jobs:
       - name: Test
         run: make test/race SKIP_SUBMODULES=./riverproui
 
+  # A release commit's riverproui requires a riverui version that's published
+  # only once the commit is tagged. Package it from this commit into a module
+  # proxy for the River Pro UI job. Packaging runs npm, so this job has no
+  # secrets.
+  riverui_candidate:
+    name: Package riverui candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      unpublished: ${{ steps.check.outputs.unpublished }}
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          cache: false
+          go-version-file: packager/go.mod
+
+      # The script makes the same check. It's repeated here so that ordinary
+      # commits skip Node.js.
+      - name: Check for an unpublished riverui requirement
+        id: check
+        run: |
+          version="$(awk '$1 == "riverqueue.com/riverui" { print $2 }' riverproui/go.mod)"
+          GOPROXY=direct GOSUMDB=off go list -m "riverqueue.com/riverui@$version" || echo "unpublished=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install Node.js
+        if: steps.check.outputs.unpublished == 'true'
+        uses: actions/setup-node@v7
+        with:
+          check-latest: true
+          node-version: "24"
+
+      - name: Package riverui
+        if: steps.check.outputs.unpublished == 'true'
+        run: ./packager/build-candidate-proxy.sh "$RUNNER_TEMP/candidate-proxy"
+
+      - name: Upload riverui candidate
+        if: steps.check.outputs.unpublished == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: riverui-candidate
+          path: ${{ runner.temp }}/candidate-proxy
+
   # Downloads River Pro modules with the River Pro credential, so it only
   # restores caches. Saving would put River Pro modules into caches shared
   # with other workflow runs.
   riverproui:
     name: River Pro UI build, test, and lint
+    needs: riverui_candidate
+    # Run even if the candidate job failed. A skipped job would satisfy this
+    # required check; without the candidate, a release commit fails below.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
@@ -120,9 +176,19 @@ jobs:
           go-version: "1.26"
           save-build-cache: "false"
 
+      - name: Download riverui candidate
+        if: needs.riverui_candidate.outputs.unpublished == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: riverui-candidate
+          path: ${{ runner.temp }}/candidate-proxy
+
+      # The download verifies the candidate against riverproui's go.sum before
+      # any of its code builds, so a go.sum that doesn't match this commit's
+      # riverui fails here. Later steps use the downloaded modules.
       - name: Install River Pro UI dependencies
         working-directory: ./riverproui
-        run: go mod download
+        run: GOPROXY="file://$RUNNER_TEMP/candidate-proxy,$GOPROXY" go mod download
 
       - name: Install River Pro CLI
         run: go install riverqueue.com/riverpro/cmd/riverpro@latest

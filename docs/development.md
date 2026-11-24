@@ -79,7 +79,11 @@ $ npm run build
 
 ## Releasing a new version
 
-1. Fetch changes to the repo and any new tags. Export `VERSION` by incrementing the last tag:
+The `riverui` module and the `riverproui` submodule release from one commit. In that commit `riverproui`'s `go.mod` requires the `riverui` version being released, and its `go.sum` holds the hash of a `riverui` zip that's published only once the commit is tagged. Module zips are reproducible, so `make release/prepare` builds the frontend and packages `riverui` locally the way the release workflow does, and writes the hash from that zip. CI packages `riverui` again from the pull request's commit and downloads `riverproui`'s dependencies through it, so a `go.sum` that doesn't match fails with a `checksum mismatch`. `make release/verify` makes the same check locally.
+
+Building the frontend needs the Node.js version that `package.json` requires.
+
+1. Fetch changes to the repo and any new tags. Export `VERSION` by incrementing the last tag, and start a branch:
 
    ```shell
    git checkout master && git pull --rebase
@@ -87,55 +91,26 @@ $ npm run build
    git checkout -b $USER-$VERSION
    ```
 
-2. Prepare a PR with the changes, updating `CHANGELOG.md` with any necessary additions at the same time. Have it reviewed and merged.
+2. Update `CHANGELOG.md`. Make sure the `replace` directive for `riverui` in `./riverproui/go.mod` is commented out, because it prevents `riverproui` from being `go install`-able. Then set `riverproui`'s `riverui` requirement to `$VERSION` and write its `go.sum`:
 
-3. Upon merge, pull down the changes, tag the main riverui module with the new version, and push the new tag:
+   ```shell
+   make release/prepare
+   ```
+
+   The `riverui` zip includes `CHANGELOG.md`, so run this after editing the changelog, and again after any later change to `riverui`'s Go code, frontend, or changelog. Until `$VERSION` is published, `go mod tidy` in `./riverproui` (and `make tidy`) can't find it.
+
+3. Prepare a PR with the changes. Have it reviewed and merged. If changes to `riverui` merge to `master` after the PR's CI ran, its result is out of date, so wait for CI on `master` before tagging.
+
+4. Upon merge, pull down the changes, check `riverproui`'s `go.sum` against the merged commit, then tag both modules and push the tags:
 
    ```shell
    git pull origin master
+   make release/verify
    git tag $VERSION
-   git push --tags
-   ```
-
-4. The build will cut a new release and create binaries automatically, but it won't have a good release message. Go the [release list](https://github.com/riverqueue/riverui/releases), find `$VERSION` and change the description to the release content in `CHANGELOG.md` (again, the build will have to finish first).
-
-### Releasing riverproui
-
-The `riverproui` submodule depends on the top level `riverui` module and in development it is customary to leave a `replace` directive in its `go.mod` so that it can be developed against the live local version. However, this `replace` directive makes it incompatible with `go install ...@latest`.
-
-As such, we must use a two-phase release for these modules:
-
-1. Release `riverui` with an initial version (i.e. all the steps above).
-
-2. Comment out `replace` directives to riverui `./riverproui/go.mod`. These were probably needed for developing the new feature, but need to be removed because they prevent the module from being `go install`-able.
-
-3. From `./riverproui`, `go get` to upgrade to the main package versions were just released (make sure you're getting `$VERSION` and not thwarted by shenanigans in Go's module proxy):
-
-   ```shell
-   cd ./riverproui
-   go get -u riverqueue.com/riverui@$VERSION
-   ```
-
-4. Run `go mod tidy`:
-
-   ```shell
-   go mod tidy
-   ```
-
-5. Start a new branch and commit changes:
-
-   ``` shell
-   git checkout -b $USER-$VERSION-pro
-   ```
-
-6. Prepare a PR with the changes. Have it reviewed and merged.
-
-7. Pull the changes back down, add a tag for `riverproui/$VERSION`, and push it to GitHub:
-
-   ```shell
-   git pull origin master
    git tag riverproui/$VERSION -m "release riverproui/$VERSION"
-   git push --tags
+   git push origin $VERSION riverproui/$VERSION
    ```
 
-   The main `$VERSION` tag and `riverproui/$VERSION` will point to different commits, and although a little odd, is tolerable.
+   Run `make release/verify` with no uncommitted changes to tracked files, because it packages them too. If it fails with a `checksum mismatch`, `riverui` changed after `make release/prepare`: don't tag, and rerun `make release/prepare` with the same version in a new PR.
+
+5. The build will cut a new release and create binaries automatically, but it won't have a good release message. Go the [release list](https://github.com/riverqueue/riverui/releases), find `$VERSION` and change the description to the release content in `CHANGELOG.md` (again, the build will have to finish first).
