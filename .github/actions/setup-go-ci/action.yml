@@ -25,6 +25,12 @@ inputs:
   go-version-file:
     description: Repository-relative go.mod or go.work file
     required: false
+  save-build-cache:
+    description: >-
+      String flag ("true" or "false"): save the build cache after the job. A
+      job with River Pro modules on disk must only restore.
+    default: "true"
+    required: false
   save-module-cache:
     description: >-
       String flag ("true" or "false"): allow a full-suite job to save module
@@ -57,8 +63,8 @@ runs:
         GO_VERSION: ${{ steps.go.outputs.go-version }}
         SOURCE_HASH: ${{ hashFiles('**/*.go', '**/*.sql', '**/testdata/**', 'public/**', 'Makefile', '.golangci.yaml', '.github/actions/setup-go-ci/**', '.github/workflows/*') }}
       run: |
-        module_cache_prefix="go-mod-v1-${RUNNER_OS}-${RUNNER_ARCH}"
-        build_cache_prefix="go-build-v1-${RUNNER_OS}-${RUNNER_ARCH}-${ImageOS:-$RUNNER_OS}-${GO_VERSION}-${BUILD_CACHE_SCOPE}"
+        module_cache_prefix="go-mod-v2-${RUNNER_OS}-${RUNNER_ARCH}"
+        build_cache_prefix="go-build-v2-${RUNNER_OS}-${RUNNER_ARCH}-${ImageOS:-$RUNNER_OS}-${GO_VERSION}-${BUILD_CACHE_SCOPE}"
 
         {
           echo "RIVERUI_GO_BUILD_CACHE=$(go env GOCACHE)"
@@ -101,7 +107,18 @@ runs:
     # Source hashes let changed jobs save their newly compiled artifacts rather
     # than repeatedly rebuilding against an immutable dependency-only archive.
     - name: Restore and save build cache
+      if: inputs.save-build-cache == 'true'
       uses: actions/cache@v6
+      with:
+        path: ${{ env.RIVERUI_GO_BUILD_CACHE }}
+        key: ${{ steps.cache-config.outputs.build-prefix }}-${{ steps.cache-config.outputs.dependency-hash }}-${{ steps.cache-config.outputs.source-hash }}
+        restore-keys: |
+          ${{ steps.cache-config.outputs.build-prefix }}-${{ steps.cache-config.outputs.dependency-hash }}-
+          ${{ steps.cache-config.outputs.build-prefix }}-
+
+    - name: Restore build cache
+      if: inputs.save-build-cache != 'true'
+      uses: actions/cache/restore@v6
       with:
         path: ${{ env.RIVERUI_GO_BUILD_CACHE }}
         key: ${{ steps.cache-config.outputs.build-prefix }}-${{ steps.cache-config.outputs.dependency-hash }}-${{ steps.cache-config.outputs.source-hash }}

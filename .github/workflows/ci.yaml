@@ -57,17 +57,74 @@ jobs:
       - name: Install dependencies
         run: go mod download
 
-      - name: Install River Pro UI dependencies
+      # This job saves caches, so it must never download River Pro modules.
+      # River Pro UI is tested in the River Pro UI job, which only restores.
+      - name: Install River CLI
+        run: go install github.com/riverqueue/river/cmd/river@$(go list -m -f '{{.Version}}' github.com/riverqueue/river)
+
+      - name: Create test DB
+        run: createdb river_test
         env:
-          GONOSUMDB: riverqueue.com/riverpro
-          GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
+          PGHOST: 127.0.0.1
+          PGUSER: postgres
+          PGPASSWORD: postgres
+
+      - name: Migrate test DB
+        run: river migrate-up --database-url "$TEST_DATABASE_URL" --line main
+
+      # ensure that there is a file in `dist` to prevent a lint error about
+      # it during CI when there is nothing there:
+      - name: touch file in dist
+        run: make fake_assets
+
+      - name: Test
+        run: make test/race SKIP_SUBMODULES=./riverproui
+
+  # Downloads River Pro modules with the River Pro credential, so it only
+  # restores caches. Saving would put River Pro modules into caches shared
+  # with other workflow runs.
+  riverproui:
+    name: River Pro UI build, test, and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GOLANGCI_LINT_VERSION: v2.13.1
+      GONOSUMDB: riverqueue.com/riverpro
+      GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
+    permissions:
+      contents: read
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Restore the build cache of the Go 1.26 and PostgreSQL 18 test job for
+      # warm open source dependencies, without saving it.
+      - name: Setup Go
+        uses: ./.github/actions/setup-go-ci
+        with:
+          build-cache-scope: postgres-18-race
+          go-version: "1.26"
+          save-build-cache: "false"
+
+      - name: Install River Pro UI dependencies
         working-directory: ./riverproui
         run: go mod download
 
       - name: Install River Pro CLI
-        env:
-          GONOSUMDB: riverqueue.com/riverpro
-          GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
         run: go install riverqueue.com/riverpro/cmd/riverpro@latest
 
       - name: Create test DB
@@ -82,20 +139,26 @@ jobs:
           riverpro migrate-up --database-url "$TEST_DATABASE_URL" --line main
           riverpro migrate-up --database-url "$TEST_DATABASE_URL" --line pro
 
-      # ensure that there is a file in `dist` to prevent a lint error about
-      # it during CI when there is nothing there:
-      - name: touch file in dist
-        run: make fake_assets
-
       - name: Test
-        run: make test/race
+        working-directory: ./riverproui
+        run: go test ./... -race -timeout 2m
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          install-only: true
+          skip-save-cache: true
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+
+      - name: Lint
+        working-directory: ./riverproui
+        run: golangci-lint run --fix
 
   golangci:
     name: Go lint
     runs-on: ubuntu-latest
     env:
       GOLANGCI_LINT_VERSION: v2.13.1
-      GOPROXY: https://proxy.golang.org,https://u:${{ secrets.RIVERPRO_GO_MOD_CREDENTIAL }}@riverqueue.com/goproxy,direct
     permissions:
       contents: read
       # allow read access to pull request. Use with `only-new-issues` option.
@@ -130,7 +193,7 @@ jobs:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
 
       - name: Run lint
-        run: make lint
+        run: make lint SKIP_SUBMODULES=./riverproui
 
       - name: Check module zips include only packaged files
         run: make check/modzip
