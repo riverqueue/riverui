@@ -7,7 +7,8 @@ clean:
 # consider the current module, so they must run separately for every module.
 # Skip nested checkouts (like agent worktrees under `.claude`) and dependencies,
 # whose modules would otherwise be linted and tested as if they were this one's.
-submodules := $(shell find . \( -name .claude -o -name node_modules \) -prune -o -name 'go\.mod' -exec dirname {} \;)
+# CI sets SKIP_SUBMODULES=./riverproui and checks River Pro UI in its own job.
+submodules := $(filter-out $(SKIP_SUBMODULES),$(shell find . \( -name .claude -o -name node_modules \) -prune -o -name 'go\.mod' -exec dirname {} \;))
 
 # `git archive` leaves out the untracked frontend build in `dist`. Set
 # MODZIP_REQUIRE_FRONTEND=true after a release build (`npm exec vite build --
