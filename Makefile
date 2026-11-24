@@ -31,6 +31,26 @@ check/modzip: ## Check that released Go module zips include only Go source, modu
 	go run . -check $(if $(filter true,$(MODZIP_REQUIRE_FRONTEND)),-require-frontend) -dir "$$export_dir"; \
 	go run . -check -dir "$$export_dir/riverproui"
 
+# Where the release targets package the riverui version that riverproui
+# requires, if it isn't published yet. The script explains why.
+CANDIDATE_PROXY ?= $(abspath $(or $(TMPDIR),/tmp)/riverui-candidate-proxy)
+
+# riverproui's riverui go.sum lines come from a `go mod tidy` against the
+# candidate proxy, after dropping the old ones so that a rerun after a change
+# replaces them.
+.PHONY: release/prepare
+release/prepare: ## Set riverproui's riverui requirement to $VERSION and write its go.sum
+	@test -n "$(VERSION)" || { echo "VERSION is required, like VERSION=v1.2.3" >&2; exit 1; }
+	cd riverproui && go mod edit -require=riverqueue.com/riverui@$(VERSION)
+	cd riverproui && grep -v '^riverqueue\.com/riverui ' go.sum > go.sum.new && mv go.sum.new go.sum
+	./packager/build-candidate-proxy.sh "$(CANDIDATE_PROXY)" go mod tidy
+
+# Run this before pushing release tags. CI makes the same check in two jobs, so
+# that the one that builds the frontend has no secrets.
+.PHONY: release/verify
+release/verify: ## Check riverproui's go.sum by building it against the riverui in this commit
+	@./packager/build-candidate-proxy.sh "$(CANDIDATE_PROXY)" go build ./...
+
 .PHONY: dev
 dev: fake_assets
 	npm run dev
