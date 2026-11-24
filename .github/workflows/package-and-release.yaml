@@ -19,13 +19,13 @@ on:
         required: true
         type: string
     secrets:
-      r2-access-key-id:
+      R2_ACCESS_KEY_ID:
         description: "Cloudflare R2 access key ID passed from caller workflow"
         required: true
-      r2-endpoint-url:
+      R2_ENDPOINT_URL:
         description: "Cloudflare R2 jurisdiction-specific endpoint URL"
         required: true
-      r2-secret-access-key:
+      R2_SECRET_ACCESS_KEY:
         description: "A secret access key passed from the caller workflow"
         required: true
 
@@ -34,25 +34,15 @@ jobs:
     name: Package
     runs-on: ubuntu-latest
     env:
-      AWS_DEFAULT_REGION: auto
-      AWS_ACCESS_KEY_ID: ${{ secrets.r2-access-key-id }}
-      AWS_ENDPOINT_URL: ${{ secrets.r2-endpoint-url }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.r2-secret-access-key }}
       OUTPUT_DIR: /tmp/mod-zip-result
+    outputs:
+      latest_version: ${{ steps.version_list.outputs.latest_version }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 1
-
-      - id: install-aws-cli
-        name: Install AWS CLI
-        uses: unfor19/install-aws-cli-action@v1
-        with:
-          version: 2.22.35
-          verbose: false
-          arch: amd64
 
       - name: Install Node.js
         uses: actions/setup-node@v7
@@ -208,7 +198,69 @@ jobs:
           ls -la ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v
           cat ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v/list
 
-      - name: Sync files to R2
+      - name: Upload packaged module
+        uses: actions/upload-artifact@v7
+        with:
+          if-no-files-found: error
+          name: module
+          path: ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v/
+
+  # Publishes what the package job built. This job runs nothing from the
+  # repository: it takes the module path and version from the workflow's
+  # inputs, and copies only that version's files and the version list.
+  publish:
+    name: Publish
+    needs: package
+    runs-on: ubuntu-latest
+    environment: release
+    env:
+      # Newer versions send checksums that R2 rejects.
+      AWS_CLI_VERSION: 2.22.35
+
+    steps:
+      - name: Install AWS CLI
         run: |
-          aws s3 cp ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v/ s3://${{ inputs.storage-bucket }}/${{ steps.module_info.outputs.module_name }}/@v/ --recursive
-          aws s3 cp s3://${{ inputs.storage-bucket }}/${{ steps.module_info.outputs.module_name }}/@v/${{ steps.version_list.outputs.latest_version }}.info s3://${{ inputs.storage-bucket }}/${{ steps.module_info.outputs.module_name }}/@latest
+          curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64-${AWS_CLI_VERSION}.zip" -o awscli.zip
+          unzip -q awscli.zip
+          sudo ./aws/install --update
+          aws --version | grep -F "aws-cli/${AWS_CLI_VERSION} "
+
+      - name: Download packaged module
+        uses: actions/download-artifact@v8
+        with:
+          name: module
+          path: module
+
+      - name: Sync files to R2
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_DEFAULT_REGION: auto
+          AWS_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          BUCKET: ${{ inputs.storage-bucket }}
+          LATEST_VERSION: ${{ needs.package.outputs.latest_version }}
+          MODULE_BASE: ${{ inputs.module-base }}
+          MODULE_DIR: ${{ inputs.module-dir }}
+          VERSION_TAG: ${{ inputs.version-tag }}
+        run: |
+          # "." is the base module; "./riverproui" is the module below it.
+          MODULE="${MODULE_BASE}${MODULE_DIR#.}"
+          # "v1.2.3" and "riverproui/v1.2.3" both give "v1.2.3".
+          VERSION="${VERSION_TAG##*/}"
+
+          for version in "$VERSION" "$LATEST_VERSION"; do
+            if ! echo "$version" | grep -Eqx 'v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?'; then
+              echo "Error: \"$version\" is not a version."
+              exit 1
+            fi
+          done
+          if ! grep -Fqx "$LATEST_VERSION" module/list; then
+            echo "Error: latest version $LATEST_VERSION is not in the version list."
+            exit 1
+          fi
+
+          for ext in info mod zip; do
+            aws s3 cp "module/${VERSION}.${ext}" "s3://${BUCKET}/${MODULE}/@v/${VERSION}.${ext}"
+          done
+          aws s3 cp module/list "s3://${BUCKET}/${MODULE}/@v/list"
+          aws s3 cp "s3://${BUCKET}/${MODULE}/@v/${LATEST_VERSION}.info" "s3://${BUCKET}/${MODULE}/@latest"
