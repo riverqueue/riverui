@@ -23,9 +23,9 @@ jobs:
     permissions:
       contents: read
     secrets:
-      r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-      r2-endpoint-url: ${{ secrets.R2_ENDPOINT_URL }}
-      r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
   release_riverproui:
     uses: ./.github/workflows/package-and-release.yaml
@@ -39,6 +39,6 @@ jobs:
     permissions:
       contents: read
     secrets:
-      r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
-      r2-endpoint-url: ${{ secrets.R2_ENDPOINT_URL }}
-      r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_ENDPOINT_URL: ${{ secrets.R2_ENDPOINT_URL }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
