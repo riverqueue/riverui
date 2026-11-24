@@ -175,9 +175,6 @@ jobs:
             VERSION_LIST="$ALL_VERSIONS"
           fi
 
-          LATEST_VERSION=$(echo "$VERSION_LIST" | tail -n 1)
-
-          echo "Latest version: $LATEST_VERSION"
           echo "All versions:"
           echo "$VERSION_LIST"
 
@@ -186,13 +183,23 @@ jobs:
             exit 1
           fi
 
+          LIST_FILE="${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v/list"
+          echo "$VERSION_LIST" > "$LIST_FILE"
+
+          # `@latest` follows Go's rule rather than the list's order: the
+          # highest release version, or the highest prerelease only when the
+          # module has no release version. A new prerelease tag doesn't
+          # become the latest version.
+          LATEST_VERSION=$(packager -latest-from-list "$LIST_FILE")
+
+          echo "Latest version: $LATEST_VERSION"
+
           if [ -z "$LATEST_VERSION" ]; then
             echo "Error: Latest version is empty."
             exit 1
           fi
 
           echo "latest_version=${LATEST_VERSION}" >> $GITHUB_OUTPUT
-          echo "$VERSION_LIST" > ${{ env.OUTPUT_DIR }}/${{ steps.module_info.outputs.module_name }}/@v/list
 
       - name: List results
         run: |
